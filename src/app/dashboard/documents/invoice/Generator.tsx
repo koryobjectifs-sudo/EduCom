@@ -1,0 +1,746 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { 
+  ArrowLeft, Printer, Save, Download, FileText, X,
+  Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, LayoutTemplate,
+  ListTodo, AlertTriangle, Trash2, Plus
+} from "lucide-react";
+
+interface InvoiceItem {
+  id: string;
+  description: string;
+  subtitle: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+const getEmptyState = () => ({
+  invoiceNumber: `FAC-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000) + 1000}`,
+  issueDate: new Date().toISOString().split('T')[0],
+  dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // +15 days
+  paymentMethod: "Orange Money",
+  status: "EN ATTENTE",
+  items: [
+    { id: "1", description: "Scolarité", subtitle: "Mensualité standard", quantity: 1, unitPrice: 45000 }
+  ] as InvoiceItem[],
+  notes: "Merci pour votre confiance. En cas de question concernant cette facture, veuillez contacter l'administration."
+});
+
+export default function InvoiceGenerator({ students, school, initialStudentId }: { students: any[], school: any, initialStudentId?: string | null }) {
+  const [selectedStudentId, setSelectedStudentId] = useState("");
+  
+  // State for document data
+  const [invoiceNumber, setInvoiceNumber] = useState(getEmptyState().invoiceNumber);
+  const [issueDate, setIssueDate] = useState(getEmptyState().issueDate);
+  const [dueDate, setDueDate] = useState(getEmptyState().dueDate);
+  const [paymentMethod, setPaymentMethod] = useState(getEmptyState().paymentMethod);
+  const [status, setStatus] = useState(getEmptyState().status);
+  const [items, setItems] = useState<InvoiceItem[]>(getEmptyState().items);
+  const [notes, setNotes] = useState(getEmptyState().notes);
+
+  // Modals state
+  const [showEditorModal, setShowEditorModal] = useState(false);
+  const [showDraftsModal, setShowDraftsModal] = useState(false);
+  const [savedDraftsList, setSavedDraftsList] = useState<any[]>([]);
+
+  const openDrafts = () => {
+    const drafts = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("draft_invoice_")) {
+        const studentId = key.replace("draft_invoice_", "");
+        const s = students.find((st) => st.id === studentId);
+        if (s) {
+          drafts.push(s);
+        }
+      }
+    }
+    setSavedDraftsList(drafts);
+    setShowDraftsModal(true);
+  };
+  
+  const deleteDraft = (studentId: string) => {
+    localStorage.removeItem(`draft_invoice_${studentId}`);
+    setSavedDraftsList(savedDraftsList.filter(s => s.id !== studentId));
+  };
+
+  // WYSIWYG options
+  const [paperFormat, setPaperFormat] = useState<"A4" | "A5">("A4");
+  const [orientation, setOrientation] = useState<"portrait" | "landscape">("portrait");
+
+  // Drafts & Unsaved changes state
+  const [pendingStudentId, setPendingStudentId] = useState<string | null>(null);
+  const [savedSnapshot, setSavedSnapshot] = useState<string>("");
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    setSavedSnapshot(JSON.stringify(getEmptyState()));
+    
+    // Auto-load draft from URL if resuming from drafts page
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const studentIdFromUrl = params.get("studentId");
+      if (studentIdFromUrl) {
+        setTimeout(() => {
+          setSelectedStudentId(studentIdFromUrl);
+          
+          const draftKey = `draft_invoice_${studentIdFromUrl}`;
+          const savedData = localStorage.getItem(draftKey);
+          if (savedData) {
+            try {
+              const parsed = JSON.parse(savedData);
+              setInvoiceNumber(parsed.invoiceNumber || getEmptyState().invoiceNumber);
+              setIssueDate(parsed.issueDate || getEmptyState().issueDate);
+              setDueDate(parsed.dueDate || getEmptyState().dueDate);
+              setPaymentMethod(parsed.paymentMethod || getEmptyState().paymentMethod);
+              setStatus(parsed.status || getEmptyState().status);
+              setItems(parsed.items || getEmptyState().items);
+              setNotes(parsed.notes || getEmptyState().notes);
+              setSavedSnapshot(savedData);
+            } catch (e) {
+              setSavedSnapshot(JSON.stringify(getEmptyState()));
+            }
+          }
+          setShowEditorModal(true);
+          window.history.replaceState({}, '', '/dashboard/documents/invoice');
+        }, 50);
+      }
+    }
+  }, []);
+
+  const currentStateStr = JSON.stringify({ invoiceNumber, issueDate, dueDate, paymentMethod, status, items, notes });
+  const hasChanges = isClient && currentStateStr !== savedSnapshot;
+
+  const applyState = (state: any) => {
+    setInvoiceNumber(state.invoiceNumber || getEmptyState().invoiceNumber);
+    setIssueDate(state.issueDate || getEmptyState().issueDate);
+    setDueDate(state.dueDate || getEmptyState().dueDate);
+    setPaymentMethod(state.paymentMethod || getEmptyState().paymentMethod);
+    setStatus(state.status || getEmptyState().status);
+    setItems(state.items || getEmptyState().items);
+    setNotes(state.notes || getEmptyState().notes);
+    
+    setSavedSnapshot(JSON.stringify({
+      invoiceNumber: state.invoiceNumber || getEmptyState().invoiceNumber,
+      issueDate: state.issueDate || getEmptyState().issueDate,
+      dueDate: state.dueDate || getEmptyState().dueDate,
+      paymentMethod: state.paymentMethod || getEmptyState().paymentMethod,
+      status: state.status || getEmptyState().status,
+      items: state.items || getEmptyState().items,
+      notes: state.notes || getEmptyState().notes
+    }));
+  };
+
+  const loadDraftOrEmpty = (studentId: string) => {
+    if (!studentId) {
+      applyState(getEmptyState());
+      return;
+    }
+    const draftStr = localStorage.getItem(`draft_invoice_${studentId}`);
+    if (draftStr) {
+      try {
+        applyState(JSON.parse(draftStr));
+      } catch (e) {
+        applyState(getEmptyState());
+      }
+    } else {
+      applyState(getEmptyState());
+    }
+  };
+
+  const saveDraft = () => {
+    if (selectedStudentId) {
+      const stateToSave = { invoiceNumber, issueDate, dueDate, paymentMethod, status, items, notes };
+      localStorage.setItem(`draft_invoice_${selectedStudentId}`, JSON.stringify(stateToSave));
+      setSavedSnapshot(JSON.stringify(stateToSave));
+    }
+  };
+
+  // Présélection depuis le profil élève (?studentId=...). On passe par
+  // handleStudentSelect pour réutiliser exactement le chemin d'une sélection
+  // manuelle : chargement du brouillon et ouverture de l'éditeur compris.
+  useEffect(() => {
+    if (initialStudentId) handleStudentSelect(initialStudentId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleStudentSelect = (newId: string) => {
+    if (newId === selectedStudentId) return;
+    
+    if (selectedStudentId && hasChanges) {
+      setPendingStudentId(newId);
+    } else {
+      setSelectedStudentId(newId);
+      loadDraftOrEmpty(newId);
+      if (newId) setShowEditorModal(true);
+    }
+  };
+
+  const confirmChangeStudent = (action: "save" | "discard") => {
+    if (action === "save") {
+      saveDraft();
+    }
+    setSelectedStudentId(pendingStudentId!);
+    loadDraftOrEmpty(pendingStudentId!);
+    if (pendingStudentId) setShowEditorModal(true);
+    setPendingStudentId(null);
+  };
+
+  const execCommand = (command: string) => {
+    document.execCommand(command, false, undefined);
+  };
+
+  const student = students.find(s => s.id === selectedStudentId);
+  const currentClass = student?.enrollments[0]?.class?.name || "Non assigné";
+
+  // Dynamic layout calculations
+  const aspect = orientation === "portrait" ? 1 / 1.414 : 1.414 / 1;
+  const maxWidth = paperFormat === "A4" 
+    ? (orientation === "portrait" ? "210mm" : "297mm") 
+    : (orientation === "portrait" ? "148mm" : "210mm");
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Math
+  const subTotal = items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
+  const total = subTotal; // simplified, no tax
+
+  return (
+    <div className="space-y-4 max-w-7xl pb-12 print:p-0 print:m-0 print:pb-0 relative">
+
+      {/* WYSIWYG Toolbar */}
+      <div className="w-full bg-white border border-gray-200 rounded-xl print:hidden shadow-sm flex flex-col relative z-20 mb-8">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50 rounded-t-xl">
+          <div className="flex items-center gap-3">
+            <Link href="/dashboard/documents" className="p-1.5 hover:bg-gray-200 rounded-md text-gray-500 mr-1" title="Retour">
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <div className="h-4 w-px bg-gray-300 mx-1"></div>
+            
+            {/* Automation Dropdown */}
+            <select 
+              value={selectedStudentId}
+              onChange={(e) => handleStudentSelect(e.target.value)}
+              className="bg-transparent border-none text-sm font-semibold text-gray-800 focus:ring-0 cursor-pointer py-1 pl-2 pr-6 hover:bg-gray-100 rounded-md"
+            >
+              <option value="">Sélectionner un élève...</option>
+              {students.map(s => (
+                <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
+              ))}
+            </select>
+
+            <div className="h-4 w-px bg-gray-300 mx-1"></div>
+
+            <button onClick={() => setShowEditorModal(true)} className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded-md text-sm text-gray-700">
+              <ListTodo className="w-4 h-4 text-blue-600" />
+              Éditeur de Facture
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={openDrafts}
+              className="flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-900 bg-white border border-gray-200 rounded px-3 py-1.5 shadow-sm hover:bg-gray-50 transition-colors"
+            >
+              <FileText className="w-3.5 h-3.5" /> Brouillons
+            </button>
+            <button 
+              onClick={saveDraft}
+              className="flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-900 bg-white border border-gray-200 rounded px-3 py-1.5 shadow-sm hover:bg-gray-50 transition-colors"
+            >
+              <Save className="w-3.5 h-3.5" /> Enregistrer {hasChanges && <span className="w-2 h-2 rounded-full bg-blue-500 ml-1"></span>}
+            </button>
+            <button onClick={handlePrint} className="flex items-center gap-1.5 text-xs font-semibold text-white bg-green-700 rounded px-3 py-1.5 shadow-sm hover:bg-green-800">
+              <Download className="w-3.5 h-3.5" /> Exporter PDF
+            </button>
+          </div>
+        </div>
+
+        {/* Text Formatting Toolbar */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-b-xl overflow-x-auto">
+          {/* Style */}
+          <div className="flex items-center gap-1 border-r border-gray-200 pr-4">
+            <button onMouseDown={(e) => { e.preventDefault(); execCommand('bold'); }} className="p-1.5 hover:bg-gray-100 rounded text-gray-700" title="Gras">
+              <Bold className="w-4 h-4" />
+            </button>
+            <button onMouseDown={(e) => { e.preventDefault(); execCommand('italic'); }} className="p-1.5 hover:bg-gray-100 rounded text-gray-700" title="Italique">
+              <Italic className="w-4 h-4" />
+            </button>
+            <button onMouseDown={(e) => { e.preventDefault(); execCommand('underline'); }} className="p-1.5 hover:bg-gray-100 rounded text-gray-700" title="Souligné">
+              <Underline className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Alignment */}
+          <div className="flex items-center gap-1 border-r border-gray-200 pr-4">
+            <button onMouseDown={(e) => { e.preventDefault(); execCommand('justifyLeft'); }} className="p-1.5 hover:bg-gray-100 rounded text-gray-700" title="Aligner à gauche">
+              <AlignLeft className="w-4 h-4" />
+            </button>
+            <button onMouseDown={(e) => { e.preventDefault(); execCommand('justifyCenter'); }} className="p-1.5 hover:bg-gray-100 rounded text-gray-700" title="Centrer">
+              <AlignCenter className="w-4 h-4" />
+            </button>
+            <button onMouseDown={(e) => { e.preventDefault(); execCommand('justifyRight'); }} className="p-1.5 hover:bg-gray-100 rounded text-gray-700" title="Aligner à droite">
+              <AlignRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Page Setup */}
+          <div className="flex items-center gap-3 text-sm pl-2">
+            <div className="flex items-center gap-1.5 hover:bg-gray-100 rounded px-2 py-1 transition-colors">
+              <FileText className="w-3.5 h-3.5 text-gray-500" />
+              <select value={paperFormat} onChange={(e) => setPaperFormat(e.target.value as any)} className="bg-transparent border-none text-xs focus:ring-0 cursor-pointer p-0 pr-4 text-gray-700 font-medium">
+                <option value="A4">A4</option>
+                <option value="A5">A5</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-1.5 hover:bg-gray-100 rounded px-2 py-1 transition-colors">
+              <LayoutTemplate className="w-3.5 h-3.5 text-gray-500" />
+              <select value={orientation} onChange={(e) => setOrientation(e.target.value as any)} className="bg-transparent border-none text-xs focus:ring-0 cursor-pointer p-0 pr-4 text-gray-700 font-medium">
+                <option value="portrait">Portrait</option>
+                <option value="landscape">Paysage</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="ml-auto flex items-center text-xs text-gray-400 font-medium italic">
+            Vous pouvez cliquer directement sur le texte du document pour le modifier.
+          </div>
+        </div>
+      </div>
+
+      {/* Action Bar below Toolbar */}
+      <div className="flex justify-end w-full max-w-5xl mx-auto mb-6 print:hidden">
+         <button onClick={() => setShowEditorModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgb(37,99,235,0.3)] hover:-translate-y-0.5 transition-all font-semibold text-sm">
+           <ListTodo className="w-4 h-4" />
+           Ouvrir l'éditeur automatique
+         </button>
+      </div>
+
+      {/* Document Area */}
+      <div className="flex flex-col items-center print:block print:static">
+          
+        {/* The Document */}
+        <div 
+          style={{ maxWidth, aspectRatio: aspect }} 
+          className="bg-white w-full p-12 shadow-sm border border-gray-200 rounded-xl flex flex-col text-sm relative print:border-none print:shadow-none print:p-0 print:max-w-none overflow-hidden z-10 transition-all duration-300"
+        >
+          {/* Subtle background watermark */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.02] pointer-events-none z-0">
+            <div className="w-[500px] h-[500px] rounded-full bg-blue-600 blur-3xl"></div>
+          </div>
+
+          <div className="relative z-10 h-full flex flex-col">
+            {/* Header */}
+            <div className="flex justify-between items-start border-b border-gray-200 pb-8 mb-8">
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-sm">
+                  <span className="text-white font-bold text-2xl">{school?.name?.charAt(0) || "E"}</span>
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight text-gray-900" contentEditable suppressContentEditableWarning>{school?.name || "—"}</h1>
+                  {/* Repli fictif retiré. La zone reste éditable : si l'adresse manque en
+                      base, l'utilisateur la saisit ici plutôt que d'imprimer
+                      une adresse inventée. */}
+                  <p className="text-sm text-gray-500 mt-1" contentEditable suppressContentEditableWarning>{school?.address || ""}</p>
+                  <p className="text-sm text-gray-500" contentEditable suppressContentEditableWarning>{[school?.email, school?.phone].filter(Boolean).join(" • ")}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <h2 className="text-3xl font-bold tracking-tight text-gray-900 uppercase">Facture</h2>
+                <p className="text-sm font-medium text-gray-500 mt-1">N° <span contentEditable suppressContentEditableWarning>{invoiceNumber}</span></p>
+                
+                {status && (
+                  <div className={`inline-block mt-3 px-3 py-1 text-xs font-bold rounded-full ${
+                    status === "PAYÉE" ? "bg-green-100 text-green-700" :
+                    status === "EN RETARD" ? "bg-red-100 text-red-700" :
+                    "bg-amber-100 text-amber-700"
+                  }`}>
+                    {status}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {student ? (
+              <>
+                {/* Info Blocks */}
+                <div className="grid grid-cols-2 gap-12 mb-12">
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Facturé à</h3>
+                    <p className="text-base font-semibold text-gray-900" contentEditable suppressContentEditableWarning>
+                      {student.parent?.firstName ? `M./Mme ${student.parent.firstName} ${student.parent.lastName}` : "Responsable Légal"}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Élève : <span className="font-medium text-gray-700">{student.firstName} {student.lastName}</span> (Classe: {currentClass})
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1" contentEditable suppressContentEditableWarning>{student.address || "Adresse non renseignée"}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Détails du document</h3>
+                    <div className="grid grid-cols-2 gap-y-2 text-sm">
+                      <span className="text-gray-500">Date de facturation :</span>
+                      <span className="font-medium text-gray-900 text-right" contentEditable suppressContentEditableWarning>
+                        {issueDate ? new Date(issueDate).toLocaleDateString("fr-FR") : ""}
+                      </span>
+                      
+                      <span className="text-gray-500">Date d'échéance :</span>
+                      <span className="font-medium text-gray-900 text-right" contentEditable suppressContentEditableWarning>
+                        {dueDate ? new Date(dueDate).toLocaleDateString("fr-FR") : ""}
+                      </span>
+                      
+                      <span className="text-gray-500">Mode de paiement :</span>
+                      <span className="font-medium text-gray-900 text-right" contentEditable suppressContentEditableWarning>{paymentMethod}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table */}
+                <div className="mb-12">
+                  <div className="bg-gray-50/50 rounded-2xl overflow-hidden border border-gray-200">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Description</th>
+                          <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Qté</th>
+                          <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Prix Unitaire</th>
+                          <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {items.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="py-6 text-center text-gray-400 text-sm italic">
+                              Aucun article ajouté. Utilisez l'éditeur pour configurer la facture.
+                            </td>
+                          </tr>
+                        )}
+                        {items.map(item => (
+                          <tr key={item.id} className="bg-white">
+                            <td className="py-4 px-6">
+                              <p className="text-sm font-semibold text-gray-900" contentEditable suppressContentEditableWarning>{item.description}</p>
+                              {item.subtitle && (
+                                <p className="text-xs text-gray-500 mt-0.5" contentEditable suppressContentEditableWarning>{item.subtitle}</p>
+                              )}
+                            </td>
+                            <td className="py-4 px-6 text-sm text-gray-500 text-center" contentEditable suppressContentEditableWarning>{item.quantity}</td>
+                            <td className="py-4 px-6 text-sm text-gray-500 text-right" contentEditable suppressContentEditableWarning>{item.unitPrice.toLocaleString('fr-FR')} FCFA</td>
+                            <td className="py-4 px-6 text-sm font-medium text-gray-900 text-right">{(item.quantity * item.unitPrice).toLocaleString('fr-FR')} FCFA</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="flex-grow"></div>
+
+                {/* Totals */}
+                <div className="flex justify-end mb-16">
+                  <div className="w-64 space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Sous-total</span>
+                      <span className="font-medium text-gray-900">{subTotal.toLocaleString('fr-FR')} FCFA</span>
+                    </div>
+                    <div className="flex justify-between text-sm border-b border-gray-200 pb-3">
+                      <span className="text-gray-500">TVA (0%)</span>
+                      <span className="font-medium text-gray-900">0 FCFA</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="text-base font-bold text-gray-900">Total à Payer</span>
+                      <span className="text-xl font-bold text-blue-600">{total.toLocaleString('fr-FR')} FCFA</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer / Stamp */}
+                <div className="flex justify-between items-end border-t border-gray-200 pt-8 mt-auto">
+                  <div className="text-xs text-gray-500 max-w-sm leading-relaxed" contentEditable suppressContentEditableWarning>
+                    {notes}
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">La Direction</p>
+                    <div className="h-16 w-32 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center mx-auto opacity-50">
+                      <span className="text-xs text-gray-400 italic">Cachet & Signature</span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="w-full h-64 flex items-center justify-center border-2 border-dashed border-gray-200 rounded-xl text-gray-400 print:hidden mt-8">
+                Sélectionnez un élève dans la barre d'outils.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Editor Modal */}
+      {showEditorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm print:hidden">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <ListTodo className="w-5 h-5 text-blue-600" />
+                Configuration de la Facture
+              </h3>
+              <button onClick={() => setShowEditorModal(false)} className="text-gray-400 hover:bg-gray-200 hover:text-gray-600 p-1.5 rounded-lg transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-6">
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Date de facturation</label>
+                  <input 
+                    type="date"
+                    value={issueDate}
+                    onChange={(e) => setIssueDate(e.target.value)}
+                    className="block w-full rounded-xl border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-600 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Date d'échéance</label>
+                  <input 
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="block w-full rounded-xl border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-600 sm:text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Mode de paiement préconisé</label>
+                  <select 
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="block w-full rounded-xl border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-600 sm:text-sm"
+                  >
+                    <option value="Espèces">Espèces</option>
+                    <option value="Chèque">Chèque</option>
+                    <option value="Virement">Virement</option>
+                    <option value="Orange Money">Orange Money</option>
+                    <option value="Wave">Wave</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Statut de la facture</label>
+                  <select 
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    className="block w-full rounded-xl border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-600 sm:text-sm"
+                  >
+                    <option value="EN ATTENTE">En attente</option>
+                    <option value="PAYÉE">Payée</option>
+                    <option value="EN RETARD">En retard</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Lignes de facturation */}
+              <div>
+                <div className="flex items-center justify-between mb-2 border-b border-gray-100 pb-2">
+                  <label className="block text-sm font-semibold text-gray-700">Articles facturés</label>
+                  <button 
+                    onClick={() => setItems([...items, { id: Math.random().toString(), description: "Nouvel article", subtitle: "", quantity: 1, unitPrice: 0 }])}
+                    className="flex items-center gap-1 text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Ajouter une ligne
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {items.map((item, index) => (
+                    <div key={item.id} className="flex items-start gap-2 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                      <div className="flex-grow grid grid-cols-12 gap-2">
+                        <div className="col-span-12 sm:col-span-6 space-y-2">
+                          <input 
+                            type="text" 
+                            value={item.description}
+                            onChange={(e) => {
+                              const newItems = [...items];
+                              newItems[index].description = e.target.value;
+                              setItems(newItems);
+                            }}
+                            placeholder="Description (ex: Scolarité)"
+                            className="block w-full rounded-lg border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-600 sm:text-sm"
+                          />
+                          <input 
+                            type="text" 
+                            value={item.subtitle}
+                            onChange={(e) => {
+                              const newItems = [...items];
+                              newItems[index].subtitle = e.target.value;
+                              setItems(newItems);
+                            }}
+                            placeholder="Sous-titre (optionnel)"
+                            className="block w-full rounded-lg border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-600 sm:text-sm text-gray-500 italic"
+                          />
+                        </div>
+                        <div className="col-span-6 sm:col-span-2">
+                          <input 
+                            type="number" 
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const newItems = [...items];
+                              newItems[index].quantity = Number(e.target.value);
+                              setItems(newItems);
+                            }}
+                            placeholder="Qté"
+                            className="block w-full rounded-lg border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-600 sm:text-sm"
+                          />
+                        </div>
+                        <div className="col-span-6 sm:col-span-4">
+                          <div className="relative">
+                            <input 
+                              type="number" 
+                              value={item.unitPrice}
+                              onChange={(e) => {
+                                const newItems = [...items];
+                                newItems[index].unitPrice = Number(e.target.value);
+                                setItems(newItems);
+                              }}
+                              placeholder="Prix Unitaire"
+                              className="block w-full rounded-lg border-0 py-1.5 pl-3 pr-10 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-600 sm:text-sm"
+                            />
+                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-xs text-gray-400">
+                              FCFA
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setItems(items.filter(i => i.id !== item.id))}
+                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg shrink-0 mt-1"
+                        title="Supprimer la ligne"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Notes de bas de page</label>
+                <textarea 
+                  rows={2}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="block w-full rounded-xl border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-600 sm:text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
+              <button onClick={() => setShowEditorModal(false)} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors shadow-sm">
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unsaved Changes Warning Modal */}
+      {pendingStudentId !== null && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm print:hidden">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Changements non enregistrés</h3>
+              <p className="text-sm text-gray-600 mb-8">
+                Vous avez des modifications en cours pour {students.find(s => s.id === selectedStudentId)?.firstName}. 
+                Voulez-vous les enregistrer dans vos brouillons avant de changer d'élève ?
+              </p>
+              
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={() => confirmChangeStudent("save")}
+                  className="w-full py-3 px-4 bg-blue-600 text-white rounded-xl font-semibold shadow-sm hover:bg-blue-700 transition-colors"
+                >
+                  Oui, enregistrer le brouillon
+                </button>
+                <button 
+                  onClick={() => confirmChangeStudent("discard")}
+                  className="w-full py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                >
+                  Non, ignorer les modifications
+                </button>
+                <button 
+                  onClick={() => setPendingStudentId(null)}
+                  className="w-full py-3 px-4 text-gray-500 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Drafts Modal */}
+      {showDraftsModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm print:hidden">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-600" />
+                Brouillons de Factures
+              </h3>
+              <button onClick={() => setShowDraftsModal(false)} className="text-gray-400 hover:bg-gray-200 hover:text-gray-600 p-1.5 rounded-lg transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-4 overflow-y-auto max-h-[60vh] space-y-2">
+              {savedDraftsList.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  Aucun brouillon de facture sauvegardé.
+                </div>
+              ) : (
+                savedDraftsList.map(s => (
+                  <div key={s.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+                    <div>
+                      <p className="font-semibold text-gray-900 text-sm">{s.firstName} {s.lastName}</p>
+                      <p className="text-xs text-gray-500">{s.enrollments?.[0]?.class?.name}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => {
+                          setSelectedStudentId(s.id);
+                          loadDraftOrEmpty(s.id);
+                          setShowDraftsModal(false);
+                        }}
+                        className="px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
+                      >
+                        Reprendre
+                      </button>
+                      <button 
+                        onClick={() => deleteDraft(s.id)}
+                        className="px-2 py-1.5 text-red-600 bg-red-50 rounded-lg hover:bg-red-100"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}

@@ -1,0 +1,170 @@
+import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import { Briefcase, Mail, Users } from "lucide-react";
+import { roleLabel, ROLE_LABELS, type RoleType } from "@/lib/permissions";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import TeamForms from "./TeamForms";
+import InviteLink from "./InviteLink";
+
+export default async function TeamPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { schoolId: true, role: true }
+  });
+
+  if (!dbUser) {
+    redirect("/login");
+  }
+
+  const teamMembers = await prisma.user.findMany({
+    where: {
+      schoolId: dbUser.schoolId,
+      role: { not: "PARENT" }
+    },
+    orderBy: { createdAt: "asc" }
+  });
+
+  const pendingInvitations = await prisma.invitation.findMany({
+    where: {
+      schoolId: dbUser.schoolId,
+      status: "PENDING"
+    },
+    orderBy: { createdAt: "desc" }
+  });
+
+  return (
+    <div className="space-y-6 pb-10">
+      <PageHeader
+        breadcrumb={[{ label: "Accueil", href: "/dashboard" }, { label: "Équipe" }]}
+        title="Équipe"
+        description={
+          `${teamMembers.length} membre${teamMembers.length > 1 ? "s" : ""}` +
+          (pendingInvitations.length > 0
+            ? ` · ${pendingInvitations.length} invitation${pendingInvitations.length > 1 ? "s" : ""} en attente`
+            : "")
+        }
+      />
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          <Card
+            flush
+            title={
+              <span className="flex items-center gap-2">
+                <Briefcase aria-hidden="true" className="h-4 w-4 text-text-faint" />
+                Membres actifs
+              </span>
+            }
+            actions={<span className="text-role-meta tabular-nums text-text-faint">{teamMembers.length}</span>}
+          >
+            {teamMembers.length === 0 ? (
+              <div className="p-5">
+                <EmptyState
+                  icon={Users}
+                  title="Aucun collaborateur"
+                  description="Créez un compte ou envoyez une invitation depuis le panneau de droite."
+                  size="sm"
+                />
+              </div>
+            ) : (
+              <ul className="divide-y divide-rule">
+                {teamMembers.map((member) => {
+                  const isMe = member.id === user.id;
+                  const initials = `${member.firstName?.charAt(0) ?? ""}${member.lastName?.charAt(0) ?? ""}`.toUpperCase();
+                  const info = ROLE_LABELS[member.role as RoleType];
+
+                  return (
+                    <li
+                      key={member.id}
+                      className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-sunk/50 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          aria-hidden="true"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-primary/10 text-role-meta font-semibold text-primary"
+                        >
+                          {initials || "?"}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-role-body font-semibold text-text">
+                            {member.firstName} {member.lastName}
+                            {isMe && (
+                              <span className="ml-2 font-normal text-role-meta text-text-faint">(vous)</span>
+                            )}
+                          </p>
+                          <p className="truncate text-role-meta text-text-soft">{member.email}</p>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 sm:text-right">
+                        {/* Libellé français depuis ROLE_LABELS, plus l'énumération
+                            brute. Une seule teinte : les six familles de couleur
+                            précédentes n'encodaient aucune hiérarchie. */}
+                        <Badge variant={isMe ? "info" : "neutral"} title={info?.description}>
+                          {roleLabel(member.role)}
+                        </Badge>
+                        {info && (
+                          <p className="mt-1 hidden max-w-xs text-role-meta text-text-faint sm:block">
+                            {info.description}
+                          </p>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
+
+          {pendingInvitations.length > 0 && (
+            <Card
+              flush
+              title={
+                <span className="flex items-center gap-2">
+                  <Mail aria-hidden="true" className="h-4 w-4 text-warning" />
+                  Invitations en attente
+                </span>
+              }
+              actions={<span className="text-role-meta tabular-nums text-text-faint">{pendingInvitations.length}</span>}
+            >
+              <ul className="divide-y divide-rule">
+                {pendingInvitations.map((invite) => (
+                  <li key={invite.id} className="flex flex-col gap-3 px-5 py-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-role-body font-semibold text-text">{invite.email}</span>
+                      <Badge variant="warning">{roleLabel(invite.role)}</Badge>
+                      <span className="text-role-meta text-text-faint">
+                        créée le {new Date(invite.createdAt).toLocaleDateString("fr-FR")}
+                      </span>
+                    </div>
+                    {/* ⚠️ L'ancienne version affichait « educom.app/invite?token=… »,
+                        un domaine qui n'existe pas : le lien recopié ne menait
+                        nulle part. On expose maintenant le chemin réel de
+                        l'application, avec une copie qui reconstruit l'URL
+                        complète depuis l'origine du navigateur. */}
+                    <InviteLink token={invite.token} />
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+        </div>
+
+        <div className="lg:col-span-1">
+          <TeamForms />
+        </div>
+      </div>
+    </div>
+  );
+}

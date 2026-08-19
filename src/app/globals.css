@@ -1,0 +1,429 @@
+@import "tailwindcss";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SOCLE DE TOKENS EDUCOM — LOT 02
+   ───────────────────────────────────────────────────────────────────────────
+   Ce fichier est la SEULE source de vérité des valeurs visuelles du produit.
+   Aucune couleur, aucun rayon, aucune ombre ne doit être écrit en dur dans un
+   composant.
+
+   Deux principes gouvernent ce socle :
+
+   1. UNE ÉCHELLE PAR RÔLE, PAS PAR TEINTE. Un token dit à quoi il sert
+      (`--color-danger`), pas de quelle couleur il est (`--color-red`). Changer
+      la charte ne demande alors de toucher qu'ici.
+
+   2. UNE SEULE COULEUR STOCKÉE PAR ÉCOLE. `School.primaryColor` est le seul
+      champ persisté ; survol, état actif et accent en sont DÉRIVÉS en CSS
+      (voir plus bas). Stocker quatre couleurs par école les laisserait dériver
+      les unes des autres et produirait des chartes incohérentes.
+
+   ⚠️ COMPATIBILITÉ — À LIRE AVANT DE MODIFIER
+   Les 937 usages de tokens déjà présents dans le code dépendent des noms
+   ci-dessous. Les échelles neuves (rayon, ombre, typographie) sont AJOUTÉES
+   à côté des utilitaires Tailwind par défaut, jamais en substitution : si
+   `--radius-xl` était redéfini à 6px, les 268 `rounded-xl` du dépôt
+   changeraient d'apparence, ce qui serait un restylage d'écrans — le travail
+   des lots 04 et suivants, pas de celui-ci.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── Couleur d'ancrage ──────────────────────────────────────────────────
+     Surchargée à l'exécution par `dashboard/layout.tsx` quand l'école a
+     renseigné `School.primaryColor`. Tout le reste en découle. */
+  --color-primary: #0B1F3A;
+
+  /* ─── Variantes dérivées du primary ──────────────────────────────────────
+     Repli universel en `color-mix` (largement supporté). Le bloc `@supports`
+     plus bas les remplace par la syntaxe de couleur relative, qui préserve la
+     chroma et donne un accent réellement saturé plutôt que délavé.
+
+     Pourquoi deux mécanismes : mélanger du blanc à du bleu marine détruit sa
+     saturation — le meilleur `color-mix` atteignable pour l'accent est
+     #405168, un ardoise terne, là où la charte demande #1F4E79. Seul
+     `oklch(from …)` peut relever la clarté ET la chroma. */
+  --color-primary-hover:  color-mix(in oklab, var(--color-primary) 88%, white);
+  --color-primary-active: color-mix(in oklab, var(--color-primary) 82%, black);
+  --color-accent:         color-mix(in oklab, var(--color-primary) 75%, white);
+
+  /* ─── Gris : une seule famille (slate) ───────────────────────────────────
+     La dérive froide de slate s'accorde au marine. Aucune autre famille de
+     gris ne doit apparaître à côté — c'est la règle la plus souvent enfreinte
+     dans le code actuel (1402 `gray-*` contre 479 `slate-*`). */
+  --color-ground:  #F8FAFC;  /* fond d'application */
+  --color-surface: #FFFFFF;  /* seule surface : carte, modale, ligne de tableau */
+  --color-sunk:    #F1F5F9;  /* creux : survol de ligne, champ désactivé */
+
+  --color-text:       #0F172A;  /* texte principal */
+  --color-text-soft:  #475569;  /* texte secondaire, libellés */
+  --color-text-faint: #94A3B8;  /* métadonnée, placeholder — jamais une info utile */
+
+  --color-rule: #E2E8F0;  /* bordure, séparateur */
+
+  /* ─── États métier ───────────────────────────────────────────────────────
+     Volontairement assombris par rapport aux valeurs vives d'origine
+     (#10b981 / #f59e0b / #ef4444) : à ces niveaux le texte passe 4,5:1 sur
+     blanc, ce qui permet d'écrire « En retard » en couleur et de le lire. */
+  --color-success: #047857;  /* payé, validé, à jour */
+  --color-warning: #B45309;  /* en attente, échéance proche */
+  --color-danger:  #B91C1C;  /* en retard, erreur, suppression */
+
+  /* ─── Rayons : trois valeurs, pas sept ───────────────────────────────────*/
+  --radius-control: 6px;   /* champs, boutons, pastilles de petite taille */
+  --radius-surface: 12px;  /* cartes, modales, panneaux */
+  /* le troisième est `9999px`, exposé via --radius-pill ci-dessous */
+  --radius-pill: 9999px;   /* pastilles d'état, avatars */
+
+  /* ─── Ombres : deux, et c'est tout ───────────────────────────────────────*/
+  --shadow-card:    0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
+  --shadow-overlay: 0 4px 6px -2px rgb(15 23 42 / 0.06), 0 12px 24px -4px rgb(15 23 42 / 0.12);
+
+  /* ─── Espace : multiples de 4 exclusivement ──────────────────────────────
+     C'est déjà la base de Tailwind (`p-4` = 4 × 0.25rem = 16px) ; la valeur
+     est fixée explicitement pour que la règle soit lisible ici. */
+  --spacing: 0.25rem;
+
+  /* ─── Typographie : six rôles, plancher à 12px ───────────────────────────*/
+  --text-role-page:    28px;  /* titre de page — un seul par écran */
+  --text-role-section: 18px;  /* titre de section */
+  --text-role-card:    15px;  /* titre de carte */
+  --text-role-body:    14px;  /* défaut : tableaux, formulaires, texte courant */
+  --text-role-label:   13px;  /* libellé de champ, en-tête de colonne */
+  --text-role-meta:    12px;  /* métadonnée — PLANCHER ABSOLU, rien en dessous */
+
+  /* ─── Alias de compatibilité ─────────────────────────────────────────────
+     Noms attendus par le code existant. Ils pointent vers les tokens de rôle
+     ci-dessus ; les lots suivants migreront les usages puis ces alias
+     pourront disparaître. NE PAS les supprimer avant. */
+  --color-secondary:        var(--color-ground);
+  --color-background:       var(--color-surface);
+  --color-surface-elevated: var(--color-surface);
+  --color-text-primary:     var(--color-text);
+  --color-text-secondary:   var(--color-text-soft);
+  --color-text-muted:       var(--color-text-faint);
+  --color-border:           var(--color-rule);
+  --color-error:            var(--color-danger);
+  --color-info:             var(--color-accent);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SOCLE MARKETING — ADDENDUM PLG (19 août 2026)
+   ───────────────────────────────────────────────────────────────────────────
+   Une échelle DISTINCTE de celle du produit, et c'est délibéré.
+
+   POURQUOI NE PAS RÉUTILISER LES TOKENS APPLICATIFS. Le produit doit être
+   neutre : `--color-primary` est surchargé à l'exécution par la couleur de
+   CHAQUE école (`School.primaryColor`), et `--color-ground` est un gris froid
+   choisi pour que des tableaux de notes restent lisibles huit heures d'affilée.
+   Une page d'accueil a le problème inverse : elle doit avoir une voix, celle
+   d'EduCom, la même pour tout le monde. Brancher la landing sur des tokens
+   qu'une école peut repeindre en rose produirait une marque sans identité.
+
+   D'OÙ VIENNENT CES COULEURS. Elles ne sont pas inventées : le marine et le
+   vert sont lus dans les fichiers de marque existants
+   (`public/brand/educom-symbole.svg` — #0B1F3A et #1CA46B). Le vert n'était
+   utilisé NULLE PART dans l'interface ; c'est la moitié de l'identité qui
+   dormait dans un SVG.
+
+   LE PAPIER. `--m-paper` est un blanc CHAUD, pas le #F8FAFC bleuté de
+   l'application. EduCom fabrique des documents — certificats, bulletins, reçus.
+   Le fond de la page d'accueil est la matière de ce que le produit livre. C'est
+   aussi ce qui l'éloigne le plus sûrement du gris-bleu par défaut que porte
+   toute maquette générée.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --m-ink:        #0B1F3A;  /* marine de marque — titres, aplats profonds */
+  --m-ink-soft:   #40506B;  /* texte courant sur papier */
+  --m-ink-faint:  #8492A8;  /* métadonnée, légende */
+
+  --m-paper:      #FAF8F4;  /* fond éditorial chaud */
+  --m-paper-deep: #F2EEE6;  /* second fond, pour alterner sans changer de ton */
+  --m-card:       #FFFFFF;
+
+  --m-accent:       #1CA46B;  /* vert de marque */
+  --m-accent-deep:  #0E6B45;  /* même vert, lisible en texte sur papier (4,5:1) */
+  --m-accent-wash:  #E8F5EE;  /* voile vert pour une pastille ou un fond de puce */
+
+  --m-line:      #E4DED2;  /* filet chaud, accordé au papier */
+  --m-line-soft: #EFEAE1;
+
+  /* Un seul relief, très bas : la profondeur vient du contraste et de l'espace,
+     pas d'une ombre portée. Les ombres larges et sombres sont l'autre signature
+     visuelle des maquettes générées. */
+  --m-lift: 0 1px 2px rgb(11 31 58 / 0.04), 0 8px 24px -12px rgb(11 31 58 / 0.18);
+}
+
+/* Syntaxe de couleur relative : conserve teinte et chroma en relevant la
+   clarté. Le plafond `min(c * 1.5, 0.12)` évite qu'une école ayant choisi une
+   couleur déjà très saturée n'obtienne un accent fluorescent — sans lui, un
+   primary #9F1239 produirait un accent #FD0058. */
+@supports (color: oklch(from #000 l c h)) {
+  :root {
+    --color-primary-hover:  oklch(from var(--color-primary) calc(l + 0.055) calc(c * 1.15) h);
+    --color-primary-active: oklch(from var(--color-primary) calc(l - 0.045) c h);
+    --color-accent:         oklch(from var(--color-primary) calc(l + 0.174) min(c * 1.5, 0.12) h);
+  }
+}
+
+@theme inline {
+  /* Couleur */
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-text);
+
+  --color-primary:        var(--color-primary);
+  --color-primary-hover:  var(--color-primary-hover);
+  --color-primary-active: var(--color-primary-active);
+  --color-secondary:      var(--color-secondary);
+  --color-accent:         var(--color-accent);
+
+  --color-ground:           var(--color-ground);
+  --color-surface:          var(--color-surface);
+  --color-surface-elevated: var(--color-surface-elevated);
+  --color-sunk:             var(--color-sunk);
+
+  --color-text:           var(--color-text);
+  --color-text-soft:      var(--color-text-soft);
+  --color-text-faint:     var(--color-text-faint);
+  --color-text-primary:   var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted:     var(--color-text-muted);
+
+  --color-rule:   var(--color-rule);
+  --color-border: var(--color-border);
+
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-danger:  var(--color-danger);
+  --color-error:   var(--color-error);
+  --color-info:    var(--color-info);
+
+  /* Marketing — addendum PLG. Préfixe `m-` pour qu'on ne puisse pas les
+     confondre avec les tokens produit en lisant une classe. */
+  --color-m-ink:        var(--m-ink);
+  --color-m-ink-soft:   var(--m-ink-soft);
+  --color-m-ink-faint:  var(--m-ink-faint);
+  --color-m-paper:      var(--m-paper);
+  --color-m-paper-deep: var(--m-paper-deep);
+  --color-m-card:       var(--m-card);
+  --color-m-accent:      var(--m-accent);
+  --color-m-accent-deep: var(--m-accent-deep);
+  --color-m-accent-wash: var(--m-accent-wash);
+  --color-m-line:      var(--m-line);
+  --color-m-line-soft: var(--m-line-soft);
+  --shadow-m-lift: var(--m-lift);
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+
+  /* Rayons — ajoutés, pas substitués */
+  --radius-control: var(--radius-control);
+  --radius-surface: var(--radius-surface);
+  --radius-pill:    var(--radius-pill);
+
+  /* Ombres — ajoutées, pas substituées */
+  --shadow-card:    var(--shadow-card);
+  --shadow-overlay: var(--shadow-overlay);
+
+  /* Typographie — ajoutée, pas substituée */
+  --text-role-page:    var(--text-role-page);
+  --text-role-section: var(--text-role-section);
+  --text-role-card:    var(--text-role-card);
+  --text-role-body:    var(--text-role-body);
+  --text-role-label:   var(--text-role-label);
+  --text-role-meta:    var(--text-role-meta);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply antialiased bg-background text-foreground;
+  }
+
+  /* Smooth transition for interactive elements */
+  a, button, input, select, textarea {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  /* Focus rings */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary/50 ring-offset-2 ring-offset-background;
+  }
+
+  /* Custom scrollbar for webkit */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-200 rounded-full hover:bg-slate-300;
+  }
+
+  /* Chiffres alignés en colonne partout où ils se comparent : montants,
+     moyennes, effectifs. Détail invisible qui porte beaucoup de la sensation
+     de précision dans les écrans comptables. */
+  table, .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* Surlignage éditorial des surfaces publiques — addendum PLG.
+
+     ⚠️ TROIS VERSIONS, ET LA RAISON DE CHACUNE.
+
+     1. Un `<span>` en `absolute` posé derrière le texte. Il exigeait
+        `whitespace-nowrap` pour rester aligné — à 390 px, « au même endroit. »
+        tenait alors à trois pixels près — et sur deux lignes il n'aurait
+        souligné que la dernière.
+
+     2. Un `linear-gradient` sur le texte avec `box-decoration-break: clone`.
+        Correct au rendu, mais `verify-design-tokens` interdit les dégradés au
+        socle — la règle du lot 02 qui écarte le verre dépoli et les dégradés,
+        marqueurs de maquette générée. La bonne réponse n'était pas d'affaiblir
+        le garde-fou pour faire passer une décoration.
+
+     3. Celle-ci : un vrai soulignement, épais, décalé vers le haut pour
+        traverser le bas des lettres, et `skip-ink: none` pour qu'il ne
+        s'interrompe pas sous les jambages. Aucun dégradé, aucune surcouche,
+        et le retour à la ligne est géré par le moteur de texte lui-même. */
+  .m-surligne {
+    text-decoration-line: underline;
+    text-decoration-color: color-mix(in oklab, var(--m-accent) 34%, transparent);
+    text-decoration-thickness: 0.26em;
+    text-underline-offset: -0.06em;
+    text-decoration-skip-ink: none;
+  }
+
+  /* Primitives de référence du socle.
+     Elles ne sont pas encore utilisées par les écrans — les composants React
+     correspondants (Button, Input, Card…) sont l'objet des lots 04 et 05.
+     Elles fixent ici les valeurs canoniques pour que ces composants n'aient
+     rien à réinventer. */
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 text-sm font-semibold
+           focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed;
+    border-radius: var(--radius-control);
+    box-shadow: var(--shadow-card);
+  }
+
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-hover active:bg-primary-active border border-transparent;
+  }
+
+  .btn-secondary {
+    @apply bg-surface text-text border border-rule hover:bg-sunk;
+  }
+
+  .btn-destructive {
+    @apply bg-danger text-white border border-transparent;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-text-soft hover:bg-sunk hover:text-text shadow-none;
+  }
+
+  .input-field {
+    @apply block w-full border border-rule bg-surface px-4 py-2.5 text-text
+           placeholder-text-faint focus:border-primary focus:ring-1 focus:ring-primary
+           disabled:bg-sunk disabled:text-text-faint;
+    border-radius: var(--radius-control);
+    font-size: var(--text-role-body);
+    box-shadow: var(--shadow-card);
+  }
+
+  .label-text {
+    @apply block text-text-soft mb-1.5 font-medium;
+    font-size: var(--text-role-label);
+  }
+
+  /* Le seul traitement de surface du produit : blanc opaque, bordure 1px,
+     ombre discrète. Pas de verre dépoli, pas de dégradé, pas de cercle flou —
+     ces effets dégradent le contraste, coûtent en performance sur les machines
+     d'école et ne survivent pas à l'impression, or ce produit imprime
+     beaucoup. */
+  .card {
+    @apply border border-rule bg-surface overflow-hidden;
+    border-radius: var(--radius-surface);
+    box-shadow: var(--shadow-card);
+  }
+}
+
+/* Respect de `prefers-reduced-motion`. Le traitement complet des animations
+   est l'objet du lot 11 ; cette règle de base coûte trois lignes et évite
+   d'imposer les 153 `transition-all` du dépôt à qui a demandé le contraire. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ZONES ÉDITABLES DES DOCUMENTS
+   ───────────────────────────────────────────────────────────────────────────
+   Les générateurs rendent 47 zones `contentEditable` — nom de l'élève, montants,
+   mentions. Elles ne se signalaient qu'au focus (`focus:bg-gray-100`) : avant de
+   cliquer, rien n'indiquait qu'on pouvait les corriger.
+
+   ⚠️ TOUT EST DANS `@media screen`, VOLONTAIREMENT.
+
+   Sélecteur par PRÉSENCE d'attribut (`[contenteditable]`) et non par valeur :
+   React émet `contentEditable="true"` en camelCase, et aucun générateur ne pose
+   jamais l'attribut à `false`. La présence suffit donc, et le sélecteur ne
+   dépend ni de la casse ni de la valeur.
+
+   Un sélecteur d'attribut évite de toucher au markup des documents — donc
+   aucune modification du contenu imprimable, et aucun risque de régression sur
+   papier. Et parce que ces règles vivent dans `@media screen`, l'impression ne
+   les voit jamais : pas besoin d'un bloc de réinitialisation qu'on pourrait
+   oublier de tenir à jour.
+
+   Règle du lot 09 : la stabilité du document imprimé passe avant l'esthétique
+   de l'interface.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media screen {
+  [contenteditable] {
+    /* Soulignement pointillé discret : signale « corrigeable » sans crier. */
+    border-radius: 3px;
+    outline: none;
+    text-decoration: underline dotted color-mix(in oklab, var(--color-primary) 35%, transparent);
+    text-underline-offset: 3px;
+    transition: background-color 120ms ease-out;
+    cursor: text;
+  }
+
+  [contenteditable]:hover {
+    background-color: color-mix(in oklab, var(--color-primary) 6%, transparent);
+  }
+
+  [contenteditable]:focus-visible,
+  [contenteditable]:focus {
+    background-color: color-mix(in oklab, var(--color-primary) 9%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-primary) 40%, transparent);
+    text-decoration: none;
+  }
+}
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background-color: white !important;
+  }
+
+  @page {
+    margin: 10mm;
+    size: auto;
+  }
+}

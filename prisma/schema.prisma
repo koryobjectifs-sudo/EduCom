@@ -1,0 +1,1335 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  TEACHER
+  PARENT
+  SECRETARY
+  ACCOUNTANT
+  ASSISTANT
+}
+
+model Invitation {
+  id        String   @id @default(uuid())
+  email     String
+  role      Role
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  token     String   @unique @default(uuid())
+  status    String   @default("PENDING") // PENDING, ACCEPTED
+  createdAt DateTime @default(now())
+
+  @@index([schoolId])
+}
+
+model WaitlistEntry {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  role      String?
+  createdAt DateTime @default(now())
+}
+
+model DocumentRequest {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  status      String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED
+  schoolId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+}
+
+model School {
+  id        String   @id @default(uuid())
+  name      String
+  logo      String?
+  stamp     String?
+  signature String?
+  /// Couleur d'ancrage de l'école, en hexadécimal (ex. "#0B1F3A").
+  /// `null` = charte EduCom par défaut, définie dans `globals.css`.
+  /// SEULE couleur stockée : survol, état actif et accent en sont dérivés en
+  /// CSS (voir le bloc @supports de `globals.css`). Ne pas ajouter de colonnes
+  /// pour ces variantes — elles dériveraient les unes des autres et
+  /// produiraient des chartes incohérentes.
+  primaryColor String?
+  address   String?
+  phone     String?
+  email     String?
+  onboardingCompleted Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  users     User[]
+  students  Student[]
+  classes   Class[]
+  invoices  Invoice[]
+  payments  Payment[]
+  surveys   Survey[]
+  messages  Message[]
+  documentRequests DocumentRequest[]
+  invitations Invitation[]
+  subjects  Subject[]
+  terms     Term[]
+  evaluations Evaluation[]
+  assignments TeachingAssignment[]
+  reportCards ReportCard[]
+  expenses    Expense[]
+  statements  FinancialStatement[]
+
+  // Lot 12.1 — référentiel financier
+  feeSchedules      FeeSchedule[]
+  feeItems          FeeItem[]
+  feeChangeRequests FeeChangeRequest[]
+  notifications     StaffNotification[]
+
+  // Lot 13 — dossier numérique élève
+  documentRequirements DocumentRequirement[]
+  studentDocuments     StudentDocument[]
+
+  /// Lot 15 — centre documentaire de l'établissement.
+  docFolders      DocumentFolder[]
+  schoolDocuments SchoolDocument[]
+}
+
+model User {
+  id        String   @id @default(uuid()) // Will store Supabase auth.users ID
+  email     String   @unique
+  password  String?  // Optional since Supabase handles it
+  firstName String
+  lastName  String
+  phone     String?  // Contact phone for parents/teachers
+  role      Role     @default(PARENT)
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  students  Student[] // Children if role is PARENT
+  invoices  Invoice[]
+  messages  Message[]
+  classesTaught Class[] @relation("ClassTeacher")
+  gradesGiven   Grade[]
+  assignments   TeachingAssignment[] @relation("TeacherAssignments")
+
+  @@index([schoolId])
+}
+
+/// Journal d'activité : « qui a fait quoi, quand, sur quel objet, avec quel
+/// résultat ? ». Écrite exclusivement via `src/lib/audit.ts`.
+///
+/// `entity` reste un `String` volontairement : chaque module à venir y ajoute
+/// ses propres types d'objet, et faire migrer une énumération Prisma à chaque
+/// nouveau type serait disproportionné. Le type des valeurs admises est tenu
+/// côté code (`AuditEntity`).
+///
+/// Ni `userId` ni `schoolId` ne portent de relation — c'était déjà le cas avant
+/// le lot 10, et c'est conservé : un journal doit pouvoir citer un acteur même
+/// si le compte a disparu depuis. Sans cascade, effacer une école n'efface pas
+/// ses traces ; c'est un arbitrage assumé (voir `audit.ts`).
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String?
+  userId    String
+  schoolId  String
+  details   String?  // JSON or text details of the action
+  createdAt DateTime @default(now())
+
+  @@index([schoolId])
+  @@index([userId])
+  // Les deux seuls chemins de lecture exposés par `audit.ts`. `schoolId` est en
+  // tête parce qu'il est TOUJOURS dans le `where` : l'isolation n'est pas
+  // optionnelle. Les deux index de tête sont conservés tels quels.
+  @@index([schoolId, entity, entityId]) // auditForEntity()
+  @@index([schoolId, createdAt])        // recentAudit()
+}
+
+/// Historique des transitions de workflow — la trace des actes de validation.
+///
+/// ═══ POURQUOI UNE TABLE, ALORS QU'`AuditLog` EXISTE ═══
+///
+/// `AuditLog` répond à « qui a fait quoi ». Elle ne peut pas répondre à « dans
+/// quel état l'objet est-il passé, et depuis lequel » sans que chaque lecteur
+/// devine la structure du JSON de `details`. Un état de workflow se requête
+/// (durée moyenne dans un état, bulletins renvoyés deux fois, file d'attente du
+/// secrétariat) : il lui faut des colonnes, pas du texte sérialisé.
+///
+/// Les deux sont écrites ensemble par `recordTransition()` : `AuditLog` pour le
+/// fil d'activité général, `WorkflowTransition` pour l'historique de l'objet.
+///
+/// ⚠️ Table générique (`entity` + `entityId`), donc PAS de clé étrangère vers
+/// l'objet concerné : elle sert `reportCard` aujourd'hui, `expense` ou
+/// `studentFile` demain. Même convention qu'`AuditLog`, et même conséquence :
+/// supprimer un bulletin ne supprime pas son historique de transitions.
+model WorkflowTransition {
+  id        String   @id @default(uuid())
+
+  /// Nom de la machine déclarée dans `src/lib/workflow.ts` (`reportCard`, …).
+  workflow  String
+  entity    String
+  entityId  String
+
+  /// État de départ. `null` = entrée de l'objet dans le workflow (création).
+  fromState String?
+  toState   String
+  /// Obligatoire pour les transitions marquées `commentRequired` (un refus doit
+  /// s'expliquer). La contrainte est tenue côté code, pas au schéma : elle
+  /// dépend de la transition, ce qu'une colonne ne peut pas exprimer.
+  comment   String?
+
+  /// Acteur, tel que résolu depuis la session serveur. Jamais fourni par le client.
+  actorId   String
+  /// Rôle AU MOMENT de l'acte : un rôle peut changer, l'historique ne doit pas.
+  actorRole String
+
+  schoolId  String
+  createdAt DateTime @default(now())
+
+  @@index([schoolId, entity, entityId, createdAt]) // historique d'un objet
+  @@index([schoolId, workflow, createdAt])         // file d'attente d'un workflow
+}
+
+enum StudentStatus {
+  PENDING
+  ENROLLED
+  GRADUATED
+  INACTIVE
+}
+
+model Student {
+  id               String        @id @default(uuid())
+  firstName        String
+  lastName         String
+  dateOfBirth      DateTime?
+  address          String?
+  bloodGroup       String?
+  medicalNotes     String?
+  emergencyContact String?
+  emergencyPhone   String?
+  status           StudentStatus @default(PENDING)
+  schoolId         String
+  school           School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  parentId         String?
+  parent           User?         @relation(fields: [parentId], references: [id], onDelete: SetNull)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  /// Lot 13 — type d'élève DÉCLARÉ, quand il n'est pas dérivable.
+  /// NULL = dérivé des inscriptions (ancien si une inscription porte une année
+  /// antérieure, nouveau sinon). Renseigné = la déclaration l'emporte, seul
+  /// moyen d'exprimer TRANSFERT, qu'aucune donnée existante ne permet de deviner.
+  kindOverride     StudentKind?
+
+  enrollments Enrollment[]
+  invoices    Invoice[]
+  grades      Grade[]
+  reportCards ReportCard[]
+  documents   StudentDocument[]
+
+  @@index([schoolId])
+  @@index([parentId])
+}
+
+enum EducationalCycle {
+  MATERNELLE
+  ELEMENTAIRE
+  COLLEGE
+  LYCEE
+  AUTRE
+}
+
+model Class {
+  id        String   @id @default(uuid())
+  name      String   // e.g., "CP", "CE1", "6ème A"
+  cycle     EducationalCycle @default(AUTRE)
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  
+  teacherId String?
+  teacher   User?    @relation("ClassTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enrollments Enrollment[]
+  grades      Grade[]
+  subjects    ClassSubject[]
+  assignments TeachingAssignment[]
+  reportCards ReportCard[]
+  feeItems    FeeItem[]
+  docRequirements DocumentRequirement[]
+
+  @@index([schoolId])
+  @@index([teacherId])
+  schoolDocuments SchoolDocument[]
+}
+
+model Enrollment {
+  id           String   @id @default(uuid())
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId      String
+  class        Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  academicYear String   // e.g., "2023-2024"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([studentId, academicYear])
+  @@index([classId])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Invoice {
+  id          String        @id @default(uuid())
+  title       String        // e.g., "Facture - Octobre"
+  totalAmount Float         @default(0)
+  status      InvoiceStatus @default(PENDING)
+  dueDate     DateTime
+  
+  schoolId    String
+  school      School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  
+  // Can be billed to a parent OR a specific student
+  studentId   String?
+  student     Student?      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  parentId    String?
+  parent      User?         @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  
+  items       InvoiceItem[]
+  payments    Payment[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([parentId])
+}
+
+model InvoiceItem {
+  id          String   @id @default(uuid())
+  title       String   // e.g. "Scolarité", "Tenue", "Livres"
+  amount      Float
+  quantity    Int      @default(1)
+  
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+
+  @@index([invoiceId])
+}
+
+enum PaymentMethod {
+  CASH
+  CHECK
+  MOBILE_MONEY
+  BANK_TRANSFER
+}
+
+model Payment {
+  id          String        @id @default(uuid())
+  amount      Float
+  method      PaymentMethod @default(CASH)
+  reference   String?       // Transaction ID or Check Number
+  
+  invoiceId   String
+  invoice     Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  schoolId    String
+  school      School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime      @default(now())
+
+  @@index([invoiceId])
+  @@index([schoolId])
+  /// Recettes par période : `createdAt` est la SEULE date d'un encaissement.
+  @@index([schoolId, createdAt])
+}
+
+/// Statuts du circuit de validation financier — dépenses ET états financiers.
+///
+/// ═══ UN SEUL ENUM POUR LES DEUX OBJETS, VOLONTAIREMENT ═══
+///
+/// Le lot 10 a établi qu'une énumération Prisma est coûteuse à faire évoluer en
+/// production. Deux énumérations identiques doubleraient ce coût sans rien
+/// apporter : les deux objets suivent exactement le même circuit.
+///
+/// Les LIBELLÉS restent distincts par objet, via les domaines de
+/// `src/lib/status.ts` — « Approuvée » pour une dépense, « Approuvé » pour un
+/// état. Le partage porte sur les valeurs, pas sur le vocabulaire affiché.
+///
+/// ⚠️ Si un jour l'un des deux objets a besoin d'un état que l'autre n'a pas,
+/// il faudra scinder cette énumération. C'est le prix assumé du partage.
+enum FinanceWorkflowStatus {
+  DRAFT     // en préparation, modifiable par son auteur
+  SUBMITTED // transmis à la direction, verrouillé
+  RETURNED  // renvoyé avec motif, redevient modifiable
+  APPROVED  // validé par la direction — définitif
+  CANCELLED // abandonné avant transmission — définitif
+}
+
+/// Postes de dépense.
+///
+/// ═══ POURQUOI HUIT, ET PAS VINGT-CINQ ═══
+///
+/// Une taxonomie comptable complète (plan SYSCOHADA) n'a aucune utilité si
+/// personne ne la remplit : le gestionnaire choisirait « Autre » à chaque fois.
+/// Ces huit postes couvrent les sorties réelles d'un établissement scolaire
+/// sénégalais et se lisent sans formation comptable.
+///
+/// Extensible : ajouter une valeur ici plus un libellé dans
+/// `src/lib/finance.ts` suffit. `OTHER` existe pour ne jamais bloquer une
+/// saisie — mais `note` permet alors de préciser, plutôt que d'inventer un
+/// poste par cas particulier.
+enum ExpenseCategory {
+  SALARY      // Salaires et charges du personnel
+  RENT        // Loyer et charges locatives
+  UTILITIES   // Eau, électricité, internet, téléphone
+  SUPPLIES    // Fournitures scolaires et de bureau
+  MAINTENANCE // Entretien, réparations, travaux
+  TRANSPORT   // Transport, carburant, déplacements
+  EQUIPMENT   // Mobilier, matériel, informatique
+  OTHER       // Autre — à préciser dans `note`
+}
+
+/// Une sortie d'argent de l'établissement.
+///
+/// ═══ CE QUE CE MODÈLE N'EST PAS ═══
+///
+/// Ce n'est pas une écriture comptable : ni contrepartie, ni compte, ni journal,
+/// ni TVA. EduCom n'est pas un logiciel de comptabilité et le schéma ne porte
+/// rien qui permettrait de le devenir honnêtement. Ce modèle répond à une seule
+/// question : « qu'est-ce que l'établissement a dépensé sur cette période, et
+/// qui l'a validé ? »
+///
+/// ⚠️ `spentAt` est la date de la DÉPENSE, distincte de `createdAt` (date de
+/// saisie). Les deux existent parce qu'elles diffèrent en pratique : on saisit
+/// le lundi une facture d'électricité payée le vendredi. Les agrégations de
+/// période filtrent sur `spentAt` — sinon une dépense saisie en retard
+/// tomberait dans le mauvais mois.
+///
+/// ⚠️ `receiptRef` est une RÉFÉRENCE, pas un fichier. Le projet n'a aucune
+/// infrastructure de stockage : le seul mécanisme existant encode les images en
+/// base64 dans une colonne `String` (logo, cachet, signature de l'école), ce qui
+/// est acceptable pour un logo de 20 Ko et intenable pour une photo de reçu de
+/// 3 Mo relue à chaque requête. Le champ enregistre donc où retrouver la pièce
+/// papier (n° de reçu, référence fournisseur). La pièce jointe réelle attend le
+/// chantier documentaire.
+///
+/// Traces d'acte (`submittedById`, `approvedById`…) : mêmes colonnes sans
+/// relation que `ReportCard`, pour la même raison — un journal doit pouvoir
+/// citer un acteur même si le compte a disparu. L'historique détaillé vit dans
+/// `WorkflowTransition`.
+model Expense {
+  id             String                @id @default(uuid())
+
+  label          String                // « Facture SENELEC août »
+  amount         Float
+  /// Date à laquelle la dépense a eu lieu. Base des agrégations de période.
+  spentAt        DateTime
+  category       ExpenseCategory       @default(OTHER)
+  /// Bénéficiaire / fournisseur. Texte libre : le schéma n'a pas de modèle
+  /// fournisseur, et en inventer un pour ce lot serait hors périmètre.
+  payee          String?
+  /// Référence de la pièce justificative papier. PAS un fichier — voir ci-dessus.
+  receiptRef     String?
+  note           String?
+
+  status         FinanceWorkflowStatus @default(DRAFT)
+
+  createdById    String
+  submittedAt    DateTime?
+  submittedById  String?
+  approvedAt     DateTime?
+  approvedById   String?
+  returnedReason String?
+
+  schoolId       String
+  school         School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([schoolId])
+  /// Agrégation « dépenses approuvées de la période » : les trois colonnes du
+  /// `where`, dans l'ordre de sélectivité.
+  @@index([schoolId, status, spentAt])
+  @@index([schoolId, spentAt])
+}
+
+/// L'état financier d'une période, tel que le gestionnaire le transmet à la
+/// direction.
+///
+/// ═══ POURQUOI LES TOTAUX SONT FIGÉS À LA SOUMISSION ═══
+///
+/// Les quatre totaux sont recalculés en direct tant que l'état est `DRAFT`, puis
+/// **figés** au moment de la soumission. Sans cela, la direction approuverait des
+/// chiffres qui bougeraient ensuite : `Invoice.status` peut changer après coup
+/// (une facture en attente devient payée), ce qui modifierait le « reste à
+/// encaisser » d'un état déjà approuvé. Un document approuvé doit porter les
+/// chiffres qui ont été approuvés.
+///
+/// Ils sont donc nullables : `null` = brouillon, chiffres encore vivants.
+///
+/// ═══ CONVENTION DE PÉRIODE — IDENTIQUE À `src/lib/period.ts` ═══
+///
+/// ⚠️ `periodTo` est une borne **EXCLUE** (`lt`, jamais `lte`). Toute lecture de
+/// ces colonnes doit respecter cette convention, sinon un enregistrement situé à
+/// minuit compte dans deux périodes.
+///
+/// `periodKind` / `periodLabel` sont stockés plutôt que redevinés : un état
+/// soumis pour « août 2026 » doit se relire tel quel, même si la logique de
+/// libellé change plus tard.
+///
+/// Aucune contrainte d'unicité sur la période : deux états ne doivent pas se
+/// chevaucher, mais un chevauchement PARTIEL n'est pas exprimable en contrainte
+/// SQL. Le contrôle est fait en code (`overlappingStatement`), et `CANCELLED`
+/// existe précisément pour libérer une période réservée par erreur.
+model FinancialStatement {
+  id              String                @id @default(uuid())
+
+  periodKind      String                // "day" | "week" | "month" | "term" | "custom"
+  periodFrom      DateTime              // borne incluse
+  periodTo        DateTime              // borne EXCLUE
+  periodLabel     String
+
+  status          FinanceWorkflowStatus @default(DRAFT)
+
+  /// Instantané arrêté à la soumission. `null` tant que l'état est brouillon.
+  collectedTotal  Float?                // encaissements réels — SUM(Payment.amount)
+  expenseTotal    Float?                // dépenses APPROVED de la période
+  receivableTotal Float?                // factures non soldées échues dans la période
+  balance         Float?                // collectedTotal − expenseTotal
+
+  comment         String?               // mot du gestionnaire à la direction
+
+  createdById     String
+  submittedAt     DateTime?
+  submittedById   String?
+  approvedAt      DateTime?
+  approvedById    String?
+  returnedReason  String?
+
+  schoolId        String
+  school          School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([schoolId])
+  @@index([schoolId, status])
+  /// Détection de chevauchement de période.
+  @@index([schoolId, periodFrom, periodTo])
+}
+
+model Survey {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  questions   Json     // e.g. [{ id: "q1", question: "Etes-vous satisfait ?", options: ["Oui", "Non"] }]
+  isActive    Boolean  @default(true)
+  
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  
+  responses   SurveyResponse[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([schoolId])
+}
+
+model SurveyResponse {
+  id        String   @id @default(uuid())
+  answers   Json     // e.g. { "q1": "Oui" }
+  
+  surveyId  String
+  survey    Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  // Optional: tracking who responded if they provide a name, otherwise anonymous
+  respondentName String?
+
+  createdAt DateTime @default(now())
+
+  @@index([surveyId])
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model Message {
+  id          String           @id @default(uuid())
+  direction   MessageDirection
+  content     String
+  status      MessageStatus    @default(SENT)
+  
+  schoolId    String
+  school      School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  
+  parentId    String?
+  parent      User?            @relation(fields: [parentId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([schoolId])
+  @@index([parentId])
+}
+
+/// Journal brut des appels entrants d'un fournisseur externe.
+///
+/// ⚠️ **PLUS AUCUN CODE N'ÉCRIT DANS CETTE TABLE.** Ses deux seuls rédacteurs
+/// — les webhooks `/api/webhooks/*` — ont été supprimés le 19 août 2026 : tous
+/// deux acceptaient des POST anonymes, et l'un d'eux soldait une facture sur la
+/// seule foi d'un `status: "completed"` envoyé par l'appelant. La table est
+/// conservée pour sa ligne historique, pas pour son usage. L'histoire complète
+/// est dans `rappel.md` §71 ; le nom du prestataire abandonné n'apparaît plus
+/// nulle part dans le code, et un vérificateur en fait un invariant.
+///
+/// ⚠️ **EN L'ÉTAT, ELLE NE PEUT PAS SERVIR À UN WEBHOOK DE PAIEMENT.** Il lui
+/// manque deux choses, et l'absence de la seconde est la plus coûteuse :
+///
+///   1. `schoolId` — un événement n'est rattaché à aucun établissement, donc
+///      rien n'est cloisonné ni relisable par école ;
+///   2. **un identifiant d'événement unique du fournisseur** — sans contrainte
+///      d'unicité, un même appel rejoué (les fournisseurs réessaient) serait
+///      traité deux fois. C'est le point d'idempotence, arbitré dans
+///      `rappel.md` §72 avant toute intégration Wave.
+model WebhookEvent {
+  id          String   @id @default(uuid())
+  /// Nom du fournisseur. Aucune valeur n'est imposée par le schéma ; la seule
+  /// ligne existante porte 'WHATSAPP'.
+  provider    String
+  payload     Json
+  processed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model Subject {
+  id        String   @id @default(uuid())
+  name      String   // e.g. "Mathématiques", "Français"
+
+  // Hiérarchie : "Français" regroupe orthographe, vocabulaire, grammaire...
+  // Un parent n'est pas noté directement : sa moyenne est calculée à partir
+  // de ses enfants sur le bulletin.
+  parentId  String?
+  parent    Subject?  @relation("SubjectTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Subject[] @relation("SubjectTree")
+
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  grades    Grade[]
+  classes     ClassSubject[]
+  assignments TeachingAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId])
+  @@index([parentId])
+}
+
+/// Quelles matières sont enseignées dans quelle classe.
+/// Philosophie n'existe qu'en Terminale, Calcul qu'en élémentaire : sans ce
+/// lien, le menu de saisie propose les matières de toute l'école.
+model ClassSubject {
+  id        String   @id @default(uuid())
+
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([classId, subjectId])
+  @@index([classId])
+  @@index([subjectId])
+}
+
+/// Qui saisit quoi.
+/// `subjectId` NULL = l'enseignant couvre TOUTES les matières de la classe
+/// (maître unique de l'élémentaire). Renseigné = il ne couvre que celle-là
+/// (professeur de matière au collège/lycée). Deux affectations sur une même
+/// classe permettent à deux maîtres de se partager les matières.
+model TeachingAssignment {
+  id        String   @id @default(uuid())
+
+  teacherId String
+  teacher   User     @relation("TeacherAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId String?
+  subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([teacherId, classId, subjectId])
+  @@index([classId])
+  @@index([teacherId])
+  @@index([schoolId])
+}
+
+model Term {
+  id        String   @id @default(uuid())
+  name      String   // e.g. "1er Trimestre", "Semestre 1"
+  startDate DateTime?
+  endDate   DateTime?
+  
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  
+  grades    Grade[]
+  evaluations Evaluation[]
+  reportCards ReportCard[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId])
+}
+
+enum GradeType {
+  EXAM      // Composition / Examen
+  HOMEWORK  // Devoir de maison
+  QUIZ      // Interrogation
+  PARTICIPATION // Participation
+  OTHER
+}
+
+model Evaluation {
+  id        String   @id @default(uuid())
+  name      String   // e.g. "Contrôle 1", "Composition"
+  type      GradeType @default(EXAM)
+  date      DateTime?
+  
+  termId    String
+  term      Term      @relation(fields: [termId], references: [id], onDelete: Cascade)
+  schoolId  String
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  
+  grades    Grade[]
+  reportCards ReportCard[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([termId])
+  @@index([schoolId])
+}
+
+enum ReportCardStatus {
+  DRAFT     // saisie en cours, modifiable
+  VALIDATED // validé par l'enseignant : verrouillé, plus modifiable
+  SUBMITTED // déposé au secrétariat
+  RETURNED  // renvoyé pour correction, redevient modifiable
+  APPROVED  // vérifié par le secrétariat, imprimable
+}
+
+/// L'état du bulletin d'un élève pour une évaluation donnée.
+///
+/// Sans cette table, les notes existent en base mais rien ne dit si
+/// l'enseignant a terminé : le secrétariat ne peut ni savoir quoi relire,
+/// ni quoi imprimer.
+model ReportCard {
+  id             String           @id @default(uuid())
+
+  studentId      String
+  student        Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId        String
+  class          Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
+  termId         String
+  term           Term             @relation(fields: [termId], references: [id], onDelete: Cascade)
+  evaluationId   String
+  evaluation     Evaluation       @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  status         ReportCardStatus @default(DRAFT)
+  generalComment String?
+
+  // Traces des actes : qui a validé, qui a déposé, pourquoi c'est revenu.
+  validatedAt    DateTime?
+  validatedById  String?
+  submittedAt    DateTime?
+  submittedById  String?
+  returnedReason String?
+
+  schoolId       String
+  school         School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  // Une évaluation appartient à un seul trimestre : le couple suffit.
+  @@unique([studentId, evaluationId])
+  @@index([classId, evaluationId])
+  @@index([schoolId])
+}
+
+model Grade {
+  id          String    @id @default(uuid())
+  value       Float     // e.g. 15.5
+  max         Float     @default(20) // Scored out of 20
+  coefficient Float     @default(1)
+  type        GradeType @default(EXAM)
+  comment     String?
+  date        DateTime  @default(now())
+  
+  studentId   String
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  classId     String
+  class       Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  
+  subjectId   String
+  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  
+  termId      String
+  term        Term      @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  evaluationId String?
+  evaluation   Evaluation? @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  
+  teacherId   String?
+  teacher     User?     @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([studentId])
+  @@index([classId])
+  @@index([subjectId])
+  @@index([termId])
+  @@index([evaluationId])
+  @@index([teacherId])
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LOT 12.1 — RÉFÉRENTIEL FINANCIER
+   ═══════════════════════════════════════════════════════════════════════
+
+   La direction est la source de vérité des tarifs. Le gestionnaire lit la
+   grille et peut DEMANDER une modification ; il ne l'écrit jamais.
+
+   ⚠️ Aucune table d'historique tarifaire n'est créée ici. `AuditLog` porte déjà
+   « qui a fait quoi, quand, sur quel objet » et `WorkflowTransition` porte les
+   changements d'état d'une demande. Ajouter une troisième table aurait produit
+   un système parallèle — exactement ce que le lot 10 a évité pour les factures.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/// Nature d'un frais. Volontairement une énumération : ces postes structurent
+/// la facturation d'un établissement et n'évoluent pas au rythme des écoles.
+/// `OTHER` absorbe les cas particuliers sans imposer de migration.
+enum FeeKind {
+  REGISTRATION  // frais d'inscription
+  TUITION       // scolarité
+  INSURANCE     // assurance
+  CANTEEN       // cantine
+  TRANSPORT     // transport
+  EXAM          // frais d'examen
+  OTHER
+}
+
+/// Rythme d'exigibilité d'un frais.
+///
+/// ⚠️ Détermine comment le forecast compte la ligne, et RIEN d'autre : aucune
+/// facture n'est émise automatiquement à partir d'une cadence.
+enum FeeCadence {
+  ONE_OFF   // une fois, à l'inscription
+  ANNUAL    // une fois dans l'année scolaire
+  TERM      // à chaque trimestre
+  MONTHLY   // chaque mois
+}
+
+enum FeeScheduleStatus {
+  DRAFT     // en préparation, n'alimente aucun calcul
+  ACTIVE    // grille officielle — la seule qui alimente le forecast
+  ARCHIVED  // conservée pour l'historique, ne calcule plus
+}
+
+/// Grille tarifaire officielle d'un établissement pour une année scolaire.
+///
+/// ⚠️ Une seule grille ACTIVE par école et par année — la contrainte est tenue
+/// côté code (`activateSchedule()`), pas au schéma : Postgres ne sait pas
+/// exprimer « unique parmi les lignes dont status = ACTIVE » sans index partiel,
+/// et Prisma ne les déclare pas. Le contrôle est donc explicite et testé.
+model FeeSchedule {
+  id           String            @id @default(uuid())
+  /// Ex. « 2025-2026 ». Texte libre : le découpage de l'année scolaire varie.
+  academicYear String
+  label        String
+  status       FeeScheduleStatus @default(DRAFT)
+
+  createdById   String
+  activatedAt   DateTime?
+  activatedById String?
+
+  schoolId String @default("")
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  items FeeItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+
+  @@index([schoolId])
+  @@index([schoolId, status])
+}
+
+/// Une ligne de la grille : un montant, sa nature, et sa portée.
+///
+/// ═══ PORTÉE : DE LA PLUS PRÉCISE À LA PLUS LARGE ═══
+///
+///   classId renseigné  → ce frais ne vaut que pour cette classe
+///   cycle renseigné    → il vaut pour tout un cycle (tout le collège…)
+///   les deux à NULL    → il vaut pour tout l'établissement
+///
+/// La résolution retient **la portée la plus précise** trouvée pour un élève,
+/// par nature de frais : une scolarité déclarée sur CM2 l'emporte sur celle du
+/// cycle ÉLÉMENTAIRE. Sans cette règle, un élève cumulerait deux scolarités.
+model FeeItem {
+  id      String     @id @default(uuid())
+  kind    FeeKind
+  label   String
+  amount  Float
+  cadence FeeCadence @default(ANNUAL)
+
+  /// Un frais facultatif (cantine, transport) n'entre pas dans le forecast :
+  /// rien ne dit quels élèves y souscrivent, et le supposer gonflerait
+  /// l'attendu de l'établissement.
+  mandatory Boolean @default(true)
+
+  scheduleId String
+  schedule   FeeSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  classId String?
+  class   Class?           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  cycle   EducationalCycle?
+
+  /// `schoolId` est dénormalisé ici — il se déduirait de `schedule`, mais
+  /// l'isolation doit être lisible dans le `where` de chaque requête, sans
+  /// jointure. Même raisonnement que `Expense.schoolId`.
+  schoolId String @default("")
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  changeRequests FeeChangeRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+
+  @@index([schoolId])
+  @@index([scheduleId])
+  @@index([classId])
+}
+
+/// Demande de modification tarifaire.
+///
+/// ⚠️ Le gestionnaire propose, la direction dispose. La séparation des pouvoirs
+/// n'est pas écrite ici : elle vient de `feeChangeWorkflow` dans `workflow.ts`,
+/// dont `reviewPath` est `/dashboard/settings` — que seuls OWNER et ADMIN
+/// atteignent, via `"*"`. Aucune règle de rôle n'est recopiée.
+///
+/// `currentAmount` fige le montant AU MOMENT de la demande : si la direction
+/// modifie la grille entre-temps, la demande doit rester lisible telle qu'elle
+/// a été formulée.
+model FeeChangeRequest {
+  id             String                @id @default(uuid())
+  currentAmount  Float
+  proposedAmount Float
+  reason         String
+  status         FinanceWorkflowStatus @default(DRAFT)
+
+  requestedById  String
+  decidedById    String?
+  decidedAt      DateTime?
+  decisionReason String?
+
+  feeItemId String
+  feeItem   FeeItem @relation(fields: [feeItemId], references: [id], onDelete: Cascade)
+
+  schoolId String @default("")
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+
+  @@index([schoolId])
+  @@index([schoolId, status])
+  @@index([feeItemId])
+}
+
+/// Notification interne au personnel.
+///
+/// ═══ CE QUE CETTE TABLE EST, ET CE QU'ELLE N'EST PAS ═══
+///
+/// Elle enregistre qu'un membre du personnel **doit être informé** d'un acte
+/// officiel, et se lit dans l'application. C'est un mécanisme réel, vérifiable
+/// en base.
+///
+/// ⚠️ Ce n'est PAS une remise. Aucun e-mail, SMS ou push n'est envoyé : le
+/// dépôt n'a de canal sortant que Twilio, câblé pour les parents
+/// (`Message`), pas pour le personnel. Prétendre notifier hors application
+/// serait simuler un fonctionnement inexistant.
+model StaffNotification {
+  id     String  @id @default(uuid())
+  /// Destinataire. Pas de clé étrangère : une notification doit survivre à la
+  /// suppression d'un compte, comme `AuditLog.userId`.
+  userId String
+  /// Ex. `fee.updated`, `fee.request.decided`. Chaîne, pour la même raison
+  /// qu'`AuditLog.entity` : chaque module à venir ajoute les siennes.
+  kind   String
+  title  String
+  body   String
+  /// Lien profond vers l'écran concerné, quand il existe.
+  link   String?
+  readAt DateTime?
+
+  schoolId String @default("")
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([schoolId])
+  @@index([schoolId, userId, readAt])
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LOT 13 — DOSSIER NUMÉRIQUE ÉLÈVE
+   ═══════════════════════════════════════════════════════════════════════
+
+   Deux notions distinctes, et c'est tout l'enjeu du modèle :
+
+     DocumentRequirement  ce que l'établissement EXIGE    (la checklist)
+     StudentDocument      ce qu'il a RÉELLEMENT REÇU      (la pièce)
+
+   Les confondre rendrait impossible de dire « il manque X » : un document
+   manquant n'a, par définition, aucune ligne dans la seconde table.
+
+   ⚠️ `DocumentRequest` (lot 09) n'est PAS réutilisé. Il porte les demandes de
+   documents faites à l'établissement (nom, description, statut), n'a ni
+   `studentId` ni `parentId`, et sert un écran existant. Le détourner aurait
+   cassé son comportement et mélangé deux sujets.
+
+   ⚠️ Aucune table d'historique n'est créée : `AuditLog` porte déjà
+   « qui / quoi / quand / sur quel objet / avec quel résultat ». Les événements
+   du dossier y sont écrits avec `entity = "studentDocument"`.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/// Famille documentaire. Volontairement une énumération courte et stable :
+/// ce sont des rayons de classement, pas la liste des pièces — celle-ci est
+/// configurée par chaque établissement dans `DocumentRequirement`.
+enum DocCategory {
+  IDENTITE
+  INSCRIPTION
+  SCOLARITE
+  SANTE
+  TRANSFERT
+  EXAMENS
+  AUTRES
+}
+
+/// Type d'élève, pour cibler une exigence.
+///
+/// ⚠️ NOUVEAU et ANCIEN sont **dérivés** des inscriptions réelles (un élève
+/// ayant une inscription sur une année antérieure est ancien) — aucune colonne
+/// ne les stocke, pour ne pas créer une seconde vérité qui pourrait contredire
+/// `Enrollment`. TRANSFERT, lui, n'est dérivable d'aucune donnée existante :
+/// rien au schéma ne dit qu'un élève vient d'un autre établissement. Il se
+/// déclare donc explicitement via `Student.kindOverride`.
+enum StudentKind {
+  NOUVEAU
+  ANCIEN
+  TRANSFERT
+}
+
+/// État d'une pièce du dossier.
+///
+/// ⚠️ `MISSING` n'est jamais écrit en base : une pièce manquante n'a pas de
+/// ligne. Le statut existe parce que l'interface et la complétude raisonnent sur
+/// la checklist, où l'absence est un état à part entière.
+enum StudentDocStatus {
+  MISSING
+  RECEIVED
+  TO_VERIFY
+  VALIDATED
+  REJECTED
+  EXPIRED
+}
+
+/// Une pièce exigée par l'établissement — la checklist configurable.
+///
+/// ⚠️ **Aucune liste nationale n'est codée nulle part.** Chaque école déclare
+/// ses propres exigences. Sans configuration, l'application affiche « checklist
+/// non configurée » plutôt qu'un 0 % trompeur.
+///
+/// Ciblage, du plus large au plus précis — un champ NULL signifie « tous » :
+///   cycle NULL + classId NULL              → tout l'établissement
+///   cycle renseigné                        → un cycle
+///   classId renseigné                      → une classe
+///   academicYear NULL                      → toutes les années
+///   studentKind NULL                       → tous les types d'élève
+model DocumentRequirement {
+  id       String      @id @default(uuid())
+  label    String
+  category DocCategory @default(AUTRES)
+
+  cycle        EducationalCycle?
+  classId      String?
+  class        Class?            @relation(fields: [classId], references: [id], onDelete: Cascade)
+  academicYear String?
+  studentKind  StudentKind?
+
+  /// Durée de validité en mois. NULL = la pièce ne périme pas.
+  /// Sert à faire passer un document en EXPIRED sans supposer de durée par défaut.
+  validityMonths Int?
+
+  /// Désactiver plutôt que supprimer : une exigence retirée ne doit pas faire
+  /// disparaître les pièces déjà reçues au titre de celle-ci.
+  active   Boolean @default(true)
+  position Int     @default(0)
+
+  schoolId String @default("")
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  documents StudentDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+
+  @@index([schoolId])
+  @@index([schoolId, active])
+  @@index([classId])
+}
+
+/// Une pièce réellement reçue, stockée dans Supabase Storage.
+///
+/// ⚠️ **Aucun binaire en base.** `storagePath` pointe vers l'objet du bucket
+/// privé `student-documents`, sous `{schoolId}/{studentId}/{documentId}/{nom}`.
+/// Le base64 en colonne est réservé au logo et au cachet de l'école (lot 00) et
+/// resterait intenable ici : plusieurs pièces par élève, relues à chaque requête.
+///
+/// ⚠️ **Un remplacement n'écrase rien.** La pièce remplacée conserve sa ligne,
+/// reçoit `supersededAt`, et la nouvelle pointe vers elle par `supersedesId`.
+/// L'historique métier survit donc au remplacement du fichier courant.
+model StudentDocument {
+  id String @id @default(uuid())
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  /// Rattachement à une exigence. NULL = pièce versée au dossier hors checklist
+  /// (l'établissement doit pouvoir classer une pièce qu'il n'avait pas prévue).
+  requirementId String?
+  requirement   DocumentRequirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+
+  label    String
+  category DocCategory @default(AUTRES)
+
+  /// Chemin dans le bucket privé. Jamais une URL publique.
+  storagePath String
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+
+  status       StudentDocStatus @default(TO_VERIFY)
+  academicYear String?
+  expiresAt    DateTime?
+
+  uploadedById String
+  reviewedById String?
+  reviewedAt   DateTime?
+  /// Motif de rejet, ou note de validation.
+  reviewNote   String?
+
+  /// Chaîne de remplacement.
+  supersedesId String?          @unique
+  supersedes   StudentDocument? @relation("Replacement", fields: [supersedesId], references: [id], onDelete: SetNull)
+  supersededBy StudentDocument? @relation("Replacement")
+  supersededAt DateTime?
+
+  schoolId String @default("")
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+
+  @@index([schoolId])
+  @@index([schoolId, studentId])
+  @@index([studentId, supersededAt])
+  @@index([requirementId])
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LOT 15 — CENTRE DOCUMENTAIRE DE L'ÉTABLISSEMENT
+
+   ⚠️ **À ne jamais confondre avec le dossier élève.** `StudentDocument`
+   porte les pièces PERSONNELLES d'un élève (extrait de naissance, certificat
+   médical) ; `SchoolDocument` porte les documents que l'ÉTABLISSEMENT produit
+   ou diffuse (liste de fournitures, règlement, bon de commande). Deux tables,
+   deux écrans, deux logiques d'accès — et aucun transfert de l'une vers
+   l'autre. Les mélanger reviendrait à exposer le dossier médical d'un enfant
+   dans une bibliothèque destinée aux familles.
+
+   ⚠️ **Un seul bucket.** Les fichiers vivent dans `student-documents`, sous
+   `{schoolId}/__etablissement__/{documentId}/{nom}`. Le segment littéral ne
+   peut pas entrer en collision avec un identifiant d'élève, qui est un UUID.
+   Créer un second bucket aurait dédoublé les politiques d'accès.
+
+   ⚠️ **Aucune table d'historique.** `AuditLog` et `WorkflowTransition` portent
+   déjà « qui / quoi / quand / de quel état vers quel état ».
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/// Cycle de vie d'un document officiel (lot 15).
+///
+/// ⚠️ Un document non `PUBLISHED` n'est **jamais** présenté comme document
+/// officiel destiné aux familles : c'est le seul état qui rend un document
+/// visible hors de la direction.
+enum SchoolDocStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+/// À qui un document publié s'adresse.
+///
+/// ⚠️ **Déclaré par l'établissement, jamais deviné.** C'est ce champ, et non le
+/// rôle du lecteur, qui décide si un parent peut voir la pièce. Le déduire de
+/// la catégorie aurait exigé une liste nationale de catégories — précisément ce
+/// que le lot 13 a refusé de coder.
+enum DocAudience {
+  STAFF
+  FAMILIES
+}
+
+/// Portée d'un document : tout l'établissement, un cycle, ou une classe.
+enum DocScopeKind {
+  SCHOOL
+  CYCLE
+  CLASS
+}
+
+/// Rayon du centre documentaire.
+///
+/// ⚠️ **Extensible, et propre à chaque école.** Aucune arborescence n'est codée
+/// en dur : « Fournitures », « Manuels », « Uniformes » sont des dossiers que
+/// l'établissement crée, renomme ou supprime. Un dossier retiré ne détruit pas
+/// ses documents (`onDelete: SetNull`) — ils retombent à la racine.
+model DocumentFolder {
+  id       String  @id @default(uuid())
+  name     String
+  /// Icône facultative (nom d'icône lucide), choisie par l'école.
+  icon     String?
+  position Int     @default(0)
+
+  /// Sous-dossiers. Un centre documentaire sans imbrication redevient une liste.
+  parentId String?
+  parent   DocumentFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children DocumentFolder[] @relation("FolderTree")
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  documents SchoolDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId])
+  @@index([parentId])
+}
+
+/// Document officiel de l'établissement.
+model SchoolDocument {
+  id          String  @id @default(uuid())
+  title       String
+  description String?
+
+  folderId String?
+  folder   DocumentFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  status   SchoolDocStatus @default(DRAFT)
+  audience DocAudience     @default(STAFF)
+
+  /// Portée. `CYCLE` renseigne `cycle`, `CLASS` renseigne `classId`.
+  scopeKind DocScopeKind      @default(SCHOOL)
+  cycle     EducationalCycle?
+  classId   String?
+  class     Class?            @relation(fields: [classId], references: [id], onDelete: SetNull)
+
+  /// Année scolaire concernée. NULL = document permanent (un règlement).
+  /// ⚠️ Jamais codée en dur : elle vient du contexte réel de l'établissement.
+  academicYear String?
+  /// Matière ou domaine, pour un manuel. Texte libre : aucune liste nationale.
+  subject      String?
+
+  /// Fichier — mêmes règles que le dossier élève, même bucket privé.
+  storagePath String
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+
+  /// Numéro de version, croissant sur une même lignée.
+  version Int @default(1)
+
+  /// Chaîne de versions. Une version remplacée conserve sa ligne ET son fichier.
+  supersedesId String?         @unique
+  supersedes   SchoolDocument? @relation("DocVersion", fields: [supersedesId], references: [id], onDelete: SetNull)
+  supersededBy SchoolDocument? @relation("DocVersion")
+  supersededAt DateTime?
+
+  publishedAt   DateTime?
+  publishedById String?
+  archivedAt    DateTime?
+  createdById   String
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId])
+  @@index([schoolId, status])
+  @@index([schoolId, folderId])
+  @@index([classId])
+}

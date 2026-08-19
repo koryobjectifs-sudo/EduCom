@@ -1,0 +1,46 @@
+{
+  "name": "educom-saas",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "^20.19.0 || ^22.12.0 || >=24.0.0"
+  },
+  "scripts": {
+    "postinstall": "prisma generate",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "script": "node --env-file=.env ./node_modules/.bin/tsx",
+    "seed:senegal": "npm run script -- seed-senegal.ts",
+    "build:verify": "NEXT_DIST_DIR=.next-verify next build"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.9.1",
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.112.3",
+    "framer-motion": "^13.1.0",
+    "lucide-react": "^1.31.0",
+    "next": "16.3.0",
+    "pg": "^8.23.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "recharts": "^3.10.1",
+    "sonner": "^2.0.8",
+    "twilio": "^6.1.0"
+  },
+  "devDependencies": {
+    "@prisma/client": "^7.9.1",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/pg": "^8.21.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.0",
+    "prisma": "^7.9.1",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.12",
+    "typescript": "^5"
+  }
+}

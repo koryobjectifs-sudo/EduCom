@@ -1,0 +1,122 @@
+import { prisma } from "@/lib/prisma";
+import type { ActorContext } from "@/lib/audit";
+import type { Period } from "@/lib/period";
+import { termPeriod, previousPeriod } from "@/lib/period";
+
+/**
+ * Trimestres — ordre chronologique et comparaison. Lot 12.1.
+ *
+ * ═══ POURQUOI AUCUN CHAMP D'ORDRE N'A ÉTÉ AJOUTÉ AU SCHÉMA ═══
+ *
+ * Le lot 12 déclarait le trimestre non comparable, faute d'ordre déclaré. En
+ * réinspectant : `Term.startDate` **est** l'information d'ordre. Un trimestre
+ * qui commence le 1ᵉʳ octobre précède celui qui commence le 6 janvier — c'est
+ * un fait de calendrier, pas une convention de nommage.
+ *
+ * Ajouter une colonne `order Int` aurait créé une **seconde vérité** : deux
+ * champs pouvant se contredire (ordre 2 avec une date de début antérieure à
+ * l'ordre 1), sans que rien n'arbitre. La règle du projet — une seule source de
+ * vérité par information — l'interdit.
+ *
+ * Ce qui manquait n'était donc pas le schéma mais **les données** : les trois
+ * trimestres en base ont `startDate = NULL`. D'où `setTermDates()`, qui les
+ * renseigne, et le message explicite du sélecteur tant qu'elles manquent.
+ *
+ * ⚠️ **Jamais de tri par nom.** « 1er / 2ème / 3ème Trimestre » se trie bien
+ * alphabétiquement par accident ; « Semestre 1 » / « Trimestre A » / « Rentrée »
+ * non. Un ordre qui marche par coïncidence casse silencieusement.
+ */
+
+export type TermRow = {
+  id: string;
+  name: string;
+  startDate: Date | null;
+  endDate: Date | null;
+  /** Utilisable comme période : les deux dates sont présentes et cohérentes. */
+  dated: boolean;
+};
+
+/**
+ * Trimestres de l'école, dans l'ordre chronologique réel.
+ *
+ * Les trimestres datés viennent d'abord, par `startDate` croissante. Ceux sans
+ * dates suivent, par date de création — ils ne sont pas cachés : l'école doit
+ * voir qu'ils existent et qu'il leur manque quelque chose.
+ */
+export async function orderedTerms(actor: ActorContext): Promise<TermRow[]> {
+  const rows = await prisma.term.findMany({
+    where: { schoolId: actor.schoolId },
+    select: { id: true, name: true, startDate: true, endDate: true, createdAt: true },
+    // Postgres place les NULL en dernier sur un tri ASC avec `nulls: "last"`.
+    orderBy: [{ startDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+  });
+
+  return rows.map((t) => ({
+    id: t.id,
+    name: t.name,
+    startDate: t.startDate,
+    endDate: t.endDate,
+    dated: termPeriod(t) !== null,
+  }));
+}
+
+/**
+ * Trimestre précédant chronologiquement celui de `period`.
+ *
+ * ⚠️ Renvoie `null` dans trois cas distincts, tous légitimes :
+ *   - la période n'est pas un trimestre → l'appelant doit utiliser `previousPeriod()` ;
+ *   - le trimestre courant n'a pas de `startDate` → aucun ordre possible ;
+ *   - c'est le premier trimestre de l'année → il n'y a rien avant.
+ *
+ * `schoolId` est appliqué : sans lui, connaître un identifiant suffirait à
+ * comparer un trimestre au calendrier d'un autre établissement.
+ */
+export async function previousTermPeriod(actor: ActorContext, period: Period): Promise<Period | null> {
+  if (period.kind !== "term" || !period.termId) return null;
+
+  const current = await prisma.term.findFirst({
+    where: { id: period.termId, schoolId: actor.schoolId },
+    select: { startDate: true },
+  });
+  if (!current?.startDate) return null;
+
+  const before = await prisma.term.findFirst({
+    where: {
+      schoolId: actor.schoolId,
+      startDate: { lt: current.startDate },
+      // Un trimestre sans date de fin ne peut pas devenir une période.
+      endDate: { not: null },
+    },
+    orderBy: { startDate: "desc" },
+    select: { id: true, name: true, startDate: true, endDate: true },
+  });
+  if (!before) return null;
+
+  return termPeriod(before);
+}
+
+/**
+ * Période de comparaison, quelle que soit la granularité.
+ *
+ * Point d'entrée unique des rapports : il délègue au calcul pur pour les quatre
+ * granularités calendaires, et à la base pour le trimestre. Les appelants n'ont
+ * plus à savoir lequel des deux s'applique.
+ */
+export async function comparisonPeriod(actor: ActorContext, period: Period): Promise<Period | null> {
+  if (period.kind === "term") return previousTermPeriod(actor, period);
+  return previousPeriod(period);
+}
+
+/**
+ * Nombre de trimestres réellement exploitables comme période.
+ * Sert à expliquer à l'écran pourquoi le sélecteur n'en propose aucun.
+ */
+export async function datedTermCount(actor: ActorContext): Promise<{ total: number; dated: number }> {
+  const [total, dated] = await Promise.all([
+    prisma.term.count({ where: { schoolId: actor.schoolId } }),
+    prisma.term.count({
+      where: { schoolId: actor.schoolId, startDate: { not: null }, endDate: { not: null } },
+    }),
+  ]);
+  return { total, dated };
+}

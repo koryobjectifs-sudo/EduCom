@@ -1,0 +1,70 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Ce qui ne doit JAMAIS entrer dans le dépôt.
+#
+# ⚠️ Le dépôt a été créé le 19 août 2026, après plusieurs semaines de travail.
+# La racine contenait alors des fichiers qui n'auraient jamais dû être versés :
+# une clé d'API Google en clair (`.mcp.json`), six photos aux noms d'URL signées
+# Supabase — probablement des pièces d'élèves téléchargées pendant des essais —
+# et un script d'envoi de SMS portant un vrai numéro sénégalais. Rien n'a été
+# supprimé : tout a été déplacé dans `_local/`, ignoré ici.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ─── Dépendances et sorties de compilation ───────────────────────────────────
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+/.next/
+/.next-*/
+/out/
+/build
+*.tsbuildinfo
+next-env.d.ts
+
+# ⚠️ Client Prisma généré : sa présence ici est volontaire, mais elle IMPOSE que
+# `prisma generate` tourne à l'installation. C'est ce que fait `postinstall`
+# dans `package.json` — ne pas le retirer, sinon aucune machine neuve ne
+# compilera (voir `rappel.md` §66).
+/src/generated/prisma
+
+# ─── Secrets ─────────────────────────────────────────────────────────────────
+# ⚠️ `.env*` couvre tout SAUF l'exemple, qui doit être versé : c'est la seule
+# liste des variables nécessaires au déploiement.
+.env*
+!.env.example
+*.pem
+*.key
+
+# ⚠️ Configuration d'outils d'agents : contient des clés d'API EN CLAIR. La même
+# clé Google figurait à DEUX endroits — `.mcp.json` à la racine et
+# `.agents/mcp_config.json`. La première a été sortie du dossier ; la seconde
+# est ignorée ici. ⚠️ Cette clé doit être considérée comme COMPROMISE et
+# tournée (voir `rappel.md` §70) : elle a vécu en clair dans un dossier de
+# travail pendant des semaines.
+.mcp.json
+.agents/mcp_config.json
+.claude/settings.local.json
+
+# ─── Mis de côté à la création du dépôt, jamais à verser ─────────────────────
+/_local/
+
+# ─── Sorties d'outillage local ───────────────────────────────────────────────
+/graphify-out/
+/agent/
+/coverage
+/.vercel
+
+# ⚠️ `backups/` contient des extraits de la base de production (comptages,
+# écoles supprimées). Utile localement, jamais dans un dépôt.
+/backups/
+
+# ─── Système et journaux ─────────────────────────────────────────────────────
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*

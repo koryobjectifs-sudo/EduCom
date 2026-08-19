@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  // ⚠️ `_local` contient ce qui a été mis de côté à la création du dépôt
+  // (scripts ad hoc de la racine, fichiers sensibles). Il est ignoré par Git ;
+  // sans cette exclusion, `tsc --noEmit` échoue sur des imports relatifs qui ne
+  // valent plus depuis leur nouvel emplacement — un faux rouge sur du code
+  // volontairement hors du projet.
+  "exclude": ["node_modules", "scripts", "agent", "_local"]
+}
