@@ -1448,3 +1448,367 @@ demande l'accès au tableau de bord ou un jeton d'API de gestion.
 constaté ET qu'une restauration n'a pas été essayée.
 
 # FIN DE L'AUDIT DE MISE EN PRODUCTION
+
+# PAIEMENT, INTÉGRATIONS ET MISE SOUS GIT — CONSIGNÉ LE 19 AOÛT 2026
+
+> Ce lot exécute B1→B4 et applique une décision produit : **PayDunya est
+> abandonné, Wave devient la voie de paiement retenue.** Il ferme les §64 à §67
+> de l'audit précédent et en ouvre trois nouveaux.
+
+---
+
+## 70 · 🔴 À FAIRE PAR KORY — La clé Google doit être révoquée
+
+**Une clé d'API Google a vécu en clair, à deux endroits, pendant plusieurs
+semaines** : `.mcp.json` à la racine et `.agents/mcp_config.json`. La seconde
+n'avait pas été repérée lors de l'audit — il a fallu chercher la valeur, pas le
+nom de fichier.
+
+Les deux fichiers sont désormais hors du dépôt (`.gitignore`), et le premier
+commit a été vérifié : aucune trace de la clé n'y figure.
+
+⚠️ **Sortir un fichier du dépôt n'est PAS une rotation de secret.** La clé a
+existé en clair dans un dossier de travail, synchronisé ou sauvegardé
+possiblement ailleurs. Elle doit être considérée comme **compromise** :
+
+1. la révoquer dans la console Google Cloud ;
+2. en générer une nouvelle ;
+3. la restreindre (API autorisées, referrers) ;
+4. ne la remettre que dans un fichier ignoré par Git.
+
+**Cette action ne peut pas être faite depuis le dépôt : elle demande l'accès à
+la console Google.** Tant qu'elle n'est pas faite, ce point reste ouvert.
+
+---
+
+## 71 · ✅ FAIT — PayDunya supprimé, et ce qu'on a trouvé en le retirant
+
+**Décision de Kory : PayDunya n'est pas le système de paiement d'EduCom.** Il
+n'est ni conservé, ni sécurisé « pour plus tard ». Trois choses ont été
+supprimées, et deux d'entre elles étaient pires que le webhook lui-même.
+
+**① La route `/api/webhooks/paydunya`** acceptait un **POST anonyme** et, sur la
+seule foi d'un `status: "completed"` fourni par l'appelant, passait la facture à
+`PAID` et créait un `Payment`. Aucune signature, aucune vérification
+d'établissement. Quiconque devinait un identifiant de facture pouvait solder une
+scolarité. Le contrôle de clé qui la précédait n'en était pas un : il se
+contentait d'écrire dans la console avant de continuer.
+
+**② Un faux lien de paiement envoyé aux familles.** `src/lib/services/chatbot.ts`
+répondait aux parents :
+
+> « Cliquez sur ce lien sécurisé pour payer via Wave / Orange Money :
+> 🔗 https://…/checkout/demo-link-123 »
+
+Ce lien était **écrit en dur**. Pire : la variable `PAYDUNYA_MASTER_KEY` n'a
+**jamais existé dans `.env`** — la branche « clé absente » était donc la seule
+jamais empruntée, et ce faux lien le **seul** que le produit ait jamais produit.
+
+**③ Le mot « sécurisé ».** C'est le détail le plus grave des trois. Le message ne
+disait pas seulement où payer : il rassurait.
+
+**Aucune donnée n'a été supprimée.** Vérifié avant toute action : `WebhookEvent`
+compte **1 ligne** (`WHATSAPP`), les **7** paiements sont tous `CASH`, sans
+référence, dans « Kory Academy 2 » — des encaissements manuels réels. **Zéro**
+paiement portant une référence de ce prestataire. Il n'y avait donc rien à
+arbitrer côté données.
+
+`PAYDUNYA_MASTER_KEY` a été retirée après vérification qu'aucun code ne la lisait
+plus — pas parce que son nom contenait le mot.
+
+---
+
+## 72 · 🟠 DÉCISION REQUISE — L'idempotence, avant tout branchement de Wave
+
+C'est le point à trancher **avant** d'écrire la moindre ligne de Wave.
+
+### Ce que le modèle actuel garantit — et ce qu'il ne garantit pas
+
+`Payment { amount, method, reference?, invoiceId, schoolId, createdAt }`.
+`PaymentMethod = CASH | CHECK | MOBILE_MONEY | BANK_TRANSFER`. Le modèle est
+**déjà générique** : il n'a jamais rien eu de propre à un prestataire, et Wave
+s'y logera sans changer de forme.
+
+Trois constats issus de l'analyse de **toutes** les utilisations de
+`Payment.reference` :
+
+1. **Personne ne l'écrit.** Le seul rédacteur était le webhook supprimé.
+   `markInvoiceAsPaid()` ne la renseigne pas, et aucun formulaire ne la
+   collecte. **Les 7 paiements en base ont `reference = null`.**
+2. **Aucune contrainte d'unicité.** Un même événement rejoué — et les
+   fournisseurs de paiement **rejouent**, c'est leur mode normal de
+   fonctionnement — créerait deux `Payment` pour un seul encaissement.
+3. **`Payment` n'a pas de colonne de statut** : l'existence de la ligne EST
+   l'encaissement (voir `src/lib/finance.ts`). Un doublon n'est donc pas une
+   ligne « en double à ignorer », c'est **de l'argent compté deux fois**.
+
+### Pourquoi il ne faut PAS simplement rendre `reference` unique
+
+Ce serait le réflexe, et il casserait deux choses :
+
+- **La référence n'est pas globale.** Le champ sert aussi de **numéro de
+  chèque**. Deux établissements peuvent parfaitement présenter un chèque n°42 :
+  une contrainte globale refuserait le second, sans explication compréhensible
+  pour une secrétaire.
+- **Elle n'a de sens que rapportée à un émetteur.** Un identifiant de
+  transaction est unique *chez son fournisseur*, pas dans l'absolu.
+
+L'ajout est aujourd'hui **sans risque pour les données** (0 référence en base,
+donc 0 collision), mais il serait faux pour la suite.
+
+### Les deux stratégies possibles
+
+**Option A — unicité portée sur `Payment`.**
+`@@unique([schoolId, method, reference])`, la contrainte n'étant appliquée que
+lorsque `reference` n'est pas nul (PostgreSQL ignore les `NULL` dans un index
+unique, ce qui préserve les saisies manuelles sans référence).
+*Simple. Mais elle protège au moment de l'écriture comptable, c'est-à-dire
+tard : un rejeu a déjà traversé toute la logique métier avant d'être refusé.*
+
+**Option B — unicité portée sur l'ÉVÉNEMENT (recommandée).**
+Donner à `WebhookEvent` un `externalId` et un `schoolId`, avec
+`@@unique([provider, externalId])`. Un rejeu est alors rejeté **à la porte**,
+avant toute écriture métier, et le champ `processed` (aujourd'hui inutilisé)
+retrouve son rôle : marquer qu'un événement a été traité une fois.
+*C'est l'endroit juste : l'idempotence est une propriété du transport, pas de la
+comptabilité.*
+
+**Recommandation : B, complétée par A.** B empêche le rejeu ; A reste le filet
+si un jour un paiement est créé par un autre chemin.
+
+⚠️ **Rien n'a été modifié dans Prisma.** Aucune contrainte n'est ajoutée sans
+décision, et la forme exacte de `externalId` dépend de ce que Wave envoie
+réellement — ce qui renvoie au §73.
+
+### Ce qui manque aussi à `WebhookEvent`, quel que soit le choix
+
+- **pas de `schoolId`** → un événement n'est rattaché à aucun établissement,
+  donc ni cloisonné, ni relisable par école ;
+- **`processed` n'est jamais lu ni écrit** par aucun code.
+
+---
+
+## 73 · 🔴 BLOQUANT — Il manque la documentation de l'API Wave
+
+**Wave est la voie de paiement retenue.** L'architecture interne est prête à
+l'accueillir (§72), et **aucune ligne de code Wave n'a été écrite** :
+`scripts/verify-integrations.ts` en fait un invariant vérifié.
+
+⚠️ **Rien ne sera écrit avant lecture de la documentation officielle.** Les
+éléments suivants **ne peuvent pas être devinés** — chacun conditionne la
+sécurité de l'encaissement, et une supposition fausse se paierait en argent
+réel :
+
+1. **L'authentification** — quel type de secret, transmis comment ; s'il existe
+   des environnements séparés (essai / production).
+2. **La création d'une demande de paiement** — endpoint, paramètres exacts,
+   **unité du montant** (franc CFA entier ? centimes ?), devise, référence
+   marchande que l'on peut y attacher pour retrouver notre `Invoice`.
+3. **Le retour au site** — URL de succès, d'échec, d'annulation.
+4. **Le webhook** — quels événements, quelle charge utile, **quel identifiant
+   d'événement stable** (c'est lui qui portera l'idempotence du §72).
+5. **La vérification de signature** — c'est le point le plus important : sans
+   elle, on retombe exactement sur le webhook supprimé au §71. Quel algorithme,
+   quel en-tête, quelle chaîne signée, quelle tolérance d'horloge.
+6. **Les statuts** — la liste exhaustive et lesquels sont **définitifs**.
+7. **La vérification côté serveur** — existe-t-il un endpoint permettant de
+   **redemander** l'état d'une transaction ? Sans lui, on ne peut jamais
+   confirmer un paiement autrement qu'en croyant ce qu'on reçoit.
+
+**Kory : merci de fournir la documentation Wave (ou un lien vers elle).** Tant
+qu'elle manque, le chantier s'arrête ici — c'est la règle absolue posée pour ce
+lot, et elle est la seule protection contre une intégration inventée.
+
+Non tranché par ailleurs : **Stripe = plus tard**, **Orange Money = PENDING**.
+
+⚠️ Règles à appliquer le jour du branchement, quelles que soient les réponses :
+clé Wave **serveur uniquement** ; **jamais** de montant fourni par le
+navigateur ; vérifier que l'`Invoice` appartient bien à l'école ; **ne jamais**
+écrire `PAID` parce qu'une requête l'affirme ; journaliser chaque transition
+dans `AuditLog`.
+
+---
+
+## 74 · ✅ FAIT — Le chatbot écrivait « envoyé » pour des messages jamais partis
+
+`sendBotReply()` écrivait `status: "SENT"` sur **chaque** message, puis
+vérifiait seulement ensuite s'il existait une clé d'API — et retournait sans
+rien envoyer. **C'est exactement le défaut corrigé au lot 17 dans la diffusion**,
+oublié dans ce service parce qu'il n'était appelé par aucun écran.
+
+Le service entier a été supprimé, avec la route qui l'appelait (§75) : le faux
+« envoyé » disparaît donc par construction, plutôt que d'être corrigé dans du
+code que plus rien n'exécute.
+
+**Aucune machine d'état parallèle n'a été créée.** `src/lib/channels.ts` reste
+l'unique autorité : son registre `SEND_IMPLEMENTATIONS` est **vide**, donc aucun
+canal n'a le droit d'écrire « envoyé ». `scripts/verify-integrations.ts` vérifie
+désormais que ce registre est vide, et qu'**aucun fichier n'écrit un statut de
+message sans passer par `channels.ts`**.
+
+⚠️ **Les 6 lignes `SENT` de la table `Message` n'ont pas été touchées.** Elles
+sont fausses — le compte Twilio n'a jamais émis un seul message — mais les
+réécrire est une modification de données historiques, qui demande une décision
+(**PENDING**). En attendant, l'écran qui les affiche dit maintenant en clair
+qu'elles n'ont jamais quitté EduCom.
+
+---
+
+## 75 · ✅ FAIT — Le webhook WhatsApp, et le simulateur livré dans le produit
+
+La route `/api/webhooks/whatsapp` acceptait des **POST anonymes** et écrivait
+dans `WebhookEvent` **et** `Message`. Trois raisons de la supprimer plutôt que
+de la « sécuriser » :
+
+1. **Aucun fournisseur n'est configuré** — `channels.ts` le prouve : le registre
+   d'envois est vide, et l'expéditeur Twilio n'est pas un expéditeur WhatsApp.
+2. **Son jeton de vérification avait une valeur de repli en dur**
+   (`"educom_local_dev"`), donc la vérification Meta réussissait pour n'importe
+   qui connaissant cette chaîne.
+3. **La sécuriser aurait exigé d'inventer un mécanisme de signature** — ce que
+   ce lot interdit explicitement.
+
+⚠️ **Son unique appelant était un simulateur livré DANS le produit.** L'écran
+`communications/inbox` embarquait un champ « Simuler une réponse du parent
+(Webhook) » qui fabriquait une charge utile Meta complète (`wamid.HBgLM…`, un
+numéro sénégalais en dur) et la postait sur la route ; en cas de succès il
+affichait **« 200 OK - Traité par l'API ! »** en vert. Un banc d'essai, dans une
+page ouvrable par une secrétaire.
+
+Le même écran affichait aussi le **double chevron bleu de WhatsApp** sur chaque
+message sortant — un accusé de lecture, alors qu'aucun accusé n'existe — et
+chargeait son fond depuis `web.whatsapp.com`.
+
+L'écran a été réécrit : il ne fait plus que **relire** les messages enregistrés,
+cloisonnés à l'établissement, avec un encadré qui dit ce qu'ils valent.
+
+**Preuve réseau** (serveur en marche, `scripts/verify-integrations.ts` §5) :
+`POST` anonyme sur les deux webhooks → **404**, `POST` anonyme sur
+`/api/cron/overdue` → **503** (échec fermé, `CRON_SECRET` absent).
+
+Il ne reste qu'**une seule route d'API** dans le projet : `/api/cron/overdue`.
+
+---
+
+## 76 · ✅ FAIT — Le produit envoyait des noms d'élèves à un service tiers
+
+Trouvé en durcissant le vérificateur : `RecentInvoicesWidget` construisait
+l'avatar de chaque facture ainsi :
+
+> `https://ui-avatars.com/api/?name={prénom}+{nom}`
+
+**À chaque affichage du tableau de bord, l'identité d'enfants partait chez un
+service extérieur**, dans une URL journalisable côté serveur distant.
+
+`TopNav` avait déjà été corrigé de cette manière ; **cette vignette avait été
+oubliée, et c'était la plus sensible des deux** — l'une transmettait le nom d'un
+membre du personnel, l'autre celui d'un élève.
+
+Deux écrans chargeaient par ailleurs un décor depuis `web.whatsapp.com`.
+
+Les trois sont désormais rendus localement. `scripts/verify-integrations.ts`
+n'interdit plus « les liens de paiement » mais **tout hôte extérieur hors liste
+d'autorisation explicite** : ajouter un hôte devient une décision visible en
+revue, au lieu d'un `src=` qui passe inaperçu.
+
+---
+
+## 77 · ✅ FAIT — Quatre scripts pouvaient écrire dans un établissement au hasard
+
+`prisma.school.findFirst()` — le raccourci est invisible tant qu'une seule école
+existe. La base en compte trois, dont une avec **133 élèves réels**.
+
+Le plus dangereux, `scripts/seed-classes.ts`, n'avait **ni essai à blanc, ni
+confirmation, ni idempotence** : `npm run script -- scripts/seed-classes.ts`
+créait douze classes dans un établissement arbitraire, et les recréait en double
+à chaque exécution.
+
+Les quatre (`seed-classes`, `seed-subjects`, `seed-test-students`,
+`seed-senegal`) exigent maintenant `SCHOOL_ID`, puis `APPLY=1`. Sans
+`SCHOOL_ID`, ils **refusent** et affichent les écoles avec leur **effectif
+réel** — c'est ce chiffre qui doit faire hésiter. Le garde-fou vit dans
+`scripts/_cible.ts`, en un seul endroit.
+
+`scripts/seed-fee-fixtures.ts` vise l'école **la plus peuplée** (choix
+documenté) et reste en essai à blanc par défaut : il ne peut pas écrire par
+accident, mais il ne nomme pas sa cible — **PENDING**, moindre priorité.
+
+⚠️ `update_classes.ts` contenait un `prisma.class.deleteMany({})` **global**,
+déclenché si le total d'élèves de la base tombait à zéro. Il est sorti du projet
+(`_local/`, ignoré par Git et exclu de TypeScript) et **ne doit pas être
+exécuté**. Aucun `deleteMany({})` global ne subsiste dans le dépôt.
+
+---
+
+## 78 · ✅ FAIT — Le dépôt existe, et le projet se construit ailleurs
+
+Ferme les §64, §66 et §67.
+
+**Git.** Dépôt initialisé, premier commit de 441 fichiers. Avant de committer,
+la racine a été triée **en lisant chaque fichier**, jamais sur son nom : six
+JPEG aux noms d'URL signées Supabase (probablement des pièces d'élèves
+téléchargées lors d'essais), un script d'envoi de SMS portant un **vrai numéro
+sénégalais**, trois scripts ad hoc. Tout est dans `_local/`, **rien n'a été
+supprimé**.
+
+**Portabilité — prouvée, pas supposée.** Sur un **clone neuf** du dépôt :
+`npm ci` (le `postinstall` ajouté a bien lancé `prisma generate` et produit le
+client absent du dépôt) → `tsc --noEmit` : **0 erreur** → `next build` :
+**compilé, 50 pages générées**. `engines` déclare l'intersection réelle des
+exigences de Next et de Prisma : `^20.19 || ^22.12 || >=24`.
+
+**Compiler sans casser la session de développement.** `next dev` et `next build`
+écrivent dans le même `.next` (règle 3 d'`AGENTS.md`). `distDir` est désormais
+paramétrable : `npm run build:verify` compile dans `.next-verify`, ignoré par
+Git. Vérifié : `.next/dev` intact, serveur de dev toujours en marche.
+
+**`.env.example` est complet, et c'est vérifiable.**
+`scripts/verify-env-example.ts` relit les sources et compare les deux listes :
+**12 variables lues, 12 documentées**. Il refuse aussi toute valeur réelle dans
+ce fichier versé dans Git, et toute variable Wave ou Stripe déclarée par
+anticipation. `CRON_SECRET` manquait ; `WHATSAPP_API_KEY` et
+`WHATSAPP_VERIFY_TOKEN` n'ont plus aucun lecteur et ont été retirées.
+
+⚠️ `CRON_SECRET` n'est **pas** défini dans le `.env` local : `/api/cron/overdue`
+est donc **inerte**, et aucune facture ne bascule en retard automatiquement.
+C'est le comportement voulu (échec fermé), mais il faudra définir la variable en
+production — sinon la bascule ne se fera jamais.
+
+**Clé de service Supabase :** vérifiée **absente du bundle client** (`.next/static`)
+sur le build du clone neuf.
+
+---
+
+## 79 · 🟠 DÉCISION REQUISE — Le sélecteur de rôle de test
+
+`src/app/dashboard/actions.ts` expose `changeTestRole()` : **tout utilisateur
+connecté peut réécrire son propre rôle en base** (un PARENT peut devenir OWNER).
+La seule protection est `NODE_ENV === "production"`.
+
+Ce n'est pas une route ouverte, et le garde-fou fonctionne dans un build de
+production. Mais c'est un contournement d'autorisation, et il a probablement
+déjà eu un effet : **« Kory Academy 2 » ne contient plus aucun compte `OWNER`**
+(8 comptes : 2 ADMIN, 2 TEACHER, 1 SECRETARY, 1 ACCOUNTANT, 1 ASSISTANT,
+1 PARENT). C'est ce qui fait échouer 4 contrôles de `verify-lot-12-2` — **un
+état de données, pas une régression de code**.
+
+Trois options : le supprimer ; le réserver à une liste d'identifiants explicite ;
+le laisser tel quel en assumant que `NODE_ENV` suffit.
+
+⚠️ **Rien n'a été décidé ni modifié** : supprimer un outil que Kory utilise
+peut-être quotidiennement n'est pas une décision d'agent.
+
+---
+
+## 80 · Relevé — 3 vulnérabilités « high » dans les dépendances
+
+`npm audit` sur le clone neuf : **3 vulnérabilités « high »**, toutes issues d'un
+seul paquet transitif (`deepmerge-ts < 8.0.0`). Le correctif n'est proposé que
+via `npm audit fix --force`, c'est-à-dire avec **changements incompatibles** sur
+la dépendance parente.
+
+Non appliqué : une mise à jour cassante n'a pas sa place dans un lot dont le
+build vient d'être prouvé. **PENDING** — à traiter avec un build de vérification
+avant la mise en production.
+
+# FIN DU LOT PAIEMENT / INTÉGRATIONS

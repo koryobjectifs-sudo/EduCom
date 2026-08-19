@@ -348,6 +348,25 @@ async function nettoyer() {
   for (const u of data.users) {
     if ((u.email ?? "").startsWith(TAG.toLowerCase())) await admin.auth.admin.deleteUser(u.id).catch(() => {});
   }
+
+  /**
+   * ⚠️ Les sections 1 et 2 créent une école EN PASSANT PAR LE VRAI FORMULAIRE :
+   * son identifiant n'est donc ni dans `A` ni dans `B`, et la boucle ci-dessus
+   * ne supprimait que son compte Supabase. Chaque exécution laissait une école
+   * orpheline en base — constaté le 19 août 2026 avec « SONDEPIL Gamma 283226 ».
+   *
+   * La suppression est bornée au préfixe de sonde, qui n'appartient à aucun
+   * établissement réel. C'est une cascade (règle 4 du projet) : on compte donc
+   * ce qui est rattaché AVANT de supprimer, et on le dit.
+   */
+  const orphelines = await prisma.school.findMany({
+    where: { name: { startsWith: TAG } },
+    select: { id: true, name: true, _count: { select: { students: true, users: true, classes: true } } },
+  });
+  for (const o of orphelines) {
+    console.log(`      purge « ${o.name} » — ${o._count.students} élève(s), ${o._count.users} compte(s), ${o._count.classes} classe(s)`);
+    await prisma.school.delete({ where: { id: o.id } }).catch(() => {});
+  }
   const restesEcoles = await prisma.school.count({ where: { name: { startsWith: TAG } } });
   const restesEleves = await prisma.student.count({ where: { firstName: { startsWith: TAG } } });
   const { data: apres } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });

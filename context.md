@@ -1,6 +1,6 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 19 août 2026
+> Dernière mise à jour : 19 août 2026 (soir — suppression des fausses intégrations, mise sous Git)
 
 ## À propos du projet
 EduCom SaaS est une plateforme de gestion scolaire tout-en-un conçue pour les établissements (de la maternelle au lycée). L'application comprend une vitrine (Landing Page) et un tableau de bord (Dashboard) pour l'administration complète de l'école (admissions, communications, notes, paiements, etc.).
@@ -11,9 +11,9 @@ EduCom SaaS est une plateforme de gestion scolaire tout-en-un conçue pour les �
   - Générateur `prisma-client` → sortie TypeScript dans `src/generated/prisma` (pas `@prisma/client` classique)
   - Pas de dossier `prisma/migrations` : le schéma est appliqué via `prisma db push`
 - **Authentification:** Supabase (`@supabase/ssr`)
-- **Paiements:** Intégration PayDunya prévue / en cours
-- **Messagerie:** Twilio (WhatsApp/SMS)
-- **Autres:** Service de Chatbot intégré, Recharts, Framer Motion, Sonner
+- **Paiements:** **aucun paiement en ligne.** PayDunya est ABANDONNÉ (supprimé le 19 août 2026) ; **Wave** est la voie retenue, en attente de sa documentation d'API. Stripe : plus tard. Orange Money : non tranché.
+- **Messagerie:** identifiants Twilio présents, **aucun envoi implémenté** — `src/lib/channels.ts` est seul juge, et son registre est vide.
+- **Autres:** Recharts, Framer Motion, Sonner
 - **Icônes:** `lucide-react` **1.x** — attention, plusieurs noms ont changé (`AlertTriangle` n'existe plus, c'est `TriangleAlert`). Vérifier l'export avant d'importer.
 
 ## Outillage / Scripts
@@ -1341,6 +1341,10 @@ n'importe quelle école, sans qu'aucun paiement ait eu lieu. Le motif correct
 existe pourtant déjà dans le dépôt : `/api/cron/overdue` refuse tout tant que
 son secret n'est pas défini.
 
+⚠️ **CES DEUX POINTS SONT TRAITÉS — voir la section suivante.** Le dépôt existe
+depuis le 19 août 2026 au soir, et les deux webhooks ont été supprimés, non pas
+sécurisés : aucun fournisseur réel ne les appelait.
+
 S'y ajoutent : le projet **ne peut pas se construire ailleurs** (`prisma
 generate` n'est appelé nulle part et sa sortie est ignorée par Git ;
 `next.config.ts` est vide, sans `standalone` ni en-tête de sécurité) · une clé
@@ -2420,4 +2424,116 @@ Les 4 `.webp` de la racine sont des bulletins **authentiques de trois établisse
 - *Portail Parent / Annuaire public.*
 
 **Paiements :**
-- Intégrer l'API PayDunya pour les paiements Mobile Money sur les factures impayées.
+- Intégrer **Wave** pour le règlement des factures impayées. ⚠️ Bloqué : la documentation de l'API Wave n'a pas encore été fournie, et rien ne sera écrit sans elle (`rappel.md` §73). L'idempotence doit être tranchée avant (§72). PayDunya a été abandonné et supprimé le 19 août 2026 (§71).
+
+---
+
+## Suppression des fausses intégrations et mise sous Git — 19 août 2026 (soir)
+
+### La décision, et ce qu'elle a fait remonter
+
+**PayDunya est abandonné ; Wave devient la voie de paiement.** En retirant
+PayDunya, le vrai problème s'est révélé : ce n'était pas le webhook, c'était
+**ce que le produit disait aux familles**. Le chatbot leur envoyait un lien de
+paiement écrit en dur avec la phrase « cliquez sur ce lien **sécurisé** ». La
+variable `PAYDUNYA_MASTER_KEY` n'ayant jamais existé dans `.env`, la branche
+« clé absente » était la seule jamais empruntée : **ce faux lien était le seul
+que le produit ait jamais produit.**
+
+Le webhook, lui, passait une facture à `PAID` sur un simple POST **anonyme**
+portant `{"status":"completed"}`.
+
+**Aucune donnée n'a été supprimée**, et il a été vérifié qu'il n'y avait rien à
+arbitrer : 1 seul `WebhookEvent` (WHATSAPP), 7 paiements tous `CASH` sans
+référence, **zéro** paiement lié à ce prestataire.
+
+### Le même défaut, une troisième fois
+
+`sendBotReply()` écrivait `status: "SENT"` avant même de regarder s'il existait
+une clé d'API. C'est **exactement** ce que le lot 17 avait corrigé dans la
+diffusion — le service avait été oublié parce qu'aucun écran ne l'appelait.
+
+**Leçon à retenir :** un module que personne n'ouvre n'est pas un module
+inoffensif. Les trois mensonges de ce lot vivaient tous dans du code sans écran.
+
+### Le piège le plus instructif : le simulateur
+
+Le webhook WhatsApp n'avait **qu'un seul appelant** : un champ « Simuler une
+réponse du parent (Webhook) » **livré dans le tableau de bord**, qui forgeait
+une charge utile Meta et affichait « 200 OK - Traité par l'API ! » en vert.
+
+C'est ce qui a tranché entre « sécuriser » et « supprimer » : sécuriser une
+route dont le seul client est un banc d'essai n'aurait fait que rendre le banc
+d'essai plus crédible. Le même écran affichait le double chevron bleu de
+WhatsApp — un accusé de lecture qui n'existe pas — et chargeait son fond depuis
+`web.whatsapp.com`.
+
+### Trouvé par accident, et plus grave que ce qu'on cherchait
+
+En durcissant le vérificateur pour interdire les liens de paiement fabriqués,
+un contrôle plus large a été essayé : **aucun hôte extérieur sans autorisation
+explicite**. Il a immédiatement révélé que `RecentInvoicesWidget` envoyait
+**le prénom et le nom d'élèves à `ui-avatars.com`** à chaque affichage du
+tableau de bord. `TopNav` avait déjà été corrigé ainsi ; cette vignette avait
+été oubliée, et c'était la plus sensible des deux.
+
+**Décision d'outillage :** le vérificateur ne cherche plus des motifs interdits
+mais valide contre une **liste d'hôtes autorisés**. Chercher ce qu'on redoute ne
+trouve que ce à quoi on a déjà pensé.
+
+### État réel de la base (tenant de travail)
+
+| Table | Compte |
+|---|---|
+| `School` | 4 → **3** après purge d'une école de sonde orpheline |
+| `User` (Kory Academy 2) | 8 — ⚠️ **aucun `OWNER`** |
+| `Student` (Kory Academy 2) | 133 réels · Senghor 3 · SABADO 0 |
+| `Payment` | 7, tous `CASH`, tous `reference = null` |
+| `Invoice` | 7 `PAID`, 1 `PENDING` |
+| `Message` | 6, toutes `OUTBOUND`, toutes `SENT` — ⚠️ **toutes fausses** |
+| `WebhookEvent` | 1 (`WHATSAPP`), `processed = false` |
+
+⚠️ **Aucun compte `OWNER` dans « Kory Academy 2 »** : c'est ce qui fait échouer
+4 contrôles de `verify-lot-12-2` — un état de **données**, pas une régression.
+Cause probable : le sélecteur de rôle de test, qui laisse tout utilisateur
+connecté réécrire son propre rôle (`rappel.md` §79, décision requise).
+
+### Pièges rencontrés, à ne pas repayer
+
+1. **Un vérificateur qui se déclenche sur lui-même.** Le contrôle « aucune
+   mention du prestataire abandonné » trouvait le nom… dans son propre code
+   source. Le nom y est désormais reconstitué à l'exécution. Même famille de
+   piège que le `print:` du lot documents et que le « Pas de suivi des
+   présences » de la sonde landing — **c'est la troisième fois** : tout
+   vérificateur qui cherche un mot doit se demander s'il le contient.
+2. **Un contrôle trop large est un faux rouge.** En acceptant tout littéral en
+   capitales comme variable d'environnement, le vérificateur a réclamé la
+   documentation de `SEND_IMPLEMENTATIONS`. Remplacé par une liste explicite de
+   lectures indirectes, elle-même vérifiée : si l'entrée n'est plus dans le
+   fichier annoncé, le contrôle échoue.
+3. **`.env.example` prétendait qu'un vérificateur existait** avant qu'il ne soit
+   écrit. Une documentation qui décrit son propre contrôle doit être écrite
+   **après** lui.
+4. **La sonde d'authentification laissait une école orpheline à chaque
+   exécution.** Son nettoyage ne connaissait que les deux écoles qu'elle crée
+   directement ; la troisième naît du **vrai formulaire d'inscription** et
+   n'était donc suivie par personne.
+
+### Portabilité — prouvée sur un clone neuf
+
+`npm ci` (le `postinstall` ajouté lance `prisma generate`) → `tsc --noEmit` :
+0 erreur → `next build` : compilé, 50 pages. Fait sur un **clone**, jamais dans
+le dossier de travail : `next dev` et `next build` partagent `.next`, et un
+build de vérification y écraserait les artefacts du serveur de développement
+(règle 3). D'où `npm run build:verify`, qui compile dans `.next-verify`.
+
+### Chantiers ouverts, par priorité
+
+1. **Documentation de l'API Wave** — bloquant, ne peut venir que de Kory (§73).
+2. **Clé Google à révoquer** — compromise, action hors dépôt (§70).
+3. **Idempotence** — décision requise avant Wave (§72) ; recommandation :
+   unicité portée par l'**événement** (`WebhookEvent`), pas par `Payment`.
+4. **Sélecteur de rôle de test** — décision requise (§79).
+5. **6 lignes `Message` fausses** — réécriture = modification de données
+   historiques, décision requise (§74).
+6. **3 vulnérabilités « high »** (`deepmerge-ts`), correctif cassant (§80).
