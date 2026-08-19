@@ -210,11 +210,30 @@ async function main() {
       check(res.status === 404, `${c.nom} : POST anonyme → 404 (route inexistante)`, `reçu ${res.status}`);
     }
 
-    // La route conservée doit refuser sans secret, et ne rien exécuter.
-    const cron = await fetch(`${BASE}/api/cron/overdue`, { method: "POST" });
-    check(cron.status === 401 || cron.status === 503,
-      `cron/overdue : POST anonyme → ${cron.status} (refusé)`,
-      `reçu ${cron.status}`);
+    /**
+     * La route conservée doit refuser sans secret, et ne rien exécuter.
+     *
+     * ⚠️ **Les DEUX verbes sont éprouvés.** `GET` a été ouvert le 19 août 2026
+     * parce que Vercel Cron appelle ses tâches en `GET` — une route POST-only
+     * aurait renvoyé 405 à chaque exécution planifiée, donc une tâche en échec
+     * silencieux tous les jours. Ouvrir un verbe sans étendre le test aurait
+     * laissé la moitié de la surface non vérifiée : c'est précisément ainsi que
+     * les webhooks supprimés au §71 avaient traversé les revues.
+     */
+    for (const verbe of ["POST", "GET"] as const) {
+      const cron = await fetch(`${BASE}/api/cron/overdue`, { method: verbe });
+      check(cron.status === 401 || cron.status === 503,
+        `cron/overdue : ${verbe} anonyme → ${cron.status} (refusé)`,
+        `reçu ${cron.status} — un balayage a peut-être été exécuté sans secret`);
+    }
+
+    // Un secret faux doit être refusé comme un secret absent.
+    const faux = await fetch(`${BASE}/api/cron/overdue`, {
+      method: "GET", headers: { authorization: "Bearer mauvais-secret" },
+    });
+    check(faux.status === 401 || faux.status === 503,
+      `cron/overdue : secret invalide → ${faux.status} (refusé)`,
+      `reçu ${faux.status}`);
   }
 
   /* ═════════ 6. aucune intégration de paiement annoncée ═════════ */

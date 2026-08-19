@@ -40,7 +40,15 @@ function sources(dir: string, acc: string[] = []): string[] {
  * Fournies par la plateforme, jamais par l'exploitant : les documenter
  * inviterait à les définir à la main, ce qui casserait la compilation.
  */
-const PLATEFORME = new Set(["NODE_ENV", "VERCEL_URL", "PORT"]);
+const PLATEFORME = new Set([
+  "NODE_ENV", "PORT",
+  // ⚠️ Injectées par Vercel à la construction et à l'exécution. `VERCEL` vaut
+  // "1" sur la plateforme et sert à neutraliser l'échappatoire `NEXT_DIST_DIR`
+  // (voir `next.config.ts`). Les documenter dans `.env.example` inviterait à
+  // les définir à la main, ce qui ferait croire à l'application qu'elle tourne
+  // sur Vercel alors qu'elle tourne ailleurs.
+  "VERCEL", "VERCEL_URL", "VERCEL_ENV", "VERCEL_REGION",
+]);
 
 /** Variables lues par le code, sous leurs DEUX formes d'accès. */
 function variablesLues(): Map<string, string[]> {

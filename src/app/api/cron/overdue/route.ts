@@ -60,7 +60,7 @@ function authorise(req: NextRequest): { ok: true } | { ok: false; status: number
   return { ok: true };
 }
 
-export async function POST(req: NextRequest) {
+async function balayer(req: NextRequest) {
   const auth = authorise(req);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.message }, { status: auth.status });
@@ -79,7 +79,36 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/** `GET` refusé : un traitement qui écrit ne doit pas être déclenché par une simple visite. */
-export async function GET() {
-  return NextResponse.json({ error: "Méthode non autorisée. Utilisez POST." }, { status: 405 });
+export async function POST(req: NextRequest) {
+  return balayer(req);
+}
+
+/**
+ * `GET` accepté — **mais soumis au même secret**.
+ *
+ * ═══ POURQUOI CE VERBE A CHANGÉ, ET POURQUOI CE N'EST PAS UN RELÂCHEMENT ═══
+ *
+ * `GET` était refusé, avec ce motif : « un traitement qui écrit ne doit pas être
+ * déclenché par une simple visite ». Le motif reste juste ; ce qui a changé,
+ * c'est l'ordonnanceur retenu.
+ *
+ * ⚠️ **Vercel Cron appelle ses tâches en `GET`.** Une route qui ne répond qu'en
+ * `POST` aurait donc renvoyé 405 à chaque exécution planifiée — c'est-à-dire une
+ * tâche qui échoue tous les jours en silence, et des factures qui ne basculent
+ * jamais en retard. Exactement la famille de panne que ce projet passe son temps
+ * à corriger : quelque chose qui a l'air branché et ne l'est pas.
+ *
+ * **La protection est intégralement conservée** : `authorise()` est appelée en
+ * premier, et exige `Authorization: Bearer $CRON_SECRET` comparé à durée
+ * constante. Une « simple visite » de navigateur ne porte pas cet en-tête et
+ * reçoit 401 ; sans `CRON_SECRET` dans l'environnement, la route reste inerte
+ * (503). Vercel ajoute cet en-tête automatiquement dès que `CRON_SECRET` est
+ * défini dans les variables du projet — le contrat coïncide exactement.
+ *
+ * ⚠️ `export const dynamic = "force-dynamic"` (plus haut) est ce qui empêche ce
+ * `GET` d'être mis en cache : sans lui, un CDN pourrait servir la réponse d'un
+ * balayage précédent et masquer les exécutions suivantes.
+ */
+export async function GET(req: NextRequest) {
+  return balayer(req);
 }

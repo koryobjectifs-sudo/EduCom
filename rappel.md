@@ -1518,7 +1518,14 @@ plus — pas parce que son nom contenait le mot.
 
 ---
 
-## 72 · 🟠 DÉCISION REQUISE — L'idempotence, avant tout branchement de Wave
+## 72 · 🟠 ⚠️ PORTÉE CORRIGÉE AU §81 — L'idempotence des encaissements
+
+> ⚠️ **Cette section analyse la facturation ÉCOLE → PARENTS** (`Invoice`,
+> `Payment`). Le 19 août 2026 au soir, Kory a précisé que **Wave sert à
+> encaisser les abonnements EduCom** — c'est-à-dire ÉCOLE → EDUCOM, un objet
+> qui **n'existe pas dans le schéma**. L'analyse ci-dessous reste valable pour
+> le jour où les parents paieront en ligne, mais **ce n'est pas le chantier
+> Wave**. Voir **§81**.
 
 C'est le point à trancher **avant** d'écrire la moindre ligne de Wave.
 
@@ -1589,6 +1596,11 @@ réellement — ce qui renvoie au §73.
 ---
 
 ## 73 · 🔴 BLOQUANT — Il manque la documentation de l'API Wave
+
+> ⚠️ **La liste de questions ci-dessous reste entièrement valable**, mais elle
+> porte désormais sur l'encaissement des **abonnements EduCom**, pas sur le
+> règlement des frais de scolarité. Le modèle de données concerné n'existe pas :
+> voir **§81**.
 
 **Wave est la voie de paiement retenue.** L'architecture interne est prête à
 l'accueillir (§72), et **aucune ligne de code Wave n'a été écrite** :
@@ -1812,3 +1824,131 @@ build vient d'être prouvé. **PENDING** — à traiter avec un build de vérifi
 avant la mise en production.
 
 # FIN DU LOT PAIEMENT / INTÉGRATIONS
+
+---
+
+# DÉPLOIEMENT VERCEL — CONSIGNÉ LE 19 AOÛT 2026 (SOIR)
+
+## 81 · 🔴 CHANGEMENT DE PORTÉE — Wave encaisse les ABONNEMENTS EduCom
+
+Décision de Kory : **Wave = abonnements EduCom**. Ce n'est pas une précision de
+détail, cela change complètement l'objet du chantier.
+
+|  | Ce que §72/§73 avaient analysé | Ce qu'il faut réellement |
+|---|---|---|
+| Qui paie | un parent | **une école** |
+| Qui encaisse | l'école | **EduCom** |
+| Objet | `Invoice` / `Payment` | **un abonnement** |
+| Modèle | existe déjà | **n'existe pas du tout** |
+
+**Vérifié sur le schéma :** aucun modèle `Subscription`, `Plan`, `Billing`,
+`Tenant`, `Trial` ni `Account`. `School` n'a **ni plan, ni date de fin d'essai,
+ni statut d'abonnement** — uniquement `onboardingCompleted`.
+
+⚠️ **Conséquence directe, et elle est déjà publiée** : la page Tarifs annonce
+« 14 jours d'essai », « 20 € », « 30 € ». **Aucun mécanisme ne décompte cet
+essai, aucun ne distingue Pro de Premium, aucun ne sait si une école a payé.**
+La page dit aujourd'hui la vérité en toutes lettres (« EduCom n'a pas encore de
+paiement en ligne : rien ne peut vous être débité »), et cette phrase devra
+rester exacte jusqu'au jour où le mécanisme existera vraiment.
+
+**Ce qu'il faudra décider avant de brancher Wave** — aucune de ces réponses ne
+peut être devinée, et chacune détermine le modèle de données :
+
+1. Que se passe-t-il **à la fin des 14 jours** sans paiement ? Lecture seule ?
+   Blocage de la connexion ? Rien, jusqu'à relance manuelle ? ⚠️ Couper l'accès
+   à un établissement en pleine période de bulletins est une décision produit
+   lourde, pas un réglage technique.
+2. **Qu'est-ce qui distingue Pro de Premium ?** Toujours non arrêté (§ tarifs).
+   Sans cette réponse, un abonnement n'a rien à faire respecter.
+3. Facturation **mensuelle uniquement**, ou annuelle ?
+4. Wave gère-t-il un **prélèvement récurrent**, ou chaque mois est-il un
+   paiement ponctuel à relancer ? ⚠️ **Cette question est la première à poser à
+   la documentation Wave** : elle change tout le modèle. Un paiement récurrent
+   demande un mandat et un cycle ; un paiement ponctuel demande des rappels.
+5. Que devient une école qui ne paie plus — ses **données** sont-elles
+   conservées, et combien de temps ?
+
+**Rien n'a été écrit ni modélisé.** La règle absolue tient : pas de
+documentation Wave, pas de code Wave.
+
+---
+
+## 82 · ✅ FAIT — Trois pannes Vercel évitées avant le premier déploiement
+
+Aucun déploiement n'a été lancé. Trois défauts ont été corrigés dans le dépôt,
+et chacun se serait manifesté **après** la mise en ligne, sous une forme
+difficile à diagnostiquer.
+
+**① Le client Prisma aurait pu être absent ou périmé.**
+`postinstall: prisma generate` suffit sur une machine neuve — mais **Vercel
+restaure `node_modules` depuis son cache**, et `postinstall` ne rejoue alors
+pas. Le client Prisma étant ignoré par Git, le build aurait compilé contre un
+client absent ou décalé du schéma. `prisma generate` est désormais **aussi**
+dans le script `build`.
+
+**② `distDir` pouvait faire servir un dossier introuvable.**
+`NEXT_DIST_DIR` redirige la sortie de compilation pour ne pas écraser le serveur
+de développement (règle 3). Recopié un jour dans les variables du projet Vercel
+— scénario probable, on copie souvent un `.env` local en bloc — le build aurait
+« réussi » et le site n'aurait rien servi. Sur Vercel (`VERCEL=1`), la variable
+est maintenant **ignorée**.
+
+**③ La tâche planifiée aurait échoué tous les jours en silence.**
+⚠️ **Vercel Cron appelle ses tâches en `GET`.** La route `/api/cron/overdue` ne
+répondait qu'en `POST` et renvoyait **405** sur `GET`, volontairement (« un
+traitement qui écrit ne doit pas être déclenché par une simple visite »). Sur
+Vercel, cela aurait donné une tâche en échec quotidien, invisible, et **aucune
+facture ne serait jamais passée en retard**.
+
+`GET` est désormais accepté **avec exactement la même exigence** :
+`Authorization: Bearer $CRON_SECRET`, comparé à durée constante, échec fermé si
+le secret est absent. Une visite de navigateur ne porte pas cet en-tête → 401.
+Vercel ajoute cet en-tête **automatiquement** dès que `CRON_SECRET` figure dans
+les variables du projet : le contrat coïncide exactement.
+
+Le vérificateur a été étendu **en même temps** que la surface : `POST` anonyme,
+`GET` anonyme et **secret invalide** sont tous les trois éprouvés (24/24).
+Ouvrir un verbe sans étendre le test aurait laissé la moitié de la surface non
+vérifiée — c'est ainsi que les webhooks du §71 avaient traversé les revues.
+
+`vercel.json` déclare la tâche à **02:00**. ⚠️ Le Sénégal est à **UTC+0** : les
+horaires Vercel (UTC) sont donc directement l'heure de Dakar, sans conversion.
+L'heure est modifiable — c'est un choix, pas une contrainte.
+
+---
+
+## 83 · Variables à définir dans le projet Vercel
+
+Les **12** variables de `.env.example` (liste vérifiée par
+`scripts/verify-env-example.ts`). Ce qui change par rapport au `.env` local :
+
+| Variable | Valeur en production |
+|---|---|
+| `DATABASE_URL` | pooler **6543** + `pgbouncer=true` — obligatoire en serverless |
+| `DIRECT_URL` | port **5432**, migrations uniquement |
+| `NEXT_PUBLIC_SUPABASE_URL` | projet de production |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | projet de production |
+| `SUPABASE_SERVICE_ROLE_KEY` | ⚠️ **jamais** de préfixe `NEXT_PUBLIC_` |
+| `NEXT_PUBLIC_SITE_URL` | ⚠️ le domaine réel — **bloqué** tant qu'il n'est pas choisi |
+| `CRON_SECRET` | ⚠️ **valeur neuve**, jamais celle d'un `.env` local |
+| `TWILIO_*` (3) | facultatives — ne débloquent aucun envoi (registre vide) |
+| `OCR_PROVIDER` | **laisser vide** — sinon l'écran annonce un fournisseur inexistant |
+| `NEXT_DIST_DIR` | ⚠️ **NE PAS la définir** (ignorée sur Vercel, mais inutile) |
+
+⚠️ **`sslmode` n'est pas optionnel** dans les deux URL de base : sans lui, la
+connexion se fait **en clair** (constaté le 19 août 2026).
+
+⚠️ **`CRON_SECRET` absent = bascule des factures jamais exécutée.** La route
+reste inerte (503) et ne le signale que dans les journaux du serveur.
+
+**Bloquants restants, qui ne dépendent que de Kory** : le domaine (donc
+`NEXT_PUBLIC_SITE_URL`), le SMTP de production (§57 — l'envoi intégré de
+Supabase est limité et bloque déjà les inscriptions), et les URL de redirection
+du projet Supabase de production (§58).
+
+⚠️ **Le projet Supabase de production est-il le même que celui de
+développement ?** La question n'a pas été tranchée et elle est structurante :
+partager le projet ferait cohabiter les 133 élèves réels de « Kory Academy 2 »
+avec les fixtures des sondes, qui créent et suppriment des écoles à chaque
+exécution.
