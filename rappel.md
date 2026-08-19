@@ -1952,3 +1952,360 @@ développement ?** La question n'a pas été tranchée et elle est structurante 
 partager le projet ferait cohabiter les 133 élèves réels de « Kory Academy 2 »
 avec les fixtures des sondes, qui créent et suppriment des écoles à chaque
 exécution.
+
+---
+
+# SÉPARATION DEV / PRODUCTION SUPABASE — CONSIGNÉ LE 19 AOÛT 2026 (SOIR)
+
+## 84 · 🟠 DÉCISION REQUISE — Deux projets Supabase, ou un seul ?
+
+**Recommandation : deux projets distincts (option B).** Et surtout : **ne pas
+promouvoir le projet actuel en production.**
+
+### Ce qui est mesuré, pas supposé
+
+Un seul projet existe : référence `vuvjtc…id`, région **eu-west-1** (Irlande),
+PostgreSQL **17.6**. `DATABASE_URL`, `DIRECT_URL` et `NEXT_PUBLIC_SUPABASE_URL`
+pointent tous les trois vers lui.
+
+**⚠️ Le fait le plus important de tout cet audit :**
+
+> **14 vérificateurs créent ET SUPPRIMENT des données** — écoles, comptes Auth,
+> élèves, notes, documents — en lisant simplement `DATABASE_URL` dans `.env`.
+> **Aucun ne demandait où il écrivait.**
+
+Tant qu'un seul projet existe, cela ne se voit pas. Le jour où un projet de
+production existe, **il suffit d'un `.env` recopié** — le geste le plus banal du
+métier — pour que `npm run script -- scripts/verify-lot-15.ts` écrive dans la
+base d'établissements réels. Et ces scripts nettoient derrière eux : ils
+**suppriment**.
+
+### Pourquoi le projet actuel ne peut pas devenir la production
+
+Ce n'est pas une question de propreté, mais d'historique :
+
+1. Il a servi de **bac à sable pendant six jours** (13 → 19 août). Écoles créées
+   et supprimées, cinq établissements fantômes déjà purgés, comptes de sonde.
+2. Il porte encore des **résidus de sonde** : un compte Auth `…@sonde.invalid`
+   sans ligne `User`, et une école de sonde purgée à chaque exécution.
+3. Son **mot de passe de base a circulé** (§86).
+4. On ne peut pas dire quand un `db push` y a été appliqué, ni depuis quel état.
+
+⚠️ Un environnement de production se caractérise moins par ses données que par
+**ce qu'on peut affirmer de son passé**. Ici : rien.
+
+### Comparaison
+
+| | A — projet unique | **B — deux projets** |
+|---|---|---|
+| Isolation des données | ❌ aucune | ✅ physique |
+| Auth | ❌ comptes de test et réels mêlés | ✅ annuaires séparés |
+| Storage | ❌ un seul bucket | ✅ buckets distincts |
+| RLS | identique | identique |
+| Migrations Prisma | ❌ `db push` direct sur le réel | ✅ éprouvées en dev d'abord |
+| Variables | 1 jeu | 2 jeux — ⚠️ à ne jamais mélanger |
+| Fixtures / seeds | ❌ dans le réel | ✅ confinées |
+| Vérificateurs | ❌ écrivent dans le réel | ✅ ne voient jamais la production |
+| Sauvegardes | brouillées par les fixtures | ✅ restauration utile |
+| Rollback | ❌ impossible à distinguer | ✅ possible |
+| Risque humain | 🔴 **élevé** | 🟡 réduit, non nul |
+| Maintenance | plus simple | 2 projets à tenir à jour |
+| Coût | 1 projet | ⚠️ **décision commerciale** (voir plus bas) |
+| Déploiement Vercel | identique | identique |
+
+### Risques de l'option B, dits franchement
+
+- **Deux schémas peuvent diverger.** Un `db push` en dev non rejoué en
+  production, et l'application plante sur une colonne absente. Il faudra une
+  discipline de migration — le dépôt n'a **aucun dossier `prisma/migrations`**
+  aujourd'hui, tout passe par `db push`. **C'est le vrai chantier caché de
+  cette option.**
+- **Deux jeux de clés à ne pas confondre.** Le garde-fou ci-dessous réduit ce
+  risque sans l'annuler.
+- **Coût** : le palier gratuit Supabase est limité en nombre de projets actifs
+  et met en pause les projets inactifs. ⚠️ **Un projet de production ne doit
+  jamais être sur un palier qui peut le mettre en pause.** Le plan actuel n'a
+  pas pu être lu — cela demande le tableau de bord.
+
+### Travail nécessaire AVANT de créer le projet de production
+
+1. Trancher le sort de « Kory Academy 2 » (§85).
+2. Adopter des **migrations Prisma versionnées** plutôt que `db push` — sans
+   quoi les deux bases divergeront.
+3. Décider de la **région** (voir §87).
+4. Rejouer le durcissement RLS sur le nouveau projet
+   (`scripts/harden-rls.ts`).
+5. Recréer le bucket `student-documents` **privé**.
+6. Renseigner `EDUCOM_PRODUCTION_REF` sur toutes les machines de développement.
+
+### ✅ Déjà fait — le garde-fou
+
+`scripts/_garde-production.mjs` s'exécute **avant chaque `npm run script`**.
+Si la base visée correspond à `EDUCOM_PRODUCTION_REF`, ou si
+`EDUCOM_ENV=production`, le script est **refusé avant toute écriture**.
+Éprouvé : `verify-lot-15` refusé, code de sortie 1.
+
+⚠️ **Ce garde-fou n'est PAS la séparation.** C'est une ceinture de sécurité :
+elle rattrape l'erreur humaine, elle ne crée pas deux environnements. Il ne
+protège que le point d'entrée `npm run script` — un `npx tsx` direct le
+contourne.
+
+⚠️ Tant qu'`EDUCOM_PRODUCTION_REF` est vide, **il ne peut rien vérifier** et le
+dit à chaque exécution, plutôt que de laisser croire à une protection.
+
+### Ce qui doit être décidé par le propriétaire
+
+1. Option A ou B (recommandation : **B**).
+2. Le plan Supabase du projet de production.
+3. La région.
+4. Le sort des données actuelles (§85).
+
+---
+
+## 85 · Inventaire des données présentes — réelles, test, sonde, historiques
+
+Relevé le 19 août 2026. **Rien n'a été supprimé, migré ni nettoyé.**
+
+### Les trois écoles
+
+| École | Créée | Élèves | Comptes | Nature |
+|---|---|---|---|---|
+| **Kory Academy 2** | 13 août | **133** | 8 | ⚠️ **RÉELLES + test mêlés** |
+| Senghor | 14 août | 3 | 1 | test (école témoin) |
+| SABADO ACADEMY | 18 août | 0 | 1 | test (créée à l'inscription) |
+
+⚠️ **« Kory Academy 2 » n'est pas homogène.** Elle porte 14 classes, 134
+inscriptions, 82 notes, 20 bulletins, 8 factures — mais aussi des élèves issus
+de `seed-test-students` (pool de noms déterministe) et de `seed-senegal`.
+**Séparer le réel du fictif demande un travail d'inventaire qui n'a pas été
+fait, et qui ne peut pas être automatisé sans risque** : les noms fictifs sont
+des noms sénégalais plausibles.
+
+### Volumétrie globale
+
+`School` 3 · `User` 10 · `Student` 136 · `Class` 15 · `Enrollment` 134 ·
+`Grade` 82 · `Subject` 32 · `Term` 3 · `Evaluation` 9 · `ReportCard` 20 ·
+`Invoice` 8 · `Payment` 7 · `Expense` 1 · `Message` 6 · `StudentDocument` 1 ·
+`SchoolDocument` 1 · `AuditLog` 18 · `WebhookEvent` 1 · `Invitation` 2 ·
+`FeeSchedule` 2 · `Survey` 0.
+
+### Les quatre natures
+
+**DONNÉES RÉELLES** — les 133 élèves de « Kory Academy 2 » et leur scolarité
+(classes, notes, bulletins, factures). Les 7 paiements `CASH` sont des
+encaissements réels saisis à la main. **Ce sont des données d'enfants.**
+
+**DONNÉES DE TEST** — « Senghor » et « SABADO ACADEMY » ; les grilles tarifaires
+de `seed-fee-fixtures` ; les élèves de `seed-test-students` mêlés au réel.
+
+**DONNÉES DE SONDE** — créées et détruites à chaque exécution des vérificateurs,
+préfixées `SONDE*` (`SONDEPIL`, `SONDEPLG`, `SONDERLS`, `SONDEEXP`, `SONDEMOB`,
+`SONDERENDU`). ⚠️ **Résidu constaté** : un compte Auth `…@sonde.invalid` **sans
+ligne `User`**, non supprimé. Signalé, **pas nettoyé** — conformément à la
+consigne.
+
+**DONNÉES HISTORIQUES, FAUSSES MAIS CONSERVÉES** — les **6 messages `SENT`** qui
+n'ont jamais été émis (§74), et l'unique `WebhookEvent`. Conservés faute de
+décision.
+
+### Comptes Auth — 10, et trois anomalies
+
+- ⚠️ **1 compte Auth orphelin** : `…@sonde.invalid`, **aucune ligne `User`**.
+- ⚠️ **1 ligne `User` sans compte Auth** : un `PARENT` de « Kory Academy 2 » —
+  **ce parent ne peut pas se connecter**, et rien dans l'interface ne le dit.
+- ⚠️ **1 adresse avec une faute de frappe** : le compte `SECRETARY` de
+  « Kory Academy 2 » est sur `@gmai.com` (sans « l »). **Cette adresse ne peut
+  recevoir aucun message** — ni confirmation, ni réinitialisation. À corriger
+  avant tout envoi réel, sinon ce compte sera définitivement inaccessible.
+- 1 compte **non confirmé** : l'`ADMIN` de « Senghor ».
+
+### Storage
+
+Un seul bucket : **`student-documents`**, **privé** ✅. Un dossier, celui de
+« Kory Academy 2 », **1 fichier**. **Aucune policy Storage** — l'accès passe
+exclusivement par des liens signés produits côté serveur.
+
+### RLS — le point à bien comprendre
+
+**RLS est activé sur les 34 tables, avec ZÉRO policy.** C'est un « tout
+refuser » : les clés `anon` et `authenticated` ne voient rien. C'est ce qui fait
+passer `verify-rls` 48/48.
+
+⚠️ **Mais l'application ne passe pas par là.** Prisma se connecte avec le rôle
+`postgres`, dont **`rolbypassrls = true`** : RLS n'a **aucun effet** sur les
+requêtes du produit. Toute la protection des données repose donc sur trois
+choses : le cloisonnement `schoolId` appliqué dans le code, le mot de passe de
+la base, et la clé de service.
+
+Ce n'est pas un défaut — c'est une architecture cohérente et documentée. Mais
+elle a une conséquence directe : **la fuite du mot de passe de la base équivaut
+à la fuite de toutes les données** (§86).
+
+---
+
+## 86 · 🔴 À FAIRE PAR KORY — Le mot de passe de la base doit être changé
+
+Deux raisons distinctes, chacune suffisante :
+
+1. **Il est faible.** Un mot commun suivi de quelques chiffres. Pour une base
+   accessible depuis Internet et dont le rôle **contourne RLS**, c'est le seul
+   verrou réel.
+2. ⚠️ **Il a été affiché en clair dans la sortie d'une commande de cet audit.**
+   Le masquage appliqué ne couvrait que le préfixe `postgres://` ; la chaîne
+   réelle utilise `postgresql://`, et le mot de passe est passé au travers. Il
+   figure donc désormais dans l'historique de session. **C'est une erreur de ma
+   part, et elle doit être traitée comme une divulgation.**
+
+**À faire :** Supabase → Settings → Database → *Reset database password*, puis
+mettre à jour `DATABASE_URL` et `DIRECT_URL` dans `.env` **et** dans Vercel.
+
+⚠️ Si le projet de production est un projet neuf (§84), il aura de toute façon
+son propre mot de passe — mais **celui-ci reste à changer**, car il protège les
+133 élèves réels d'aujourd'hui.
+
+---
+
+## 87 · Relevé — latence, et ce qu'elle dit de la région
+
+Le projet est en **eu-west-1** (Irlande). Les vérificateurs qui font beaucoup
+d'allers-retours SQL sont **notablement lents** : `verify-lot-15` met plusieurs
+minutes là où sa logique est instantanée.
+
+⚠️ **Ce n'est pas un problème de performance de l'application** — Vercel exécute
+le rendu au plus près de la base si les régions concordent. Mais cela pose une
+question pour la production : **les utilisateurs sont au Sénégal.** Le trajet
+Dakar → Irlande ajoute une latence à chaque page.
+
+Deux réglages devront concorder : la **région Supabase** et la **région
+d'exécution Vercel**. Les faire diverger est la faute classique — chaque requête
+traverse alors l'Atlantique deux fois.
+
+⚠️ **Aucune décision prise** : le choix de région reste au propriétaire, et
+demande de comparer les régions Supabase réellement offertes par le plan retenu.
+
+---
+
+## 88 · SMTP de production — Resend retenu, rien n'est configuré
+
+**Décision de Kory : Resend** comme fournisseur SMTP transactionnel, sous
+réserve de validation et de configuration réelle.
+
+**Pourquoi c'est bloquant.** L'envoi intégré de Supabase a déclenché une **alerte
+de rebond / délivrabilité**, et son quota bloque déjà les inscriptions
+(§57 : `over_email_send_rate_limit`). Sans SMTP réel, **personne d'extérieur ne
+peut créer de compte** : c'est le dernier verrou avant un lancement.
+
+**Où le brancher : dans Supabase, pas dans Next.js.** Supabase → Authentication
+→ SMTP Settings accepte un SMTP personnalisé. Les trois messages concernés —
+confirmation d'inscription, réinitialisation, invitations — sont **émis par
+Supabase**, pas par l'application.
+
+⚠️ **Ne pas installer de client d'e-mail dans Next.js.** Le dépôt n'en contient
+aucun, et il ne doit pas en gagner un : ce serait une seconde couche d'envoi,
+avec ses propres gabarits et ses propres échecs, pour des messages que Supabase
+émet déjà. **La seule raison d'en ajouter un serait un message applicatif que
+Supabase n'envoie pas** — il n'y en a aucun aujourd'hui.
+
+**À préparer, dans cet ordre :**
+
+1. **le domaine** — tout en dépend ; rien ne peut commencer avant ;
+2. le domaine d'envoi chez Resend (souvent un sous-domaine dédié) ;
+3. **SPF**, **DKIM**, **DMARC** — un `DMARC` en `p=none` d'abord, pour observer
+   avant de durcir ;
+4. le SMTP renseigné dans Supabase, avec une adresse d'expédition réelle ;
+5. **un envoi réel testé**, vers plusieurs fournisseurs (Gmail, Outlook, Yahoo) ;
+6. la surveillance des rebonds.
+
+⚠️ **Le SMTP de production ne sera pas « terminé » tant qu'un e-mail réel n'aura
+pas été reçu**, et le parcours d'inscription restera **NON PROUVÉ** jusque-là
+(§62).
+
+⚠️ Rappel du §85 : un compte existant porte une adresse `@gmai.com`. Le jour où
+l'envoi fonctionnera, ce compte **continuera** de ne rien recevoir.
+
+---
+
+## 89 · Billing EduCom — le domaine n'existe pas, et c'est un chantier
+
+Complète §81. **Rien n'a été créé ni modifié dans Prisma**, conformément à la
+consigne.
+
+**Vérifié :** aucun modèle `Subscription`, `Plan`, `Billing`, `Tenant`,
+`Account`, `Trial`. `School` n'a **ni plan, ni statut d'abonnement, ni date de
+début ou de fin d'essai** — seulement `onboardingCompleted`.
+
+**Ne pas réutiliser `Invoice`/`Payment`.** Ces tables sont la facturation
+**école → parents** : elles portent `schoolId` comme *propriétaire* des données.
+Un abonnement EduCom a `schoolId` comme *client*. Les confondre ferait apparaître
+l'abonnement dans les recettes de l'école, et fausserait `collectedByMethod()`,
+les états financiers et les bulletins de recettes. ⚠️ **Un abonnement EduCom
+n'est pas une recette de l'école : c'est une dépense.**
+
+**Ce que le domaine devra porter, au minimum :** le plan retenu ; le statut
+(essai / actif / impayé / suspendu) ; **la date de fin d'essai** ; la période
+couverte ; l'historique des règlements ; la référence de transaction du
+fournisseur.
+
+⚠️ **Conséquence déjà visible** : la page Tarifs annonce « 14 jours d'essai ».
+Aucun mécanisme ne les décompte. La page dit aujourd'hui la vérité (« rien ne
+peut vous être débité ») ; **cette phrase doit rester exacte** jusqu'au jour où
+le mécanisme existe.
+
+---
+
+## 90 · Idempotence du futur billing — contraintes, sans décision
+
+Complète et **remplace pour le sujet Wave** l'analyse du §72, qui portait sur les
+paiements scolaires.
+
+⚠️ **Ne pas transposer le raisonnement des paiements scolaires.** Là-bas, la
+référence sert aussi de numéro de chèque et l'encaissement est saisi par un
+humain. Ici, l'événement vient d'une machine qui **réessaie** : c'est le mode
+normal des fournisseurs de paiement.
+
+**L'idempotence doit être portée par l'ÉVÉNEMENT FOURNISSEUR**, pas par la ligne
+comptable :
+
+1. l'identifiant d'événement Wave doit être **unique et stable** — c'est la clé
+   du rejeu ; sa nature exacte dépend de la documentation (§73) ;
+2. un événement déjà traité doit être **reconnu avant toute écriture métier** ;
+3. un abonnement ne doit **jamais** être prolongé deux fois pour un même
+   paiement ;
+4. l'ordre d'arrivée n'est pas garanti : un événement plus ancien peut arriver
+   après un plus récent, et ne doit pas écraser un état plus avancé ;
+5. **rien ne doit être cru sur parole** : un statut reçu doit être reverifié
+   auprès de Wave si un endpoint le permet (§73, point 7).
+
+⚠️ **`Payment.reference` n'est PAS modifié**, et le schéma Prisma non plus :
+définir une contrainte avant que le modèle de billing existe reviendrait à
+figer une décision qui n'a pas été prise.
+
+---
+
+## 91 · Dépendance Wave — la question qui commande tout le modèle
+
+Consignée comme demandé. **La documentation officielle Wave n'a toujours pas été
+fournie**, et rien ne sera écrit sans elle.
+
+> **Wave permet-il un véritable paiement récurrent pour un abonnement, ou
+> faut-il générer un paiement ponctuel à chaque période ?**
+
+C'est **la première question à résoudre**, avant même la signature du webhook,
+parce qu'elle détermine le modèle de données et le produit :
+
+- **Récurrent** → un mandat à stocker, un cycle à suivre, une révocation à
+  gérer, des échecs de prélèvement à rattraper.
+- **Ponctuel** → pas de mandat, mais **un mécanisme de relance** : une école qui
+  oublie de payer perd l'accès à ses bulletins. ⚠️ C'est alors une question de
+  produit autant que de technique — et le point 1 du §81 (que se passe-t-il à
+  l'expiration ?) devient urgent.
+
+Les six autres inconnues du §73 restent ouvertes : authentification, unité du
+montant, retours d'URL, événements du webhook, **vérification de signature**,
+statuts définitifs, endpoint de re-vérification.
+
+**Ordre imposé, non négociable :** documentation Wave → décision de récurrence →
+modèle Subscription/Billing → idempotence → intégration. **Sauter une étape,
+c'est inventer.**
+
+# FIN DU LOT SÉPARATION DEV / PRODUCTION

@@ -48,6 +48,13 @@ const PLATEFORME = new Set([
   // les définir à la main, ce qui ferait croire à l'application qu'elle tourne
   // sur Vercel alors qu'elle tourne ailleurs.
   "VERCEL", "VERCEL_URL", "VERCEL_ENV", "VERCEL_REGION",
+  // ⚠️ Levée EXCEPTIONNELLE du garde-fou de production, passée en ligne de
+  // commande pour une seule exécution. La documenter dans `.env.example`
+  // reviendrait à inviter à l'y écrire — ce qui désarmerait le garde-fou en
+  // permanence, silencieusement, et sans que personne s'en aperçoive.
+  "EDUCOM_ALLOW_PRODUCTION",
+  // Idem : sélection de cible d'un script, jamais une configuration durable.
+  "SCHOOL_ID", "APPLY", "CLEAN",
 ]);
 
 /** Variables lues par le code, sous leurs DEUX formes d'accès. */
@@ -55,7 +62,11 @@ function variablesLues(): Map<string, string[]> {
   const trouvees = new Map<string, string[]>();
   const ajoute = (n: string, f: string) => trouvees.set(n, [...(trouvees.get(n) ?? []), f]);
 
-  for (const f of [...sources("src"), "next.config.ts", "prisma.config.ts"]) {
+  // ⚠️ `scripts/` est exclu du scan (ce sont des outils, pas le produit) — SAUF
+  // le garde-fou de production, qui définit des variables que l'exploitant doit
+  // renseigner. Une variable qu'on demande de configurer sans la documenter est
+  // exactement le défaut que ce vérificateur existe pour attraper.
+  for (const f of [...sources("src"), "next.config.ts", "prisma.config.ts", "scripts/_garde-production.mjs"]) {
     const src = readFileSync(f, "utf8");
     // `process.env.NOM`
     for (const m of src.matchAll(/process\.env\.([A-Z][A-Z0-9_]*)/g)) ajoute(m[1], f);
