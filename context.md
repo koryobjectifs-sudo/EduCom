@@ -1,6 +1,6 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 20 août 2026 — rotation du secret PostgreSQL, clôture de C.3
+> Dernière mise à jour : 20 août 2026 — préparation de l'environnement de production (C.4)
 
 ## À propos du projet
 EduCom SaaS est une plateforme de gestion scolaire tout-en-un conçue pour les établissements (de la maternelle au lycée). L'application comprend une vitrine (Landing Page) et un tableau de bord (Dashboard) pour l'administration complète de l'école (admissions, communications, notes, paiements, etc.).
@@ -2582,3 +2582,63 @@ l'écran** dans le centre documentaire. Non supprimés : le chantier l'interdisa
 **Leçon d'outillage** : un vérificateur interrompu ne nettoie jamais, et
 relancer le même script ne récupère pas ses orphelins — chaque exécution ne
 connaît que ses propres fixtures.
+
+
+---
+
+## Préparation de l'environnement de production — 20 août 2026 (C.4)
+
+Rien n'a été déployé, aucun projet Supabase créé, aucune donnée migrée.
+
+### La correction d'une idée reçue
+
+En mesurant réellement d'où vient chaque protection, une croyance s'est révélée
+fausse. Interrogées avec la clé publique, les tables répondent **HTTP 401, code
+`42501`** — *insufficient privilege*. Ce n'est **pas RLS** qui refuse : c'est la
+**révocation des droits** posée par `harden-rls.ts`. RLS seule aurait renvoyé
+`200 []`, un succès vide.
+
+Et sur le chemin de l'application, Prisma se connecte avec un rôle
+`rolbypassrls = true` : **RLS n'y a aucun effet.**
+
+⚠️ **Conséquence à retenir : la barrière qui empêche l'école A de voir l'école B,
+c'est le code — le cloisonnement `schoolId` —, rien d'autre.** Les tests
+d'isolation sont donc la protection la plus précieuse du dépôt, et « les données
+sont protégées par RLS » est une phrase qu'il ne faut jamais écrire.
+
+### En-têtes de sécurité
+
+L'application n'en envoyait **aucun**. Cinq ajoutés et vérifiés servis. Deux
+décisions valent d'être conservées :
+
+- ⚠️ **la caméra n'est pas coupée** : les dépôts de pièces passent par
+  `<input type="file" accept="image/*">`, qui ouvre « Prendre une photo » sur
+  mobile. Une `Permissions-Policy` restrictive par réflexe aurait cassé le geste
+  le plus courant du produit, sans message d'erreur ;
+- ⚠️ **aucune CSP** : utile pour Next.js, elle exige des `nonce` propagés à
+  chaque script. Écrite à l'aveugle, elle casse l'application ou ne protège
+  rien. Chantier à part.
+
+`X-Frame-Options: DENY` a été vérifié **avant** d'être posé : l'aperçu de
+documents encadre une URL signée `*.supabase.co`, donc une autre origine — c'est
+l'en-tête de Supabase qui le gouverne, pas le nôtre.
+
+### Le piège, pour la quatrième fois
+
+Le nouveau vérificateur interdisait la chaîne « Content-Security-Policy » et
+s'est déclenché sur le commentaire de `next.config.ts` qui explique justement
+son absence. Après `print:`, « pas de suivi des présences » et le nom du
+prestataire abandonné, c'est la **quatrième** occurrence du même piège.
+
+⚠️ **Règle à appliquer désormais** : tout contrôle qui cherche un mot doit se
+demander (a) s'il le contient lui-même, (b) s'il l'interdit à un fichier qui a
+le droit de l'expliquer. La parade retenue ici : chercher la **forme
+déclarative** (`key: "…"`) plutôt que le mot.
+
+### Ce qui bloque la suite
+
+Le **domaine** commande tout : `NEXT_PUBLIC_SITE_URL`, la Site URL de Supabase
+Auth, les redirections, les liens d'e-mail et le DKIM. Tant qu'il n'est pas
+choisi, ni le SMTP ni la mise en ligne ne peuvent avancer — et une URL
+temporaire ne doit surtout pas devenir la configuration définitive : un lien de
+confirmation déjà parti continue de pointer où il pointait.

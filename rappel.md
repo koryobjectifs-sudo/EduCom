@@ -2679,3 +2679,239 @@ nettoie jamais : relancer `verify-lot-15` ne les enlèvera pas, car chaque
 exécution ne connaît que ses propres fixtures.
 
 # FIN DE LA CLÔTURE C.3
+
+---
+
+# C.4 — ENVIRONNEMENT DE PRODUCTION — CONSIGNÉ LE 20 AOÛT 2026
+
+## 103 · 🔴 NEEDS USER ACTION — Créer le projet Supabase de production
+
+Le projet ne peut pas être créé depuis le dépôt : il faut le tableau de bord
+Supabase. **Rien n'a été créé.**
+
+**Nom recommandé :** `educom-production` — explicite, et impossible à confondre
+avec l'actuel dans une liste de projets à 2 h du matin.
+**Organisation :** la même que le projet actuel.
+
+⚠️ **Ne rien copier depuis le développement.** Ni les 136 élèves, ni les
+10 comptes, ni les 8 factures, ni les 7 paiements, ni les documents. La
+production commence **vide**, et sa première école sera créée par une vraie
+inscription — ce qui éprouvera le parcours réel par la même occasion.
+
+⚠️ **Les fixtures `SONDE15` et `SONDEMOB` ne doivent jamais y apparaître.**
+Elles subsistent dans le développement (§102) et restent intouchées.
+
+**À reproduire**, dérivé de la base et non rédigé de mémoire — voir
+`scripts/checklist-production.ts` : le schéma par migration, le durcissement
+RLS, le bucket privé avec ses limites, les URL de redirection Auth.
+
+---
+
+## 104 · 🟠 DÉCISION REQUISE — Région du projet de production
+
+Le développement est en **eu-west-1 (Irlande)**. La région **ne se change pas
+après création** : c'est une décision d'architecture, pas un réglage.
+
+**Ce qui plaide pour l'Europe :** c'est là que Supabase offre le plus de
+régions ; l'Afrique de l'Ouest n'est pas servie. Le trajet Dakar → Irlande est
+d'ailleurs parmi les plus courts disponibles — les câbles ouest-africains
+remontent vers l'Europe.
+
+**Ce qui mérite examen :** ce sont des **données de mineurs** — dossiers,
+extraits de naissance, certificats médicaux, bulletins. La **Loi sénégalaise
+n°2008-12** encadre le traitement des données personnelles. ⚠️ **Je ne sais pas**
+si elle impose une localisation ou une déclaration préalable à la CDP : cela
+demande un avis juridique, pas une supposition d'agent.
+
+⚠️ **La région Supabase et la région d'exécution Vercel doivent CONCORDER.**
+Les faire diverger fait traverser l'Atlantique deux fois à chaque requête.
+
+**Constaté, sans conclure :** la latence actuelle est perceptible — certains
+vérificateurs mettent plusieurs minutes là où leur logique est instantanée.
+
+**Décision du propriétaire.** Aucune n'a été prise.
+
+---
+
+## 105 · ✅ FAIT — Les migrations sont prêtes, et prouvées sans risque
+
+`prisma/migrations/00000000000000_baseline/` : 34 tables, 20 énumérés.
+**Vérifié automatiquement** par `scripts/verify-production-ready.ts` :
+**0 opération destructive** — aucun `DROP TABLE/COLUMN/TYPE`, `TRUNCATE`,
+`DELETE FROM`, ni `ALTER TABLE … DROP`.
+
+⚠️ Le contrôle **ignore les commentaires SQL** : une migration qui explique
+pourquoi elle ne supprime rien contient le mot « DROP ». Sans ce filtrage, le
+vérificateur se déclencherait sur sa propre documentation.
+
+**Procédure, dans cet ordre** (`prisma/migrations/README.md`) :
+
+1. base de production **neuve et vide** → `npx prisma migrate deploy` ;
+2. base de développement → `npx prisma migrate resolve --applied …`
+   (n'exécute aucun SQL, inscrit seulement la ligne de référence) ;
+3. ensuite et pour toujours : `migrate dev` en développement,
+   `migrate deploy` en production.
+
+⚠️ **Interdits, définitivement** : `db push` sur la production ; `migrate reset`
+(supprime toute la base) ; toute migration destructive sans relecture humaine et
+sauvegarde vérifiée.
+
+---
+
+## 106 · Les quatre couches de protection — mesurées, pas supposées
+
+Le cahier des charges demande de dire **d'où vient chaque protection**. La
+réponse a été obtenue par des requêtes réelles, et elle corrige une idée reçue.
+
+### Couche 1 — face à la clé publique du navigateur
+
+Six tables interrogées avec la clé `anon` : **HTTP 401, code `42501`** pour
+toutes.
+
+⚠️ **`42501` signifie *insufficient privilege*, pas *ligne filtrée*.** Le refus
+vient donc de la **révocation des droits** (`REVOKE ALL … FROM anon,
+authenticated`, posée par `scripts/harden-rls.ts`), **pas de RLS**. Si RLS
+agissait seule, la réponse serait `200 []` — un succès vide.
+
+C'est exactement le « deux verrous valent mieux qu'un » du durcissement : RLS se
+désactive d'un clic dans une interface, la révocation non.
+
+### Couche 2 — le chemin réel de l'application
+
+Prisma se connecte en `postgres`, **`rolbypassrls = true`**.
+
+⚠️ **RLS n'a AUCUN effet sur le chemin du produit.** Écrire « les données sont
+protégées par RLS » serait faux. RLS et les révocations protègent contre un
+usage direct de l'API Supabase ; elles ne protègent pas d'un défaut de
+l'application.
+
+### Couche 3 — Storage
+
+Bucket **privé**, **aucune policy**. Avec la clé publique : `listBuckets` renvoie
+**0 bucket**, `list` **0 entrée**, et un objet réel demandé en accès public
+renvoie **HTTP 400**. Les fichiers ne sont atteignables que par **URL signée**
+produite côté serveur, à durée de vie courte.
+
+### Couche 4 — l'isolation métier, dans le code
+
+**C'est la seule qui protège une école d'une autre**, et elle vit entièrement
+dans le code : `schoolId` appliqué à chaque requête, `requireActionContext()` /
+`requireSchoolContext()`, `canSeeStudent()`, `canSeeDocument()`,
+`canSeeCategory()`. Éprouvée par `verify-tenant-isolation` et par les lots 13.1
+à 17.
+
+### Ce qu'il faut en retenir pour la production
+
+| Menace | Ce qui protège réellement |
+|---|---|
+| clé publique volée dans le navigateur | **révocations** (puis RLS) |
+| fichier d'élève deviné à l'URL | **bucket privé + URL signées** |
+| l'école A voit l'école B | **le code, et lui seul** |
+| script de test lancé sur la production | **`scripts/_env.ts`** (§93) |
+| mot de passe de la base | **rien d'autre** — ce rôle contourne RLS |
+
+⚠️ **Ne jamais présenter RLS comme la barrière du produit.** La barrière, c'est
+le cloisonnement `schoolId` dans le code — ce qui fait des tests d'isolation la
+protection la plus précieuse du dépôt.
+
+---
+
+## 107 · Matrice des variables — Vercel
+
+Les **14** variables réellement lues. **Aucune valeur n'est affichée nulle part.**
+
+| Variable | Local | Preview | Production | Portée | Statut |
+|---|---|---|---|---|---|
+| `DATABASE_URL` | dev | ⚠️ **jamais la prod** | prod | 🔒 serveur | à créer |
+| `DIRECT_URL` | dev | ⚠️ jamais la prod | prod | 🔒 serveur | à créer |
+| `NEXT_PUBLIC_SUPABASE_URL` | dev | preview | prod | 🌐 navigateur | à créer |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | dev | preview | prod | 🌐 navigateur | à créer |
+| `SUPABASE_SERVICE_ROLE_KEY` | dev | ⚠️ jamais la prod | prod | 🔒 serveur | à créer |
+| `NEXT_PUBLIC_SITE_URL` | localhost | URL de preview | **domaine** | 🌐 navigateur | ⛔ bloqué |
+| `CRON_SECRET` | absent | absent | **valeur neuve** | 🔒 serveur | à créer |
+| `EDUCOM_ENV` | `development` | `test` | **`production`** | 🔒 serveur | à définir |
+| `EDUCOM_DEV_REFS` | ref dev | ref dev | **vide** | 🔒 serveur | à définir |
+| `EDUCOM_PRODUCTION_REF` | ref prod | ref prod | (indifférent) | 🔒 serveur | ⛔ bloqué |
+| `TWILIO_ACCOUNT_SID` · `_AUTH_TOKEN` · `_PHONE_NUMBER` | facultatif | — | facultatif | 🔒 serveur | n'active rien |
+| `OCR_PROVIDER` | vide | vide | **vide** | 🔒 serveur | laisser vide |
+
+⚠️ **`NEXT_DIST_DIR` ne doit être définie nulle part sur Vercel.** Elle est déjà
+neutralisée quand `VERCEL=1` (§82), mais l'y ajouter n'aurait aucun sens.
+⚠️ **`EDUCOM_ALLOW_PRODUCTION` ne doit jamais y figurer** : elle désarmerait le
+garde-fou en permanence.
+
+**Trois pièges de cette matrice :**
+
+1. ⚠️ **Preview ne doit JAMAIS viser la base de production.** Une branche de test
+   écrirait dans les données réelles. Les previews visent le développement, ou
+   rien.
+2. ⚠️ **`EDUCOM_ENV=production` sur Vercel** rend tout script inexécutable
+   là-bas — c'est voulu, et cela se cumule avec le veto `VERCEL`, que rien ne
+   lève.
+3. ⚠️ **`sslmode` doit figurer dans les deux URL de production.** Son oubli lors
+   de la rotation avait remis le développement en clair (§99) ; une chaîne
+   recopiée sans lui donnerait une production en clair, **sans aucun signe
+   extérieur**.
+
+---
+
+## 108 · ✅ FAIT — En-têtes de sécurité, et la CSP qui n'y est pas
+
+L'application n'envoyait **aucun** en-tête de sécurité. Cinq ont été ajoutés et
+**vérifiés réellement servis** : `Strict-Transport-Security`,
+`X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`,
+`Permissions-Policy`.
+
+Deux choix méritent leur justification :
+
+⚠️ **La caméra n'est PAS coupée.** Les écrans de dépôt de pièces utilisent
+`<input type="file" accept="image/*">`, qui sur mobile ouvre « Prendre une
+photo ». Une `Permissions-Policy` restrictive par réflexe aurait cassé le geste
+le plus courant du produit, **sans le moindre message d'erreur**.
+
+⚠️ **`X-Frame-Options: DENY` ne gêne pas l'aperçu de documents.** Cet `<iframe>`
+charge une URL signée `*.supabase.co` : l'en-tête qui le gouverne est celui de
+Supabase, pas le nôtre. Vérifié **avant** d'ajouter l'en-tête, pas après.
+
+⚠️ **Aucune `Content-Security-Policy`, délibérément.** Une CSP utile pour Next.js
+exige des `nonce` propagés à chaque script, plus les origines Supabase. Écrite à
+l'aveugle, elle casserait l'application — ou serait si permissive qu'elle ne
+protégerait rien tout en en donnant l'impression. **PENDING — chantier à part.**
+
+`Strict-Transport-Security` est posé **sans `preload`** : l'inscription à la
+liste de préchargement engage le domaine de façon difficilement réversible, et
+le domaine n'est pas choisi.
+
+---
+
+## 109 · 🔴 NEEDS USER ACTION — Domaine, SMTP, sauvegardes
+
+Trois dépendances externes ; aucune ne peut être levée depuis le dépôt.
+
+**① Le domaine.** ⚠️ **Il bloque tout le reste** : `NEXT_PUBLIC_SITE_URL`, la
+Site URL de Supabase Auth, les URL de redirection, les liens des e-mails, le
+domaine d'envoi SMTP et son DKIM. ⚠️ Aucune URL temporaire ne doit devenir la
+configuration définitive : un lien de confirmation envoyé vers une adresse
+`*.vercel.app` continuera d'y pointer dans la boîte du destinataire longtemps
+après le changement de domaine.
+
+**② Le SMTP.** Fournisseur retenu : **Resend**, sous réserve de validation.
+À brancher **dans Supabase → Authentication → SMTP**, pas dans Next.js : les
+trois messages (confirmation, réinitialisation, invitation) sont émis par
+Supabase. ⚠️ **Le dépôt ne contient aucun client d'e-mail et ne doit pas en
+gagner un.** Ordre : domaine → domaine d'envoi → SPF, DKIM, DMARC (`p=none`
+d'abord, pour observer avant de durcir) → SMTP dans Supabase → **envoi réel
+testé** vers plusieurs fournisseurs → surveillance des rebonds.
+
+**③ Les sauvegardes.** ⚠️ **Aucune n'est constatée, aucune restauration n'a été
+essayée.** Le plan Supabase (rétention, PITR) n'a pas pu être lu — cela demande
+le tableau de bord. ⚠️ **Ne jamais écrire qu'EduCom sauvegarde quotidiennement
+tant que ce n'est pas constaté ET qu'une restauration n'a pas été réussie.**
+Le Storage est à traiter séparément : il n'est pas couvert par les sauvegardes
+PostgreSQL.
+
+⚠️ **Aucune supervision, aucune alerte.** Aujourd'hui, un incident en production
+ne serait connu que si une école téléphone. `AuditLog` reste la seule source
+d'investigation, et **aucun écran ne permet de le lire**.
+
+# FIN DU LOT C.4

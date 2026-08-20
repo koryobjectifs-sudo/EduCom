@@ -1,6 +1,6 @@
 # EduCom — Avancement
 
-> Dernière mise à jour : 20 août 2026 — C.3 clôturé
+> Dernière mise à jour : 20 août 2026 — C.4 préparé (PARTIAL)
 > Ce fichier suit l'avancement des chantiers. Le détail technique, les décisions
 > et les réserves vivent dans `rappel.md` ; la mémoire du projet dans `context.md`.
 
@@ -31,7 +31,7 @@
 ## C — PRODUCTION VERCEL
 
 ```
-██████████████░░░░░░  70 %
+████████████████░░░░  80 %
 ```
 
 > 🟢 **C.3 — Fondation de production : DONE.** Rotation du secret vérifiée,
@@ -42,7 +42,52 @@
 | C.1 — Préparation du dépôt (build, cron, `distDir`) | 🟢 TERMINÉ |
 | **C.2 — Audit Supabase développement / production** | 🟢 **TERMINÉ — audit livré** |
 | **C.3 — Fondation de production** | 🟢 **DONE** |
-| C.4 — Déploiement Vercel | ⚪ EN ATTENTE |
+| **C.4 — Environnement production** | 🟡 **PARTIAL** — 5 dépendances externes |
+
+### C.4 — Environnement production · **60 %** · 🟡 **PARTIAL**
+
+| # | Sous-étape | État |
+|---|---|---|
+| C.4.1 | Projet Supabase Production | 🟡 **NEEDS USER ACTION** — checklist prête, projet non créé |
+| C.4.2 | Région | 🟡 **NEEDS USER ACTION** — analyse livrée, décision non prise |
+| C.4.3 | Migrations | 🟢 DONE — 0 opération destructive, prouvé |
+| C.4.4 | RLS | 🟢 DONE — quatre couches mesurées (§106) |
+| C.4.5 | Storage | 🟢 DONE — privé, 10 Mo, 6 types, 0 objet lisible en public |
+| C.4.6 | Auth | 🟡 **BLOCKED** — dépend du domaine |
+| C.4.7 | SMTP | 🟡 **NEEDS USER ACTION** — Resend retenu, rien configuré |
+| C.4.8 | Vercel | 🟢 DONE — build, cron, `NEXT_DIST_DIR`, en-têtes |
+| C.4.9 | Domaine | 🔴 **BLOCKED** — non fourni |
+| C.4.10 | Secrets | 🟢 DONE — matrice §107, aucune valeur affichée |
+| C.4.11 | Cron | 🟢 DONE — refus prouvés ; « bon secret → 200 » NON PROUVÉ |
+| C.4.12 | Sauvegardes | 🔴 **NEEDS USER ACTION** — aucune constatée |
+| C.4.13 | Non-régression | 🟢 DONE — aucune régression |
+| C.4.14 | Documentation | 🟢 DONE — `rappel.md` §103 → §109 |
+
+**Dernier point traité :** non-régression complète après ajout des en-têtes.
+**Prochain point :** C.4 ne peut pas passer à DONE — voir ci-dessous.
+
+### Pourquoi C.4 reste PARTIAL
+
+⚠️ **L'environnement de production n'existe pas.** Tout ce qui pouvait être
+préparé depuis le dépôt l'est ; ce qui reste demande un tableau de bord et des
+décisions :
+
+1. **Le domaine** — il bloque en cascade `NEXT_PUBLIC_SITE_URL`, la Site URL
+   Supabase, les redirections, les liens d'e-mail et le DKIM.
+2. **Le projet Supabase de production** — non créé.
+3. **La région** — décision d'architecture irréversible.
+4. **Le SMTP** — Resend retenu, rien configuré, aucun envoi testé.
+5. **Les sauvegardes** — aucune constatée, aucune restauration essayée.
+
+### Nouveau dans ce chantier
+
+- 🟢 **Cinq en-têtes de sécurité** ajoutés et vérifiés servis. L'application
+  n'en envoyait aucun.
+- 🟢 **`verify-production-ready`** — 28/28, 5 NON PROUVÉS. La checklist du
+  cahier des charges rendue exécutable.
+- 🟢 **§106 — les quatre couches de protection mesurées.** Correction d'une idée
+  reçue : face à la clé publique, c'est la **révocation des droits** qui refuse
+  (`42501`), pas RLS. Et RLS n'a **aucun effet** sur le chemin de l'application.
 
 ### C.3 — Finalisation · **100 %** · 🟢 **DONE**
 
@@ -131,10 +176,9 @@ passe a circulé.
 
 ### Prochain chantier
 
-**C.4 — Environnement production** : projet Supabase de production, migrations
-versionnées, secrets, Vercel, domaine, HTTPS, Auth et SMTP de production, URLs
-de redirection, Cron, tests. ⚠️ **Non commencé.** Il attend le domaine et la
-décision sur le projet Supabase de production (§84).
+**C.5 — Mise en ligne Vercel.** ⚠️ **Elle ne peut pas commencer** tant que le
+domaine n'est pas choisi et que le projet Supabase de production n'existe pas :
+ce sont les deux entrées de tout le reste.
 
 ---
 
