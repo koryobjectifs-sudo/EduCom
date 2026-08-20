@@ -1,6 +1,6 @@
 # EduCom — Avancement
 
-> Dernière mise à jour : 19 août 2026 (nuit) — fin de C.3
+> Dernière mise à jour : 20 août 2026 — C.3 clôturé
 > Ce fichier suit l'avancement des chantiers. Le détail technique, les décisions
 > et les réserves vivent dans `rappel.md` ; la mémoire du projet dans `context.md`.
 
@@ -31,57 +31,51 @@
 ## C — PRODUCTION VERCEL
 
 ```
-████████████░░░░░░░░  60 %
+██████████████░░░░░░  70 %
 ```
 
-> 🟡 **C.3 — Fondation de production : PARTIAL.** 10 exigences sur 12 terminées ;
-> 2 dépendent d'une action du propriétaire.
+> 🟢 **C.3 — Fondation de production : DONE.** Rotation du secret vérifiée,
+> garde-fous actifs, aucune donnée métier modifiée.
 
 | Étape | État |
 |---|---|
 | C.1 — Préparation du dépôt (build, cron, `distDir`) | 🟢 TERMINÉ |
 | **C.2 — Audit Supabase développement / production** | 🟢 **TERMINÉ — audit livré** |
-| **C.3 — Fondation de production** | 🟡 **PARTIAL** — 2 actions propriétaire |
+| **C.3 — Fondation de production** | 🟢 **DONE** |
 | C.4 — Déploiement Vercel | ⚪ EN ATTENTE |
 
-### C.3 — Fondation de production · **PARTIAL** (10 exigences sur 12)
+### C.3 — Finalisation · **100 %** · 🟢 **DONE**
 
-| # | Exigence | État |
+| # | Contrôle | État |
 |---|---|---|
-| 1 | Secret PostgreSQL — incident documenté, rotation préparée | 🟡 **NEEDS USER ACTION** |
-| 2 | Architecture Supabase dev ≠ production | 🟢 DONE (recommandation + checklist) |
-| 3 | Garde-fou infranchissable, `npx tsx` compris | 🟢 **DONE — 23/23** |
-| 4 | Environnements `development` / `test` / `production` | 🟢 DONE |
-| 5 | Migrations Prisma versionnées | 🟢 DONE (préparé, non appliqué — voir §94) |
-| 6 | Checklist du projet Supabase de production | 🟢 DONE (dérivée de la base) |
-| 7 | Procédure RLS / Storage reproductible | 🟢 DONE |
-| 8 | Auth de production — préparation | 🟡 **BLOCKED** — domaine |
-| 9 | Données actuelles — préservées et documentées | 🟢 DONE |
-| 10 | `CRON_SECRET` — comportement éprouvé | 🟡 PARTIAL — 3 refus prouvés, acceptation NON PROUVÉE |
-| 11 | Variables futures Vercel | 🟢 DONE |
-| 12 | Non-régression | 🟢 DONE — aucune régression |
+| C.3.1 | Rotation du secret vérifiée | 🟢 PASS |
+| C.3.2 | `DATABASE_URL` vérifiée | 🟢 PASS |
+| C.3.3 | `DIRECT_URL` vérifiée | 🟢 PASS |
+| C.3.4 | Ancien secret absent du dépôt **et de l'historique** | 🟢 PASS — 0 / 0 |
+| C.3.5 | Garde-fous production vérifiés | 🟢 PASS — 23/23 + 8 cas réels |
+| C.3.6 | Aucun changement de données métier | 🟢 PASS |
+| C.3.7 | Non-régression | 🟢 PASS |
+| C.3.8 | `rappel.md` | 🟢 §98 → §102 |
+| C.3.9 | `progress.md` | 🟢 ce fichier |
+| C.3.10 | **C.3 DONE** | 🟢 |
 
-**Dernier point traité :** non-régression complète, `rappel.md` §92–§97.
-**Prochain point :** C.3 ne peut pas passer à DONE — voir ci-dessous.
-**Blocages :** rotation du mot de passe (propriétaire) · domaine non choisi.
+**Trois défauts trouvés pendant la clôture, tous corrigés :**
 
-### Pourquoi C.3 reste PARTIAL et non DONE
+1. ⚠️ **La rotation avait fait sauter `sslmode`** — les deux connexions
+   repassaient **en clair**. Prouvé par un témoin, corrigé : **TLS 1.3** rétabli.
+2. ⚠️ **Le serveur `next dev` tournait encore avec l'ancien mot de passe** — toutes
+   les pages du tableau de bord en 500, et le coupe-circuit Supabase déclenché.
+   Redémarré ; sondes revenues à leur référence.
+3. ⚠️ **`db pull` avait réécrit `schema.prisma`** et perdu 15 commentaires, pour
+   zéro changement de modèle (vérifié dans les deux sens). Restauré.
 
-Deux exigences ne sont pas terminées, et aucune ne peut l'être depuis le dépôt :
+**Reste ouvert, sans blocage pour C.3 :**
 
-1. ⚠️ **Le mot de passe PostgreSQL n'a pas été tourné.** Il est faible ET a été
-   divulgué. C'est le secret le plus sensible du projet — le rôle qu'il ouvre
-   contourne RLS. Action Supabase, propriétaire uniquement (`rappel.md` §92).
-2. ⚠️ **Auth de production : bloqué par le domaine.** Site URL, redirect URLs et
-   SMTP en dépendent tous.
-
-Et une exigence est partielle :
-
-3. ⃠ **`CRON_SECRET` : « bon secret → 200 » NON PROUVÉ.** Le prouver basculerait
-   une vraie facture ; ce chantier interdit de modifier les données métier.
-
-**Le projet Supabase de production n'existe pas.** Rien dans ce chantier ne l'a
-créé — la checklist est prête, elle n'a pas été exécutée.
+- ⃠ `CRON_SECRET` « bon secret → 200 » : NON PROUVÉ (basculerait une vraie facture).
+- ⚠️ Résidus de fixtures `SONDE15` / `SONDEMOB` dans « Kory Academy 2 »
+  (5 comptes, 3 classes, 7 documents). **Non supprimés — ce chantier l'interdit.**
+- ⚠️ Le nouveau mot de passe a circulé en clair avant la correction du `sslmode` :
+  re-rotation à décider.
 
 ### C.2 — ce qui est réellement terminé
 
@@ -137,9 +131,10 @@ passe a circulé.
 
 ### Prochain chantier
 
-**C.4 — déploiement Vercel**, mais il ne peut pas commencer : il lui faut le
-projet Supabase de production, qui lui-même attend la décision §84 et le
-domaine. Les deux actions propriétaire ci-dessus sont sur le chemin critique.
+**C.4 — Environnement production** : projet Supabase de production, migrations
+versionnées, secrets, Vercel, domaine, HTTPS, Auth et SMTP de production, URLs
+de redirection, Cron, tests. ⚠️ **Non commencé.** Il attend le domaine et la
+décision sur le projet Supabase de production (§84).
 
 ---
 

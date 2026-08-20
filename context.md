@@ -1,6 +1,6 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 19 août 2026 (soir — suppression des fausses intégrations, mise sous Git)
+> Dernière mise à jour : 20 août 2026 — rotation du secret PostgreSQL, clôture de C.3
 
 ## À propos du projet
 EduCom SaaS est une plateforme de gestion scolaire tout-en-un conçue pour les établissements (de la maternelle au lycée). L'application comprend une vitrine (Landing Page) et un tableau de bord (Dashboard) pour l'administration complète de l'école (admissions, communications, notes, paiements, etc.).
@@ -2537,3 +2537,48 @@ build de vérification y écraserait les artefacts du serveur de développement
 5. **6 lignes `Message` fausses** — réécriture = modification de données
    historiques, décision requise (§74).
 6. **3 vulnérabilités « high »** (`deepmerge-ts`), correctif cassant (§80).
+
+
+---
+
+## Rotation du secret PostgreSQL et clôture de C.3 — 20 août 2026
+
+Le mot de passe compromis a été réinitialisé par Kory. Vérifié depuis le dépôt :
+l'ancien secret n'apparaît **ni dans un fichier versionné, ni dans l'historique
+Git** — `.env` était ignoré dès le premier commit, aucune réécriture d'historique
+n'est nécessaire.
+
+**Trois pièges se sont révélés pendant cette clôture, et tous les trois ont la
+même forme : quelque chose paraissait fonctionner.**
+
+⚠️ **La rotation avait fait sauter `sslmode` des deux chaînes de connexion.** La
+base repassait **en clair** — le défaut exact documenté le 19 août, reproduit par
+le geste même de mise à jour. Le piège dans le piège : `pg_stat_ssl` répondait
+« pas de TLS » **même après correction**, parce qu'à travers un pooler cette vue
+décrit la liaison *pooler → PostgreSQL*, pas *client → pooler*. La mesure juste
+se prend côté client, sur la socket, et **il faut un témoin** : la même chaîne
+sans `sslmode` doit se connecter en clair, sinon on ne prouve rien.
+
+⚠️ **`next dev` lit `.env` au démarrage.** Le serveur tournait encore avec
+l'ancien mot de passe : toutes les pages du tableau de bord en 500, et ses
+tentatives répétées ont déclenché le **coupe-circuit de Supabase**, qui bloque
+alors les connexions valides aussi. Le symptôme ressemble à une panne Supabase ;
+c'est un processus périmé. **Toute rotation doit s'accompagner du redémarrage des
+processus qui ont lu `.env`.**
+
+⚠️ **`npx prisma db pull` réécrit `schema.prisma` depuis la base** et supprime les
+commentaires simples (`//`). Ici : 15 perdus, champs réordonnés, 1310 lignes de
+diff pour **zéro** changement de modèle (vérifié par `migrate diff` dans les deux
+sens). Restauré. Sur ce dépôt le schéma est la source de vérité et la base en
+découle — `db pull` sert à constater, pas à éditer.
+
+**État réel de la base** — inchangé côté métier : 3 écoles, **136 élèves**,
+134 inscriptions, 82 notes, 20 bulletins, 8 factures (7 `PAID` / 1 `PENDING`),
+7 paiements tous `CASH`. ⚠️ S'y ajoutent des **résidus de fixtures** dans
+« Kory Academy 2 » (5 comptes, 3 classes, 7 documents préfixés `SONDE15` /
+`SONDEMOB`), laissés par un vérificateur interrompu. Ils sont **visibles à
+l'écran** dans le centre documentaire. Non supprimés : le chantier l'interdisait.
+
+**Leçon d'outillage** : un vérificateur interrompu ne nettoie jamais, et
+relancer le même script ne récupère pas ses orphelins — chaque exécution ne
+connaît que ses propres fixtures.

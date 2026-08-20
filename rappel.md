@@ -2538,3 +2538,144 @@ supprimé** : la consigne interdit le nettoyage automatique des données
 existantes, et il n'a pas été créé pendant ce chantier.
 
 # FIN DU LOT C.3
+
+---
+
+# C.3 — CLÔTURE — CONSIGNÉ LE 20 AOÛT 2026
+
+## 98 · ✅ FAIT — Rotation du mot de passe PostgreSQL
+
+Ferme le §92. **La rotation a été effectuée par Kory.** Vérifié depuis le dépôt,
+sans qu'aucune valeur ne soit affichée :
+
+| Contrôle | Résultat |
+|---|---|
+| connexion établie avec le nouveau secret | ✅ rôle `postgres`, 34 tables |
+| `DATABASE_URL` et `DIRECT_URL` portent le même mot de passe | ✅ |
+| `DATABASE_URL` = pooler 6543 · `DIRECT_URL` = 5432 | ✅ |
+| `.env` ignoré par Git, jamais suivi | ✅ |
+| ancien secret dans un fichier **versionné** | ✅ **0** |
+| ancien secret dans **l'historique Git** (toutes branches) | ✅ **0** |
+| `.env.example` sans valeur réelle | ✅ 12/12 |
+
+⚠️ L'ancien secret n'a **jamais** été committé — `.env` était ignoré dès le
+premier commit. **Aucune réécriture d'historique n'est nécessaire.**
+
+---
+
+## 99 · 🔴 TROUVÉ ET CORRIGÉ — La rotation avait remis la base EN CLAIR
+
+C'est le défaut le plus important de cette clôture, et il ne se voyait pas :
+tout fonctionnait.
+
+**En réécrivant les deux chaînes de connexion avec le nouveau mot de passe, le
+paramètre `sslmode` a disparu des deux.**
+
+`.env.example` le documente pourtant depuis le 19 août : *« `sslmode` n'est PAS
+optionnel : sans lui, node-postgres se connecte EN CLAIR »*. C'est exactement ce
+qui s'est reproduit — le commentaire existait, le geste l'a contourné.
+
+**Preuve, et pourquoi la première mesure était trompeuse.** Interrogé,
+`pg_stat_ssl` répondait `ssl = NON` **même après correction**. Ce n'était pas la
+bonne mesure : à travers un pooler, `pg_stat_ssl` décrit la liaison
+*pooler → PostgreSQL*, pas *client → pooler*. La mesure juste se prend côté
+client, sur la socket :
+
+| Chaîne | socket TLS | protocole |
+|---|---|---|
+| `DATABASE_URL` (après correction) | ✅ OUI | **TLSv1.3** `TLS_AES_256_GCM_SHA384` |
+| `DIRECT_URL` (après correction) | ✅ OUI | **TLSv1.3** `TLS_AES_256_GCM_SHA384` |
+| **témoin** — même hôte sans `sslmode` | ❌ **NON** | aucun |
+
+Le témoin est ce qui rend la preuve concluante : sans `sslmode`, le même serveur
+accepte une connexion **en clair**. Ce n'était donc pas une protection
+implicite du serveur.
+
+⚠️ **Conséquence à connaître** : entre la rotation et cette correction, le
+**nouveau** mot de passe et les données consultées ont circulé **non chiffrés**.
+La fenêtre est courte et le trajet réseau limité — mais c'est une exposition
+réelle. **Décision de Kory** : tourner à nouveau, ou accepter le risque.
+
+⚠️ **À reproduire dans Vercel** : les variables de production devront porter
+`sslmode`. Une chaîne recopiée sans lui donnerait une production en clair, sans
+aucun signe extérieur.
+
+---
+
+## 100 · Le serveur de développement tournait avec l'ancien secret
+
+Symptôme : `verify-responsive` chutait de 29/29 à 6/29, toutes les pages du
+tableau de bord en **HTTP 500**. Ce n'était **pas** une régression de code.
+
+Le journal du serveur le disait :
+
+> `Authentication failed against the database server, the provided database
+> credentials for postgres are not valid`
+> puis `(ECIRCUITBREAKER) too many authentication failures, new connections are
+> temporarily blocked`
+
+`next dev` lit `.env` **au démarrage** : il tournait donc encore avec l'ancien
+mot de passe, et ses tentatives répétées ont fini par déclencher le
+**coupe-circuit de Supabase**, qui bloque temporairement toute nouvelle
+connexion — y compris les bonnes.
+
+Serveur redémarré ; `verify-responsive` **29/29** et `verify-plg-runtime`
+**80/80** aussitôt rétablis.
+
+⚠️ **Étape à ne pas oublier lors de toute rotation** : redémarrer les processus
+qui ont lu `.env`. Sinon le symptôme n'est pas « ça ne marche plus », mais
+« tout est en 500 sans raison apparente », et le coupe-circuit fait croire à une
+panne Supabase.
+
+---
+
+## 101 · `db pull` a réécrit le schéma — restauré
+
+`npx prisma db pull` régénère `prisma/schema.prisma` **depuis la base**. Le
+fichier obtenu était sémantiquement identique — vérifié par
+`prisma migrate diff` **dans les deux sens**, résultat vide — mais il avait :
+
+- **supprimé les 15 commentaires simples** (`//`) qui documentaient les valeurs
+  admises des colonnes `status` ;
+- réordonné les champs (relations rejetées en fin de modèle) ;
+- supprimé les lignes vides, produisant un diff de **1310 lignes** pour zéro
+  changement de modèle.
+
+Le fichier committé a été **restauré** (`git checkout`), et le client Prisma
+régénéré (**7.9.1**, 5 fichiers). Les 15 commentaires et les 247 commentaires de
+documentation sont intacts.
+
+⚠️ **`db pull` est utile pour constater, pas pour éditer.** Sur ce dépôt, le
+schéma est la source de vérité et la base en découle — pas l'inverse. Récupérer
+la version tirée si besoin : `npx prisma db pull` la reproduit à l'identique.
+
+---
+
+## 102 · Résidus de fixtures — recensés, NON supprimés
+
+La consigne de ce chantier interdit tout nettoyage. Constaté, donc, sans y
+toucher :
+
+| Table | Réel | Référence | Écart |
+|---|---|---|---|
+| `User` | 15 | 10 | **5 fixtures** `sonde15.*` |
+| `Class` | 17 | 15 | **2** `SONDE15`, **1** `SONDEMOB` |
+| `SchoolDocument` | 8 | 1 | **6** `SONDE15`, **1** `SONDEMOB` |
+
+⚠️ **Toutes portent un préfixe de sonde**, et toutes datent du 19 août 22:32 —
+l'exécution de `verify-lot-15` que j'avais interrompue manuellement (§97), plus
+un lot `SONDEMOB` de 08:22.
+
+⚠️ **Elles sont dans « Kory Academy 2 », l'école réelle** : les six documents
+`SONDE15` apparaissent donc dans le centre documentaire comme des documents
+d'établissement. C'est visible à l'écran.
+
+**Aucune donnée métier n'a bougé** : 3 écoles, **136 élèves**, 134 inscriptions,
+82 notes, 20 bulletins, 8 factures (7 `PAID` / 1 `PENDING`), 7 paiements tous
+`CASH` sans référence — tous à la référence.
+
+⚠️ **À nettoyer dans un chantier qui l'autorise.** Un vérificateur interrompu ne
+nettoie jamais : relancer `verify-lot-15` ne les enlèvera pas, car chaque
+exécution ne connaît que ses propres fixtures.
+
+# FIN DE LA CLÔTURE C.3
