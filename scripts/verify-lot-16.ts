@@ -14,7 +14,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { createAdminClient } from "../src/lib/supabase/admin";
 import type { ActorContext } from "../src/lib/audit";
 import { hasAccess, type RoleType } from "../src/lib/permissions";

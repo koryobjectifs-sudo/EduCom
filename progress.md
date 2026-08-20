@@ -1,6 +1,6 @@
 # EduCom — Avancement
 
-> Dernière mise à jour : 19 août 2026 (soir)
+> Dernière mise à jour : 19 août 2026 (nuit) — fin de C.3
 > Ce fichier suit l'avancement des chantiers. Le détail technique, les décisions
 > et les réserves vivent dans `rappel.md` ; la mémoire du projet dans `context.md`.
 
@@ -31,17 +31,57 @@
 ## C — PRODUCTION VERCEL
 
 ```
-██████████░░░░░░░░░░  50 %
+████████████░░░░░░░░  60 %
 ```
+
+> 🟡 **C.3 — Fondation de production : PARTIAL.** 10 exigences sur 12 terminées ;
+> 2 dépendent d'une action du propriétaire.
 
 | Étape | État |
 |---|---|
 | C.1 — Préparation du dépôt (build, cron, `distDir`) | 🟢 TERMINÉ |
 | **C.2 — Audit Supabase développement / production** | 🟢 **TERMINÉ — audit livré** |
-| C.3 — Création du projet Supabase de production | ⚪ décision requise |
-| C.4 — Variables d'environnement Vercel | 🟡 documentées, non appliquées |
-| C.5 — Auth + SMTP de production (Resend) | ⚪ bloqué |
-| C.6 — Premier déploiement | ⚪ non commencé |
+| **C.3 — Fondation de production** | 🟡 **PARTIAL** — 2 actions propriétaire |
+| C.4 — Déploiement Vercel | ⚪ EN ATTENTE |
+
+### C.3 — Fondation de production · **PARTIAL** (10 exigences sur 12)
+
+| # | Exigence | État |
+|---|---|---|
+| 1 | Secret PostgreSQL — incident documenté, rotation préparée | 🟡 **NEEDS USER ACTION** |
+| 2 | Architecture Supabase dev ≠ production | 🟢 DONE (recommandation + checklist) |
+| 3 | Garde-fou infranchissable, `npx tsx` compris | 🟢 **DONE — 23/23** |
+| 4 | Environnements `development` / `test` / `production` | 🟢 DONE |
+| 5 | Migrations Prisma versionnées | 🟢 DONE (préparé, non appliqué — voir §94) |
+| 6 | Checklist du projet Supabase de production | 🟢 DONE (dérivée de la base) |
+| 7 | Procédure RLS / Storage reproductible | 🟢 DONE |
+| 8 | Auth de production — préparation | 🟡 **BLOCKED** — domaine |
+| 9 | Données actuelles — préservées et documentées | 🟢 DONE |
+| 10 | `CRON_SECRET` — comportement éprouvé | 🟡 PARTIAL — 3 refus prouvés, acceptation NON PROUVÉE |
+| 11 | Variables futures Vercel | 🟢 DONE |
+| 12 | Non-régression | 🟢 DONE — aucune régression |
+
+**Dernier point traité :** non-régression complète, `rappel.md` §92–§97.
+**Prochain point :** C.3 ne peut pas passer à DONE — voir ci-dessous.
+**Blocages :** rotation du mot de passe (propriétaire) · domaine non choisi.
+
+### Pourquoi C.3 reste PARTIAL et non DONE
+
+Deux exigences ne sont pas terminées, et aucune ne peut l'être depuis le dépôt :
+
+1. ⚠️ **Le mot de passe PostgreSQL n'a pas été tourné.** Il est faible ET a été
+   divulgué. C'est le secret le plus sensible du projet — le rôle qu'il ouvre
+   contourne RLS. Action Supabase, propriétaire uniquement (`rappel.md` §92).
+2. ⚠️ **Auth de production : bloqué par le domaine.** Site URL, redirect URLs et
+   SMTP en dépendent tous.
+
+Et une exigence est partielle :
+
+3. ⃠ **`CRON_SECRET` : « bon secret → 200 » NON PROUVÉ.** Le prouver basculerait
+   une vraie facture ; ce chantier interdit de modifier les données métier.
+
+**Le projet Supabase de production n'existe pas.** Rien dans ce chantier ne l'a
+créé — la checklist est prête, elle n'a pas été exécutée.
 
 ### C.2 — ce qui est réellement terminé
 
@@ -97,9 +137,9 @@ passe a circulé.
 
 ### Prochain chantier
 
-**C.3** — création du projet de production, une fois §84 tranché. Rien ne peut
-avancer avant cette décision : les variables Vercel, le SMTP et le domaine en
-dépendent tous.
+**C.4 — déploiement Vercel**, mais il ne peut pas commencer : il lui faut le
+projet Supabase de production, qui lui-même attend la décision §84 et le
+domaine. Les deux actions propriétaire ci-dessus sont sur le chemin critique.
 
 ---
 

@@ -2309,3 +2309,232 @@ modèle Subscription/Billing → idempotence → intégration. **Sauter une éta
 c'est inventer.**
 
 # FIN DU LOT SÉPARATION DEV / PRODUCTION
+
+---
+
+# C.3 — FONDATION DE PRODUCTION — CONSIGNÉ LE 19 AOÛT 2026 (NUIT)
+
+## 92 · 🔴 NEEDS USER ACTION — Incident : mot de passe PostgreSQL divulgué
+
+Complète le §86. **Traiter ce secret comme COMPROMIS.**
+
+**L'incident.** Lors de l'audit C.2, une commande destinée à afficher la
+configuration Supabase **sans les secrets** a masqué le mot de passe au moyen
+d'un motif qui ne couvrait que le préfixe `postgres://`. La chaîne réelle
+utilise `postgresql://`. **Le mot de passe est passé au travers et s'est affiché
+en clair** dans la sortie, donc dans l'historique de session. C'est une erreur
+d'outillage de ma part.
+
+**Aggravant :** le mot de passe est faible — un mot courant suivi de quelques
+chiffres.
+
+**Où ce secret est utilisé.** Recensé :
+
+| Emplacement | Nature |
+|---|---|
+| `.env` → `DATABASE_URL` | connexion applicative (pooler, 6543) |
+| `.env` → `DIRECT_URL` | migrations Prisma (5432) |
+| aucune autre | vérifié : ni dans le dépôt, ni dans `.env.example`, ni dans un commit |
+
+⚠️ Le rôle utilisé est `postgres`, dont **`rolbypassrls = true`** : ce mot de
+passe donne accès à **toutes** les données de **tous** les établissements, RLS
+comprise. C'est le secret le plus sensible du projet, davantage que la clé de
+service.
+
+**Rotation — à faire par Kory, je ne peux pas le faire :**
+
+1. Supabase → Settings → Database → **Reset database password** ;
+2. remplacer la partie mot de passe dans `DATABASE_URL` **et** `DIRECT_URL`
+   de `.env` — les deux, sinon les migrations cassent ;
+3. redémarrer `next dev` (la chaîne est lue au démarrage) ;
+4. ⚠️ **ne jamais afficher la nouvelle valeur**, ni ici, ni dans `progress.md`,
+   ni dans un rapport, ni dans un journal.
+
+**Conséquences de la rotation :** toute connexion ouverte est coupée ; `next dev`
+et tout script échouent tant que `.env` n'est pas à jour. **Aucune donnée n'est
+affectée** — un mot de passe n'est pas une donnée. Rien d'autre ne l'utilise
+(pas de CI, pas de sauvegarde automatisée, pas de service tiers).
+
+⚠️ **Ceci n'a PAS été fait.** Aucune rotation n'a eu lieu.
+
+---
+
+## 93 · ✅ FAIT — Le garde-fou ne se contourne plus par `npx tsx`
+
+Le garde-fou posé en C.2 avait un défaut que C.3 a nommé : **il ne couvrait que
+`npm run script`.** `npx tsx scripts/verify-lot-15.ts` passait à côté — et ce
+script crée et supprime des écoles entières.
+
+**Correction : la protection est passée DANS LE CHEMIN D'IMPORT.**
+`scripts/_env.ts` est le point de passage obligatoire ; il exporte `prisma` et
+applique les règles à l'import. Tous les modes d'invocation sont donc couverts,
+sans exception.
+
+**Audit des scripts** — 44 inspectés. Trois familles échappaient à toute
+protection :
+
+1. **`seed-subjects`, `seed-test-students`** construisaient leur **propre
+   `PrismaClient`** ;
+2. **`verify-tenant-isolation`, `merge-duplicate-classes`, `harden-rls`**
+   ouvraient une **connexion `pg` brute** sur `DATABASE_URL` / `DIRECT_URL` —
+   dont un script qui **fusionne des classes** (cascade sur `Enrollment` et
+   `Grade`) et un qui **modifie la sécurité de la base** ;
+3. `_cdp.ts` ouvre de **vraies sessions authentifiées**.
+
+Toutes passent désormais par `_env`.
+
+**Quatre signaux, porte fermée par défaut** — ne pas dépendre d'une seule
+variable, qui s'oublie et se recopie :
+
+| # | Signal | Effet |
+|---|---|---|
+| ① | `EDUCOM_ENV` ∈ {`development`, `test`} | **autorisation positive** — absente ou mal orthographiée → refus |
+| ② | base visée ∈ `EDUCOM_DEV_REFS` | **liste blanche** — un projet créé demain est refusé par défaut |
+| ③ | base visée = `EDUCOM_PRODUCTION_REF` | **veto**, même si ① et ② passent |
+| ④ | `VERCEL` défini | **veto absolu, levable par RIEN** |
+
+⚠️ **Une liste blanche, pas une liste noire.** Une liste de projets interdits
+laisse passer celui qu'on a oublié d'y inscrire — c'est-à-dire précisément le
+projet de production, le jour de sa création.
+
+**La levée exceptionnelle** exige la phrase exacte
+`oui-je-sais-ce-que-je-fais`. Un `=1` se tape par réflexe et finit par dormir
+dans un `.env` ; une phrase se remarque en revue. Elle ne lève **jamais** le
+veto ④, et n'est **pas** documentée dans `.env.example`.
+
+**Éprouvé pour de vrai, dans les deux modes :**
+
+| Cas | `npm run script` | `npx tsx` |
+|---|---|---|
+| `development` | ✅ autorisé | ✅ autorisé |
+| `test` | ✅ autorisé | — |
+| `EDUCOM_ENV=production` | ✅ refusé | ✅ refusé |
+| base = production | ✅ refusé | ✅ refusé |
+| connexion `pg` brute vers production | — | ✅ refusé |
+| `VERCEL=1` | — | ✅ refusé |
+| `EDUCOM_ENV` absente | — | ✅ refusé |
+
+`scripts/verify-gardes.ts` — **23/23** — rejoue ces règles sur des
+environnements **simulés** (la fonction est pure) et vérifie l'invariant
+d'architecture : aucun script n'importe `src/lib/prisma` ni ne construit son
+propre client. ⚠️ C'est ce contrôle qui a trouvé `harden-rls` et
+`merge-duplicate-classes`, que j'avais manqués.
+
+⚠️ **Limite honnête :** un programme qui lirait `DATABASE_URL` sans importer
+`_env` resterait sans protection. L'invariant l'interdit dans ce dépôt ; il ne
+peut rien contre un `psql` tapé à la main.
+
+---
+
+## 94 · ✅ PRÉPARÉ — Migrations versionnées, et pourquoi rien n'est appliqué
+
+**Constat : `_prisma_migrations` est ABSENTE de la base.** Le projet n'a jamais
+été migré ; tout est passé par `db push`.
+
+⚠️ Avec deux environnements, `db push` devient un piège : rien ne garantit que
+la production reçoive la même modification que le développement. Une colonne
+ajoutée en dev et oubliée en production, et l'application plante — sans que le
+dépôt permette de le voir venir.
+
+**Ce qui a été produit** — `prisma/migrations/00000000000000_baseline/` :
+1040 lignes, 34 tables, 20 énumérés, 71 index, 62 contraintes.
+
+- ✅ **0 instruction destructive** — aucun `DROP`, `TRUNCATE` ni `DELETE`.
+- ✅ **La base actuelle correspond exactement au schéma** : le diff entre la base
+  de développement et `schema.prisma` est **vide**. La ligne de référence décrit
+  donc fidèlement l'existant.
+
+**Pourquoi la commande n'a PAS été jouée.** Baseliner le développement se fait
+par `prisma migrate resolve --applied 00000000000000_baseline`, qui n'exécute
+aucun SQL. Mais **la même ligne de référence doit être posée sur les deux
+environnements**, et le projet de production n'existe pas. Baseliner le
+développement seul créerait un décalage d'historique entre deux bases censées
+partager le même. La commande est prête ; elle sera jouée sur les deux à la
+suite.
+
+Procédure complète : `prisma/migrations/README.md`.
+⚠️ **`prisma migrate reset` supprime toute la base** : aucun usage légitime ici.
+
+---
+
+## 95 · ✅ PRÉPARÉ — Checklist de production dérivée de la base, pas rédigée
+
+`scripts/checklist-production.ts` — **lecture seule**. Il lit la configuration de
+sécurité réellement en place et en déduit la procédure à rejouer.
+
+⚠️ **Elle n'est pas écrite à la main, et c'est le point.** Une liste rédigée se
+périme le jour où un réglage change sans qu'on la mette à jour, et personne ne
+s'en aperçoit avant la production.
+
+**Ce qu'elle vérifie et confirme aujourd'hui :**
+
+- bucket `student-documents` : **privé** ✅ ;
+- **double verrou intact** : les 6 types MIME et la limite de 10 Mo déclarés sur
+  le bucket correspondent **exactement** à `src/lib/studentFileLimits.ts` ✅ ;
+- RLS : 34 tables actives, **0 policy** — refus total, à reproduire tel quel ;
+- ⚠️ **zéro policy est volontaire.** Ajouter des policies « par école »
+  n'ajouterait rien : cela **ouvrirait** un accès aujourd'hui fermé. Ne pas
+  créer de matrice RLS parallèle — `scripts/harden-rls.ts` reste la référence.
+
+⚠️ Le script rappelle que le rôle applicatif **contourne RLS** : la barrière du
+produit est le cloisonnement `schoolId` dans le code, pas RLS.
+
+**Aucun projet de production n'existe.** Rien dans cette checklist n'a été
+exécuté ailleurs que sur le développement, en lecture.
+
+---
+
+## 96 · CRON_SECRET — trois refus prouvés, l'acceptation NON PROUVÉE
+
+Éprouvé sur un serveur de production réel (`next start`, port isolé, secret
+aléatoire de 48 caractères jamais affiché puis détruit), **sans toucher au
+serveur de développement** :
+
+| Requête | Attendu | Obtenu |
+|---|---|---|
+| `POST` sans en-tête | refus | ✅ **401** |
+| `GET` sans en-tête | refus | ✅ **401** |
+| `GET` secret incorrect | refus | ✅ **401** |
+| `GET` bon secret, schéma `Basic` | refus | ✅ **401** |
+| `GET` secret tronqué d'un caractère | refus | ✅ **401** |
+| secret absent du serveur | refus | ✅ **503** (§82) |
+
+⚠️ **401 et non 503** : le serveur avait bien un secret configuré. Les deux codes
+sont distingués, ce qui prouve que le refus vient de la requête et non d'une
+route inerte.
+
+⃠ **NON PROUVÉ — « bon secret → 200 ».** Le prouver exigerait d'exécuter le
+balayage réel, qui **basculerait une vraie facture** de « Kory Academy 2 » de
+`PENDING` à `OVERDUE` (mesuré en essai à blanc : 1 facture). Ce chantier
+interdit de modifier les données métier. Le chemin d'autorisation est le
+**même** pour les six cas ci-dessus — c'est `authorise()`, appelée avant toute
+écriture — mais **l'absence de preuve reste une absence de preuve**.
+
+Pour lever ce point quand vous l'acceptez : définir `CRON_SECRET`, redémarrer,
+puis appeler la route avec le bon secret ; une facture basculera.
+
+---
+
+## 97 · Résidu de fixture — trouvé, compté, supprimé
+
+En vérifiant qu'aucune donnée n'avait bougé, un écart est apparu : **137 élèves
+au lieu de 136**.
+
+**Cause :** j'avais interrompu manuellement une exécution de `verify-lot-15`
+pendant un diagnostic ; son nettoyage de fin n'a donc jamais tourné, et sa
+fixture `SONDE15-Enfant Sonde` est restée **dans « Kory Academy 2 »**, l'école
+réelle.
+
+Traité selon la règle 4 : comptage des rattachements (1 inscription, 0 note,
+0 document, 0 facture), essai à blanc, puis `APPLY=1`. **136 élèves rétablis.**
+
+⚠️ **Ce qu'il faut en retenir** : un vérificateur interrompu laisse ses fixtures
+dans la base. Ce n'est pas un défaut des scripts — c'est une propriété de tout
+nettoyage placé en fin d'exécution. Vérifier les compteurs après une
+interruption, plutôt que de supposer.
+
+⚠️ **Le compte Auth `…@sonde.invalid` sans ligne `User` (§85) n'a PAS été
+supprimé** : la consigne interdit le nettoyage automatique des données
+existantes, et il n'a pas été créé pendant ce chantier.
+
+# FIN DU LOT C.3

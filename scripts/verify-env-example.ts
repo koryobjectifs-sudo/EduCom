@@ -66,7 +66,7 @@ function variablesLues(): Map<string, string[]> {
   // le garde-fou de production, qui définit des variables que l'exploitant doit
   // renseigner. Une variable qu'on demande de configurer sans la documenter est
   // exactement le défaut que ce vérificateur existe pour attraper.
-  for (const f of [...sources("src"), "next.config.ts", "prisma.config.ts", "scripts/_garde-production.mjs"]) {
+  for (const f of [...sources("src"), "next.config.ts", "prisma.config.ts", "scripts/_env.ts"]) {
     const src = readFileSync(f, "utf8");
     // `process.env.NOM`
     for (const m of src.matchAll(/process\.env\.([A-Z][A-Z0-9_]*)/g)) ajoute(m[1], f);
@@ -76,6 +76,14 @@ function variablesLues(): Map<string, string[]> {
     // Sans ce cas, les trois variables Twilio seraient invisibles ici — et le
     // vérificateur conclurait à tort qu'elles sont « en trop » dans l'exemple.
     for (const m of src.matchAll(/\benv\(\s*["'`]([A-Z][A-Z0-9_]*)["'`]\s*\)/g)) ajoute(m[1], f);
+    // ⚠️ `scripts/_env.ts` lit l'environnement à travers un paramètre
+    // (`source.EDUCOM_ENV`) pour rester une fonction PURE et donc testable sur
+    // des environnements simulés. Sans ce motif, ses trois variables passaient
+    // pour orphelines — le vérificateur réclamait de retirer de la
+    // documentation exacte, ce qui aurait désarmé le garde-fou.
+    if (/process\.env/.test(src)) {
+      for (const m of src.matchAll(/\bsource\.([A-Z][A-Z0-9_]+)/g)) ajoute(m[1], f);
+    }
   }
 
   /**

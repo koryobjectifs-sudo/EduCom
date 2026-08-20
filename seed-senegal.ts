@@ -1,4 +1,4 @@
-import { prisma } from './src/lib/prisma';
+import { prisma } from "./scripts/_env";
 
 /**
  * Jeu de données de démonstration — classes, matières, élèves fictifs.

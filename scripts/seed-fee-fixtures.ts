@@ -18,7 +18,7 @@
  * ⚠️ N'écrit QUE dans les nouvelles tables du lot 12.1 et n'ajoute des élèves
  * que si l'école témoin en est dépourvue. Aucune donnée existante n'est modifiée.
  */
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 
 const APPLY = process.env.APPLY === "1";
 const say = (s: string) => console.log(`${APPLY ? "  " : "  [à blanc] "}${s}`);

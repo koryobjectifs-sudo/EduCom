@@ -29,6 +29,8 @@ import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
+// ⚠️ Ouvre de vraies sessions authentifiées : même exigence que la base.
+import "./_env";
 
 export const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 

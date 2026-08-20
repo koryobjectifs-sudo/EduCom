@@ -16,6 +16,10 @@
  *
  *   npm run script -- scripts/verify-tenant-isolation.ts
  */
+// ⚠️ Ce vérificateur ouvre une connexion `pg` BRUTE avec `DATABASE_URL` :
+// il ne passait par aucun garde-fou, pas même l'import de Prisma. Cet
+// import n'est pas décoratif — il déclenche la vérification d'environnement.
+import "./_env";
 import { Client } from "pg";
 
 type SchoolRow = { id: string; name: string };

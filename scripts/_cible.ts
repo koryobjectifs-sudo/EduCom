@@ -17,7 +17,7 @@
  *   SCHOOL_ID=<uuid> npm run script -- scripts/<script>.ts        → essai à blanc
  *   SCHOOL_ID=<uuid> APPLY=1 npm run script -- scripts/<script>.ts → écrit
  */
-import { prisma as defaultPrisma } from "../src/lib/prisma";
+import { prisma as defaultPrisma } from "./_env";
 
 export const APPLY = process.env.APPLY === "1";
 

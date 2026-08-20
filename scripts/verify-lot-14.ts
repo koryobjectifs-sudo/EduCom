@@ -17,7 +17,7 @@ import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdtempSync } from
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { createAdminClient } from "../src/lib/supabase/admin";
 import type { ActorContext } from "../src/lib/audit";
 import { pdfFromJpegs, jpegSize, MAX_EDGE, MAX_PAGES, A4 } from "../src/lib/scan";

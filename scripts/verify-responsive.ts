@@ -20,7 +20,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { createAdminClient } from "../src/lib/supabase/admin";
 import { currentAcademicYear } from "../src/lib/studentFile";
 

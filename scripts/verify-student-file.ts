@@ -13,7 +13,7 @@
  * occurrences du piège. Les invariants sont nommés.
  */
 import { readFileSync, existsSync } from "node:fs";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { createAdminClient } from "../src/lib/supabase/admin";
 import { hasAccess, RoleType } from "../src/lib/permissions";
 import {

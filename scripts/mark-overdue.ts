@@ -19,7 +19,7 @@
  * passages — un balayage manqué ne fausse donc aucun affichage.
  */
 import { sweepAllSchools } from "../src/lib/overdue";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 
 const APPLY = process.env.APPLY === "1";
 

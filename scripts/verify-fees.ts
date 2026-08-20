@@ -12,7 +12,7 @@
  * reste sans effet net sur la base.
  */
 import { readFileSync, existsSync } from "node:fs";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { buildReport } from "../src/lib/reports";
 import { forecast, moneyPicture, resolveFeesForClass, annualAmount, activeSchedule } from "../src/lib/fees";
 import { orderedTerms, comparisonPeriod, previousTermPeriod } from "../src/lib/terms";

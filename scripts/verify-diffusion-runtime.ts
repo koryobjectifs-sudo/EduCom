@@ -17,7 +17,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { createAdminClient } from "../src/lib/supabase/admin";
 import { BUCKET, currentAcademicYear } from "../src/lib/studentFile";
 import { schoolStoragePath } from "../src/lib/schoolDocuments";

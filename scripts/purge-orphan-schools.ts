@@ -22,7 +22,7 @@
  *   APPLY=1 npm run script -- scripts/purge-orphan-schools.ts  → applique
  */
 import { writeFileSync } from "node:fs";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 
 const APPLY = process.env.APPLY === "1";
 

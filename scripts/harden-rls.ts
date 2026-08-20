@@ -37,6 +37,11 @@
  * Deux verrous valent mieux qu'un, surtout quand le premier peut être désactivé
  * d'un clic dans une interface.
  */
+// ⚠️ Connexion `pg` BRUTE sur `DIRECT_URL`, et ce script MODIFIE la sécurité de
+// la base (ALTER TABLE ... ENABLE ROW LEVEL SECURITY). Il échappait au garde-fou.
+// ⚠️ Il devra un jour être joué DÉLIBÉRÉMENT sur la production : ce sera par la
+// levée explicite, jamais par oubli de protection.
+import "./_env";
 import { Client } from "pg";
 import { mkdirSync, writeFileSync } from "node:fs";
 

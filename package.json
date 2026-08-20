@@ -11,7 +11,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "script": "node --env-file=.env ./scripts/_garde-production.mjs && node --env-file=.env ./node_modules/.bin/tsx",
+    "script": "node --env-file=.env ./node_modules/.bin/tsx",
     "seed:senegal": "npm run script -- seed-senegal.ts",
     "build:verify": "NEXT_DIST_DIR=.next-verify next build"
   },

@@ -12,7 +12,7 @@
  */
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { buildReport } from "../src/lib/reports";
 import { forecast, activeSchedule } from "../src/lib/fees";
 import { hasAccess, RoleType, ROLE_DENIALS } from "../src/lib/permissions";

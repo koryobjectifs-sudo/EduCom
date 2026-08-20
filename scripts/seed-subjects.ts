@@ -17,14 +17,11 @@
  *   SCHOOL_ID=<uuid> npm run script -- scripts/seed-subjects.ts        -> essai à blanc
  *   SCHOOL_ID=<uuid> APPLY=1 npm run script -- scripts/seed-subjects.ts -> applique
  */
-import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
 
+import { prisma } from "./_env";
 import { APPLY, resoudreCible } from "./_cible";
 
-const pool = new Pool({ connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
+
 
 /** Groupes de l'élémentaire : un parent, ses sous-matières notées. */
 const TREE: Record<string, string[]> = {

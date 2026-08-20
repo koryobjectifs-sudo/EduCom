@@ -30,7 +30,7 @@ import { join } from "node:path";
 import { Client } from "pg";
 import { TLSSocket } from "node:tls";
 import { createClient } from "@supabase/supabase-js";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { createAdminClient } from "../src/lib/supabase/admin";
 import { BUCKET } from "../src/lib/studentFile";
 import type { RoleType } from "../src/lib/permissions";

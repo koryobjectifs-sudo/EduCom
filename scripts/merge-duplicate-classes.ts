@@ -12,6 +12,11 @@
  *   npx tsx scripts/merge-duplicate-classes.ts        -> essai à blanc
  *   APPLY=1 npx tsx scripts/merge-duplicate-classes.ts -> applique
  */
+// ⚠️ Connexion `pg` BRUTE, et ce script FUSIONNE des classes : `Enrollment.classId`
+// et `Grade.classId` sont en `onDelete: Cascade`. Il échappait entièrement au
+// garde-fou d'environnement. Cet import n'est pas décoratif — il déclenche la
+// vérification avant toute connexion.
+import "./_env";
 import { Client } from "pg";
 import { writeFileSync } from "fs";
 

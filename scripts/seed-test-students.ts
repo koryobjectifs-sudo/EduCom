@@ -16,10 +16,8 @@
  *   SCHOOL_ID=<uuid> APPLY=1 npm run script -- scripts/seed-test-students.ts      -> crée
  *   SCHOOL_ID=<uuid> CLEAN=1 APPLY=1 npm run script -- scripts/seed-test-students.ts -> supprime
  */
-import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
 
+import { prisma } from "./_env";
 import { APPLY, resoudreCible } from "./_cible";
 
 const CLEAN = process.env.CLEAN === "1";
@@ -54,8 +52,7 @@ const LEGACY_NAMES: [string, string][] = [
   ["Ndeye", "Faye"], ["Moussa", "Camara"],
 ];
 
-const pool = new Pool({ connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
+
 
 async function main() {
   const cible = await resoudreCible(

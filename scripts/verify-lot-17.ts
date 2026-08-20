@@ -16,7 +16,7 @@
  * section A sont des lectures (`GET`) sur le compte configuré.
  */
 import { existsSync, readFileSync } from "node:fs";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { createAdminClient } from "../src/lib/supabase/admin";
 import type { ActorContext } from "../src/lib/audit";
 import { hasAccess, type RoleType } from "../src/lib/permissions";

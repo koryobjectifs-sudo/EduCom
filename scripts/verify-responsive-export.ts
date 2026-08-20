@@ -31,7 +31,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 // ⚠️ Le pilotage de Chrome vit désormais dans `scripts/_cdp.ts`, partagé avec la
 // sonde du lot 17. En garder deux copies les aurait fait diverger.
 import {

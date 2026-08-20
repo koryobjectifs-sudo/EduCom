@@ -13,7 +13,7 @@
  *   SCHOOL_ID=<uuid> npm run script -- scripts/seed-classes.ts        → essai à blanc
  *   SCHOOL_ID=<uuid> APPLY=1 npm run script -- scripts/seed-classes.ts → écrit
  */
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { APPLY, resoudreCible } from "./_cible";
 
 /** Le cycle est renseigné : sans lui, les écrans qui trient par cycle ne voient rien. */

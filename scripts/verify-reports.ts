@@ -20,7 +20,7 @@
 
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { buildReport, audienceForRole } from "../src/lib/reports";
 import type { Report } from "../src/lib/reports";
 import { hasAccess, ROLE_PERMISSIONS, RoleType } from "../src/lib/permissions";
