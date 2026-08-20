@@ -1,6 +1,6 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 20 août 2026 — préparation de l'environnement de production (C.4)
+> Dernière mise à jour : 20 août 2026 — correction de la panne d'authentification en production
 
 ## À propos du projet
 EduCom SaaS est une plateforme de gestion scolaire tout-en-un conçue pour les établissements (de la maternelle au lycée). L'application comprend une vitrine (Landing Page) et un tableau de bord (Dashboard) pour l'administration complète de l'école (admissions, communications, notes, paiements, etc.).
@@ -2642,3 +2642,97 @@ Auth, les redirections, les liens d'e-mail et le DKIM. Tant qu'il n'est pas
 choisi, ni le SMTP ni la mise en ligne ne peuvent avancer — et une URL
 temporaire ne doit surtout pas devenir la configuration définitive : un lien de
 confirmation déjà parti continue de pointer où il pointait.
+
+## Panne de production — aucune inscription ni connexion possible — ✅ CORRIGÉ (20 août 2026)
+
+**Symptôme.** Sur `educom.school`, le bouton « Créer l'espace de mon école »
+répondait `Invalid path specified in request URL`. Les pages s'affichaient
+parfaitement, ce qui rendait la panne trompeuse : elle ressemblait à un problème
+de formulaire alors que **toute l'authentification** était morte.
+
+**La cause, et pourquoi elle n'était pas là où on la cherchait.** Le message ne
+vient ni d'EduCom ni de Supabase Auth : c'est la réponse **404 de PostgREST**.
+`NEXT_PUBLIC_SUPABASE_URL` portait le suffixe `/rest/v1` sur Vercel. Or
+`supabase-js` ajoute lui-même le chemin du service : la variable doit contenir
+l'**origine seule**. Avec le suffixe, `signUp()` partait vers
+`…/rest/v1/auth/v1/token` — donc vers la mauvaise brique de Supabase.
+
+Le piège est un unique copier-coller : le tableau de bord Supabase affiche cette
+valeur telle quelle sous l'intitulé « RESTful endpoint ».
+
+**Ce qui a permis de trancher sans deviner.** Chaque service Supabase renvoie un
+message **distinct** face à un appel d'authentification (`/storage/v1` → « Route
+POST:/auth/v1/token… not found » ; `/functions/v1` → « Requested function was
+not found » ; `/realtime/v1` → « API key is missing »). Seul un chemin sous
+`/rest/v1` produit exactement cette phrase : le diagnostic est univoque.
+La preuve finale est venue de la production elle-même — l'action serveur
+`login`, appelée avec des identifiants bidons, a renvoyé le **même** message là
+où une configuration saine renvoie `invalid_credentials`. Le défaut n'était donc
+pas dans `/register` mais dans une valeur partagée.
+
+**Décision : le produit absorbe l'erreur, mais ne la cache pas.**
+`src/lib/supabase/config.ts` devient le point unique de lecture (les cinq
+lectures directes de `process.env` ont disparu). Il retire un chemin de service
+placé à la racine, plus les espaces et barres obliques de fin — trois scories de
+copier-coller qui ne sont *jamais* valides — et **le journalise en erreur**. Il
+lève aussi un message en français quand la variable est absente, là où
+`undefined` filait jusqu'à un échec anglais sans rapport avec la cause.
+
+⚠️ **Ce qui n'a délibérément PAS été fait :** aucun autre chemin n'est deviné.
+Une installation auto-hébergée servie derrière `https://exemple.tld/supabase`
+reste intacte. Réparer ce qu'on ne connaît pas casserait une configuration
+légitime.
+
+⚠️ **La variable Vercel reste fausse.** La normalisation est un filet, pas la
+correction : `NEXT_PUBLIC_SUPABASE_URL` doit être ramenée à
+`https://<ref>.supabase.co`. Sans cela, la même valeur continuera d'alimenter
+tout ce qui ne passe pas par `config.ts` (scripts, futurs outils).
+
+**Régression pré-existante constatée au passage — NON corrigée.**
+`verify-pilote-auth` est à **52/62** (10 échecs, section 5 « chacun chez soi » :
+A et B sont renvoyés vers `/onboarding`). Vérifié par mise de côté du correctif :
+**les 10 mêmes échecs existent sans lui**. Ce n'est donc pas une régression de ce
+chantier, mais l'archive le donnait à 62/62 : l'écart est réel et reste ouvert.
+
+## ⚠️ BASE DE DÉVELOPPEMENT VIDÉE — constaté le 20 août 2026, cause antérieure à ce chantier
+
+**Constat.** Toutes les tables métier du projet de développement (`vuvjtc…`, le
+même qu'auparavant — `rappel.md` §57) sont à **zéro ligne** : School, Student,
+User, Class, Enrollment, Grade, Invoice, Payment. L'archive donnait encore
+**136 élèves, 3 écoles, 9 utilisateurs, 14 classes** au 18 août.
+
+**Ce qui a été mesuré, pas supposé.**
+
+1. `_prisma_migrations` **existe désormais** — `prisma/migrations/README.md`
+   affirmait qu'elle était ABSENTE, et le disait avec raison au moment écrit.
+   Elle contient `00000000000000_baseline`, appliquée le **20 août 2026 à
+   04:06:14 UTC**, avec `applied_steps_count = 1` : le SQL a donc été **exécuté**,
+   pas seulement enregistré. Or ce fichier ne fait que **créer** 34 tables : pour
+   qu'il réussisse, le schéma devait être vide. Les tables ont donc été
+   **supprimées puis recréées**. Une seconde entrée `0001_init` (0 étape) suit à
+   04:06:30 ; son dossier n'existe pas dans le dépôt.
+2. `pg_stat_user_tables` confirme la recréation : les compteurs des tables
+   repartent de zéro. On n'y lit que **6 insertions et 6 suppressions** par
+   table — exactement les fixtures des trois exécutions de `verify-pilote-auth`
+   de ce chantier, toutes nettoyées (0 ligne vivante). Si 136 élèves avaient été
+   supprimés par une requête ordinaire, `n_tup_del` vaudrait 142, pas 6.
+
+**Conclusion : la perte est ANTÉRIEURE à ce chantier**, et n'a pas pu être
+causée par lui — aucune commande de correction du bug d'authentification ne
+touche au schéma. Le profil correspond à un `prisma migrate reset` (ou
+équivalent) lancé vers 04:06 UTC, très probablement pendant la mise en ligne
+Vercel. C'est précisément la commande contre laquelle
+`prisma/migrations/README.md` mettait en garde : « ne jamais utiliser
+`prisma migrate reset` : la commande *supprime toute la base* ».
+
+⚠️ **Rien n'est récupérable localement.** `backups/` ne contient que des
+**relevés de comptages** (`{"counts": …}`), pas les lignes. Seul
+`avant-lot-11-2026-08-17.json` porte des données — écoles, utilisateurs,
+factures, paiements, périodes — mais **aucun élève**. La restauration dépend
+donc entièrement des sauvegardes de Supabase, dont C.4 a justement déclaré
+qu'elles n'avaient **jamais été vérifiées** (NON PROUVÉ). À vérifier d'urgence
+tant que la fenêtre de rétention court.
+
+**Ce que cet incident confirme.** La réserve posée en C.4 — « aucune sauvegarde
+constatée, aucune restauration essayée » — n'était pas une précaution
+rhétorique. C'est le premier chantier où elle coûte quelque chose.

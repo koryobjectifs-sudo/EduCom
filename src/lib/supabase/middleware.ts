@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { urlSupabase, cleAnonSupabase } from './config'
 
 /**
  * Rafraîchissement de session et garde des routes protégées.
@@ -36,8 +37,8 @@ export async function updateSession(request: NextRequest) {
   let response = NextResponse.next()
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    urlSupabase(),
+    cleAnonSupabase(),
     {
       cookies: {
         getAll() {

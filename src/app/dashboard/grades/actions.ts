@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createRawClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+import { urlSupabase, cleAnonSupabase } from "@/lib/supabase/config";
 
 export async function getTerms() {
   const supabase = await createClient();
@@ -160,8 +161,8 @@ export async function deleteEvaluation(id: string) {
  */
 async function verifyPassword(email: string, password: string) {
   const raw = createRawClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    urlSupabase(),
+    cleAnonSupabase(),
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
   const { error } = await raw.auth.signInWithPassword({ email, password });
