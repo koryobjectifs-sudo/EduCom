@@ -126,7 +126,12 @@ model User {
   gradesGiven   Grade[]
   assignments   TeachingAssignment[] @relation("TeacherAssignments")
 
+  managerId     String?
+  manager       User?    @relation("Management", fields: [managerId], references: [id], onDelete: SetNull)
+  subordinates  User[]   @relation("Management")
+
   @@index([schoolId])
+  @@index([managerId])
 }
 
 /// Journal d'activité : « qui a fait quoi, quand, sur quel objet, avec quel
@@ -675,6 +680,21 @@ model ClassSubject {
   class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
   subjectId String
   subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  /// Poids de la matière DANS CETTE CLASSE, sur le bulletin.
+  ///
+  /// ⚠️ Le coefficient n'est PAS une constante nationale. Les quatre bulletins
+  /// réels analysés le 17 août (Groupe Scolaire PIA, Ker Rokhaya, Lycée de
+  /// Popenguine) portent des pondérations différentes pour les mêmes matières —
+  /// « COMPOSITION FR » coef 2 chez l'un, trois lignes de français à coef 1 chez
+  /// l'autre. Il appartient donc à l'école, matière par matière et classe par
+  /// classe : la même matière peut peser 2 en CM2 et 1 en CI.
+  ///
+  /// ⚠️ Il ne remplace PAS `Grade.coefficient`, qui reste le poids réellement
+  /// appliqué à une note donnée. Celui-ci est la valeur PAR DÉFAUT proposée à la
+  /// saisie et affichée sur le bulletin quand aucune note n'existe encore —
+  /// sans quoi le coefficient serait inconfigurable avant la première note.
+  coefficient Float @default(1)
 
   createdAt DateTime @default(now())
 

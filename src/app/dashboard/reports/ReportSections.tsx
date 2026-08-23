@@ -5,9 +5,12 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import {
   DataTable, TableHead, TableHeadCell, TableBody, TableRow, TableCell, TableEmptyRow,
 } from "@/components/ui/DataTable";
-import { formatAmount } from "@/lib/finance";
+import { DonutChart } from "@/components/ui/DonutChart";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { formatAmount } from "@/lib/moneyFormat";
 import type { Metric, ReportGroup, ReportSection, TraceRow, Unavailable } from "@/lib/reports";
 import { NotificationItem } from "./NotificationItem";
+import { RevenueChart, PaymentMethodsChart } from "./Charts";
 
 /**
  * Rendu d'un rapport — composants **serveur**.
@@ -64,21 +67,20 @@ function Comparison({ metric }: { metric: Metric }) {
 
 function MetricCard({ metric, comparable }: { metric: Metric; comparable: boolean }) {
   return (
-    <div className="rounded-surface border border-rule bg-surface p-4 shadow-card">
-      <p className="text-role-label font-medium text-text-soft">{metric.label}</p>
-      <p className="mt-2 text-role-page font-semibold tabular-nums tracking-tight text-text">
+    <div className="rounded-surface bg-surface p-5 shadow-sm border border-rule/50 hover:shadow-md transition-shadow">
+      <p className="text-sm font-semibold tracking-wide text-text-soft">{metric.label}</p>
+      <p className="mt-3 text-3xl font-bold tracking-tight text-text">
         {metric.format === "amount" ? formatAmount(metric.value) : metric.value.toLocaleString("fr-FR")}
-        {metric.format === "amount" && <span className="ml-1 text-role-meta font-medium text-text-soft">FCFA</span>}
+        {metric.format === "amount" && <span className="ml-1 text-sm font-medium text-text-soft">FCFA</span>}
       </p>
 
       {comparable && (
-        <p className="mt-2">
+        <p className="mt-3 flex items-center gap-2">
           <Comparison metric={metric} />
-          <span className="ml-1 text-role-meta text-text-faint">vs période précédente</span>
         </p>
       )}
 
-      {metric.hint && <p className="mt-2 text-role-meta leading-relaxed text-text-faint">{metric.hint}</p>}
+      {metric.hint && <p className="mt-3 text-xs leading-relaxed text-text-faint">{metric.hint}</p>}
     </div>
   );
 }
@@ -166,10 +168,31 @@ export function SectionBlock({ section, comparable }: { section: ReportSection; 
   const hasMetrics = section.metrics.length > 0;
   const hasRows = section.rows.length > 0;
 
+  // Détection des métriques financières pour afficher la barre de progression
+  const expectedMetric = section.metrics.find((m) => m.key === "expected" || m.key === "g-expected");
+  const collectedMetric = section.metrics.find((m) => m.key.includes("collected"));
+  const showProgress = expectedMetric && collectedMetric && expectedMetric.value > 0;
+  
+  const progressValue = showProgress ? Math.min((collectedMetric.value / expectedMetric.value) * 100, 100) : 0;
+
   return (
     <Card title={section.title} description={section.description}>
+      {showProgress && (
+        <div className="mb-8 rounded-surface border border-rule/50 bg-surface p-5 shadow-sm">
+          <h3 className="mb-4 text-sm font-semibold tracking-wide text-text-soft">Progression globale (Objectif Mensuel)</h3>
+          <ProgressBar
+            progress={progressValue}
+            target={100}
+            color="success"
+            showLabel
+            label={`${formatAmount(collectedMetric.value)} FCFA / ${formatAmount(expectedMetric.value)} FCFA`}
+            className="mb-2"
+          />
+        </div>
+      )}
+
       {hasMetrics && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {section.metrics.map((m) => (
             <MetricCard key={m.key} metric={m} comparable={comparable} />
           ))}
@@ -185,8 +208,25 @@ export function SectionBlock({ section, comparable }: { section: ReportSection; 
         />
       )}
 
+      {section.charts && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          {section.charts.revenue && (
+            <div className="rounded-surface border border-rule/50 bg-surface p-5 shadow-sm">
+              <h3 className="text-sm font-semibold tracking-wide text-text-soft">Évolution Financière</h3>
+              <RevenueChart data={section.charts.revenue} />
+            </div>
+          )}
+          {section.charts.methods && (
+            <div className="rounded-surface border border-rule/50 bg-surface p-5 shadow-sm">
+              <h3 className="text-sm font-semibold tracking-wide text-text-soft">Répartition des Encaissements</h3>
+              <PaymentMethodsChart data={section.charts.methods} />
+            </div>
+          )}
+        </div>
+      )}
+
       {hasRows && (
-        <div className={hasMetrics ? "mt-5" : ""}>
+        <div className={hasMetrics || section.charts ? "mt-5" : ""}>
           <TraceTable rows={section.rows} emptyLabel={section.emptyLabel} />
         </div>
       )}

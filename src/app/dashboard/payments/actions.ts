@@ -145,3 +145,69 @@ export async function markInvoiceAsPaid(invoiceId: string) {
     return { error: "Erreur lors de l'encaissement" };
   }
 }
+
+/**
+ * Action d'encaissement rapide depuis la vue "Reste à encaisser".
+ * Génère automatiquement la facture du mois courant et l'encaissement associé.
+ */
+export async function quickCollect(studentId: string, amount: number) {
+  const auth = await requireActionContext(BILLING_PATH);
+  if (!auth.ok) return { error: auth.error };
+  const { ctx } = auth;
+
+  const student = await prisma.student.findFirst({
+    where: { id: studentId, schoolId: ctx.schoolId },
+    select: { id: true, firstName: true, lastName: true },
+  });
+
+  if (!student) return { error: "Élève introuvable." };
+
+  const monthName = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const title = `Scolarité - ${monthName.charAt(0).toUpperCase() + monthName.slice(1)}`;
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      // 1. Create Invoice
+      const invoice = await tx.invoice.create({
+        data: {
+          title,
+          totalAmount: amount,
+          dueDate: new Date(),
+          status: "PAID",
+          studentId: student.id,
+          schoolId: ctx.schoolId,
+          items: {
+            create: [{
+              title: "Frais mensuels attendus",
+              amount: amount,
+              quantity: 1
+            }]
+          }
+        },
+      });
+
+      // 2. Create Payment
+      await tx.payment.create({
+        data: {
+          amount: amount,
+          method: "CASH", // Defaulting to cash for quick collect
+          invoiceId: invoice.id,
+          schoolId: ctx.schoolId,
+        },
+      });
+
+      await recordAudit(ctx, {
+        action: "invoice.collect",
+        entity: "invoice",
+        entityId: invoice.id,
+        details: { mode: "quick", amount: amount, studentId: student.id },
+      });
+    });
+
+    revalidatePath("/dashboard/payments");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to quick collect:", error);
+    return { error: "Erreur lors de l'encaissement rapide" };
+  }
+}

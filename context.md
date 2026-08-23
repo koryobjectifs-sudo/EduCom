@@ -1,8 +1,28 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 20 août 2026 — correction de la panne d'authentification en production
+> Dernière mise à jour : 22 août 2026 — Parcours de bout en bout éprouvés (directrice / enseignant / direction) : sélecteurs préremplis, étape suivante après la saisie, et cinq générateurs de documents refermés à qui n'y a pas droit.
 
-## À propos du projet
+## 📌 Nouvelles Fonctionnalités & Logiques Implémentées (Août 2026)
+
+### Documents & Fichiers — ❌ ANNULÉ le 21 août 2026
+Le **hub Documentaire unifié** (onglets Génération / Centre Documentaire / Exports / Mon Drive sous `/dashboard/documents`) et le **Drive** qui l'accompagnait ont été **entièrement retirés** à la demande de Kory. Voir la section « Hub Documents unifié — annulé » plus bas pour le pourquoi et le détail de ce qui a été défait.
+
+L'état d'origine est rétabli : trois entrées distinctes dans la sidebar — **Documents** (`/dashboard/documents`), **Centre documentaire** (`/dashboard/documents/centre`), **Exports de dossiers** (`/dashboard/students/export`).
+### Équipe et Organigramme
+- **Dépendances Hiérarchiques** : Le modèle `User` possède désormais un `managerId` autoréférentiel pour définir l'organigramme de l'école. Les formulaires de création et d'invitation d'équipe intègrent ce champ.
+- **Vue Organigramme** : Ajout d'une nouvelle vue "Organigramme" visuelle dans la page Équipe pour représenter les dépendances (`OrgChartClient.tsx`).
+
+### Facturation & "Reste à encaisser"
+- **Nouvelle logique du "Reste à encaisser"** : La carte "Reste à encaisser" ne se base plus uniquement sur les factures émises (`status: UNSETTLED_INVOICE`). La logique calcule désormais le **prévisionnel mensuel** (grille tarifaire active `FeeSchedule` croisée avec les inscriptions `Enrollment`), et déduit les encaissements enregistrés dans le mois courant (`expectedMonthlyRevenue`).
+- **Encaissement Rapide** : Un bouton d'encaissement rapide permet aux gestionnaires de générer automatiquement une facture et un paiement simultanément pour un élève, sans avoir à créer manuellement la facture d'abord.
+- **Filtres Avancés** : Ajout d'un filtre par classe sur l'historique des factures de la page Paiements et sur la nouvelle vue "Reste à encaisser" (avec affichage du total par classe).
+
+### Équipe & Organigramme
+- **Organigramme visuel** : L'affichage de la hiérarchie de l'équipe a été entièrement revu pour utiliser des cartes de nœuds stylisées avec des connexions orthogonales, des badges de rôles, et le comptage des subordonnés.
+- **Édition des interdépendances** : Depuis l'organigramme, la Direction peut éditer le rôle (permissions) et le responsable hiérarchique (`managerId`) d'un collaborateur via une modale, réorganisant ainsi l'arbre instantanément.
+
+### Rapports (MVP)
+- **Simplification et Filtres** : Le centre de rapports a été optimisé pour afficher un résumé par départements (Finance, Secrétariat, Enseignement...). Un menu déroulant permet au directeur de filtrer l'affichage pour se concentrer sur un seul département à la fois.
 EduCom SaaS est une plateforme de gestion scolaire tout-en-un conçue pour les établissements (de la maternelle au lycée). L'application comprend une vitrine (Landing Page) et un tableau de bord (Dashboard) pour l'administration complète de l'école (admissions, communications, notes, paiements, etc.).
 
 ## Stack Technique
@@ -30,12 +50,19 @@ Scripts de maintenance disponibles :
 - `scripts/merge-duplicate-classes.ts` — fusionne les classes doublons vers leur version cyclée. **Essai à blanc par défaut**, `APPLY=1` pour écrire, sauvegarde JSON systématique avant toute écriture.
 - `scripts/harden-rls.ts` — durcissement de la frontière Supabase (droits `anon`/`authenticated`). Même discipline : essai à blanc, `APPLY=1`, sauvegarde JSON, rollback imprimé, instructions destructives refusées.
 
-**28 vérificateurs `scripts/verify-*.ts`.** Ils sortent en code 1 en cas d'échec, donc s'enchaînent en boucle shell. Quatre familles, à ne pas confondre :
+**28 vérifiers `scripts/verify-*.ts`.** Ils sortent en code 1 en cas d'échec, donc s'enchaînent en boucle shell. Quatre familles, à ne pas confondre :
 
 - **Lecture seule** — socle et cloisonnement (`tenant-isolation`, `action-guards`, `design-tokens`, `status-vocabulary`, `ui-primitives`, `structure-states`, `navigation`, `operational-screens`, `dashboard`, `documents`, `foundations`, `financial-workflow`, `finance-security`, `reports`, `fees`).
 - **Avec fixtures** — ils créent de vraies données, les éprouvent, puis les suppriment (`lot-12-2`, `lot-13-1`, `lot-14`, `lot-15`, `lot-16`, `lot-17`, `student-file`, `export-runtime`, `render-dossier`). ⚠️ Un vérificateur **interrompu** ne joue pas son `finally` et laisse ses fixtures en base — voir `rappel.md` §28.
 - **Frontière Supabase** — `verify-rls.ts` : RLS, droits, Storage, TLS et clé de service, éprouvés par de **vraies requêtes HTTP** avec la clé anonyme publique et sept jetons de rôle. ⚠️ **À relancer après tout `prisma db push`.**
 - **Sondes de rendu réel** — Chrome piloté par le protocole DevTools via `scripts/_cdp.ts` : vraie URL, vraie session, hydratation React attendue, DOM peint mesuré à 390 × 844 et 1440 × 900 (`responsive-export`, `diffusion-runtime`). ⚠️ `verify-responsive.ts` utilise **l'ancienne technique `file://`, périmée** : le JavaScript ne s'y exécute pas (`rappel.md` §29).
+
+- **21 août 2026** : 
+  - ❌ **Hub Documents unifié et « Mon Drive » annulés** — retour à l'état d'origine (section dédiée plus bas).
+  - Refonte visuelle de l'Annuaire unifié (`/dashboard/directory`). La barre de recherche globale et les 3 boutons ("Nouvelle classe", "Nouvelle admission", "Ajouter cycle") sont maintenant alignés en haut.
+  - Le filtre Élève utilise désormais toutes les classes déclarées de l'école.
+  - Implémentation du bouton "Ajouter cycle" pour générer automatiquement les classes par défaut d'un cycle donné.
+- **20 août 2026** : Reste à encaisser automatisé depuis le forecast mensuel, sélecteur de dates pour la facturation, design d'icônes par regex dans le centre documentaire.
 
 ⚠️ **`verify-foundations` sort 5 échecs connus depuis le lot 15** (chemin de permission sans route) — `rappel.md` §34. Tant que c'est rouge, il ne peut pas servir de garde-fou.
 
@@ -374,6 +401,685 @@ TestimonialsSection) ont vu leur date de modification changer pendant la session
 tous à la même seconde. Contenu intact (`tsc --noEmit` passe), aucun n'est utilisé
 par l'accueil. Si quelqu'un cherche l'origine : ce n'est pas le prototype.
 
+## Hub Documents unifié — ❌ ANNULÉ (21 août 2026)
+
+**La décision.** Kory demandait une seule chose : **retrouver l'ancien Centre documentaire**. Le hub à onglets (Génération · Centre Documentaire · Exports · Mon Drive sous `/dashboard/documents`) est annulé, et les trois entrées reprennent leur place dans la sidebar. Arbitrage explicite : « si c'est pas possible, il faut annuler toute le changement faite ».
+
+**Ce qui a été défait.** Barre d'onglets (`documents/layout.tsx` + `components/documents/DocumentTabs.tsx`), route `documents/drive/` (l'écran type Google Drive), copie `documents/export/`. Les Exports sont revenus à `students/export/`, et `permissions.ts` a perdu le chemin exact `"/dashboard/documents$"` qui n'existait que pour laisser `TEACHER` atteindre le layout unifié. `documents/` et `permissions.ts` sont désormais **identiques au dernier commit** ; seul `navigation.ts` diffère encore, et uniquement pour l'Annuaire.
+
+**Ce qui n'a PAS été touché** : le remplacement de « Élèves » + « Classes » par « Annuaire » dans la sidebar. C'est un autre chantier, et il n'était pas visé par la demande.
+
+### ⚠️ Le piège qui a coûté la séance
+
+Le serveur envoyait **la bonne page** — l'ancien Centre — pendant que le navigateur de Kory affichait **le Drive**, à l'URL `/dashboard/documents/centre?recent=1`. Deux captures Chrome pilotées montraient l'ancien écran ; sa fenêtre montrait l'autre.
+
+Cause : deux routes qui rendent **les mêmes données sous le même layout**. Le cache de navigation client d'App Router a servi le segment du Drive sous l'URL du Centre. Le mécanisme exact d'apparition du `?recent=1` sur `/centre` **n'a pas été élucidé** — aucun lien du hub ne l'ajoute à cet endroit.
+
+**La leçon, à appliquer partout :** quand un écran affiche autre chose que ce que dit le code, **récupérer le HTML brut du serveur avec une vraie session et y chercher un marqueur propre à chaque composant.** C'est ce qui a tranché en une minute (`« Les rayons du centre »` = ancien Centre, `« Nouveau Document »` = Drive) après de longs échanges. Une capture d'écran, même pilotée, ne dit pas ce que le serveur a envoyé.
+
+### ⚠️ LE piège, celui qui a vraiment bloqué : `.next` gardait la route supprimée
+
+Après suppression de `documents/drive/` et de `documents/layout.tsx`, le serveur envoyait le bon HTML — prouvé par marqueurs — mais le navigateur de Kory affichait **toujours** le Drive à l'URL du Centre. Détail qui a tout élucidé : **sa sidebar, elle, était à jour dans le même rendu.** Ce n'était donc pas un cache de navigation : le HTML était neuf et le composant hydraté était l'ancien.
+
+Cause : `.next/dev` contenait encore **41 artefacts** de la route effacée, dont un `documents/drive/page.js` compilé et surtout les **manifestes de chunks client**. Le navigateur chargeait donc le bon HTML serveur puis l'hydratait avec l'ancien composant, qui écrasait tout à l'écran.
+
+**Remède, et il est obligatoire après toute suppression de route ou de layout :** arrêter `next dev`, `rm -rf .next`, relancer. Un simple ⌘⇧R ne suffit pas — le cache fautif est côté serveur, pas côté navigateur. Supprimer `.next` **pendant** que `next dev` tourne ne sert à rien non plus : il continue de servir depuis sa mémoire (même famille de problème que la règle 3 d'`AGENTS.md`).
+
+**Et le contrôle qui le prouve :** compter les chunks `/_next/static/*.js` référencés par la page et vérifier qu'aucun ne porte le nom du composant supprimé. Après purge : 70 chunks, zéro « Drive ».
+
+### Deux autres pièges relevés au passage
+
+1. **`revalidatePath` visait la mauvaise route.** `documents/centre/actions.ts` fait `revalidatePath(CENTRE_PATH)`, et le Drive **importait ces mêmes actions**. Toute action lancée depuis le Drive invalidait le cache du Centre, jamais le sien. Ça ne se voyait pas parce que le client appelait aussi `router.refresh()`. Plus d'actualité ici, mais **le motif reviendra dès qu'on partagera des actions entre deux routes**.
+
+2. **Une sonde CDP qui ne préchauffe pas la route photographie une page en cours de compilation.** La première capture de `/dashboard/documents` est sortie **blanche**, la deuxième délavée (animation d'entrée Framer Motion). Rien n'était cassé. Visiter l'URL une fois avant de mesurer, sinon on « corrige » un faux problème.
+
+### Vérification
+
+`npx tsc --noEmit` → 0 erreur. Sonde HTTP en session réelle (compte Direction temporaire, supprimé après) : `/documents/centre` répond 200 et contient les marqueurs de l'ancien écran et **aucun** du Drive ; `/documents/drive` et `/documents/export` répondent **404** ; `/students/export` répond 200 ; la sidebar porte de nouveau les trois liens. Capture Chrome pilotée à 1440 × 900 pour confirmer le rendu.
+
+`scripts/shot-documents.ts` (non commité) capture les écrans Documents en vraie session : il crée un compte Direction et 5 documents de test, puis **supprime tout dans son `finally`**. Utile pour comparer deux designs sans passer par le navigateur.
+
+## Tableau de bord — poste de commandement (21 août 2026)
+
+**La question qui gouverne l'écran.** « Comment va mon école aujourd'hui, et qu'est-ce que je dois faire ? » — et non « voici toutes les données de votre école ». **Rapports** reste seul responsable de l'analyse détaillée ; le tableau de bord y renvoie par des liens, il ne la reproduit pas.
+
+**Hiérarchie livrée**, de haut en bas : ① le brief du matin ② À traiter (urgent / à surveiller / information) ③ Santé de l'école ④ Aujourd'hui ⑤ Finance · Académique · Parents ⑥ Activité récente + factures. Les factures occupaient trois cinquièmes de largeur en haut de page ; elles finissent l'écran en liste compacte. **Rien n'a été retiré** — mêmes factures, même statut, même montant.
+
+### La décision structurante : le type `Signal<T>`
+
+`src/lib/dashboard.ts` ne renvoie jamais un nombre nu. Chaque bloc est un `Signal<T>` : **soit une valeur mesurée, soit une raison d'absence**. Un composant ne peut donc pas afficher un chiffre qu'aucune requête n'a produit — il n'existe pas de chemin de code qui le permette.
+
+C'est la réponse structurelle à ce que le lot 08 avait dû nettoyer à la main sur cet écran : objectif de 500 élèves inventé, taux de présence à 98 % en dur, liste de tâches en mémoire, flux d'activité fictif. Ces quatre fictions étaient apparues de la même façon — un composant capable d'afficher une valeur qu'aucune requête ne calculait. La discipline seule ne suffisait pas ; le type ferme la porte.
+
+### ⚠️ Ce qui N'EST PAS mesurable, et qu'il ne faut pas essayer d'afficher
+
+**Il n'existe AUCUN modèle de présence au schéma Prisma.** Ni appel, ni absence, ni retard — vérifié ligne à ligne. Les blocs « Aujourd'hui » (94 % présents, 6 % absents, 12 retards, 98 % d'enseignants) et l'axe « Présence » de la santé de l'école sont donc **câblés mais déclarés indisponibles**, avec la raison affichée à l'écran.
+
+Le jour où un modèle `Attendance` arrive, **seule `todaySignal()` change** : `TodayPanel` sait déjà tout afficher. Ne pas le réécrire, le brancher.
+
+**Le score global n'est publié qu'à partir de 3 axes mesurés sur 5** (`HEALTH_MIN_AXES`). En dessous, l'écran bascule sur une vue synthétique **sans chiffre**. Un « 89 / 100 » calculé sur un seul axe aurait l'air d'un diagnostic complet en n'en regardant qu'un cinquième — exactement le genre de chiffre qui inspire une confiance qu'il ne mérite pas. Un axe non mesuré n'est **jamais** compté comme 0.
+
+**Le mot « IA » n'apparaît nulle part à l'écran.** Le bloc s'appelle « Votre matinée ». Sa phrase de synthèse est composée de constats effectivement calculés ; aucun modèle n'intervient, et l'annoncer serait un mensonge d'interface. Un vérificateur le garde.
+
+### État réel du locataire de travail (SENG.CO ACADEMY), 21 août 2026
+
+**C'est le point à connaître avant de juger l'écran sur capture.** Comptages : 1 élève, 6 classes, 1 grille tarifaire, 4 entrées d'audit. **Zéro** facture, paiement, dépense, trimestre, matière, note, bulletin, message, affectation, document. Le tableau de bord s'affiche donc presque entièrement en états « pas encore mesurable » — ce n'est pas un défaut de l'écran, c'est l'état de la base. Éprouvé avec fixtures : `MODE=full npm run script -- scripts/verify-dashboard-command.ts`.
+
+### ⚠️ Piège d'animation — ne pas revenir à `useInView`
+
+La première version déclenchait l'apparition à l'entrée dans le champ de vision (`framer-motion`, `once: true`). Mesuré au pilote Chrome : **six blocs restaient à `opacity: 0`** — santé, journée, résumés, activité, factures. Deux défauts, pas un : le contenu sous la ligne de flottaison n'apparaissait qu'au défilement, et surtout **un JavaScript lent ou en échec figeait la page à moitié vide** alors que le HTML servi était complet.
+
+L'animation se joue désormais **au montage**, en cascade par `delay`. Elle ponctue l'arrivée du contenu, elle ne décide plus de sa visibilité. `prefers-reduced-motion` rend l'état final immédiatement, et un contrôle vérifie qu'aucun bloc ne reste invisible.
+
+### ⚠️ Piège responsive — `lg` (1024 px) est un mauvais point de bascule ici
+
+À 1024 px, trois colonnes de résumés écrasaient les libellés (« Taux de rec… », « Familles en r… ») et **les mouvements académiques débordaient hors de leur carte**. Bascule remontée à `xl` (1280 px), deux colonnes à 1024. Même correction pour la rangée activité + factures. Et dans les mouvements académiques, l'intitulé et l'écart sont empilés : côte à côte, l'écart portait `shrink-0` et poussait le texte dehors.
+
+### Deux détails de la frontière RSC, déjà payés ailleurs
+
+1. **Les icônes traversent en clé, pas en composant.** `AttentionCenter` est `"use client"` ; lui passer `TriangleAlert` depuis le serveur donne `undefined` et « Element type is invalid ». Le serveur envoie `"alert"`, le client résout dans sa table. Même piège que `DataTable` au lot 08.
+2. **Un seul `h1` par écran.** Il est porté par le brief, donc `PageHeader` a disparu de `dashboard/page.tsx`.
+
+## Tableau de bord — 2ᵉ passe : expérience et design (21 août 2026)
+
+L'architecture de données n'a **pas** été touchée : `Signal<T>` reste, aucune donnée fictive, aucun modèle Prisma modifié. La passe porte sur la hiérarchie visuelle, la densité et la cohérence du langage.
+
+### ⚠️ LE BUG À RETENIR — un trimestre sans dates volait la place du trimestre courant
+
+`academicSignal()` triait les trimestres par `orderBy: { startDate: "asc" }` et prenait le dernier. Or **Postgres classe les `NULL` en DERNIER sur un tri ascendant**. La base de travail contient un trimestre **« T1 » sans `startDate` et sans aucune note** : il devenait donc « le trimestre courant », et le tableau de bord annonçait « Aucune note saisie » **alors que 48 notes étaient en base**.
+
+Ce n'était pas un artefact de sonde : le même piège se déclenchera chez n'importe quelle école qui crée un trimestre sans renseigner ses dates — ce qui est exactement ce qui s'est produit ici.
+
+**Trois règles remplacent le tri naïf** : ① un trimestre daté l'emporte toujours sur un trimestre sans dates ; ② parmi les datés, le courant est le dernier **déjà commencé** (un trimestre qui démarre le mois prochain n'est pas le trimestre en cours) ; ③ sans aucun daté, on retombe sur l'ordre de création. Un contrôle de non-régression le garde.
+
+⚠️ **Le trimestre parasite « T1 » est toujours en base** (0 note). Il rejoint les données parasites déjà listées dans les chantiers ouverts. Le code n'en souffre plus, mais il continue de polluer les sélecteurs.
+
+### Le décompte qui mentait — corrigé à la source, pas à l'affichage
+
+Le hero annonçait « 1 point nécessite votre attention » au-dessus de **deux** cartes, dont « Nouvelles inscriptions » — une bonne nouvelle peinte exactement comme une tâche en retard. Et le badge annonçait « 3 interventions attendues » quand une seule en était une.
+
+Deux corrections, toutes deux **structurelles** :
+
+1. **Actions et informations sont prélevées séparément** côté serveur, plus dans une file commune tronquée à trois. Le hero rend les actions en cartes et les informations en une ligne « Bon à savoir » discrète, hors décompte.
+2. **Le badge lit des totaux réels** (`brief.counts`), jamais la longueur du tableau affiché — qui est tronqué. Quand des actions ne tiennent pas, un lien explicite dit combien manquent (« 2 autres dans « À traiter » »). Un badge rouge qui gonfle le chiffre s'use : au bout d'une semaine on ne le lit plus.
+
+Un contrôle de la sonde compare, **dans le DOM rendu**, le nombre annoncé au nombre de cartes, aux trois largeurs.
+
+### Le système d'états — quatre, et pas un de plus
+
+`src/components/dashboard/DataState.tsx`. Cinq cartes disaient « il n'y a rien » de cinq façons différentes, toutes lues comme un manque. Les quatre états appellent quatre réactions distinctes : `unavailable` (rien ne l'alimente encore), `empty` (l'activité n'a pas commencé — souvent avec une action), `inactive` (capacité absente d'EduCom), `allClear` (**seul état coloré**, parce que seul à être une bonne nouvelle).
+
+⚠️ **Règle absolue : un axe non mesuré n'est jamais peint comme un mauvais résultat.** Pas de rouge, pas de 0 %, pas de barre vide — la piste n'apparaît que pour un axe mesuré, parce qu'une piste vide se lit comme un zéro et un zéro comme un échec. Une école qui vient d'ouvrir n'est pas une école en difficulté.
+
+### Santé de l'école : une progression, pas un bulletin
+
+Sans score (moins de 3 axes mesurés), l'écran affiche « **2 / 5 axes mesurés** » avec une barre d'avancement et la phrase « Votre tableau de santé se construit au fil des données de l'établissement ». Chaque axe mène une phrase compréhensible plutôt qu'un pourcentage nu — « 0 / 6 classes avec responsable » au lieu de « Personnel — 0 % » — et un axe mesuré **ET** insuffisant porte son action (« Affecter »). C'est là que la statistique devient décision.
+
+### Deux pièges de mise en page
+
+1. **Les états vides étaient à l'étroit** dans les colonnes du niveau 5 (~300 px). Une rangée rigide écrasait la description sur quatre mots. `flex-wrap` + largeur minimale sur le texte : l'action se replie d'elle-même sous le texte quand la place manque — sans requête de conteneur, donc sans dépendre du support navigateur.
+2. **Libellés raccourcis** dans les cartes à trois colonnes (« Reste dû », « En retard », « Lus », « Envoyés », « Reçus ») : les versions longues étaient tronquées à 1440 px.
+
+### Vérification de la 2ᵉ passe
+
+`npx tsc --noEmit` → 0 erreur. `scripts/verify-dashboard-command.ts` en **deux modes** (`full` et `empty`), **trois largeurs** (1440 / 1280 / 1024) : aucun débordement horizontal, **aucun texte ne déborde de sa carte** (contrôle DOM sur `scrollWidth`), décompte du hero cohérent, aucun bloc invisible en `prefers-reduced-motion`, moyenne académique calculée malgré le trimestre parasite.
+
+**Non vérifié :** l'état « ✓ Tout est à jour » de « À traiter » reste inatteignable sur le locataire réel (6 classes sans enseignant). Mobile 390 px hors périmètre, comme demandé.
+
+### Vérification
+
+`npx tsc --noEmit` → 0 erreur. `scripts/verify-dashboard-command.ts` → **30 contrôles verts** : rendu des six niveaux, aucune fiction réintroduite, valeurs conformes aux fixtures, **10 destinations de CTA en 200**, aucun débordement horizontal à 1440 et 1024, aucun bloc invisible en mouvement réduit.
+
+**Non vérifié, à dire franchement :** l'état vide « ✓ Tout est à jour » de « À traiter » n'a pas pu être observé sur un écran réel — le locataire a 6 classes sans enseignant, donc la liste n'est jamais vide. Le mobile (390 px) n'a pas été mesuré : la demande priorisait bureau et tablette.
+
+### Reste ouvert
+
+Six composants du tableau de bord ne sont plus référencés que par des commentaires : `AttentionList`, `ActivityFeedWidget`, `AlertsWidget`, `SchoolHealthWidget`, `TodoListWidget`, `RecentInvoicesWidget`. Les cinq derniers étaient déjà morts depuis le lot 08 ; `AttentionList` l'est devenu ici. **Non supprimés** — à trancher, mais laisser deux composants qui font la même chose est précisément ce qui a fait diverger le Centre documentaire et le Drive.
+
+## Saisie des notes — refonte autour de l'enseignant (21 août 2026)
+
+**Le principe appliqué : si EduCom peut savoir, EduCom ne demande pas.** L'ancien écran exigeait **trois décisions avant la première note** — classe, trimestre, évaluation — dont deux qu'il pouvait prendre seul, et une structure interne (« évaluation ») qu'un enseignant n'a pas à connaître pour faire son métier.
+
+Il reste **une** décision : sur quelle classe je travaille. Et une seconde, seulement quand elle est réellement ambiguë : quelle matière, si l'enseignant en couvre plusieurs dans la même classe.
+
+### ⚠️ AUCUNE MODIFICATION DE SCHÉMA — et c'était vérifiable
+
+Tout ce qu'il fallait existait déjà : `TeachingAssignment` (avec `subjectId` nullable pour le maître unique), `ClassSubject`, `Subject.parentId`, `Grade.max`, `Grade.coefficient`, `Evaluation.date`. **Rien n'a été ajouté à Prisma.** Les décisions du 17 août — affectation à matière facultative, règle de résolution groupe/matière notée, coefficients par note — sont intactes.
+
+### Ce qui est déduit, et d'où
+
+| Information | Source |
+|---|---|
+| Qui enseigne | la session — **aucun sélecteur de nom** |
+| Quelles classes | `TeachingAssignment`, avec `Class.teacherId` en filet |
+| Quelles matières | `editableSubjectIds()` — affectation, ou toutes les matières pour un maître unique |
+| Quel trimestre | `pickCurrentTerm()` — **source unique**, voir plus bas |
+| Quelle évaluation | celle **en cours de saisie**, sinon la plus récente déjà commencée |
+
+⚠️ **Une évaluation datée dans le futur n'est jamais proposée d'office** : saisir des notes pour une composition qui n'a pas eu lieu n'a aucun sens. Un contrôle le garde.
+
+### Deux règles remises en source unique
+
+1. **`pickCurrentTerm()` vit dans `src/lib/terms.ts`**, et nulle part ailleurs. Elle était écrite deux fois, et la copie du tableau de bord se trompait (les `NULL` sortent en dernier d'un `ORDER BY ASC` sous Postgres). `dashboard.ts` la consomme désormais au lieu d'en garder une version.
+2. **`editableSubjectIds()` vit dans `src/lib/gradeEntry.ts`.** Cette règle décide **qui a le droit d'écrire une note** ; deux copies auraient fini par diverger, et la divergence va toujours dans le sens permissif. `grades/actions.ts` est `"use server"` et ne peut pas la réexporter — il l'importe.
+
+### ⚠️ Le piège React qui menaçait la saisie
+
+`FastEntry` resynchronisait son état sur `ctx.rows` par un `useEffect`. Mesuré au pilote Chrome : après chaque sauvegarde, `router.refresh()` renvoyait un nouveau tableau, l'effet repartait, et **le badge « Enregistré » disparaissait aussitôt**. Bien pire, jamais observé mais inévitable : une note en cours de frappe dans un autre champ aurait été remplacée par la valeur du serveur, en silence, au milieu d'une saisie de trente notes.
+
+**Correctif :** aucun effet de resynchronisation. Le remontage est piloté par la `key` du composant (`subject-term-eval`) dans `grades/saisie/page.tsx`, et `router.refresh()` a été retiré — la progression se calcule côté client. **Ne pas réintroduire d'effet qui court après les props ici.**
+
+### ⚠️ Une case vide n'est pas un zéro — dans les DEUX sens
+
+`""` supprime la note, `0` en écrit une. Deux chemins distincts, jusque dans l'action serveur. C'est le bug de « Par matière » (`if (!g.value)` effaçait les 0) pris par l'autre bout : un élève qui a zéro doit pouvoir l'avoir, et confondre les deux fausse toutes les moyennes de la classe.
+
+### ⚠️ Le barème n'est jamais écrit en dur
+
+`defaultMax` vient des notes **déjà saisies** pour la matière ; 20 seulement à défaut d'antécédent. Écrire « / 20 » en dur fausserait silencieusement les moyennes d'une école qui note sur 10.
+
+### Ce qui n'a pas bougé
+
+L'écran bulletin (saisie par élève, validation, dépôt au secrétariat) est **inchangé** : il vit sous `/dashboard/grades/bulletin`, avec la configuration et le rappel des dossiers renvoyés. Il n'est simplement plus la porte d'entrée. Le lot 17 août (colonne d'outils 240 px, blocs de groupes, code couleur des moyennes) est intact.
+
+### Vérification — `scripts/verify-grades-entry.ts`
+
+La sonde se connecte **en tant qu'ENSEIGNANT** : tout l'écran repose sur le périmètre du rôle, le vérifier en `OWNER` ne prouverait rien. **Les huit scénarios sont verts**, en deux modes.
+
+Elle éprouve la **sauvegarde automatique de bout en bout** : Chrome tape une note, appuie sur Entrée, la sonde relit la base — valeur, barème et enseignant attribué. Elle vérifie aussi qu'une note **hors barème n'écrit rien**, et qu'une **matière hors périmètre n'est pas servie** même en forçant l'URL.
+
+Rendu éprouvé à 1440 / 1280 / 1024, plus `prefers-reduced-motion`.
+
+**Non vérifié, à dire franchement :** le mobile (390 px) n'a pas été mesuré — hors périmètre demandé. Les sous-matières hiérarchiques s'affichent bien (« Français › Grammaire ») mais n'ont pas été éprouvées sur un arbre réel, faute de `ClassSubject` dans le locataire de travail.
+
+### État réel du locataire (SENG.CO ACADEMY) — pourquoi l'écran est vide
+
+**0 matière rattachée à une classe**, 0 évaluation, 0 affectation, et un trimestre « T1 » sans dates. Chaque carte affiche donc sa raison — « Aucune matière n'est rattachée à cette classe » — et le bandeau réclame les dates de T1. Ce n'est pas un défaut de l'écran : c'est l'état de la base. Pour voir l'expérience réelle : `npm run script -- scripts/verify-grades-entry.ts`.
+
+## Chaîne académique restaurée — ✅ FAIT (21 août 2026)
+
+**La demande.** La refonte de la saisie avait changé la porte d'entrée : `/dashboard/grades` ouvrait sur « Voici vos classes ». Kory l'a refusée — cela raconte « un prof remplit des notes » alors que le produit transforme des évaluations en bulletins.
+
+### ⚠️ L'historique Git ne contient PAS l'ancien système — ❌ AFFIRMATION CORRIGÉE LE 22 AOÛT
+
+> **Ce titre est faux, et le rectificatif compte plus que l'erreur.** Le premier commit
+> `d502c1f` (19 août) EST un instantané complet du module d'après les travaux du 17 : on
+> peut donc bien comparer l'état actuel à l'ancien, et `git show d502c1f:<fichier>` le
+> rend intégralement. Mesuré le 22 août — `GradesClient.tsx` et `ClassSubjectsPanel.tsx`
+> sont à **0 ligne d'écart** de cette version. Ce qui reste vrai ci-dessous : il n'existe
+> **aucun commit intermédiaire** avant le 19 août, donc aucune trace des décisions prises
+> entre-temps — et `InputTab` n'a effectivement jamais été versionné.
+
+Fouillé avant de coder : **8 commits, tous du 19 au 21 août**. Le premier (`d502c1f`) contient déjà `StudentEntryTab`, `GradesClient`, `actions.ts` dans leur forme actuelle. **Tout le travail des 16-17 août est antérieur au versionnement.** `InputTab` (l'onglet « Par matière » supprimé le 17 août) n'a jamais existé dans Git.
+
+**Conséquence à retenir : `context.md` est la seule mémoire de cette période.** C'est exactement ce que la règle 1 d'`AGENTS.md` protège. Ne pas compter sur `git log` pour retrouver une décision antérieure au 19 août.
+
+Vérifié aussi : **aucun composant de notes n'est orphelin**, et aucun n'a été modifié depuis le premier commit. `/saisie` n'était pas un système concurrent — c'est le retour de « Par matière », avec clavier, sauvegarde automatique et contexte prérempli.
+
+### Ce qui a été assemblé
+
+**`/dashboard/grades` = centre académique.** Trimestre `T1 | T2 | T3` toujours accessible (le courant n'est qu'un défaut), puis onglets **Contrôles · Composition · Bulletin**. Chaque ligne porte classe + matière + progression réelle, et son lien contient déjà les quatre paramètres : le moteur de saisie ne redemande rien.
+
+⚠️ **Séparation contrôles / composition** par `Evaluation.type` — `EXAM` = composition, tout le reste = contrôle. Le vocabulaire existait déjà dans la Configuration ; aucun calcul ne s'en servait.
+
+⚠️ **Le nombre de lignes est borné** (`SUBJECT_ROW_LIMIT = 3`) : au-delà de trois matières dans une classe, la ligne agrège tout le périmètre. Sans cela, une direction avec 13 classes × 17 matières × 5 évaluations produirait 1 105 lignes.
+
+### Source unique de calcul et de rendu
+
+Trois implémentations concurrentes du **même document officiel** ont été remplacées :
+
+| Avant | Problème |
+|---|---|
+| `report-card/Generator.tsx` | matières **à plat**, aucun groupe |
+| `validation/impression/PrintClient.tsx` | groupes **oui**, année figée |
+| `StudentEntryTab.tsx` | son propre `averageOf()` |
+
+Désormais : **`buildBulletin()`** (calcul, dans `src/lib/bulletin.ts`) + **`BulletinSheet`** (rendu, dans `src/components/grades/`) + **`loadBulletin()`** (chargement, dans `src/lib/gradeEntry.ts`). Un élève ne peut plus avoir deux moyennes selon l'écran.
+
+⚠️ **La pondération contrôles/composition n'est PAS arbitrée.** Elle est isolée dans **une seule fonction**, `combineRatios()`, qui reproduit le comportement historique (moyenne pondérée par coefficient, toutes évaluations confondues) et **le dit à l'écran**. Le jour où Kory donne la règle : ne modifier que ce corps de fonction, aucun appelant ne bouge.
+
+### La capacité qui dormait
+
+`getReportCardData(classId, termId, evaluationId?)` avait un **troisième argument facultatif** : sans lui, la requête ramène toutes les notes du trimestre. Personne ne l'appelait ainsi. `loadBulletin()` l'exploite enfin — c'est la chaîne **contrôles + composition → bulletin de trimestre**.
+
+### Six fictions supprimées du bulletin
+
+1. **`Absences: 0 jour(s)` et `Retards: 0`** écrits en dur — aucun modèle de présence n'existe au schéma. Le bloc « Vie scolaire » est retiré tant qu'il n'y a rien à y mettre.
+2. **`Excellent travail.`** — appréciation par défaut appliquée à *tous* les élèves. Remplacée par « Aucune appréciation renseignée. »
+3. **Année scolaire figée à `2023-2024`** dans les deux bulletins → `currentAcademicYear()`.
+4. **`Grade.max` ignoré** : « Note /20 » en dur à l'impression, et `StudentEntryTab` enregistrait `max: "20"`. ⚠️ **Conséquence silencieuse** : corriger une note saisie sur 10 la réenregistrait sur 20, donc **divisait par deux le résultat de l'élève**. Le barème réel est désormais rechargé avec la note et le bulletin affiche `/{scale}`, déduit des données.
+5. **`ReportCard.generalComment` n'était ni lu ni écrit** — zéro occurrence dans `src/`. L'avis du conseil vivait dans un `contentEditable` : le texte de la directrice disparaissait au rechargement. Action `saveCouncilComment()` ajoutée, réservée à qui a `/dashboard/documents/validation`.
+6. **Le générateur jetait ses `searchParams`** alors que **quatre** écrans lui en envoyaient (`CompletionClient`, `StudentListClient`, fiche élève, `DraftsList`). Quatre chemins morts. `studentId` seul suffit maintenant : la classe se déduit de l'inscription, le trimestre du calendrier.
+
+### Vérification
+
+`npx tsc --noEmit` → 0 erreur. `scripts/verify-grades-entry.ts` en **deux modes**, **57 contrôles verts** : séparation contrôles/composition, progressions réelles (3/10, 4/10, 6/6, 0/6), périmètre enseignant, groupes de matières rendus, barème /10 respecté de la saisie au bulletin, aucune donnée fictive, avis du conseil lu et modifiable, `searchParams` réparés, bulletin de trimestre agrégé, sauvegarde automatique relue en base, 1440/1280/1024 sans débordement, `prefers-reduced-motion` sans bloc invisible.
+
+⚠️ **Données disparues, non élucidé.** Le trimestre « T1 » (sans dates) et l'évaluation « CTL 1 » présents en début de séance ne sont plus en base. Toutes les suppressions des sondes sont bornées par listes d'identifiants ; je n'ai pas pu attribuer l'effacement. À recréer si Kory en a besoin.
+
+## Structure académique de SENG.CO ACADEMY + calendrier réglable — ✅ FAIT (22 août 2026)
+
+**Le point de départ.** L'écran de saisie paraissait appauvri (« le trimestre est vide »), et Kory a demandé de retrouver l'ancien workflow. **L'audit a montré que le code n'avait jamais été perdu** — c'est la BASE qui l'était.
+
+### ⚠️ Le code de l'ancien workflow est intact, mesuré contre `d502c1f`
+
+Contrairement à ce qui avait été écrit ici le 21 août, **l'historique Git contient bien l'ancien système** : le premier commit (19 août) est un instantané complet d'après les travaux du 17. Écart mesuré fichier par fichier :
+
+| Fichier | Écart vs 19 août |
+|---|---|
+| `GradesClient.tsx`, `ClassSubjectsPanel.tsx`, `termine/*`, `documents/validation/*` | **0 ligne** |
+| `StudentEntryTab.tsx` | 22 lignes — uniquement le correctif du barème `max` |
+| ancienne page `/dashboard/grades` | déplacée en `/grades/bulletin`, 21 lignes (en-tête + lien) |
+
+Ce qui s'était perdu : **sa place dans la navigation**, et **les données**. Rien d'autre.
+
+### La cause réelle : la base vidée le 20 août
+
+`prisma migrate reset` (ou équivalent) le 20 août à 04:06 UTC — voir la section dédiée plus bas. SENG.CO ACADEMY se retrouvait à 0 matière, 0 `ClassSubject`, 0 trimestre, 0 évaluation. Le sélecteur Trimestre n'était pas cassé : **il n'y avait aucun trimestre à proposer**.
+
+### Ce qui a été restauré, et d'où
+
+| Bloc | Créé | Source — rien n'est inventé |
+|---|---|---|
+| 32 `Subject` + 83 `ClassSubject` | `scripts/seed-subjects.ts` | table `PROGRAMME` du script, chiffres identiques à ceux archivés ici |
+| 3 `Term` | `scripts/seed-terms.ts` (nouveau) | noms lus dans `backups/avant-lot-11-2026-08-17.json` |
+| 6 `Evaluation` | idem | libellés et types donnés par Kory |
+
+**Programme réel par niveau** : CI 8 · CP 11 · CE1 14 · CE2 16 · CM1 17 · CM2 17. La règle de résolution groupe/matière notée a été éprouvée en rendant la structure via `buildBlocks()` : CI → 3 groupes / 8 lignes, CM2 → 3 groupes / 17 lignes. Le CI n'a ni grammaire ni histoire, le CM2 les a.
+
+⚠️ **`seed-terms.ts` n'écrit AUCUNE date** — ni `Term.startDate`/`endDate`, ni `Evaluation.date`. Il reproduit champ pour champ ce qu'écrivent `createTerm()` et `createEvaluation()`. Un calendrier scolaire appartient à l'école ; en inventer un orienterait la saisie vers la mauvaise période.
+
+### ⚠️ Le bug qui aurait fait mentir les seeds
+
+`seed-subjects.ts` et `seed-test-students.ts` finissaient tous deux par `await pool.end()` — une variable qui n'existe plus depuis qu'ils importent `prisma` de `_env`. L'erreur était levée **dans le `finally`**, donc APRÈS validation des écritures : en `APPLY=1`, les données passaient et le script sortait quand même en erreur. Corrigé par `.finally(() => prisma.$disconnect())`, le motif déjà utilisé par `seed-classes.ts`. **Ne pas réintroduire `pool.end()` : le pool `pg` vit dans `src/lib/prisma.ts` et n'est pas exporté.**
+
+### `setTermDates()` était orpheline — elle est enfin branchée
+
+Deuxième cas de cette famille après `School.primaryColor` : une action serveur complète, sécurisée, validée… **appelée depuis aucun écran**. Seule une écriture directe en base pouvait dater un trimestre.
+
+Elle est maintenant exposée par le composant `TermDates` dans l'onglet Configuration (`GradesClient.tsx`) : deux champs `<input type="date">` par trimestre, enregistrement automatique par champ, état visible (Enregistrement / Enregistré / Non enregistré).
+
+**Pourquoi ce champ n'est pas un détail :** `pickCurrentTerm()` ne peut désigner comme courant qu'un trimestre **déjà commencé**, ce qui exige une `startDate`. Sans dates, elle retombe sur le dernier de la liste — un enseignant ouvrait donc le 3ème trimestre en octobre. Ce n'est pas une panne, c'est le signal d'un calendrier non renseigné, et l'écran le dit désormais : « Sans dates, ce trimestre ne peut pas être choisi comme trimestre courant. »
+
+⚠️ **Chaque champ s'enregistre indépendamment**, et c'est voulu : poser une date de début seule est légitime. Conséquence à connaître — une date de fin refusée (intervalle inversé) laisse un trimestre **à moitié daté**. Ce n'est pas dangereux : `termPeriod()` rend `null` dès qu'une des deux dates manque, donc aucun calcul ne tourne sur une période incomplète.
+
+⚠️ **Aucun `useEffect` de resynchronisation sur les props dans `TermDates`.** C'est le piège déjà payé dans `FastEntry` : après chaque `router.refresh()`, un tel effet écraserait la saisie en cours.
+
+### Vérification — `scripts/verify-term-dates.ts`
+
+**TOUT EST VERT**, 16 contrôles, avec une vraie session Chrome et des trimestres de sonde supprimés à la fin : les 12 champs de date rendus, Chrome saisit une date relue en base, le bon trimestre devient courant une fois daté (1er nov. 2026 → Periode A, 1er fév. 2027 → Periode B), l'intervalle inversé est refusé avec son motif affiché, effacer remet à `null` sans date fantôme, 1440/1024/390 sans débordement.
+
+⚠️ **Faux échec de ma propre sonde, quatorzième forme.** Elle vérifiait « aucune date écrite » sur l'intervalle inversé. Le bon invariant n'est pas là : c'est **« la valeur refusée n'est pas écrite »**. Le début, valide, avait été enregistré seul — comportement correct.
+
+### État réel de la base (SENG.CO ACADEMY, 22 août)
+
+**6 classes · 32 matières · 83 ClassSubject · 3 trimestres (sans dates) · 6 évaluations · 1 élève · 0 note · 0 affectation · 2 utilisateurs.**
+
+Les 6 évaluations : Contrôle / Composition du 1er, 2e et 3e trimestre, typées `QUIZ` / `EXAM`. Aucune donnée fictive n'a été créée — **aucun élève de test**, sur décision de Kory.
+
+### Ce qui reste pour que le workflow soit pleinement utilisable
+
+1. **Les 3 trimestres n'ont pas de dates.** Le champ existe maintenant : c'est à l'école de les saisir. Tant que c'est vide, EduCom ouvre sur le 3ème trimestre.
+2. **1 seul élève inscrit** (CI). Sans effectif, le bulletin n'a personne à classer.
+3. **0 affectation enseignant.** Sans conséquence tant que Kory travaille en `OWNER` (`editableSubjectIds` → `"ALL"`), bloquant dès qu'un compte `TEACHER` existera.
+
+⚠️ **Toute la configuration est accessible au rôle `TEACHER`** — l'onglet vit sous `/dashboard/grades`, ouvert aux enseignants. Un enseignant peut donc créer, dater **et supprimer** un trimestre, et `deleteTerm` emporte en cascade évaluations, notes et bulletins. Ce n'est pas introduit par ce chantier — mais l'exposer davantage rend l'arbitrage nécessaire.
+
+## Configuration pédagogique — passe 1 : socle technique (22 août 2026)
+
+**Principe produit arbitré par Kory :** EduCom est multi-écoles. Les standards
+sénégalais sont des **modèles préconfigurés** ; chaque école confirme, modifie,
+ajoute ou retire. Socle commun = **3 trimestres + 3 compositions**. Les
+**contrôles** sont libres.
+
+### ⚠️ Il n'existe AUCUNE table nationale de coefficients — vérifié
+
+Recherche web menée : le programme officiel (education.sn, CEB) ne publie pas de
+coefficients par discipline pour l'élémentaire, et la plateforme ministérielle
+`planete.education.sn` est derrière authentification. Surtout, les **4 bulletins
+réels** analysés le 17 août (PIA, Ker Rokhaya, Popenguine) portent des
+pondérations **différentes pour les mêmes matières**. Le coefficient est donc un
+paramètre d'école, pas une constante nationale. **Ne rien préconfigurer d'autre
+que 1.**
+
+### Prisma — une colonne, additive et prouvée
+
+`ClassSubject.coefficient Float @default(1)`. Poussé par `prisma db push`, **sans
+avertissement de perte** ; relecture après push : 83 rattachements intacts, tous
+à 1. C'est la SEULE façon de configurer un coefficient **avant** la première
+note — `Grade.coefficient` reste le poids réellement appliqué à une note donnée.
+
+⚠️ Après `prisma generate`, **redémarrer `next dev`** : `src/lib/prisma.ts` met le
+client en cache sur `globalThis`, que le HMR ne recharge pas. Piège déjà payé
+quatre fois.
+
+### Sidebar réorganisée par métier
+
+`Scolarité / Gestion / Établissement` → **Enseignement · Secrétariat · Finance ·
+Administration**, plus **Tableau de bord et Rapports hors section** : ce sont
+deux lectures transversales, les ranger sous « Administration » les aurait
+fermés visuellement à l'enseignant et au comptable qui y ont droit.
+
+⚠️ **Un titre de section n'est pas une permission.** Il nomme le domaine. Le
+filtrage reste `hasAccess()` entrée par entrée. Aucune rubrique supprimée : 11
+entrées avant, 11 après.
+
+### ⚠️ Régression trouvée et corrigée : l'Annuaire était invisible
+
+`/dashboard/directory` a REMPLACÉ « Élèves » + « Classes » dans la navigation,
+mais `ROLE_PERMISSIONS` n'a jamais suivi : **seule la direction voyait
+l'Annuaire**, pas même le secrétariat dont c'est l'écran principal. Rétabli pour
+`TEACHER`, `SECRETARY`, `ASSISTANT` — aucun droit nouveau, ces rôles ont déjà
+`/dashboard/students`, et la portée reste bornée par `studentScope()`.
+
+### État réel (SENG.CO ACADEMY, 22 août)
+
+6 classes · 32 matières · 83 ClassSubject (coef 1) · 3 trimestres **sans dates**
+· 6 évaluations · 1 élève · **8 notes** (Kory a saisi les 8 matières du CI en CI
+à 03:51 — le workflow tourne) · 0 affectation.
+
+### Reste à faire dans cette passe — ✅ TOUT FAIT (passe 2, ci-dessous)
+
+## Configuration pédagogique — passe 2 : le parcours complet (22 août 2026)
+
+Parcours livré de bout en bout : **installation → programme → classes/matières →
+coefficients → T1/T2/T3 → contrôles/compositions → dates → enseignants/
+affectations → validation**, puis propagation vers saisie, vue enseignant,
+bulletin, calendrier, tableau de bord et notification de changement de planning.
+
+### La décision structurante : DEUX politiques d'écriture pour UNE liste
+
+Le programme sénégalais vit désormais dans **`src/lib/curriculum.ts`** — module
+**pur**, sans le moindre `import`, donc lisible par un composant `"use client"`
+qui doit annoncer ce qui sera créé **avant** de l'écrire. `seed-subjects.ts`
+l'importe : plus de seconde copie.
+
+⚠️ **Mais le script et l'application n'écrivent PAS de la même façon, et les
+confondre serait grave :**
+
+| | `scripts/seed-subjects.ts` | `applyCurriculum()` (`src/lib/pedagogy.ts`) |
+|---|---|---|
+| Politique | **SYNCHRONISE** — ajoute *et retire* | **AJOUTE seulement** — ne retire jamais |
+| Déclencheur | développeur, `SCHOOL_ID=`, essai à blanc | un bouton, sans essai à blanc possible |
+| Si l'école a ajouté « Coran » | il disparaît | il reste, avec son coefficient |
+
+Une proposition qui efface le travail de l'utilisateur n'en est pas une. Prouvé
+par la sonde : matière personnalisée + coefficient 3 + trimestre hors modèle,
+tous **intacts** après réapplication.
+
+`applyCurriculum()` est **idempotente** (2ᵉ passage : 0 création) et sert
+**deux** portes d'entrée — l'étape « Programme » de l'installation ET le bouton
+« Compléter avec le programme officiel ». Une implémentation, jamais deux.
+
+### Le socle, et ce qui n'en est pas
+
+**3 trimestres + 3 compositions** = socle, appliqué. **Les contrôles = case à
+cocher séparée**, pré-cochée mais distincte — c'est l'arbitrage de Kory, et les
+fondre dans la même case l'aurait effacé.
+
+⚠️ **Rien d'autre n'est préconfiguré.** Pas de dates (propres à chaque école ;
+une date inventée oriente la saisie vers la mauvaise période *sans que personne
+ne s'en aperçoive*). Pas de coefficients autres que 1 (aucune table nationale
+n'existe — vérifié ; les 4 bulletins réels divergent). **La maternelle n'a aucun
+programme** : elle s'évalue par domaines, pas par matières notées — et c'est
+*dit à l'écran*, pas ignoré en silence.
+
+### `configurationReadiness()` — mesurée, jamais déclarée
+
+⚠️ **Aucune colonne « configuration terminée » n'a été ajoutée**, délibérément :
+un drapeau se coche puis ment. Une école qui supprime ses trimestres resterait
+« configurée » aux yeux d'un booléen alors que plus aucune note n'est saisissable.
+Tout se recalcule à la lecture — 8 étapes, chacune avec sa **mesure lisible**
+(« 3 / 6 classes avec un programme »), jamais un booléen.
+
+⚠️ **`blocking` distingue ce qui empêche RÉELLEMENT de saisir une note** des
+étapes qui améliorent sans bloquer (dates, enseignants, affectations). Tout
+marquer obligatoire ferait croire à trois heures de configuration avant la
+première valeur — l'inverse du WIN d'EduCom. Et **« Coefficients » n'est JAMAIS
+« à faire »** : tout à 1 est une configuration valide et fréquente ; la marquer
+incomplète pousserait à saisir des chiffres au hasard.
+
+### Notification de changement de planning — sans mentir
+
+`src/lib/planningNotice.ts`. Déplacer une composition était **silencieux** : la
+nouvelle date écrasait l'ancienne, les enseignants qui préparaient pour le 12 ne
+l'apprenaient jamais.
+
+⚠️ **Aucune table `Notification` créée** — elle aurait dupliqué ce qu'`AuditLog`
+sait déjà. L'acte vit dans l'audit (`action: "reschedule"`, avant/après dans
+`details`), comme `transmission` et `diffusion` avant lui.
+
+Ce qui est fait : la trace, **plus un bandeau « Le calendrier a changé » sur
+`/dashboard/grades`** — la seule notification qu'EduCom puisse honnêtement
+délivrer. Ce qui n'est **pas** fait : aucun envoi. `channels.ts` reste seul juge,
+son registre est vide, et l'écran écrit « les familles ne sont pas prévenues
+automatiquement ».
+
+⚠️ **Une date réécrite à l'identique n'est PAS tracée.** Sans ce filtre, rouvrir
+puis refermer un champ produirait « la composition a été déplacée » alors qu'elle
+n'a pas bougé — l'avertissement perdrait tout son sens en une semaine.
+
+### ⚠️ TROIS TROUS DE SÉCURITÉ, trouvés en auditant et refermés
+
+1. **Toute action de configuration n'exigeait QUE l'authentification.** N'importe
+   quel compte de l'école — **y compris un PARENT** — pouvait appeler
+   `setTermDates()` ou `deleteTerm()` en HTTP direct et déplacer le calendrier de
+   l'établissement. Neuf actions passent maintenant par
+   `requireActionContext("/dashboard/settings/pedagogie")`.
+2. **`deleteEvaluation()` n'avait pas de `schoolId`** — un identifiant suffisait
+   à supprimer l'évaluation d'une autre école, **cascade sur ses notes et ses
+   bulletins**. 6ᵉ fuite de cette famille dans le projet.
+3. **`deleteSubject()` non plus** — et pire : supprimer « Français » emportait
+   ses 8 sous-matières **et toutes leurs notes**, sans un mot. Refus si des notes
+   existent (friction protectrice, règle 4).
+
+⚠️ **Corollaire d'interface** : l'onglet Configuration de `/grades/bulletin` est
+masqué à l'enseignant (`canConfigure`), et les liens « Configurer » de
+`/dashboard/grades` disparaissent pour lui. *Une interface ne doit pas proposer
+ce qu'elle sait refuser* — sinon l'utilisateur porte la faute du produit.
+
+### Permissions — le secrétariat, pas les réglages
+
+`/dashboard/settings/pedagogie` accordé à `SECRETARY`. ⚠️ **Le chemin est plus
+précis que `/dashboard/settings`** : `hasAccess()` compare par préfixe, donc cela
+n'ouvre **pas** le nom, le logo ni la signature de l'établissement. Vérifié :
+`hasAccess("SECRETARY", "/dashboard/settings") === false`.
+
+### Propagation — ce qui change vraiment quelque chose
+
+- **`ClassSubject.coefficient` devient le défaut de saisie** (`resolveEntryContext`).
+  Sans cela il n'était qu'un affichage. ⚠️ **Les notes déjà saisies gardent le
+  leur** — repondérer rétroactivement modifierait des moyennes déjà transmises.
+- **Bulletin** : coefficient configuré affiché **avant la première note**, sinon
+  il serait inconfigurable (on ne règle pas ce qu'on ne voit pas). ⚠️ Ordre :
+  note > configuration > `null`. **Jamais 1 par défaut** — indiscernable d'un
+  choix délibéré.
+- **`Evaluation.date` était au schéma et AUCUNE interface ne l'écrivait.**
+  `pickEvaluation()` s'en sert pour choisir l'évaluation ouverte d'office : elle
+  retombait donc toujours sur son dernier recours. Date affichée sur le tableau
+  de travail et dans l'en-tête de saisie.
+- **Tableau de bord** : entrée `urgent` quand une étape bloquante manque — ce
+  n'est pas « à surveiller », c'est un arrêt de production.
+
+### ⚠️ Deux contradictions à l'écran, vues sur capture et corrigées
+
+1. **« 3ème Trimestre · en cours » + « sans dates, ce trimestre ne peut pas être
+   choisi comme trimestre courant »**, à deux lignes d'intervalle. Les deux
+   venaient du même `pickCurrentTerm()` : l'un lisait son *résultat*, l'autre sa
+   *condition*. Le repli s'appelle désormais **« ouvert par défaut »**, et la
+   conséquence est dite une fois en tête du calendrier.
+2. **« Personne n'est affecté » sur une classe qui a un titulaire.**
+   `editableSubjectIds()` retombe sur `Class.teacherId` : la classe *était*
+   saisissable. La mesure poussait à réparer ce qui marchait.
+
+### ⚠️ Deux pièges de sonde — le produit avait raison, la mesure avait tort
+
+- **`readyState === 'complete'` ne suffit pas pour lire une redirection.** Il
+  devient vrai sur le document intermédiaire, avant que le 307 de `redirect()`
+  n'ait été suivi : `location.pathname` rendait encore l'URL demandée et la sonde
+  concluait à un défaut de sécurité **inexistant**. Attendre que le chemin *change*.
+- **`el.blur()` n'émet rien sur un champ qui n'a jamais eu le focus.** Le
+  coefficient s'enregistre au `blur` (délibérément : un `onChange` par caractère
+  enverrait « 1 », « 1. », « 1.5 »). Sans `el.focus()` d'abord, la sonde
+  reproduisait une frappe qu'aucun humain ne peut faire.
+
+### Vérification
+
+- `npx tsc --noEmit` : 0 erreur.
+- **`scripts/verify-pedagogie.ts` — 93/93.** Écritures réelles dans des écoles
+  éphémères : idempotence, additivité, permissions des 7 rôles, isolation
+  inter-établissement des avis de planning, propagation coefficient/date.
+- **`scripts/verify-pedagogie-runtime.ts` — sonde Chrome, 1440×900 et 390×844.**
+  Elle **écrit depuis l'interface** (coefficient → 2,5 ; composition datée) puis
+  relit **en base**, vérifie la trace d'audit, et confirme que l'enseignant
+  atterrit sur `/dashboard` sans avoir vu un octet de configuration.
+- ⚠️ **Défaut mobile trouvé par la sonde** : à 390 px, « Composition du 1er
+  trimestre » se réduisait à « C… », la pastille et le champ de date prenant
+  toute la largeur. La rangée passe sur deux lignes sous 640 px — et la sonde
+  mesure désormais la **largeur peinte** du libellé, pas sa présence dans le DOM
+  (`truncate` laisse `textContent` intact tout en n'en peignant qu'une lettre).
+- Échecs **préexistants et sans rapport** : `verify-action-guards` sur
+  `grades/saisie/actions.ts` (non modifié ici) et `verify-gardes` sur les
+  scripts jetables non suivis (`test-*.ts`, `fix-kory-access.ts`…).
+
+
+## Parcours de bout en bout — passe 3 (22 août 2026)
+
+Objectif de Kory : « l'école configure une fois son environnement, puis chaque
+utilisateur retrouve automatiquement les informations pertinentes pour son
+rôle ». Les trois parcours sont désormais **joués par une sonde Chrome**, de
+l'installation au dépôt au secrétariat : `scripts/verify-parcours.ts`.
+
+### ⚠️ FUITE GRAVE — cinq générateurs de documents étaient ouverts à tous
+
+Trouvée en auditant le parcours DIRECTION. **Aucune de ces cinq pages ne portait
+de garde de chemin**, et `ROLE_DENIALS.PARENT` ne les listait pas :
+`report-card`, `certificate`, `info-sheet`, `timetable`, `drafts`.
+
+Conséquence reproduite en sonde : un **parent** authentifié qui tapait
+`/dashboard/documents/report-card` obtenait **les bulletins de tous les élèves de
+l'établissement** — notes, moyennes, rangs, avis du conseil. Les cinq écrans
+chargent l'école entière par construction ; ce sont des outils d'ÉMISSION.
+
+⚠️ **Le refus dans la table ne suffisait pas** : `hasAccess()` ne protège que ce
+qui l'appelle, et ces pages ne l'appelaient pas. Il fallait les DEUX. D'où
+`requirePathAccess()` dans `src/lib/documentContext.ts` — un point d'entrée
+unique, pour qu'on ne l'oublie plus une sixième fois.
+
+⚠️ Le refus renvoie vers `firstAllowedPath()`, pas vers `/dashboard` : un
+`PARENT` n'a pas accès à l'accueil, et l'y envoyer créerait une boucle de
+redirection (piège déjà documenté dans `permissions.ts`).
+
+### Plus aucun sélecteur vide sur les écrans des parcours
+
+| Écran | Avant | Maintenant |
+|---|---|---|
+| `/grades/bulletin` | « Choisir… » · « — » · « — » | classe + trimestre courant + évaluation, résolus |
+| `/documents/report-card` | « Choisissez une classe » | classe **qui porte des notes** + trimestre courant |
+| `ClassSubjectsPanel` | « Sélectionner une classe… » | première classe de l'ordre pédagogique |
+
+⚠️ **La résolution est faite CÔTÉ SERVEUR** (`defaultSelection()` dans
+`gradeEntry.ts`), et c'est non négociable : la règle du trimestre courant vit
+dans `pickCurrentTerm()`, module qui importe Prisma. La réécrire dans un
+composant `"use client"` en aurait fait une **quatrième copie** — et c'est
+exactement une copie divergente de cette règle qui a effacé la moyenne de
+l'établissement le 21 août.
+
+⚠️ **Le générateur de bulletins choisit une classe QUI A DES NOTES**, pas la
+première de la liste. Ouvrir sur le CI donnerait souvent un bulletin vide, et
+l'écran paraîtrait cassé alors qu'il aurait simplement mal choisi.
+
+⚠️ **Les sélecteurs restent visibles et libres.** Ce sont des défauts, pas un
+verrouillage : consulter une période passée est un besoin réel.
+
+### Le cul-de-sac supprimé : « et ensuite ? » après la dernière note
+
+L'écran de saisie affichait « ✓ Évaluation complète » et **ne proposait rien**.
+Or un maître unique de l'élémentaire a **huit matières** à saisir pour la même
+composition : il devait, huit fois, remonter à la liste et retrouver la ligne
+suivante.
+
+`EntryContext.siblings` (un seul `groupBy`, côté serveur) permet désormais de
+nommer **la matière suivante**, d'afficher l'avancement des autres, et — quand
+tout est saisi — de proposer « Voir le bulletin » et « Terminer et déposer ».
+
+⚠️ **Le bloc n'apparaît QUE si la matière courante est terminée.** Le montrer
+pendant la saisie inviterait à partir avant d'avoir fini.
+⚠️ **Aucun enchaînement automatique** : l'enseignant peut vouloir relire.
+⚠️ **« Déposer » n'apparaît que si tout est saisi** : faire relire un travail
+inachevé au secrétariat serait lui faire perdre son temps.
+
+### La prochaine échéance remonte à l'accueil de la direction
+
+Elle n'était visible que dans l'écran de configuration. Entrée `info` (aucune
+action attendue), fenêtre de **21 jours** — au-delà l'information est vraie mais
+inutile, et une ligne permanente cesse d'être lue.
+
+### ⚠️ QUATRE PIÈGES DE SONDE — le produit avait raison à chaque fois
+
+Ils ont coûté quatre passages complets. Ils reviendront mordre quiconque écrit
+une sonde CDP multi-personas :
+
+1. **Les cookies de Chrome sont partagés par tout le profil.** Ouvrir la session
+   de l'enseignant **écrase celle de la directrice**, y compris dans son onglet.
+   Tout le parcours ③ échouait pendant que les captures montraient un produit
+   parfaitement fonctionnel. *Deux fausses solutions essayées* : reposer les
+   cookies avant chaque navigation (insuffisant — Supabase découpe le jeton en
+   `…auth-token.0/.1/.2` et le NOMBRE de morceaux varie ; écrire deux
+   par-dessus trois laisse un résidu qui corrompt le jeton), puis
+   `Network.clearBrowserCookies` (pire — la commande est **globale au
+   navigateur**, score tombé de 37 à 22). **La bonne réponse :
+   `Target.createBrowserContext`, un pot à cookies par persona.**
+2. **`readyState === 'complete'` ne prouve NI l'hydratation NI le contenu.** Le
+   HTML serveur contient déjà les textes : une attente sur du texte est
+   satisfaite avant qu'un seul gestionnaire ne soit attaché (la case « Primaire »
+   se cochait, React ne le voyait pas). Et Next **diffuse** son rendu : lire
+   `innerText` juste après le chargement rend une page à moitié vide. Attendre un
+   **changement d'état**, jamais un chargement.
+3. **`innerText` applique `text-transform`.** Un titre `uppercase` ressort
+   « PROCHAINES ÉCHÉANCES » là où le code écrit « Prochaines échéances ».
+4. **Interpoler un motif dans un littéral `/.../` casse sur une barre oblique.**
+   `/24/24|…/i` se termine au premier `/` ; l'expression devient invalide,
+   `evaluate` lève, `waitFor` avale et rend `false`. Utiliser `new RegExp(...)`.
+
+Un cinquième, dans la sonde précédente : **`el.blur()` n'émet rien sur un champ
+qui n'a jamais eu le focus** — il faut `el.focus()` d'abord.
+
+### Deux défauts de rédaction, vus sur capture
+
+« **1er Trimestre** — déplac**ée** du 23 juin au 23 juin ». Deux fautes dans une
+seule ligne : l'accord était figé au féminin (bon pour une évaluation, faux pour
+un trimestre), et seule la date de DÉBUT était comparée — déplacer la seule date
+de fin produisait une phrase qui **affirme qu'il ne s'est rien passé**. Corrigé :
+« se termine désormais le 23 décembre, au lieu du 20 décembre ».
+
+### Vérification
+
+- `npx tsc --noEmit` : 0 erreur.
+- **`scripts/verify-parcours.ts`** — trois parcours joués en entier dans une
+  école éphémère : installation réelle par le formulaire, dates et affectations
+  saisies à l'écran puis relues en base, notes tapées puis vérifiées, matière
+  suivante enchaînée, bulletins validés un à un, classe déposée au secrétariat,
+  dépôt retrouvé sur le tableau de bord de la direction, parent refusé.
+- `verify-pedagogie` : 95/95.
+- Échecs **préexistants, sans rapport** : `verify-dashboard` (13, voir
+  ci-dessous), `verify-documents` (2 — mise en page d'impression du bulletin),
+  `verify-operational-screens` (3 — primitives des écrans Élèves et Classes),
+  `verify-action-guards` (1 — `grades/saisie/actions.ts`), `verify-gardes`
+  (scripts jetables non suivis).
+
+### ⚠️ `verify-dashboard.ts` est PÉRIMÉ — 13 faux échecs, sans rapport avec cette passe
+
+Diagnostic posé, correction **non faite** (autre chantier). La sonde teste
+`src/app/dashboard/page.tsx` tel qu'il était **avant** la refonte « poste de
+commandement » : elle y cherche `<AttentionList`, `hasAccess(role,
+"/dashboard/payments")` et `Promise.all(` **dans la page**. Or la page monte
+désormais `AttentionCenter` et toutes les requêtes ont migré dans
+`dashboardSnapshot()` (`src/lib/dashboard.ts`, fichier **non suivi par Git** —
+jamais commité). Les 13 assertions visent donc du code qui n'existe plus.
+
+⚠️ Tant qu'elle n'est pas réécrite, cette sonde **ne peut pas servir de garde
+anti-régression** : elle échoue déjà, donc une vraie régression s'y noierait.
+
 ## Chantiers ouverts (par ordre de priorité)
 
 0. **Écran de saisie à retravailler (demande de Kory, 17 août).** La liste d'élèves à gauche « n'est pas fluide » et le tableau des matières manque de tenue. À rendre premium — c'est le point le plus insatisfaisant à ses yeux. *Fait à ce jour :* barre d'onglets supprimée (elle ne portait plus qu'un bouton), Configuration reléguée en pastille flottante en haut à droite.
@@ -385,7 +1091,7 @@ par l'accueil. Si quelqu'un cherche l'origine : ce n'est pas le prototype.
 
 1. **Le générateur `/documents/report-card` ignore toujours ses `searchParams`.** L'écran de fin de saisie propose « Imprimer les bulletins » avec `?classId=&termId=`, mais le générateur n'en tient pas compte : on retombe sur des sélecteurs vides. Voir le sujet Documents en pause.
 
-1. **Aucune affectation n'est encore saisie en base.** Le mécanisme fonctionne mais `TeachingAssignment` est vide : en pratique tout le monde retombe donc sur le filet « professeur principal ». À éprouver en affectant deux enseignants sur une même classe avec des matières différentes.
+1. **Aucune affectation n'est encore saisie en base pour SENG.CO.** Le mécanisme fonctionne — et il a désormais **une interface** (Réglages › Configuration pédagogique › Affectations) — mais `TeachingAssignment` reste vide sur le locataire de travail : tout le monde retombe donc sur le filet « professeur principal ». À éprouver en affectant deux enseignants sur une même classe avec des matières différentes.
 
 
 1. **Aucun test bout-en-bout des notes.** `Grade` est toujours à **0**. La saisie par élève et la génération de bulletin n'ont jamais été parcourues dans l'app réelle. Seules `CM1` et `CM2` contiennent un élève ; **Phil Wally et tfg jkl n'ont aucune classe** — à inscrire pour tester sur un effectif réaliste.

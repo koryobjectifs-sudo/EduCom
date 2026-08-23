@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { requireSchoolContext } from "@/lib/documentContext";
+import { requirePathAccess } from "@/lib/documentContext";
 import InfoSheetGenerator from "./Generator";
 
 export default async function InfoSheetPage({
@@ -8,7 +8,7 @@ export default async function InfoSheetPage({
   searchParams: Promise<{ studentId?: string }>;
 }) {
   const { studentId } = await searchParams;
-  const { schoolId, school } = await requireSchoolContext();
+  const { schoolId, school } = await requirePathAccess("/dashboard/documents/info-sheet");
 
   const students = await prisma.student.findMany({
     where: { schoolId },

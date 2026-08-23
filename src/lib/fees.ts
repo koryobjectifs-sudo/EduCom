@@ -182,6 +182,10 @@ export function annualAmount(fee: ResolvedFee): number {
   }
 }
 
+export function monthlyAmount(fee: ResolvedFee): number {
+  return fee.cadence === "MONTHLY" ? fee.amount : 0;
+}
+
 /* ═══════════════════════════ FORECAST ═══════════════════════════ */
 
 /**
@@ -245,6 +249,29 @@ export async function forecast(actor: ActorContext): Promise<Forecast | null> {
   };
 }
 
+/**
+ * Montant attendu chaque mois (somme des frais mensuels pour tous les élèves inscrits).
+ */
+export async function monthlyForecast(actor: ActorContext): Promise<number> {
+  const schedule = await activeSchedule(actor);
+  if (!schedule) return 0;
+
+  const classes = await prisma.class.findMany({
+    where: { schoolId: actor.schoolId },
+    select: { id: true, cycle: true, _count: { select: { enrollments: true } } },
+  });
+
+  let total = 0;
+  for (const c of classes) {
+    const students = c._count.enrollments;
+    if (students === 0) continue;
+    const fees = resolveFeesForClass(schedule.items, c.id, c.cycle);
+    const perStudentMonthly = fees.reduce((s, f) => s + monthlyAmount(f), 0);
+    total += perStudentMonthly * students;
+  }
+  return total;
+}
+
 /* ═══════════════ facturé · encaissé · reste · relances ═══════════════ */
 
 export type MoneyPicture = {
@@ -253,9 +280,23 @@ export type MoneyPicture = {
   billedCount: number;
   /** SUM(Payment.amount) REÇUS sur la période — définition unique du lot 11. */
   collected: number;
-  /** Σ (facture non soldée − versements). Stock, sans borne de date. */
+  
+  /** 
+   * Attendu mensuel théorique (Scolarité) calculé d'après la grille.
+   * Utilisé pour la synchronisation automatique du "Reste à encaisser".
+   */
+  expectedMonthly: number;
+
+  /** 
+   * Reste à encaisser automatique (Attendu mensuel - Encaissé sur le mois).
+   * Si les encaissements dépassent l'attendu, le reste est 0.
+   */
   outstanding: number;
+  
+  /** Factures non soldées (Stock, sans borne de date). Gardé pour compatibilité des relances. */
+  unsettledInvoicesOutstanding: number;
   outstandingCount: number;
+  
   /** Sous-ensemble du reste dont l'échéance est DÉPASSÉE. */
   toChase: number;
   toChaseCount: number;
@@ -273,7 +314,7 @@ export type MoneyPicture = {
 export async function moneyPicture(actor: ActorContext, period: Period): Promise<MoneyPicture> {
   const school = { schoolId: actor.schoolId };
 
-  const [billedAgg, methods, unsettled] = await Promise.all([
+  const [billedAgg, methods, unsettled, expectedMonthly] = await Promise.all([
     prisma.invoice.aggregate({
       where: { ...school, ...periodFilter(period, "createdAt") },
       _sum: { totalAmount: true },
@@ -284,6 +325,7 @@ export async function moneyPicture(actor: ActorContext, period: Period): Promise
       where: { ...school, status: { in: ["PENDING", "PARTIAL", "OVERDUE"] } },
       select: { id: true, totalAmount: true, dueDate: true, studentId: true, parentId: true },
     }),
+    monthlyForecast(actor)
   ]);
 
   const paidByInvoice = new Map<string, number>();
@@ -297,13 +339,13 @@ export async function moneyPicture(actor: ActorContext, period: Period): Promise
   }
 
   const now = new Date();
-  let outstanding = 0, outstandingCount = 0, toChase = 0, toChaseCount = 0;
+  let unsettledInvoicesOutstanding = 0, outstandingCount = 0, toChase = 0, toChaseCount = 0;
   const families = new Set<string>();
 
   for (const inv of unsettled) {
     const due = Math.max(0, inv.totalAmount - (paidByInvoice.get(inv.id) ?? 0));
     if (due === 0) continue;
-    outstanding += due;
+    unsettledInvoicesOutstanding += due;
     outstandingCount += 1;
 
     // La relance dérive de l'ÉCHÉANCE, pas du statut : rien n'écrit OVERDUE
@@ -318,11 +360,16 @@ export async function moneyPicture(actor: ActorContext, period: Period): Promise
     }
   }
 
+  const collectedAmount = methods.reduce((s, m) => s + m.amount, 0);
+
   return {
     billed: billedAgg._sum.totalAmount ?? 0,
     billedCount: billedAgg._count._all,
-    collected: methods.reduce((s, m) => s + m.amount, 0),
-    outstanding, outstandingCount,
+    collected: collectedAmount,
+    expectedMonthly,
+    outstanding: Math.max(0, expectedMonthly - collectedAmount),
+    unsettledInvoicesOutstanding, 
+    outstandingCount,
     toChase, toChaseCount,
     familiesToChase: families.size,
   };

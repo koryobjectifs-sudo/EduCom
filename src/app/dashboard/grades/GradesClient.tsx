@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Settings, Plus, Trash2, Loader2, ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Settings, Plus, Trash2, Loader2, ArrowLeft, ArrowRight } from "lucide-react";
 import { createTerm, deleteTerm, createSubject, deleteSubject, createEvaluation, deleteEvaluation } from "./actions";
 import { useRouter } from "next/navigation";
 import StudentEntryTab from "./StudentEntryTab";
 import ClassSubjectsPanel from "./ClassSubjectsPanel";
+import TermDates from "@/components/grades/TermDates";
 
 // La saisie « par matière » a été fusionnée dans l'écran de saisie unique :
 // le tableau récapitulatif permet déjà de travailler matière par matière.
@@ -14,20 +16,29 @@ type TabType = "saisie" | "config";
 export default function GradesClient({ 
   initialTerms, 
   initialSubjects, 
-  classes 
+  classes,
+  defaults,
+  canConfigure = false,
 }: { 
   initialTerms: any[]; 
   initialSubjects: any[]; 
   classes: any[];
+  /** Classe / trimestre / évaluation résolus par le serveur. */
+  defaults?: { classId: string; termId: string; evaluationId: string };
+  /** Droit d'écrire la configuration académique — direction et secrétariat. */
+  canConfigure?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<TabType>("saisie");
+  // Un enseignant ne peut pas atterrir sur l'onglet configuration, même par un
+  // état résiduel : la vue est ramenée à la saisie.
+  const tab: TabType = canConfigure ? activeTab : "saisie";
 
   return (
     <div className="relative bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-140px)]">
       {/* Il n'y a plus qu'un écran de saisie : une barre d'onglets à un seul
           bouton ne servait qu'à voler de la hauteur au bulletin. La
           configuration devient un accès discret, et un retour quand on y est. */}
-      {activeTab === "config" ? (
+      {tab === "config" ? (
         <div className="flex items-center gap-2 border-b border-gray-100 px-3 py-1.5 bg-gray-50/50">
           <button
             onClick={() => setActiveTab("saisie")}
@@ -37,7 +48,7 @@ export default function GradesClient({
           </button>
           <span className="text-[13px] font-semibold text-gray-900 ml-1">Configuration</span>
         </div>
-      ) : (
+      ) : canConfigure ? (
         <button
           onClick={() => setActiveTab("config")}
           className="absolute right-3 top-3 z-20 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium text-gray-500 bg-white/90 border border-gray-200 shadow-sm hover:text-gray-900 hover:border-gray-300 transition-colors"
@@ -45,19 +56,19 @@ export default function GradesClient({
         >
           <Settings className="w-3.5 h-3.5" /> Configuration
         </button>
-      )}
+      ) : null}
 
       {/* La saisie gère elle-même son espace : pas de marge extérieure, le
           bulletin doit occuper toute la largeur disponible. */}
       <div
         className={`flex-1 bg-gray-50/30 min-h-0 ${
-          activeTab === "config" ? "overflow-auto p-6" : "overflow-hidden"
+          tab === "config" ? "overflow-auto p-6" : "overflow-hidden"
         }`}
       >
-        {activeTab === "saisie" && (
-          <StudentEntryTab terms={initialTerms} classes={classes} />
+        {tab === "saisie" && (
+          <StudentEntryTab terms={initialTerms} classes={classes} defaults={defaults} />
         )}
-        {activeTab === "config" && (
+        {tab === "config" && (
           <ConfigTab terms={initialTerms} subjects={initialSubjects} classes={classes} />
         )}
       </div>
@@ -110,11 +121,36 @@ function ConfigTab({ terms, subjects, classes }: { terms: any[], subjects: any[]
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto space-y-4">
+      {/*
+        ⚠️ Cet onglet est CONSERVÉ tel quel — il fonctionne, et des habitudes s'y
+        sont prises. Mais il ne sait pas tout faire : coefficients, dates
+        d'évaluation, affectations et état de la configuration n'existent que
+        sur l'écran complet. Le dire ici évite qu'une directrice cherche
+        longtemps un champ qui n'est pas dans cet onglet.
+      */}
+      <Link
+        href="/dashboard/settings/pedagogie"
+        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm transition-colors hover:border-indigo-300"
+      >
+        <span className="text-gray-700">
+          <span className="font-semibold text-gray-900">Configuration pédagogique complète</span>
+          {" — "}coefficients, dates des évaluations, affectations des enseignants et état de
+          votre configuration.
+        </span>
+        <span className="inline-flex items-center gap-1 font-medium text-indigo-700">
+          Ouvrir <ArrowRight className="h-3.5 w-3.5" />
+        </span>
+      </Link>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Terms & Evaluations */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Périodes & Évaluations</h3>
-        <p className="text-sm text-gray-500 mb-4">Définissez vos trimestres et les contrôles/compositions associés.</p>
+        <p className="text-sm text-gray-500 mb-4">
+          Définissez vos trimestres, leurs dates et les contrôles/compositions associés.
+          Les dates sont propres à votre établissement : elles décident quel trimestre EduCom ouvre par défaut.
+        </p>
         
         <div className="flex gap-2 mb-6">
           <input 
@@ -153,7 +189,10 @@ function ConfigTab({ terms, subjects, classes }: { terms: any[], subjects: any[]
                   </button>
                 </div>
               </div>
-              
+
+              {/* Calendrier du trimestre — propre à CHAQUE école */}
+              <TermDates term={term} onSaved={() => router.refresh()} />
+
               {/* Evaluations list */}
               <div className="p-2 space-y-1">
                 {term.evaluations?.map((ev: any) => (
@@ -257,6 +296,7 @@ function ConfigTab({ terms, subjects, classes }: { terms: any[], subjects: any[]
 
       {/* Programme de chaque classe : quelles matières y sont enseignées. */}
       <ClassSubjectsPanel classes={classes} subjects={subjects} />
+      </div>
     </div>
   );
 }

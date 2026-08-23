@@ -221,6 +221,9 @@ export type FinanceSnapshot = {
   overdueCount: number;
   /** Total non soldé, sans borne de date. Ce que l'école attend en tout. */
   receivableAll: number;
+  
+  /** Attendu mensuel théorique (Scolarité) calculé d'après la grille. */
+  expectedMonthly: number;
 
   /** Encaissé − dépenses approuvées. Rien d'autre. */
   balance: number;
@@ -301,18 +304,13 @@ export async function financeSnapshot(actor: ActorContext, period: Period): Prom
   }
 
   const now = new Date();
-  let receivable = 0, receivableCount = 0, overdue = 0, overdueCount = 0, receivableAll = 0;
+  let receivableAll = 0, overdue = 0, overdueCount = 0;
 
   for (const inv of unsettled) {
     const due = Math.max(0, inv.totalAmount - (paidByInvoice.get(inv.id) ?? 0));
     if (due === 0) continue; // soldée en fait, malgré son statut
     receivableAll += due;
 
-    // Échéance dans la période — borne de fin exclue, comme partout.
-    if (inv.dueDate >= period.from && inv.dueDate < period.to) {
-      receivable += due;
-      receivableCount += 1;
-    }
     // Retard dérivé de la date, PAS du statut : rien n'écrit `OVERDUE`.
     if (inv.dueDate < now) {
       overdue += due;
@@ -320,30 +318,145 @@ export async function financeSnapshot(actor: ActorContext, period: Period): Prom
     }
   }
 
+  const { monthlyForecast } = await import("@/lib/fees");
+  const expectedMonthly = await monthlyForecast(actor);
+  
+  // Le vrai "Reste à encaisser" de la période = Attendu théorique - Encaissé (minimum 0)
+  const receivable = Math.max(0, expectedMonthly - collected);
+  const receivableCount = 0; // Calculé dynamiquement, donc pas de compte de factures
+
   return {
     collected, collectedCount, byMethod,
     expenseApproved: approved.amount, expenseApprovedCount: approved.count,
     expenseSubmitted: submitted.amount, expenseSubmittedCount: submitted.count,
     expenseOpen: open.amount, expenseOpenCount: open.count,
     byCategory,
-    receivable, receivableCount, overdue, overdueCount, receivableAll,
+    receivable, receivableCount, overdue, overdueCount, receivableAll, expectedMonthly,
     balance: collected - approved.amount,
   };
 }
 
+/**
+ * Calcule le prévisionnel mensuel (Reste à encaisser automatique)
+ * Basé sur la grille tarifaire active et les élèves inscrits.
+ */
+export async function expectedMonthlyRevenue(actor: ActorContext) {
+  // Find active fee schedule
+  const schedule = await prisma.feeSchedule.findFirst({
+    where: { schoolId: actor.schoolId, status: "ACTIVE" },
+    include: { items: true }
+  });
+
+  if (!schedule) return { outstanding: 0, forecast: 0, details: [] };
+
+  // Find all active enrollments
+  const enrollments = await prisma.enrollment.findMany({
+    where: { class: { schoolId: actor.schoolId } },
+    include: { 
+      student: { select: { id: true, firstName: true, lastName: true } },
+      class: { select: { id: true, name: true, cycle: true } }
+    }
+  });
+
+  // Calculate payments already made this month
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  const paymentsThisMonth = await prisma.payment.findMany({
+    where: {
+      schoolId: actor.schoolId,
+      createdAt: { gte: startOfMonth, lt: endOfMonth },
+      invoice: { studentId: { not: null } }
+    },
+    select: {
+      amount: true,
+      invoice: { select: { studentId: true } }
+    }
+  });
+
+  const paidByStudent = new Map<string, number>();
+  for (const p of paymentsThisMonth) {
+    if (p.invoice?.studentId) {
+      const prev = paidByStudent.get(p.invoice.studentId) || 0;
+      paidByStudent.set(p.invoice.studentId, prev + p.amount);
+    }
+  }
+
+  let totalOutstanding = 0;
+  let totalForecast = 0;
+  const details = [];
+
+  for (const enr of enrollments) {
+    let studentExpected = 0;
+
+    // Resolve fees for this student (classId > cycle > school)
+    // Only mandatory fees with MONTHLY cadence are counted for the monthly forecast
+    for (const item of schedule.items) {
+      if (!item.mandatory || item.cadence !== "MONTHLY") continue;
+      
+      const appliesToClass = item.classId === enr.classId;
+      const appliesToCycle = !item.classId && item.cycle === enr.class.cycle;
+      const appliesToSchool = !item.classId && !item.cycle;
+
+      if (appliesToClass || appliesToCycle || appliesToSchool) {
+        studentExpected += item.amount;
+      }
+    }
+
+    if (studentExpected > 0) {
+      totalForecast += studentExpected;
+    }
+
+    const paid = paidByStudent.get(enr.student.id) || 0;
+    const remaining = Math.max(0, studentExpected - paid);
+
+    if (remaining > 0) {
+      totalOutstanding += remaining;
+      details.push({
+        studentId: enr.student.id,
+        firstName: enr.student.firstName,
+        lastName: enr.student.lastName,
+        classId: enr.class.id,
+        className: enr.class.name,
+        expected: remaining
+      });
+    }
+  }
+
+  return { outstanding: totalOutstanding, forecast: totalForecast, details };
+}
+
 /* ═══════════════ vue d'ensemble de l'écran Paiements ═══════════════ */
+
+export type ExpectedDetail = {
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  classId: string;
+  className: string;
+  expected: number;
+};
 
 export type InvoiceOverview = {
   /** Factures visibles par l'acteur. Déjà restreintes par `invoiceScope()`. */
   invoices: {
     id: string; title: string; totalAmount: number; status: string; dueDate: Date;
-    student: { firstName: string; lastName: string } | null;
+    student: { 
+      firstName: string; 
+      lastName: string;
+      enrollments: { class: { id: string, name: string } }[];
+    } | null;
   }[];
   /** Encaissé sur ces factures — même définition que l'état financier. */
   collected: number;
   collectedCount: number;
-  /** Reste réellement dû : montant facturé moins versements reçus. */
+  /** Reste à encaisser attendu pour le mois */
   outstanding: number;
+  /** Prévisionnel total des scolarités */
+  forecast: number;
+  /** Détails du reste à encaisser par élève */
+  expectedDetails: ExpectedDetail[];
   /** Factures dont l'échéance est dépassée et qui ne sont pas soldées. */
   overdueCount: number;
   overdue: number;
@@ -366,14 +479,21 @@ export type InvoiceOverview = {
  * statut n'est écrit que par le balayage de `src/lib/overdue.ts`, qui peut ne
  * pas encore être passé. Une facture échue ce matin doit compter aujourd'hui.
  */
-export async function invoiceOverview(actor: ActorContext): Promise<InvoiceOverview> {
+export async function invoiceOverview(actor: ActorContext): Promise<InvoiceOverview & { expectedRevenue: number, expectedDetails: any[] }> {
   const scope = invoiceScope(actor);
+  const expected = await expectedMonthlyRevenue(actor);
 
   const invoices = await prisma.invoice.findMany({
     where: scope,
     select: {
       id: true, title: true, totalAmount: true, status: true, dueDate: true,
-      student: { select: { firstName: true, lastName: true } },
+      student: { 
+        select: { 
+          firstName: true, 
+          lastName: true,
+          enrollments: { select: { class: { select: { id: true, name: true } } } }
+        } 
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -416,7 +536,11 @@ export async function invoiceOverview(actor: ActorContext): Promise<InvoiceOverv
     invoices,
     collected,
     collectedCount,
-    outstanding,
+    // The outstanding amount is now based on the monthly expected revenue (already reduced by payments)
+    outstanding: expected.outstanding,
+    forecast: expected.forecast,
+    expectedRevenue: expected.forecast,
+    expectedDetails: expected.details,
     overdue,
     overdueCount,
     paidCount: invoices.filter((i) => String(i.status) === "PAID").length,
@@ -520,7 +644,13 @@ export async function lockingStatement(actor: ActorContext, at: Date) {
 /* ─────────────────────── résolution de la période ─────────────────────── */
 
 /** Paramètres de période tels qu'ils arrivent de l'URL. */
-export type PeriodParams = { kind?: string; from?: string; to?: string; termId?: string };
+export type PeriodParams = {
+  kind?: string;
+  termId?: string;
+  from?: string;
+  to?: string;
+  month?: string; // YYYY-MM
+};
 
 const PERIOD_KINDS = ["day", "week", "month", "term", "custom"] as const;
 
@@ -582,6 +712,14 @@ export async function resolvePeriod(
       return { period: monthPeriod(ref), notice: "Dates personnalisées incomplètes — mois en cours affiché.", terms };
     }
     return { period: customPeriod(a, b), terms };
+  }
+
+  // kind === "month"
+  if (params.month) {
+    const [y, m] = params.month.split("-").map(Number);
+    if (y && m >= 1 && m <= 12) {
+      return { period: monthPeriod(new Date(y, m - 1, 1)), terms };
+    }
   }
 
   return { period: monthPeriod(ref), terms };

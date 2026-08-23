@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight, ArrowLeft, Check, GraduationCap, School, Building, Baby, UserPlus,
+  BookOpen, Info,
 } from "lucide-react";
+import { LEVELS, classesForLevels, curriculumProposal } from "@/lib/curriculum";
 import { completeOnboarding } from "./actions";
 import { createSchedule, upsertFeeItem, activateSchedule } from "../dashboard/settings/fees/actions";
 import { Button } from "@/components/ui/Button";
@@ -50,22 +52,31 @@ import { Input } from "@/components/ui/Field";
 
 type WizardProps = { schoolName: string; userName: string };
 
-const NIVEAUX = [
-  { id: "Maternelle", label: "Maternelle", icon: Baby, desc: "Petite, moyenne et grande section", classes: 3 },
-  { id: "Primaire", label: "Primaire", icon: GraduationCap, desc: "Du CI au CM2", classes: 6 },
-  { id: "Collège", label: "Collège", icon: School, desc: "De la 6ᵉ à la 3ᵉ", classes: 4 },
-  { id: "Lycée", label: "Lycée", icon: Building, desc: "De la seconde à la terminale", classes: 3 },
-];
+/**
+ * ⚠️ Le NOMBRE de classes n'est plus écrit ici. Il valait « classes: 3 » en dur,
+ * à côté d'une table de noms tenue dans `onboarding/actions.ts` : l'écran
+ * annonçait un chiffre, l'action en créait un autre, et rien ne les liait.
+ * `LEVELS` (dans `src/lib/curriculum.ts`) porte les deux, et le compteur se
+ * déduit de la liste réelle.
+ */
+const NIVEAUX = LEVELS.map((l) => ({
+  ...l,
+  label: l.id,
+  icon: { Maternelle: Baby, Primaire: GraduationCap, "Collège": School, "Lycée": Building }[l.id]!,
+  desc: {
+    Maternelle: "Petite, moyenne et grande section",
+    Primaire: "Du CI au CM2",
+    "Collège": "De la 6ᵉ à la 3ᵉ",
+    "Lycée": "De la seconde à la terminale",
+  }[l.id]!,
+}));
 
-const CYCLE_BY_LEVEL: Record<string, string> = {
-  Maternelle: "MATERNELLE",
-  Primaire: "ELEMENTAIRE",
-  Collège: "COLLEGE",
-  Lycée: "LYCEE",
-};
+const CYCLE_BY_LEVEL: Record<string, string> = Object.fromEntries(
+  LEVELS.map((l) => [l.id, l.cycle]),
+);
 
-/** Trois étapes de saisie ; la quatrième est un résultat, pas un formulaire. */
-const ETAPES = ["Niveaux", "Coordonnées", "Tarifs"];
+/** Quatre étapes de saisie ; la cinquième est un résultat, pas un formulaire. */
+const ETAPES = ["Niveaux", "Programme", "Coordonnées", "Tarifs"];
 
 export default function Wizard({ schoolName, userName }: WizardProps) {
   const router = useRouter();
@@ -74,7 +85,10 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
   const [address, setAddress] = useState("");
   const [niveaux, setNiveaux] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ classes: number } | null>(null);
+  const [done, setDone] = useState<{
+    classes: number;
+    programme: { subjects: number; links: number; terms: number; evaluations: number } | null;
+  } | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
 
   /**
@@ -85,6 +99,24 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
    * audit. Chaînes vides = frais non renseigné ; aucun montant n'est pré-rempli,
    * suggérer un tarif reviendrait à inventer une donnée métier.
    */
+  /**
+   * Étape « Programme » — **proposée, jamais imposée.**
+   *
+   * ⚠️ Les deux cases sont pré-cochées, et c'est un choix produit assumé : une
+   * école sénégalaise qui s'inscrit enseigne, dans son immense majorité, le
+   * programme officiel en trois trimestres. Décocher est un geste ; tout saisir
+   * à la main en est trois cents. « Proposé » veut dire *modifiable en un clic
+   * et annoncé avant d'écrire* — c'est exactement ce que fait cet écran, qui
+   * affiche le décompte réel avant validation.
+   *
+   * ⚠️ Les contrôles sont une case SÉPARÉE parce qu'ils ne sont pas le socle :
+   * Kory a arbitré « 3 trimestres + 3 compositions » comme commun, les
+   * contrôles comme libres. Les fondre dans la même case aurait effacé cette
+   * distinction.
+   */
+  const [applyProgramme, setApplyProgramme] = useState(true);
+  const [withControls, setWithControls] = useState(true);
+
   const [registrationFee, setRegistrationFee] = useState("");
   const [tuitionByLevel, setTuitionByLevel] = useState<Record<string, string>>({});
   const [feeError, setFeeError] = useState<string | null>(null);
@@ -94,9 +126,18 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
 
   /** Nombre de classes que la sélection va produire — annoncé avant de valider. */
   const classesPrevues = niveaux.reduce(
-    (n, id) => n + (NIVEAUX.find((x) => x.id === id)?.classes ?? 0),
+    (n, id) => n + (NIVEAUX.find((x) => x.id === id)?.classes.length ?? 0),
     0,
   );
+
+  /**
+   * Ce que le programme produirait — **calculé, jamais estimé**.
+   *
+   * `curriculumProposal()` est le module pur du programme : la même fonction que
+   * le serveur appellera pour écrire. L'écran ne peut donc pas annoncer un
+   * chiffre que l'application démentira ensuite.
+   */
+  const projection = curriculumProposal(classesForLevels(niveaux), { withControls });
 
   const createInitialGrid = async (): Promise<string | null> => {
     const registration = Number(registrationFee);
@@ -140,7 +181,10 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
 
     // ⚠️ Les classes DOIVENT exister avant la grille : une ligne tarifaire visant
     // une classe est vérifiée contre l'école, et le forecast lit les inscriptions.
-    const res = await completeOnboarding({ phone, address, levels: niveaux });
+    const res = await completeOnboarding({
+      phone, address, levels: niveaux,
+      programme: { apply: applyProgramme, withControls },
+    });
     if (!res.success) {
       setBusy(false);
       setErreur(res.error ?? "La configuration n'a pas pu être enregistrée.");
@@ -153,7 +197,7 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
     if (gridError) setFeeError(gridError);
 
     setBusy(false);
-    setDone({ classes: res.classesCreated });
+    setDone({ classes: res.classesCreated, programme: res.programme ?? null });
   }
 
   /* ═══════════════ résultat ═══════════════ */
@@ -178,6 +222,22 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
             ? `${done.classes} classe${done.classes > 1 ? "s" : ""} ${done.classes > 1 ? "ont été créées" : "a été créée"} d'après les niveaux que vous enseignez. Vous n'avez rien à saisir de plus.`
             : "Votre espace est prêt. Aucune classe n'a été créée — vous pourrez les ajouter à tout moment."}
         </p>
+
+        {/* ⚠️ Le programme n'est annoncé QUE s'il a réellement été écrit : le
+            rapport vient du serveur, et `null` signifie « rien appliqué ». */}
+        {done.programme && (
+          <p className="mt-3 flex items-start gap-2 text-role-body leading-relaxed text-text-soft">
+            <BookOpen aria-hidden="true" className="mt-1 h-4 w-4 shrink-0 text-success" />
+            <span>
+              {done.programme.subjects} matière{done.programme.subjects > 1 ? "s" : ""} installée
+              {done.programme.subjects > 1 ? "s" : ""}, {done.programme.links} rattachement
+              {done.programme.links > 1 ? "s" : ""} aux classes, {done.programme.terms} trimestre
+              {done.programme.terms > 1 ? "s" : ""} et {done.programme.evaluations} évaluation
+              {done.programme.evaluations > 1 ? "s" : ""}. Vos enseignants peuvent saisir des notes
+              dès maintenant.
+            </span>
+          </p>
+        )}
 
         {feeError && (
           <p className="mt-4 rounded-control border border-warning/30 bg-warning/5 px-3 py-2.5 text-role-meta leading-relaxed text-text-soft">
@@ -305,8 +365,107 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
           </div>
         )}
 
-        {/* ─── 2. Coordonnées : facultatif, et l'écran le dit ─── */}
+        {/* ─── 2. Programme : le modèle sénégalais, annoncé avant d'être écrit ─── */}
         {step === 2 && (
+          <div>
+            <h1 className="text-role-page font-bold tracking-tight text-text">
+              Voulez-vous partir du programme sénégalais ?
+            </h1>
+            <p className="mt-2 text-role-body leading-relaxed text-text-soft">
+              EduCom peut installer les matières officielles de chaque niveau, les trois
+              trimestres et leurs compositions. Vous resterez libre de tout modifier ensuite.
+            </p>
+
+            <div className="mt-6 space-y-3">
+              <label
+                className={`flex cursor-pointer items-start gap-3 rounded-control border px-4 py-4 transition-colors ${
+                  applyProgramme ? "border-primary bg-primary/5" : "border-rule bg-surface hover:bg-sunk"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-5 w-5 shrink-0"
+                  checked={applyProgramme}
+                  onChange={() => setApplyProgramme((v) => !v)}
+                />
+                <span className="min-w-0">
+                  <span className="flex items-center gap-2 text-role-card font-semibold text-text">
+                    <BookOpen aria-hidden="true" className="h-4 w-4 text-text-faint" />
+                    Installer le programme officiel
+                  </span>
+                  {/* ⚠️ Des nombres RÉELS, calculés par le même module que le
+                      serveur utilisera pour écrire — jamais une estimation. */}
+                  <span className="mt-1 block text-role-meta leading-relaxed text-text-soft">
+                    {projection.totals.subjects} matières · {projection.totals.links} rattachements aux
+                    classes · {projection.totals.terms} trimestres · {projection.totals.evaluations} évaluations.
+                  </span>
+                </span>
+              </label>
+
+              {/* Les contrôles ne sont PAS le socle : case distincte, décochable. */}
+              <label
+                className={`ml-0 flex cursor-pointer items-start gap-3 rounded-control border px-4 py-3.5 transition-colors sm:ml-8 ${
+                  !applyProgramme
+                    ? "border-rule bg-sunk opacity-50"
+                    : withControls ? "border-primary/40 bg-primary/5" : "border-rule bg-surface hover:bg-sunk"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-5 w-5 shrink-0"
+                  checked={withControls}
+                  disabled={!applyProgramme}
+                  onChange={() => setWithControls((v) => !v)}
+                />
+                <span className="min-w-0">
+                  <span className="text-role-body font-semibold text-text">
+                    Ajouter aussi un contrôle par trimestre
+                  </span>
+                  <span className="mt-0.5 block text-role-meta leading-relaxed text-text-soft">
+                    Sans contrôle, chaque trimestre n&apos;a qu&apos;une note par matière : celle de
+                    la composition. Beaucoup d&apos;écoles en ajoutent un — vous pourrez en créer
+                    autant que vous voulez plus tard.
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            {/* ⚠️ Ce que le modèle NE couvre PAS est dit ici, pas découvert
+                trois semaines plus tard devant un bulletin vide. */}
+            {applyProgramme && projection.uncovered.length > 0 && (
+              <p className="mt-4 flex items-start gap-2 rounded-control border border-rule bg-sunk px-3 py-2.5 text-role-meta leading-relaxed text-text-soft">
+                <Info aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {projection.uncovered.map((u) => u.className).join(", ")} n&apos;
+                  {projection.uncovered.length > 1 ? "auront" : "aura"} pas de matières :{" "}
+                  {projection.uncovered[0].reason.toLowerCase()} Vous les composerez à la main.
+                </span>
+              </p>
+            )}
+
+            <p className="mt-5 max-w-xl text-role-meta leading-relaxed text-text-soft">
+              {/* Le coefficient est LE point où une valeur inventée ferait des
+                  dégâts invisibles : elle déciderait de moyennes réelles. */}
+              Toutes les matières arrivent au <span className="font-medium text-text">coefficient 1</span> :
+              il n&apos;existe pas de barème national, chaque école a le sien. Les dates de
+              trimestre restent vides pour la même raison — ce sont les vôtres.
+            </p>
+
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+              <Button size="lg" variant="ghost" onClick={() => setStep(1)}>
+                <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+                Retour
+              </Button>
+              <Button size="lg" onClick={() => setStep(3)}>
+                Continuer
+                <ArrowRight aria-hidden="true" className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 3. Coordonnées : facultatif, et l'écran le dit ─── */}
+        {step === 3 && (
           <div>
             <h1 className="text-role-page font-bold tracking-tight text-text">
               Coordonnées de l&apos;établissement
@@ -333,13 +492,13 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
             </div>
 
             <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
-              <Button size="lg" variant="ghost" onClick={() => setStep(1)}>
+              <Button size="lg" variant="ghost" onClick={() => setStep(2)}>
                 <ArrowLeft aria-hidden="true" className="h-4 w-4" />
                 Retour
               </Button>
               <div className="flex flex-wrap gap-2">
-                <Button size="lg" variant="secondary" onClick={() => setStep(3)}>Passer</Button>
-                <Button size="lg" onClick={() => setStep(3)}>
+                <Button size="lg" variant="secondary" onClick={() => setStep(4)}>Passer</Button>
+                <Button size="lg" onClick={() => setStep(4)}>
                   Continuer
                   <ArrowRight aria-hidden="true" className="h-4 w-4" />
                 </Button>
@@ -348,8 +507,8 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
           </div>
         )}
 
-        {/* ─── 3. Tarifs : lot 12.2, conservé, rendu explicitement facultatif ─── */}
-        {step === 3 && (
+        {/* ─── 4. Tarifs : lot 12.2, conservé, rendu explicitement facultatif ─── */}
+        {step === 4 && (
           <div>
             <h1 className="text-role-page font-bold tracking-tight text-text">Vos tarifs officiels</h1>
             <p className="mt-2 text-role-body leading-relaxed text-text-soft">
@@ -394,7 +553,7 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
             </p>
 
             <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
-              <Button size="lg" variant="ghost" onClick={() => setStep(2)} disabled={busy}>
+              <Button size="lg" variant="ghost" onClick={() => setStep(3)} disabled={busy}>
                 <ArrowLeft aria-hidden="true" className="h-4 w-4" />
                 Retour
               </Button>

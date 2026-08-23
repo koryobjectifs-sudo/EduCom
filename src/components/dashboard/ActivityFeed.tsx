@@ -1,6 +1,7 @@
-import { CreditCard, UserPlus, MessageSquare, Activity, type LucideIcon } from "lucide-react";
+import { CreditCard, UserPlus, MessageSquare, FileText, GraduationCap, Activity, type LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { DataState } from "./DataState";
+import type { ActivityEvent, ActivityKind } from "@/lib/dashboard";
 
 /**
  * « Activité récente » — priorité 3 du tableau de bord.
@@ -23,20 +24,19 @@ import { EmptyState } from "@/components/ui/EmptyState";
  * n'est généré : si la base est vide, l'état vide le dit.
  */
 
-export type ActivityKind = "payment" | "enrollment" | "message";
-
-export type ActivityEvent = {
-  id: string;
-  kind: ActivityKind;
-  /** Texte complet de l'événement, construit depuis les données réelles. */
-  label: string;
-  at: Date;
-};
+/**
+ * ⚠️ Les types viennent de `src/lib/dashboard.ts`, source unique. Les dupliquer
+ * ici laisserait les deux définitions diverger au premier ajout de source —
+ * exactement ce qui est arrivé aux entrées de navigation avant le lot 05.
+ */
+export type { ActivityEvent, ActivityKind };
 
 const KIND: Record<ActivityKind, { icon: LucideIcon; tone: string }> = {
   payment: { icon: CreditCard, tone: "text-success" },
   enrollment: { icon: UserPlus, tone: "text-accent" },
   message: { icon: MessageSquare, tone: "text-text-soft" },
+  document: { icon: FileText, tone: "text-text-soft" },
+  reportCard: { icon: GraduationCap, tone: "text-accent" },
 };
 
 /**
@@ -62,14 +62,14 @@ export default function ActivityFeed({ events }: { events: ActivityEvent[] }) {
   const now = Date.now();
 
   return (
-    <Card flush title="Activité récente" description="Derniers mouvements enregistrés">
+    <Card flush title="Activité récente" description="Les cinq derniers mouvements marquants">
       {events.length === 0 ? (
-        <div className="p-5">
-          <EmptyState
+        <div className="p-4">
+          <DataState
+            kind="empty"
             icon={Activity}
             title="Aucune activité"
-            description="Les paiements, admissions et messages reçus apparaîtront ici."
-            size="sm"
+            description="Paiements, admissions, messages, documents publiés et bulletins apparaîtront ici."
           />
         </div>
       ) : (
@@ -77,7 +77,7 @@ export default function ActivityFeed({ events }: { events: ActivityEvent[] }) {
           {events.map((e) => {
             const { icon: Icon, tone } = KIND[e.kind];
             return (
-              <li key={e.id} className="flex items-start gap-3 px-5 py-3">
+              <li key={e.id} className="flex items-start gap-3 px-5 py-2.5 transition-colors duration-200 hover:bg-sunk/40">
                 <span
                   aria-hidden="true"
                   className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-pill bg-sunk ${tone}`}

@@ -17,11 +17,19 @@ import { buildBlocks, type SubjectRow } from "@/lib/bulletin";
 /** Une matière de la classe, avec le droit de saisie de l'utilisateur courant. */
 type ScopedSubject = SubjectRow & { editable?: boolean };
 
-type Entry = { id?: string; value: string; coefficient: string; comment: string };
+/**
+ * ⚠️ `max` — le barème RÉEL de la note.
+ *
+ * Il manquait : `buildPayload` envoyait `max: "20"` en dur. Conséquence
+ * silencieuse — corriger une note saisie sur 10 la réenregistrait sur 20, donc
+ * **divisait par deux le résultat de l'élève** sans que rien ne l'annonce. Le
+ * barème existant est désormais rechargé avec la note et renvoyé tel quel.
+ */
+type Entry = { id?: string; value: string; coefficient: string; comment: string; max: string };
 type EntryMap = Record<string, Record<string, Entry>>;
 type StatusMap = Record<string, string>;
 
-const EMPTY_ENTRY: Entry = { value: "", coefficient: "1", comment: "" };
+const EMPTY_ENTRY: Entry = { value: "", coefficient: "1", comment: "", max: "20" };
 const LOCKED = ["VALIDATED", "SUBMITTED", "APPROVED"];
 
 /** Une note vide n'est pas une note à 0 : on ne garde que ce qui a été réellement saisi. */
@@ -56,11 +64,38 @@ const SELECT =
 const FIELD =
   "w-full border rounded-md px-2 py-1 text-[13px] focus:ring-2 focus:ring-indigo-500 outline-none transition-colors disabled:cursor-not-allowed";
 
-export default function StudentEntryTab({ terms, classes }: { terms: any[]; classes: any[] }) {
+/**
+ * ⚠️ **LES TROIS SÉLECTEURS ARRIVENT DÉJÀ REMPLIS — 22 août 2026.**
+ *
+ * Cet écran ouvrait sur « Choisir… » pour la classe, « — » pour le trimestre et
+ * « — » pour l'évaluation, devant un enseignant dont EduCom connaît pourtant
+ * *les trois*. Trois décisions imposées avant la première note, dont aucune
+ * n'apportait d'information au produit.
+ *
+ * ⚠️ **La résolution est faite CÔTÉ SERVEUR** (`bulletin/page.tsx`) et arrive en
+ * props, pour deux raisons qui ne se contournent pas :
+ *   ① la règle du trimestre courant vit dans `pickCurrentTerm()`
+ *      (`src/lib/terms.ts`), un module qui importe Prisma — donc inaccessible à
+ *      un composant `"use client"`. La réécrire ici en produirait une **quatrième
+ *      copie**, et c'est exactement le bug qui a effacé la moyenne de
+ *      l'établissement le 21 août ;
+ *   ② le périmètre de classes de l'utilisateur est déjà calculé par la page.
+ *
+ * Les sélecteurs restent visibles et libres : consulter une autre période est un
+ * besoin réel. Ce sont des **défauts**, pas un verrouillage.
+ */
+export default function StudentEntryTab({
+  terms, classes, defaults,
+}: {
+  terms: any[];
+  classes: any[];
+  /** Résolus par le serveur. Chaînes vides seulement si la donnée n'existe pas. */
+  defaults?: { classId: string; termId: string; evaluationId: string };
+}) {
   const router = useRouter();
-  const [selectedClass, setSelectedClass] = useState("");
-  const [selectedTerm, setSelectedTerm] = useState("");
-  const [selectedEvaluation, setSelectedEvaluation] = useState("");
+  const [selectedClass, setSelectedClass] = useState(defaults?.classId ?? "");
+  const [selectedTerm, setSelectedTerm] = useState(defaults?.termId ?? "");
+  const [selectedEvaluation, setSelectedEvaluation] = useState(defaults?.evaluationId ?? "");
 
   const [subjects, setSubjects] = useState<ScopedSubject[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -81,6 +116,14 @@ export default function StudentEntryTab({ terms, classes }: { terms: any[]; clas
   const selectedClassObj = classes.find((c) => c.id === selectedClass);
   const ready = Boolean(selectedClass && selectedTerm && selectedEvaluation);
 
+  /**
+   * Filet, pour le seul cas que le serveur ne peut pas trancher : aucun
+   * trimestre n'est daté, donc aucun n'est « courant ».
+   *
+   * ⚠️ Il ne s'exécute QUE si rien n'est déjà choisi — sinon il écraserait le
+   * défaut résolu par le serveur, et pire, la sélection en cours de
+   * l'utilisateur à chaque rendu. C'est le piège `FastEntry`, déjà payé.
+   */
   useEffect(() => {
     if (selectedTerm) return;
     const first = terms.find((t) => (t.evaluations?.length ?? 0) > 0);
@@ -88,6 +131,15 @@ export default function StudentEntryTab({ terms, classes }: { terms: any[]; clas
     setSelectedTerm(first.id);
     setSelectedEvaluation(first.evaluations[0].id);
   }, [terms, selectedTerm]);
+
+  /**
+   * Même filet pour la classe : si l'utilisateur n'en a qu'une, la lui faire
+   * choisir n'est pas une question, c'est une formalité.
+   */
+  useEffect(() => {
+    if (selectedClass || classes.length === 0) return;
+    setSelectedClass(classes[0].id);
+  }, [classes, selectedClass]);
 
   useEffect(() => {
     if (!selectedClass) {
@@ -125,6 +177,7 @@ export default function StudentEntryTab({ terms, classes }: { terms: any[]; clas
           value: String(g.value ?? ""),
           coefficient: String(g.coefficient ?? "1"),
           comment: g.comment ?? "",
+          max: String(g.max && g.max > 0 ? g.max : 20),
         };
       }
       setEntries(map);
@@ -201,7 +254,7 @@ export default function StudentEntryTab({ terms, classes }: { terms: any[]; clas
       .map((s) => {
         const e = entryFor(sid, s.id);
         return {
-          id: e.id, value: e.value, max: "20", coefficient: e.coefficient || "1",
+          id: e.id, value: e.value, max: e.max || "20", coefficient: e.coefficient || "1",
           type: "EXAM", comment: e.comment, studentId: sid, classId: selectedClass,
           subjectId: s.id, termId: selectedTerm, evaluationId: selectedEvaluation,
         };
@@ -277,8 +330,10 @@ export default function StudentEntryTab({ terms, classes }: { terms: any[]; clas
         <div className="p-3 space-y-2.5 border-b border-gray-200">
           <div>
             <label className={LABEL}>Classe</label>
+            {/* ⚠️ Pas d'option vide quand il n'y a qu'une classe : proposer
+                « Choisir… » à qui n'a rien à choisir est une fausse question. */}
             <select className={SELECT} value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}>
-              <option value="">Choisir...</option>
+              {classes.length !== 1 && <option value="">Choisir...</option>}
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>

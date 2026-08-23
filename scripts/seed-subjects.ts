@@ -23,79 +23,35 @@ import { APPLY, resoudreCible } from "./_cible";
 
 
 
-/** Groupes de l'élémentaire : un parent, ses sous-matières notées. */
-const TREE: Record<string, string[]> = {
-  Français: [
-    "Lecture", "Écriture / Graphisme", "Élocution / Expression orale",
-    "Vocabulaire", "Grammaire", "Conjugaison", "Orthographe", "Expression écrite",
-  ],
-  Mathématiques: [
-    "Calcul mental", "Numération / Opérations", "Problèmes", "Géométrie",
-    "Mesures / Système métrique",
-  ],
-  Éveil: ["IST", "Histoire", "Géographie", "Éducation civique et morale"],
-  "Éducation artistique": ["Dessin / Arts plastiques", "Chant / Musique", "Travaux manuels"],
-};
-
-const FLAT = ["Anglais", "Éducation Physique (EPS)", "Arabe", "Espagnol",
-  "Histoire-Géographie", "SVT", "Physique-Chimie", "Philosophie"];
-
 /**
- * Programme réel par niveau. Le CI apprend à lire et à compter : pas de
- * grammaire, pas d'histoire, pas d'anglais. La granularité s'enrichit au fil
- * des niveaux.
+ * ⚠️ **LE PROGRAMME NE VIT PLUS ICI — 22 août 2026.**
+ *
+ * Il a été déplacé dans `src/lib/curriculum.ts`, importé ci-dessous. La raison
+ * est simple : l'application en a besoin. Une école qui s'inscrit doit pouvoir
+ * installer ce programme depuis son navigateur, et non attendre qu'un
+ * développeur lance ce script avec `SCHOOL_ID=` dans son terminal. Deux copies
+ * du programme auraient fini par diverger — celle du script et celle du bouton.
+ *
+ * ⚠️ **Ce script et `applyCurriculum()` restent DEUX comportements distincts, et
+ * il ne faut pas les confondre :**
+ *
+ *   · **ici** — SYNCHRONISATION : ajoute ce qui manque **et retire** ce qui
+ *     n'est pas au programme type (sauf matière notée). Outil de développeur,
+ *     essai à blanc par défaut, établissement nommé obligatoire.
+ *   · **`applyCurriculum()`** — ADDITION seule : ne supprime jamais rien.
+ *     C'est ce que déclenche un bouton dans l'interface, où l'utilisateur ne
+ *     peut pas faire d'essai à blanc et où effacer son travail serait
+ *     inacceptable.
+ *
+ * La liste des matières est commune ; la politique d'écriture ne l'est pas.
  */
-const PROGRAMME: Record<string, string[]> = {
-  CI: [
-    "Lecture", "Écriture / Graphisme", "Élocution / Expression orale",
-    "Calcul mental", "Numération / Opérations",
-    "Dessin / Arts plastiques", "Chant / Musique",
-    "Éducation Physique (EPS)",
-  ],
-  CP: [
-    "Lecture", "Écriture / Graphisme", "Élocution / Expression orale",
-    "Vocabulaire", "Orthographe",
-    "Calcul mental", "Numération / Opérations", "Problèmes",
-    "Dessin / Arts plastiques", "Chant / Musique",
-    "Éducation Physique (EPS)",
-  ],
-  CE1: [
-    "Lecture", "Élocution / Expression orale", "Vocabulaire", "Grammaire",
-    "Conjugaison", "Orthographe",
-    "Calcul mental", "Numération / Opérations", "Problèmes", "Géométrie",
-    "IST",
-    "Dessin / Arts plastiques", "Chant / Musique",
-    "Éducation Physique (EPS)",
-  ],
-  CE2: [
-    "Lecture", "Vocabulaire", "Grammaire", "Conjugaison", "Orthographe",
-    "Expression écrite",
-    "Calcul mental", "Numération / Opérations", "Problèmes", "Géométrie",
-    "Mesures / Système métrique",
-    "IST", "Histoire", "Géographie",
-    "Dessin / Arts plastiques", "Éducation Physique (EPS)",
-  ],
-  CM1: [
-    "Lecture", "Vocabulaire", "Grammaire", "Conjugaison", "Orthographe",
-    "Expression écrite",
-    "Calcul mental", "Numération / Opérations", "Problèmes", "Géométrie",
-    "Mesures / Système métrique",
-    "IST", "Histoire", "Géographie", "Éducation civique et morale",
-    "Anglais", "Éducation Physique (EPS)",
-  ],
-  CM2: [
-    "Lecture", "Vocabulaire", "Grammaire", "Conjugaison", "Orthographe",
-    "Expression écrite",
-    "Calcul mental", "Numération / Opérations", "Problèmes", "Géométrie",
-    "Mesures / Système métrique",
-    "IST", "Histoire", "Géographie", "Éducation civique et morale",
-    "Anglais", "Éducation Physique (EPS)",
-  ],
-};
-
-const COLLEGE = ["Français", "Mathématiques", "Anglais", "Histoire-Géographie",
-  "SVT", "Physique-Chimie", "Éducation Physique (EPS)", "Espagnol", "Arabe"];
-const LYCEE = [...COLLEGE, "Philosophie"];
+import {
+  SUBJECT_TREE as TREE,
+  STANDALONE_SUBJECTS as FLAT,
+  PROGRAMME_BY_CLASS as PROGRAMME,
+  PROGRAMME_COLLEGE as COLLEGE,
+  PROGRAMME_LYCEE as LYCEE,
+} from "../src/lib/curriculum";
 
 async function main() {
   const cible = await resoudreCible("les MATIÈRES d'un établissement (et en supprime)", prisma as never);
@@ -200,4 +156,10 @@ async function main() {
 
 main()
   .catch((e) => { console.error("ÉCHEC :", e.message); process.exit(1); })
-  .finally(async () => { await prisma.$disconnect(); await pool.end(); });
+  // ⚠️ Pas de `pool.end()` ici. Le pool `pg` vit dans `src/lib/prisma.ts`, n'est
+  // pas exporté, et `$disconnect()` le relâche. L'appel qui traînait ici datait
+  // de l'époque où ce script construisait son propre client : il levait
+  // `ReferenceError: pool is not defined` DANS le `finally`, donc APRÈS que les
+  // écritures aient été validées — le script sortait en erreur alors que les
+  // données étaient bien en base. Motif identique à `seed-classes.ts`.
+  .finally(() => prisma.$disconnect());

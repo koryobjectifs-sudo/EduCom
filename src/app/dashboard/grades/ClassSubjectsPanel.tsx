@@ -20,7 +20,14 @@ export default function ClassSubjectsPanel({
   classes: any[];
   subjects: Subject[];
 }) {
-  const [classId, setClassId] = useState("");
+  /**
+   * ⚠️ **La première classe est présélectionnée.** Le panneau ouvrait sur
+   * « Sélectionner une classe… » puis sur un pavé gris « Sélectionnez une classe
+   * pour ajuster son programme » — deux fois la même demande, devant un écran
+   * qui connaît déjà la liste. L'ordre reçu est pédagogique (CI → CM2 → 6ème),
+   * donc le défaut est la première classe affichée, pas une au hasard.
+   */
+  const [classId, setClassId] = useState(classes[0]?.id ?? "");
   const [attached, setAttached] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
@@ -77,7 +84,8 @@ export default function ClassSubjectsPanel({
         onChange={(e) => { setClassId(e.target.value); setError(null); }}
         className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none mb-4"
       >
-        <option value="">Sélectionner une classe...</option>
+        {/* Pas d'option vide quand il n'y a qu'une classe : ce n'est pas un choix. */}
+        {classes.length !== 1 && <option value="">Sélectionner une classe...</option>}
         {classes.map((c) => (
           <option key={c.id} value={c.id}>{c.name}</option>
         ))}

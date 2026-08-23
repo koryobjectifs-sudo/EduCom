@@ -10,7 +10,7 @@ import { ROLE_LABELS, type RoleType } from "@/lib/permissions";
 /** Mêmes rôles attribuables que pour la création directe de compte. */
 const ASSIGNABLE: RoleType[] = ["TEACHER", "SECRETARY", "ACCOUNTANT", "ASSISTANT", "ADMIN"];
 
-export default function TeamInviteForm() {
+export default function TeamInviteForm({ managers }: { managers: any[] }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successLink, setSuccessLink] = useState<string | null>(null);
@@ -60,6 +60,15 @@ export default function TeamInviteForm() {
         {ASSIGNABLE.map((r) => (
           <option key={r} value={r}>
             {ROLE_LABELS[r].label} — {ROLE_LABELS[r].description}
+          </option>
+        ))}
+      </Select>
+
+      <Select label="Responsable hiérarchique" id="managerId" name="managerId" defaultValue="">
+        <option value="">Aucun responsable (au sommet)</option>
+        {managers.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.firstName} {m.lastName} ({ROLE_LABELS[m.role as RoleType]?.label})
           </option>
         ))}
       </Select>

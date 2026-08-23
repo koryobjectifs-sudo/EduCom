@@ -57,6 +57,7 @@ export function PeriodPicker({
 
   const [customFrom, setCustomFrom] = useState(from);
   const [customTo, setCustomTo] = useState(to);
+  const [customMonth, setCustomMonth] = useState(params.get("month") || new Date().toISOString().slice(0, 7)); // YYYY-MM
 
   function go(next: Record<string, string | undefined>) {
     const q = new URLSearchParams(params.toString());
@@ -86,7 +87,7 @@ export function PeriodPicker({
               variant={activeKind === g.kind ? "primary" : "secondary"}
               aria-pressed={activeKind === g.kind}
               disabled={pending}
-              onClick={() => go({ kind: g.kind, termId: undefined, from: undefined, to: undefined })}
+              onClick={() => go({ kind: g.kind, termId: undefined, from: undefined, to: undefined, month: g.kind === "month" ? customMonth : undefined })}
             >
               {g.label}
             </Button>
@@ -99,7 +100,7 @@ export function PeriodPicker({
               variant={activeKind === "term" && termId === t.id ? "primary" : "secondary"}
               aria-pressed={activeKind === "term" && termId === t.id}
               disabled={pending}
-              onClick={() => go({ kind: "term", termId: t.id, from: undefined, to: undefined })}
+              onClick={() => go({ kind: "term", termId: t.id, from: undefined, to: undefined, month: undefined })}
             >
               {t.name}
             </Button>
@@ -110,7 +111,7 @@ export function PeriodPicker({
             variant={activeKind === "custom" ? "primary" : "secondary"}
             aria-pressed={activeKind === "custom"}
             disabled={pending}
-            onClick={() => go({ kind: "custom", termId: undefined, from: customFrom, to: customTo })}
+            onClick={() => go({ kind: "custom", termId: undefined, from: customFrom, to: customTo, month: undefined })}
           >
             Personnalisée
           </Button>
@@ -120,6 +121,23 @@ export function PeriodPicker({
           Affiché : <span className="font-semibold text-text">{activeLabel}</span>
         </p>
       </div>
+
+      {activeKind === "month" && (
+        <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-rule pt-4">
+          <label className="flex flex-col gap-1">
+            <span className="text-role-label font-medium text-text-soft">Mois de l'année</span>
+            <input
+              type="month"
+              value={customMonth}
+              onChange={(e) => {
+                setCustomMonth(e.target.value);
+                go({ kind: "month", month: e.target.value, termId: undefined, from: undefined, to: undefined });
+              }}
+              className="h-10 rounded-control border border-rule bg-surface px-3 text-role-body text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </label>
+        </div>
+      )}
 
       {activeKind === "custom" && (
         <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-rule pt-4">
@@ -144,7 +162,7 @@ export function PeriodPicker({
           <Button
             size="md"
             loading={pending}
-            onClick={() => go({ kind: "custom", from: customFrom, to: customTo, termId: undefined })}
+            onClick={() => go({ kind: "custom", from: customFrom, to: customTo, termId: undefined, month: undefined })}
           >
             Appliquer
           </Button>

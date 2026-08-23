@@ -145,7 +145,10 @@ main()
     console.error("ÉCHEC :", e.message);
     process.exit(1);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
-    await pool.end();
-  });
+  // ⚠️ Pas de `pool.end()` ici. Le pool `pg` vit dans `src/lib/prisma.ts`, n'est
+  // pas exporté, et `$disconnect()` le relâche. L'appel qui traînait ici datait
+  // de l'époque où ce script construisait son propre client : il levait
+  // `ReferenceError: pool is not defined` DANS le `finally`, donc APRÈS que les
+  // écritures aient été validées — le script sortait en erreur alors que les
+  // données étaient bien en base. Motif identique à `seed-classes.ts`.
+  .finally(() => prisma.$disconnect());

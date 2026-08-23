@@ -8,6 +8,7 @@ import { resolvePeriod, toDateInput } from "@/lib/finance";
 import { buildReport } from "@/lib/reports";
 import { PeriodPicker } from "../payments/_finance/PeriodPicker";
 import { SectionBlock, ComparisonNotice, GroupBlock, NotificationBanner } from "./ReportSections";
+import { DepartmentFilter } from "./DepartmentFilter";
 
 const PATH = "/dashboard/reports";
 
@@ -43,7 +44,7 @@ const PATH = "/dashboard/reports";
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string; from?: string; to?: string; termId?: string }>;
+  searchParams: Promise<{ kind?: string; from?: string; to?: string; termId?: string; dept?: string }>;
 }) {
   const { user, schoolId } = await requireSchoolContext();
   if (!hasAccess(user.role, PATH)) redirect(firstAllowedPath(user.role));
@@ -92,8 +93,22 @@ export default async function ReportsPage({
 
       <ComparisonNotice label={report.comparisonLabel} />
 
-      {/* Résumé global — direction uniquement. */}
-      {report.summary && <SectionBlock section={report.summary} comparable={report.comparable} />}
+      {/* Résumé global — direction uniquement. Toujours affiché sauf si on filtre strictement sur un département. */}
+      {(!params.dept || params.dept === "ALL") && report.summary && (
+        <SectionBlock section={report.summary} comparable={report.comparable} />
+      )}
+
+      {/* Filtre par département (si plus d'un groupe disponible) */}
+      {report.groups.length > 1 && (
+        <div className="flex justify-end mb-6">
+          <div className="w-full sm:w-64">
+            <DepartmentFilter 
+              groups={report.groups.map(g => ({ id: g.id, title: g.title }))} 
+              currentDept={params.dept || "ALL"} 
+            />
+          </div>
+        </div>
+      )}
 
       {/*
         Lot 12.1 — un employé ne reçoit qu'un groupe, et les autres ne sont pas
@@ -102,9 +117,11 @@ export default async function ReportsPage({
         enseignant par un simple « afficher la source ».
       */}
       <div className="space-y-10">
-        {report.groups.map((group) => (
-          <GroupBlock key={group.id} group={group} comparable={report.comparable} />
-        ))}
+        {report.groups
+          .filter(group => !params.dept || params.dept === "ALL" || group.id === params.dept)
+          .map((group) => (
+            <GroupBlock key={group.id} group={group} comparable={report.comparable} />
+          ))}
       </div>
     </div>
   );

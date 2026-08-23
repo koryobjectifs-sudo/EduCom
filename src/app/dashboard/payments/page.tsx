@@ -41,7 +41,7 @@ export default async function PaymentsPage() {
   const canIssue = hasAccess(user.role, "/dashboard/payments/new");
 
   const overview = await invoiceOverview(ctx);
-  const { invoices, collected, collectedCount, outstanding, overdue, overdueCount, pendingCount } = overview;
+  const { invoices, collected, collectedCount, outstanding, forecast, overdue, overdueCount, pendingCount } = overview;
 
   return (
     <div className="space-y-6 pb-10">
@@ -95,7 +95,20 @@ export default async function PaymentsPage() {
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <p className="text-role-meta font-semibold uppercase tracking-wide text-text-faint">
+            Prévisionnel
+          </p>
+          <p className="mt-2 text-role-page font-semibold tabular-nums text-text">
+            {formatAmount(forecast)}
+            <span className="ml-1.5 text-role-body font-medium text-text-faint">FCFA</span>
+          </p>
+          <p className="mt-1 text-role-meta text-text-soft">
+            Total des scolarités
+          </p>
+        </Card>
+
         <Card>
           <p className="text-role-meta font-semibold uppercase tracking-wide text-text-faint">
             Total encaissé
@@ -104,12 +117,8 @@ export default async function PaymentsPage() {
             {formatAmount(collected)}
             <span className="ml-1.5 text-role-body font-medium text-text-faint">FCFA</span>
           </p>
-          {/* Le compte porte sur les VERSEMENTS, pas sur les factures : c'est ce
-              que mesure le montant au-dessus. Compter des factures réglées à
-              côté d'une somme de paiements laissait croire à un lien qui
-              n'existe pas — deux factures à 0 FCFA ont reçu 110 000. */}
           <p className="mt-1 text-role-meta text-success">
-            {collectedCount} versement{collectedCount > 1 ? "s" : ""} enregistré{collectedCount > 1 ? "s" : ""}
+            {collectedCount} versement{collectedCount > 1 ? "s" : ""}
           </p>
         </Card>
 
@@ -122,7 +131,7 @@ export default async function PaymentsPage() {
             <span className="ml-1.5 text-role-body font-medium text-text-faint">FCFA</span>
           </p>
           <p className="mt-1 text-role-meta text-warning">
-            {pendingCount} en attente · {overdueCount} en retard
+            {pendingCount} en attente
           </p>
         </Card>
 
@@ -143,7 +152,7 @@ export default async function PaymentsPage() {
         </Card>
       </div>
 
-      <PaymentsListClient invoices={invoices} canCollect={canIssue} />
+      <PaymentsListClient invoices={invoices} canCollect={canIssue} expectedDetails={overview.expectedDetails} />
     </div>
   );
 }

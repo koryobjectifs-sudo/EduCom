@@ -54,6 +54,19 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
     "/dashboard$",
     "/dashboard/students",
     "/dashboard/classes",
+    /**
+     * ⚠️ RÉGRESSION CORRIGÉE (22 août 2026). L'« Annuaire »
+     * (`/dashboard/directory`) a REMPLACÉ les rubriques « Élèves » et
+     * « Classes » dans la navigation, mais cette table n'a pas suivi :
+     * l'écran principal du secrétariat était devenu invisible à tout le monde
+     * sauf à la direction, alors que ces rôles gardaient l'accès aux mêmes
+     * données par `/dashboard/students`.
+     *
+     * Cette ligne ne donne donc AUCUN droit nouveau — elle rétablit l'accès à
+     * une vue fusionnée de ce qui est déjà autorisé juste en dessous. La portée
+     * des données reste bornée par `studentScope()` et le périmètre de classes.
+     */
+    "/dashboard/directory",
     "/dashboard/grades",
     "/dashboard/communications",
 
@@ -108,9 +121,31 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
     "/dashboard$",
     "/dashboard/students",
     "/dashboard/classes",
+    "/dashboard/directory",
     "/dashboard/communications",
     "/dashboard/documents",
     "/dashboard/team",
+
+    /**
+     * ═══ Configuration pédagogique (22 août 2026) ═══
+     *
+     * ⚠️ **Ce chemin est plus précis que `/dashboard/settings`, et c'est tout
+     * l'enjeu.** `hasAccess()` compare par préfixe : autoriser
+     * `/dashboard/settings/pedagogie` n'ouvre PAS `/dashboard/settings`, qui
+     * porte le nom, le logo, le cachet et la signature de l'établissement et
+     * reste réservé à la direction. Le secrétariat obtient exactement une
+     * chose : le calendrier scolaire, le programme et les affectations.
+     *
+     * Pourquoi lui : Kory l'a posé en toutes lettres — « si une directrice ou
+     * secrétaire modifie une date d'évaluation ». C'est le secrétariat qui
+     * tient le calendrier au quotidien ; l'en fermer dehors obligerait à
+     * déranger la direction pour déplacer un contrôle.
+     *
+     * Pourquoi pas l'enseignant : déplacer une composition ou repondérer une
+     * matière change le bulletin de toute une classe, et le sien n'est qu'un
+     * point de vue parmi d'autres. Il garde la saisie, pas le cadre.
+     */
+    "/dashboard/settings/pedagogie",
 
     // Lot 12 — le secrétariat a son rapport : dossiers élèves, demandes de
     // documents, bulletins à relire, communications. Aucune section financière.
@@ -120,6 +155,7 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
   ASSISTANT: [
     "/dashboard$",
     "/dashboard/students",
+    "/dashboard/directory",
     "/dashboard/documents",
     "/dashboard/communications",
     "/dashboard/reports",
@@ -163,6 +199,29 @@ export const ROLE_DENIALS: Partial<Record<RoleType, string[]>> = {
     "/dashboard/documents/invoice",
     "/dashboard/documents/receipt",
     "/dashboard/documents/reminder",
+
+    // ═══ 22 août 2026 — LES CINQ GÉNÉRATEURS OUBLIÉS ═══
+    //
+    // ⚠️ **Fuite mesurée, pas théorique.** Les quatre refus ci-dessus ont été
+    // posés aux lots 11.1 et 12.2 ; **cinq écrans de la même famille y ont
+    // échappé**, et aucun d'eux ne portait de garde de chemin non plus. Un
+    // parent authentifié qui tapait `/dashboard/documents/report-card` lisait
+    // donc **les bulletins de tous les élèves de l'établissement** — notes,
+    // moyennes, rangs, appréciations du conseil.
+    //
+    // Même raison que pour les factures : ce sont des outils d'ÉMISSION. Ils
+    // chargent l'intégralité des élèves ou des classes de l'école, et les
+    // filtrer par famille n'aurait aucun sens — un parent ne produit pas les
+    // bulletins de l'établissement, il reçoit ceux de ses enfants.
+    //
+    // ⚠️ Ce refus ne suffit PAS à lui seul : `hasAccess()` ne protège que ce
+    // qui l'appelle, et ces cinq pages ne l'appelaient pas. Chacune reçoit
+    // aussi sa garde (`redirect`). Les deux sont nécessaires.
+    "/dashboard/documents/report-card",
+    "/dashboard/documents/certificate",
+    "/dashboard/documents/info-sheet",
+    "/dashboard/documents/timetable",
+    "/dashboard/documents/drafts",
 
     // ═══ Lot 15 — gestion du centre documentaire ═══
     //

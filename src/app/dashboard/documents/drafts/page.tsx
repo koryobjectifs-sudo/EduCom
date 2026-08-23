@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { requireSchoolContext } from "@/lib/documentContext";
+import { requirePathAccess } from "@/lib/documentContext";
 import DraftsList from "./DraftsList";
 
 export const metadata = {
@@ -12,7 +12,7 @@ export default async function DraftsPage() {
   // identifiants de brouillons en noms — et les transmettait au client.
   // Quatrième fuite de ce type dans le projet, après le tableau de bord et les
   // rapports (lot 00), l'annuaire des élèves et les sondages (lot 07).
-  const { schoolId } = await requireSchoolContext();
+  const { schoolId } = await requirePathAccess("/dashboard/documents/drafts");
 
   const students = await prisma.student.findMany({
     where: { schoolId },

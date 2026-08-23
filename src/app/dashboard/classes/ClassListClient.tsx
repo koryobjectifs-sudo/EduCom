@@ -14,13 +14,11 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { useRouter } from "next/navigation";
 import { deleteClass, createClassInline, generateDefaultClasses } from "./actions";
 
-export default function ClassListClient({ classes, teachers }: { classes: any[], teachers: any[] }) {
+export default function ClassListClient({ classes, teachers, searchTerm }: { classes: any[], teachers: any[], searchTerm: string }) {
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState("");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [classToDelete, setClassToDelete] = useState<string | null>(null);
   const [selectedCycle, setSelectedCycle] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -65,25 +63,6 @@ export default function ClassListClient({ classes, teachers }: { classes: any[],
     router.refresh();
   };
 
-  const handleCreateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    const formData = new FormData(e.currentTarget);
-    if (selectedCycle) {
-      formData.append("cycle", selectedCycle);
-    }
-    
-    startTransition(async () => {
-      const res = await createClassInline(formData);
-      if (res.error) {
-        setError(res.error);
-      } else {
-        setIsCreating(false);
-        router.refresh();
-      }
-    });
-  };
-
   const handleGenerateDefaults = async () => {
     startTransition(async () => {
       const res = await generateDefaultClasses();
@@ -97,37 +76,6 @@ export default function ClassListClient({ classes, teachers }: { classes: any[],
 
   return (
     <div className="space-y-6">
-      {/* Barre d'outils */}
-      <Card>
-        <div className="flex flex-col gap-3 md:flex-row md:items-end">
-          <Input
-            label="Rechercher"
-            type="search"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={selectedCycle ? "Rechercher dans ce cycle…" : "Nom de classe ou de professeur…"}
-            className="flex-1"
-          />
-          <div className="flex items-center gap-2">
-            {selectedCycle && (
-              <Button
-                variant="secondary"
-                onClick={() => setSelectedCycle(null)}
-                icon={<ArrowLeft aria-hidden="true" className="h-4 w-4" />}
-              >
-                Tous les cycles
-              </Button>
-            )}
-            <Button
-              onClick={() => setIsCreating(true)}
-              icon={<Plus aria-hidden="true" className="h-4 w-4" />}
-            >
-              Nouvelle classe
-            </Button>
-          </div>
-        </div>
-      </Card>
-
       {/* Cycle Selection Grid */}
       {!selectedCycle && !searchTerm && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -186,8 +134,8 @@ export default function ClassListClient({ classes, teachers }: { classes: any[],
                 }
                 action={
                   searchTerm
-                    ? { label: "Effacer la recherche", onClick: () => setSearchTerm("") }
-                    : { label: "Ajouter une classe", onClick: () => setIsCreating(true) }
+                    ? undefined
+                    : undefined
                 }
               />
               {!searchTerm && (
@@ -303,47 +251,6 @@ export default function ClassListClient({ classes, teachers }: { classes: any[],
         }
       >
         Êtes-vous sûr de vouloir supprimer cette classe ? Cette action est irréversible et supprimera les inscriptions associées.
-      </Modal>
-
-      {/* Create Class Modal */}
-      <Modal
-        open={isCreating}
-        onClose={() => setIsCreating(false)}
-        title="Nouvelle Classe"
-        dismissible={!isPending}
-      >
-        {/* Le formulaire reste entier ici, boutons compris : les placer dans le
-            `footer` de la modale les sortirait du <form> et casserait l'envoi. */}
-        <form onSubmit={handleCreateSubmit} className="space-y-6">
-          <Input
-            label="Nom de la classe"
-            required
-            type="text"
-            name="name"
-            id="name"
-            placeholder="Ex: CP, CE1, 6ème A..."
-          />
-
-          <Select label="Professeur Principal" name="teacherId" id="teacherId">
-            <option value="">Aucun professeur assigné</option>
-            {teachers.map(t => (
-              <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>
-            ))}
-          </Select>
-
-          {error && (
-            <p className="text-role-body text-danger font-medium bg-danger/10 p-4 rounded-control">{error}</p>
-          )}
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setIsCreating(false)} disabled={isPending}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={isPending} icon={<Save aria-hidden="true" className="w-4 h-4" />}>
-              Enregistrer
-            </Button>
-          </div>
-        </form>
       </Modal>
     </div>
   );

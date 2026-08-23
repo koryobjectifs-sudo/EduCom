@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Plus, Check, X, Trash2, Power } from "lucide-react";
+import { Plus, Check, X, Trash2, Power, Save } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge, StatusBadge } from "@/components/ui/Badge";
@@ -10,17 +10,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { formatAmount } from "@/lib/moneyFormat";
 import { FEE_KIND_LABELS, FEE_CADENCE_LABELS } from "@/lib/feesLabels";
 import {
-  createSchedule, activateSchedule, upsertFeeItem, deleteFeeItem, decideFeeChange,
+  createSchedule, activateSchedule, upsertFeeItem, deleteFeeItem, decideFeeChange, upsertBatchFeeItems,
 } from "./actions";
-
-/**
- * Gestion de la grille tarifaire — lot 12.1.
- *
- * ⚠️ Aucun contrôle de permission ici : cet écran n'est atteignable que par
- * `/dashboard/settings`, gardé côté serveur, et **chaque action revérifie le
- * chemin** de son côté. Un composant client ne décide jamais d'un droit — il
- * serait contournable par un appel direct à la server action.
- */
 
 type Schedule = { id: string; label: string; academicYear: string; status: string; itemCount: number };
 type Item = {
@@ -46,7 +37,7 @@ export function FeesClient({
   const [newLabel, setNewLabel] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [draft, setDraft] = useState({
-    kind: "TUITION", label: "", amount: "", cadence: "ANNUAL",
+    kind: "OTHER", label: "", amount: "", cadence: "ANNUAL",
     mandatory: true, scope: "school" as "school" | "class" | "cycle", classId: "", cycle: "ELEMENTAIRE",
   });
   const [refusal, setRefusal] = useState<Record<string, string>>({});
@@ -61,9 +52,14 @@ export function FeesClient({
   const pendingRequests = requests.filter((r) => r.status === "SUBMITTED");
   const decidedRequests = requests.filter((r) => r.status !== "SUBMITTED");
 
+  const classesByCycle: Record<string, ClassRow[]> = {};
+  CYCLES.forEach(cycle => {
+    const cycleClasses = classes.filter(c => c.cycle === cycle);
+    if (cycleClasses.length > 0) classesByCycle[cycle] = cycleClasses;
+  });
+
   return (
     <div className="space-y-6">
-      {/* ── Forecast : la conséquence directe de la grille ── */}
       <Card
         title="Attendu annuel calculé"
         description="Recalculé à chaque modification de la grille — aucune copie n'est stockée."
@@ -87,7 +83,6 @@ export function FeesClient({
         )}
       </Card>
 
-      {/* ── Demandes en attente ── */}
       {pendingRequests.length > 0 && (
         <Card title="Demandes de modification en attente" description="Le gestionnaire propose ; vous décidez.">
           <ul className="space-y-3">
@@ -99,13 +94,8 @@ export function FeesClient({
                   <span className="tabular-nums">{formatAmount(r.proposedAmount)}</span> FCFA
                 </p>
                 <p className="mt-1 text-role-meta text-text-soft">Motif : {r.reason}</p>
-
                 <div className="mt-3 flex flex-wrap items-end gap-2">
-                  <Button
-                    size="sm"
-                    loading={pending}
-                    onClick={() => run(() => decideFeeChange({ id: r.id, accept: true }), "Grille modifiée.")}
-                  >
+                  <Button size="sm" loading={pending} onClick={() => run(() => decideFeeChange({ id: r.id, accept: true }), "Grille modifiée.")}>
                     <Check aria-hidden="true" className="h-4 w-4" /> Accepter
                   </Button>
                   <label className="flex flex-col gap-1">
@@ -116,14 +106,7 @@ export function FeesClient({
                       className="h-9 w-64 rounded-control border border-rule bg-surface px-3 text-role-body text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
                   </label>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    loading={pending}
-                    onClick={() =>
-                      run(() => decideFeeChange({ id: r.id, accept: false, comment: refusal[r.id] }), "Demande refusée.")
-                    }
-                  >
+                  <Button size="sm" variant="secondary" loading={pending} onClick={() => run(() => decideFeeChange({ id: r.id, accept: false, comment: refusal[r.id] }), "Demande refusée.")}>
                     <X aria-hidden="true" className="h-4 w-4" /> Refuser
                   </Button>
                 </div>
@@ -133,7 +116,6 @@ export function FeesClient({
         </Card>
       )}
 
-      {/* ── Grilles ── */}
       <Card
         title="Grilles tarifaires"
         actions={
@@ -146,27 +128,15 @@ export function FeesClient({
           <div className="mb-4 flex flex-wrap items-end gap-3 rounded-control border border-rule bg-ground p-3">
             <label className="flex flex-col gap-1">
               <span className="text-role-meta text-text-soft">Année scolaire</span>
-              <input
-                value={newYear} onChange={(e) => setNewYear(e.target.value)} placeholder="2025-2026"
-                className="h-9 w-40 rounded-control border border-rule bg-surface px-3 text-role-body text-text"
-              />
+              <input value={newYear} onChange={(e) => setNewYear(e.target.value)} placeholder="2025-2026" className="h-9 w-40 rounded-control border border-rule bg-surface px-3 text-role-body text-text" />
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-role-meta text-text-soft">Libellé</span>
-              <input
-                value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Grille officielle"
-                className="h-9 w-64 rounded-control border border-rule bg-surface px-3 text-role-body text-text"
-              />
+              <input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Grille officielle" className="h-9 w-64 rounded-control border border-rule bg-surface px-3 text-role-body text-text" />
             </label>
-            <Button
-              size="sm" loading={pending}
-              onClick={() => run(() => createSchedule({ academicYear: newYear, label: newLabel }), "Grille créée.")}
-            >
-              Créer
-            </Button>
+            <Button size="sm" loading={pending} onClick={() => run(() => createSchedule({ academicYear: newYear, label: newLabel }), "Grille créée.")}>Créer</Button>
           </div>
         )}
-
         {schedules.length === 0 ? (
           <EmptyState size="sm" title="Aucune grille" description="Créez-en une pour commencer." />
         ) : (
@@ -179,10 +149,7 @@ export function FeesClient({
                   {s.status === "ACTIVE" ? "Officielle" : s.status === "DRAFT" ? "Brouillon" : "Archivée"}
                 </Badge>
                 {s.status !== "ACTIVE" && (
-                  <Button
-                    size="sm" variant="secondary" className="ml-auto" loading={pending}
-                    onClick={() => run(() => activateSchedule(s.id), "Grille rendue officielle.")}
-                  >
+                  <Button size="sm" variant="secondary" className="ml-auto" loading={pending} onClick={() => run(() => activateSchedule(s.id), "Grille rendue officielle.")}>
                     <Power aria-hidden="true" className="h-4 w-4" /> Rendre officielle
                   </Button>
                 )}
@@ -192,126 +159,185 @@ export function FeesClient({
         )}
       </Card>
 
-      {/* ── Lignes de la grille active ── */}
       {activeId && (
-        <Card title="Lignes de la grille officielle" description="Un frais facultatif n'entre pas dans le forecast.">
-          <ul className="space-y-2">
-            {items.map((i) => (
-              <li key={i.id} className="flex flex-wrap items-center gap-3 rounded-control border border-rule px-3 py-2">
-                <span className="font-medium text-text">{i.label}</span>
-                <Badge size="sm">{FEE_KIND_LABELS[i.kind as keyof typeof FEE_KIND_LABELS] ?? i.kind}</Badge>
-                <span className="tabular-nums text-text">{formatAmount(i.amount)} FCFA</span>
-                <span className="text-role-meta text-text-soft">
-                  {FEE_CADENCE_LABELS[i.cadence as keyof typeof FEE_CADENCE_LABELS] ?? i.cadence}
-                  {i.className ? ` · ${i.className}` : i.cycle ? ` · ${i.cycle}` : " · tout l'établissement"}
-                  {!i.mandatory && " · facultatif"}
-                </span>
-                <Button
-                  size="sm" variant="ghost" className="ml-auto" loading={pending}
-                  onClick={() => run(() => deleteFeeItem(i.id), "Ligne supprimée.")}
-                >
-                  <Trash2 aria-hidden="true" className="h-4 w-4" />
-                </Button>
-              </li>
-            ))}
-          </ul>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card title="Scolarité par classe" description="Définissez les frais de scolarité pour chaque classe.">
+              <form action={async (formData) => {
+                const batch: Parameters<typeof upsertBatchFeeItems>[1] = [];
+                for (const c of classes) {
+                  const val = formData.get(`class_${c.id}`)?.toString();
+                  if (val && !isNaN(Number(val))) {
+                    batch.push({
+                      id: items.find(i => i.kind === "TUITION" && i.classId === c.id)?.id,
+                      kind: "TUITION" as never, label: "Scolarité", amount: Number(val), cadence: "MONTHLY" as never, 
+                      mandatory: true, classId: c.id, cycle: null
+                    });
+                  }
+                }
+                start(async () => {
+                  const r = await upsertBatchFeeItems(activeId, batch);
+                  if (r.error) toast.error(r.error);
+                  else toast.success(`${r.count} scolarités mises à jour.`);
+                });
+              }}>
+                <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
+                  {Object.entries(classesByCycle).map(([cycle, cycleClasses]) => (
+                    <div key={cycle}>
+                      <h4 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">{cycle}</h4>
+                      <div className="space-y-2">
+                        {cycleClasses.map((c) => {
+                          const currentTuition = items.find(i => i.kind === "TUITION" && i.classId === c.id);
+                          return (
+                            <div key={c.id} className="flex flex-wrap items-center justify-between gap-4 p-2 rounded-control border border-rule/50 hover:bg-sunk/50 transition-colors">
+                              <span className="font-medium text-text">{c.name}</span>
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  name={`class_${c.id}`}
+                                  defaultValue={currentTuition?.amount}
+                                  placeholder="0"
+                                  min="0"
+                                  className="h-9 w-32 sm:w-40 rounded-control border border-rule bg-surface px-3 pr-12 text-right tabular-nums text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-faint pointer-events-none">FCFA</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-6 pt-4 border-t border-rule flex justify-end">
+                  <Button type="submit" loading={pending}><Save className="w-4 h-4 mr-2" /> Enregistrer les scolarités</Button>
+                </div>
+              </form>
+            </Card>
 
-          {/* Ajout d'une ligne */}
-          <div className="mt-4 flex flex-wrap items-end gap-3 rounded-control border border-rule bg-ground p-3">
-            <label className="flex flex-col gap-1">
-              <span className="text-role-meta text-text-soft">Nature</span>
-              <select
-                value={draft.kind} onChange={(e) => setDraft({ ...draft, kind: e.target.value })}
-                className="h-9 rounded-control border border-rule bg-surface px-2 text-role-body text-text"
-              >
-                {Object.entries(FEE_KIND_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-role-meta text-text-soft">Libellé</span>
-              <input
-                value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-                className="h-9 w-48 rounded-control border border-rule bg-surface px-3 text-role-body text-text"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-role-meta text-text-soft">Montant (FCFA)</span>
-              <input
-                type="number" min="0" value={draft.amount}
-                onChange={(e) => setDraft({ ...draft, amount: e.target.value })}
-                className="h-9 w-36 rounded-control border border-rule bg-surface px-3 text-role-body tabular-nums text-text"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-role-meta text-text-soft">Cadence</span>
-              <select
-                value={draft.cadence} onChange={(e) => setDraft({ ...draft, cadence: e.target.value })}
-                className="h-9 rounded-control border border-rule bg-surface px-2 text-role-body text-text"
-              >
-                {Object.entries(FEE_CADENCE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-role-meta text-text-soft">Portée</span>
-              <select
-                value={draft.scope}
-                onChange={(e) => setDraft({ ...draft, scope: e.target.value as typeof draft.scope })}
-                className="h-9 rounded-control border border-rule bg-surface px-2 text-role-body text-text"
-              >
-                <option value="school">Tout l&apos;établissement</option>
-                <option value="cycle">Un cycle</option>
-                <option value="class">Une classe</option>
-              </select>
-            </label>
-            {draft.scope === "class" && (
-              <select
-                value={draft.classId} onChange={(e) => setDraft({ ...draft, classId: e.target.value })}
-                className="h-9 rounded-control border border-rule bg-surface px-2 text-role-body text-text"
-              >
-                <option value="">— choisir —</option>
-                {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            )}
-            {draft.scope === "cycle" && (
-              <select
-                value={draft.cycle} onChange={(e) => setDraft({ ...draft, cycle: e.target.value })}
-                className="h-9 rounded-control border border-rule bg-surface px-2 text-role-body text-text"
-              >
-                {CYCLES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            )}
-            <label className="flex items-center gap-2 pb-2">
-              <input
-                type="checkbox" checked={draft.mandatory}
-                onChange={(e) => setDraft({ ...draft, mandatory: e.target.checked })}
-              />
-              <span className="text-role-meta text-text-soft">Obligatoire</span>
-            </label>
-            <Button
-              size="sm" loading={pending}
-              onClick={() =>
-                run(
-                  () => upsertFeeItem({
-                    scheduleId: activeId,
-                    kind: draft.kind as never,
-                    label: draft.label,
-                    amount: Number(draft.amount),
-                    cadence: draft.cadence as never,
-                    mandatory: draft.mandatory,
-                    classId: draft.scope === "class" ? draft.classId : null,
-                    cycle: draft.scope === "cycle" ? (draft.cycle as never) : null,
-                  }),
-                  "Ligne enregistrée.",
-                )
-              }
-            >
-              <Plus aria-hidden="true" className="h-4 w-4" /> Ajouter
-            </Button>
+            <Card title="Frais généraux (Tout l'établissement)" description="Ces frais s'appliqueront à tous les élèves par défaut.">
+              <form action={async (formData) => {
+                const batch: Parameters<typeof upsertBatchFeeItems>[1] = [];
+                const add = (kind: any, label: string, cadence: any, mandatory: boolean) => {
+                  const val = formData.get(kind)?.toString();
+                  if (val && !isNaN(Number(val))) {
+                    batch.push({
+                      id: items.find(i => i.kind === kind && !i.classId && !i.cycle)?.id,
+                      kind, label, amount: Number(val), cadence, mandatory, classId: null, cycle: null
+                    });
+                  }
+                };
+                add("REGISTRATION", "Frais d'inscription", "ONE_OFF", true);
+                add("INSURANCE", "Assurance", "ANNUAL", true);
+                add("CANTEEN", "Cantine", "MONTHLY", false);
+                add("TRANSPORT", "Transport", "MONTHLY", false);
+                start(async () => {
+                  const r = await upsertBatchFeeItems(activeId, batch);
+                  if (r.error) toast.error(r.error);
+                  else toast.success(`${r.count} frais généraux mis à jour.`);
+                });
+              }}>
+                <div className="space-y-4">
+                  {[
+                    { key: "REGISTRATION", label: "Frais d'inscription", cadence: "Une fois", mandatory: true },
+                    { key: "INSURANCE", label: "Assurance", cadence: "Annuel", mandatory: true },
+                    { key: "CANTEEN", label: "Cantine", cadence: "Mensuel", mandatory: false },
+                    { key: "TRANSPORT", label: "Transport", cadence: "Mensuel", mandatory: false },
+                  ].map(fee => {
+                    const current = items.find(i => i.kind === fee.key && !i.classId && !i.cycle);
+                    return (
+                      <div key={fee.key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-control border border-rule bg-ground">
+                        <div>
+                          <p className="font-medium text-text">{fee.label}</p>
+                          <p className="text-xs text-text-soft">{fee.cadence} {!fee.mandatory && "· Facultatif"}</p>
+                        </div>
+                        <div className="relative">
+                          <input type="number" name={fee.key} defaultValue={current?.amount} placeholder="0" min="0" className="h-9 w-32 sm:w-40 rounded-control border border-rule bg-surface px-3 pr-12 text-right tabular-nums text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-faint pointer-events-none">FCFA</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-6 pt-4 border-t border-rule flex justify-end">
+                  <Button type="submit" loading={pending} variant="secondary"><Save className="w-4 h-4 mr-2" /> Enregistrer les frais</Button>
+                </div>
+              </form>
+            </Card>
           </div>
-        </Card>
+
+          <Card title="Frais spécifiques & Autres lignes" description="Consultez la grille complète et ajoutez des frais particuliers (examens, tenues, etc.).">
+            <ul className="space-y-2 max-h-64 overflow-y-auto">
+              {items.map((i) => (
+                <li key={i.id} className="flex flex-wrap items-center gap-3 rounded-control border border-rule px-3 py-2">
+                  <span className="font-medium text-text">{i.label}</span>
+                  <Badge size="sm">{FEE_KIND_LABELS[i.kind as keyof typeof FEE_KIND_LABELS] ?? i.kind}</Badge>
+                  <span className="tabular-nums text-text">{formatAmount(i.amount)} FCFA</span>
+                  <span className="text-role-meta text-text-soft">
+                    {FEE_CADENCE_LABELS[i.cadence as keyof typeof FEE_CADENCE_LABELS] ?? i.cadence}
+                    {i.className ? ` · ${i.className}` : i.cycle ? ` · ${i.cycle}` : " · tout l'établissement"}
+                    {!i.mandatory && " · facultatif"}
+                  </span>
+                  <Button size="sm" variant="ghost" className="ml-auto" loading={pending} onClick={() => run(() => deleteFeeItem(i.id), "Ligne supprimée.")}>
+                    <Trash2 aria-hidden="true" className="h-4 w-4" />
+                  </Button>
+                </li>
+              ))}
+              {items.length === 0 && <p className="text-sm text-text-soft py-2">Aucun frais configuré.</p>}
+            </ul>
+
+            <div className="mt-4 flex flex-wrap items-end gap-3 rounded-control border border-rule bg-ground p-3">
+              <label className="flex flex-col gap-1">
+                <span className="text-role-meta text-text-soft">Nature</span>
+                <select value={draft.kind} onChange={(e) => setDraft({ ...draft, kind: e.target.value })} className="h-9 rounded-control border border-rule bg-surface px-2 text-role-body text-text">
+                  {Object.entries(FEE_KIND_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-role-meta text-text-soft">Libellé</span>
+                <input value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} className="h-9 w-48 rounded-control border border-rule bg-surface px-3 text-role-body text-text" />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-role-meta text-text-soft">Montant (FCFA)</span>
+                <input type="number" min="0" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} className="h-9 w-36 rounded-control border border-rule bg-surface px-3 text-role-body tabular-nums text-text" />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-role-meta text-text-soft">Cadence</span>
+                <select value={draft.cadence} onChange={(e) => setDraft({ ...draft, cadence: e.target.value })} className="h-9 rounded-control border border-rule bg-surface px-2 text-role-body text-text">
+                  {Object.entries(FEE_CADENCE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-role-meta text-text-soft">Portée</span>
+                <select value={draft.scope} onChange={(e) => setDraft({ ...draft, scope: e.target.value as typeof draft.scope })} className="h-9 rounded-control border border-rule bg-surface px-2 text-role-body text-text">
+                  <option value="school">Tout l&apos;établissement</option>
+                  <option value="cycle">Un cycle</option>
+                  <option value="class">Une classe</option>
+                </select>
+              </label>
+              {draft.scope === "class" && (
+                <select value={draft.classId} onChange={(e) => setDraft({ ...draft, classId: e.target.value })} className="h-9 rounded-control border border-rule bg-surface px-2 text-role-body text-text">
+                  <option value="">— choisir —</option>
+                  {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              )}
+              {draft.scope === "cycle" && (
+                <select value={draft.cycle} onChange={(e) => setDraft({ ...draft, cycle: e.target.value })} className="h-9 rounded-control border border-rule bg-surface px-2 text-role-body text-text">
+                  {CYCLES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              )}
+              <label className="flex items-center gap-2 pb-2">
+                <input type="checkbox" checked={draft.mandatory} onChange={(e) => setDraft({ ...draft, mandatory: e.target.checked })} />
+                <span className="text-role-meta text-text-soft">Obligatoire</span>
+              </label>
+              <Button size="sm" loading={pending} onClick={() => run(() => upsertFeeItem({ scheduleId: activeId, kind: draft.kind as never, label: draft.label || FEE_KIND_LABELS[draft.kind as keyof typeof FEE_KIND_LABELS], amount: Number(draft.amount), cadence: draft.cadence as never, mandatory: draft.mandatory, classId: draft.scope === "class" ? draft.classId : null, cycle: draft.scope === "cycle" ? (draft.cycle as never) : null }), "Ligne enregistrée.")}>
+                <Plus aria-hidden="true" className="h-4 w-4" /> Ajouter
+              </Button>
+            </div>
+          </Card>
+        </div>
       )}
 
-      {/* ── Historique des décisions ── */}
       {decidedRequests.length > 0 && (
         <Card title="Décisions passées" description="Une demande refusée reste consultable — refuser n'efface pas ce qui a été demandé.">
           <ul className="space-y-2">

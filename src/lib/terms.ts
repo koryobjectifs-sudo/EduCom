@@ -120,3 +120,56 @@ export async function datedTermCount(actor: ActorContext): Promise<{ total: numb
   ]);
   return { total, dated };
 }
+
+/**
+ * Le trimestre **courant**, et celui qui le précède.
+ *
+ * ═══ SOURCE UNIQUE — NE PAS RÉÉCRIRE CETTE RÈGLE AILLEURS ═══
+ *
+ * Elle vivait en double : une fois ici pour l'ordre d'affichage, une fois dans
+ * `src/lib/dashboard.ts` pour la moyenne académique. La seconde triait par
+ * `startDate` ascendante et prenait le dernier — or **Postgres classe les
+ * `NULL` en dernier sur un tri ASC**. Un trimestre sans dates devenait donc « le
+ * trimestre courant », ne portait aucune note, et effaçait la moyenne réelle de
+ * l'établissement (21 août 2026). La base de travail en contient un, « T1 ».
+ *
+ * Trois règles, dans cet ordre :
+ *   ① un trimestre **daté** l'emporte toujours sur un trimestre sans dates ;
+ *   ② parmi les datés, le courant est le dernier **déjà commencé** — un
+ *     trimestre qui démarre le mois prochain n'est pas le trimestre en cours ;
+ *   ③ sans aucun trimestre daté, on retombe sur l'ordre de création.
+ *
+ * ⚠️ Toute nouvelle surface qui a besoin du « trimestre en cours » appelle
+ * ceci. Une quatrième copie de la règle finira par diverger des trois autres.
+ */
+export function pickCurrentTerm<T extends { id: string; startDate: Date | null; createdAt?: Date }>(
+  terms: T[],
+  now: Date = new Date(),
+): { current: T | null; previous: T | null; ordered: T[] } {
+  if (terms.length === 0) return { current: null, previous: null, ordered: [] };
+
+  const at = (t: T) => t.createdAt?.getTime() ?? 0;
+  const dated = terms.filter((t) => t.startDate !== null)
+    .sort((a, b) => a.startDate!.getTime() - b.startDate!.getTime());
+  const undated = terms.filter((t) => t.startDate === null).sort((a, b) => at(a) - at(b));
+
+  // Les non datés en tête : ils ne peuvent jamais l'emporter sur un daté.
+  const ordered = [...undated, ...dated];
+  const started = dated.filter((t) => t.startDate! <= now);
+  const current = started.length > 0 ? started[started.length - 1] : ordered[ordered.length - 1];
+  const i = ordered.findIndex((t) => t.id === current.id);
+
+  return { current, previous: i > 0 ? ordered[i - 1] : null, ordered };
+}
+
+/** Le trimestre courant de l'école, lu en base. */
+export async function currentTerm(actor: ActorContext): Promise<TermRow | null> {
+  const rows = await orderedTerms(actor);
+  const withCreated = await prisma.term.findMany({
+    where: { schoolId: actor.schoolId },
+    select: { id: true, createdAt: true },
+  });
+  const created = new Map(withCreated.map((t) => [t.id, t.createdAt]));
+  const { current } = pickCurrentTerm(rows.map((t) => ({ ...t, createdAt: created.get(t.id) })));
+  return current ? rows.find((t) => t.id === current.id) ?? null : null;
+}

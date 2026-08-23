@@ -15,7 +15,7 @@ import { ROLE_LABELS, type RoleType } from "@/lib/permissions";
  */
 const ASSIGNABLE: RoleType[] = ["TEACHER", "SECRETARY", "ACCOUNTANT", "ASSISTANT", "ADMIN"];
 
-export default function TeamCreateForm() {
+export default function TeamCreateForm({ managers }: { managers: any[] }) {
   const [state, formAction, isPending] = useActionState<any, any>(
     async (prevState: any, formData: FormData) => {
       return await createStaffMember(formData);
@@ -38,6 +38,15 @@ export default function TeamCreateForm() {
         {ASSIGNABLE.map((r) => (
           <option key={r} value={r}>
             {ROLE_LABELS[r].label} — {ROLE_LABELS[r].description}
+          </option>
+        ))}
+      </Select>
+
+      <Select label="Responsable hiérarchique" id="managerId" name="managerId" defaultValue="">
+        <option value="">Aucun responsable (au sommet)</option>
+        {managers.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.firstName} {m.lastName} ({ROLE_LABELS[m.role as RoleType]?.label})
           </option>
         ))}
       </Select>

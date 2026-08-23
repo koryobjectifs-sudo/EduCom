@@ -228,6 +228,85 @@ export async function upsertFeeItem(input: {
   return { data: { id: item.id } };
 }
 
+export async function upsertBatchFeeItems(scheduleId: string, inputs: {
+  id?: string;
+  kind: FeeKind;
+  label: string;
+  amount: number;
+  cadence: FeeCadence;
+  mandatory: boolean;
+  classId?: string | null;
+  cycle?: EducationalCycle | null;
+}[]) {
+  const auth = await requireActionContext(FEE_REVIEW_PATH);
+  if (!auth.ok) return { error: auth.error };
+  const { ctx } = auth;
+
+  const schedule = await prisma.feeSchedule.findFirst({
+    where: { id: scheduleId, schoolId: ctx.schoolId },
+    select: { id: true, status: true },
+  });
+  if (!schedule) return { error: "Grille introuvable dans votre établissement." };
+
+  let changedCount = 0;
+
+  for (const input of inputs) {
+    if (!Number.isFinite(input.amount) || input.amount < 0) continue;
+    if (input.classId && input.cycle) continue;
+
+    const before = input.id
+      ? await prisma.feeItem.findFirst({
+          where: { id: input.id, schoolId: ctx.schoolId },
+          select: { id: true, amount: true, label: true, kind: true },
+        })
+      : null;
+
+    if (before && before.amount === input.amount) {
+      continue; // No change
+    }
+
+    const data = {
+      kind: input.kind,
+      label: input.label.trim(),
+      amount: input.amount,
+      cadence: input.cadence,
+      mandatory: input.mandatory,
+      classId: input.classId ?? null,
+      cycle: input.cycle ?? null,
+      scheduleId: schedule.id,
+      schoolId: ctx.schoolId,
+    };
+
+    const item = before
+      ? await prisma.feeItem.update({ where: { id: before.id }, data })
+      : await prisma.feeItem.create({ data });
+
+    await recordAudit(ctx, {
+      action: before ? "feeItem.update" : "feeItem.create",
+      entity: "feeItem",
+      entityId: item.id,
+      outcome: "success",
+      details: before
+        ? { label: item.label, amountBefore: before.amount, amountAfter: item.amount, batch: true }
+        : { label: item.label, amount: item.amount, kind: item.kind, batch: true },
+    });
+    
+    changedCount++;
+  }
+
+  if (changedCount > 0 && schedule.status === "ACTIVE") {
+    await notifyRoles(ctx, ["ACCOUNTANT"], {
+      kind: "fee.updated",
+      title: "Mise à jour tarifaire groupée",
+      body: `${changedCount} tarif(s) modifié(s). Le forecast a été recalculé.`,
+      link: "/dashboard/reports",
+    });
+  }
+
+  revalidateAll();
+  return { success: true, count: changedCount };
+}
+
 export async function deleteFeeItem(id: string) {
   const auth = await requireActionContext(FEE_REVIEW_PATH);
   if (!auth.ok) return { error: auth.error };

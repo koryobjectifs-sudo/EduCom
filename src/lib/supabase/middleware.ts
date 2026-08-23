@@ -73,10 +73,14 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && pageAuth) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    url.search = ''
-    return NextResponse.redirect(url)
+    // ⚠️ On ne redirige pas si un paramètre d'erreur est présent,
+    // sinon on crée une boucle infinie (ex: erreur=espace_absent renvoyé par le dashboard).
+    if (!request.nextUrl.searchParams.has('erreur')) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      url.search = ''
+      return NextResponse.redirect(url)
+    }
   }
 
   return response

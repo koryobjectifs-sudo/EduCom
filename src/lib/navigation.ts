@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, School, ClipboardList, CreditCard,
   FileText, MessageSquare, BarChart3, Briefcase, Settings,
-  type LucideIcon, FolderOpen, Package,} from "lucide-react";
+  type LucideIcon, FolderOpen, Package, GraduationCap,} from "lucide-react";
 import { hasAccess, type RoleType } from "@/lib/permissions";
 
 /**
@@ -45,32 +45,59 @@ export type NavSection = {
  * Trois groupes nommés permettent de viser directement — la secrétaire sait que
  * les élèves sont dans « Scolarité », le comptable que les factures sont dans
  * « Gestion ».
+ *
+ * ═══ RÉORGANISATION PAR MÉTIER (22 août 2026) ═══
+ *
+ * Les groupes portaient des noms d'**objets** — Scolarité, Gestion,
+ * Établissement — où « Gestion » finissait par tout absorber : paiements,
+ * documents, exports et messages, cinq entrées sans rien de commun. Ils portent
+ * désormais des noms de **métiers** : Enseignement · Secrétariat · Finance ·
+ * Administration. On vise la rubrique par la personne qui s'en sert.
+ *
+ * ⚠️ **UN TITRE DE SECTION N'EST PAS UNE PERMISSION.** Il nomme le domaine, pas
+ * un droit exclusif. Une directrice voit les quatre sections ; un enseignant
+ * voit « Secrétariat » s'il a l'Annuaire et les Communications, et c'est
+ * normal — il consulte ses élèves et écrit aux parents. Le filtrage reste
+ * `hasAccess()`, entrée par entrée, et **rien n'a bougé de ce côté** : mêmes
+ * chemins, mêmes droits, aucune rubrique retirée. Seul le rangement change.
+ *
+ * ⚠️ **Aucune entrée n'a été supprimée ni déplacée hors de portée.** Les dix
+ * rubriques sont toutes là ; deux remontent hors section (voir ci-dessous).
  */
 export const NAV_SECTIONS: NavSection[] = [
+  /**
+   * ═══ EN TÊTE, SANS TITRE : LES DEUX LECTURES TRANSVERSALES ═══
+   *
+   * ⚠️ **Le tableau de bord et les rapports n'appartiennent à aucun métier.**
+   * Les ranger sous « Administration » les aurait fermés visuellement à
+   * l'enseignant et au comptable, qui y ont pourtant droit et y ont leur propre
+   * lecture (`buildReport()` borne le contenu au rôle). Les laisser hors
+   * section dit ce qu'ils sont : deux points de vue sur tout le reste.
+   */
   {
     title: null,
     items: [
       { name: "Tableau de bord", href: "/dashboard", icon: LayoutDashboard, short: "Accueil" },
+      { name: "Rapports", href: "/dashboard/reports", icon: BarChart3 },
     ],
   },
   {
-    title: "Scolarité",
+    title: "Enseignement",
     items: [
-      { name: "Élèves", href: "/dashboard/students", icon: Users },
-      { name: "Classes", href: "/dashboard/classes", icon: School },
       { name: "Saisie des notes", href: "/dashboard/grades", icon: ClipboardList, short: "Notes" },
-    ],
-  },
-  {
-    title: "Gestion",
-    items: [
-      { name: "Paiements", href: "/dashboard/payments", icon: CreditCard },
-      { name: "Documents", href: "/dashboard/documents", icon: FileText },
       // Lot 15 — entrée distincte, et non un sous-menu du hub : `TEACHER` n'a
       // PAS `/dashboard/documents` mais a bien `/dashboard/documents/centre`.
       // Rattacher le centre au hub l'aurait rendu invisible aux enseignants,
-      // à qui la liste de fournitures de leur classe est destinée.
+      // à qui la liste de fournitures de leur classe est destinée. C'est aussi
+      // pourquoi il vit ici et non dans « Secrétariat ».
       { name: "Centre documentaire", href: "/dashboard/documents/centre", icon: FolderOpen, short: "Centre" },
+    ],
+  },
+  {
+    title: "Secrétariat",
+    items: [
+      { name: "Annuaire", href: "/dashboard/directory", icon: Users },
+      { name: "Documents", href: "/dashboard/documents", icon: FileText },
       // Lot 16 — sous `/dashboard/students` : exporter, c'est lire un dossier.
       // Aucun droit nouveau, et `PARENT`/`ACCOUNTANT` ne le voient pas.
       { name: "Exports de dossiers", href: "/dashboard/students/export", icon: Package, short: "Exports" },
@@ -78,10 +105,24 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Établissement",
+    title: "Finance",
+    items: [
+      { name: "Paiements", href: "/dashboard/payments", icon: CreditCard },
+    ],
+  },
+  {
+    title: "Administration",
     items: [
       { name: "Équipe", href: "/dashboard/team", icon: Briefcase },
-      { name: "Rapports", href: "/dashboard/reports", icon: BarChart3 },
+      /**
+       * ⚠️ Entrée DISTINCTE de « Paramètres », et non un sous-menu — pour la
+       * même raison que le centre documentaire au lot 15 : le secrétariat a
+       * `/dashboard/settings/pedagogie` mais **pas** `/dashboard/settings`, qui
+       * porte le nom, le logo et la signature de l'établissement. La rattacher
+       * aux réglages l'aurait rendue invisible à ceux qui tiennent le
+       * calendrier au quotidien.
+       */
+      { name: "Configuration pédagogique", href: "/dashboard/settings/pedagogie", icon: GraduationCap, short: "Pédagogie" },
       { name: "Paramètres", href: "/dashboard/settings", icon: Settings },
     ],
   },

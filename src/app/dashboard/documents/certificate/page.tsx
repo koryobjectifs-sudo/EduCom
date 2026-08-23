@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PartyPopper, ArrowRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requireSchoolContext } from "@/lib/documentContext";
+import { requirePathAccess } from "@/lib/documentContext";
 import { currentAcademicYear } from "@/lib/studentFile";
 import CertificateGenerator from "./Generator";
 
@@ -24,7 +24,7 @@ export default async function CertificatePage({
   searchParams: Promise<{ studentId?: string; premier?: string }>;
 }) {
   const { studentId, premier } = await searchParams;
-  const { schoolId, school } = await requireSchoolContext();
+  const { schoolId, school } = await requirePathAccess("/dashboard/documents/certificate");
 
   const students = await prisma.student.findMany({
     where: { schoolId },

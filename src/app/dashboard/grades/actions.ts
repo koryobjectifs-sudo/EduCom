@@ -1,10 +1,36 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { editableSubjectIds } from "@/lib/gradeEntry";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createRawClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { urlSupabase, cleAnonSupabase } from "@/lib/supabase/config";
+import { requireActionContext } from "@/lib/actionContext";
+import { recordPlanningChange } from "@/lib/planningNotice";
+
+/**
+ * ═══ QUI A LE DROIT DE CHANGER LE CADRE ACADÉMIQUE — 22 août 2026 ═══
+ *
+ * Les actions de ce fichier qui touchent **la structure** — trimestres, dates,
+ * évaluations, matières, programme d'une classe — ne vérifiaient QUE
+ * l'authentification. Conséquence mesurée : n'importe quel compte de l'école,
+ * **y compris un PARENT**, pouvait appeler `setTermDates()` ou `deleteTerm()`
+ * en HTTP direct et déplacer le calendrier de tout l'établissement. Une server
+ * action est un point d'entrée à part entière ; l'écran qui la cache ne la
+ * protège pas.
+ *
+ * Le garde passe par `requireActionContext()`, donc par la MÊME table de
+ * permissions que la navigation — direction et secrétariat. Aucune règle
+ * parallèle : `/dashboard/settings/pedagogie` est le chemin de référence, et il
+ * n'accorde pas `/dashboard/settings` (voir `src/lib/permissions.ts`).
+ *
+ * ⚠️ **La SAISIE des notes n'est pas concernée.** `saveGrades()` et tout ce qui
+ * écrit une note gardent leur garde d'origine, bornée par `editableSubjectIds()` :
+ * un enseignant note ses matières, c'est son métier. Il ne fixe simplement plus
+ * le calendrier de l'école.
+ */
+const CADRE_ACADEMIQUE = "/dashboard/settings/pedagogie";
 
 export async function getTerms() {
   const supabase = await createClient();
@@ -24,20 +50,17 @@ export async function getTerms() {
 }
 
 export async function createTerm(name: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
-
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { error: "Utilisateur introuvable" };
+  const auth = await requireActionContext(CADRE_ACADEMIQUE);
+  if (!auth.ok) return { error: auth.error };
 
   try {
     const term = await prisma.term.create({
       data: {
         name,
-        schoolId: dbUser.schoolId
+        schoolId: auth.ctx.schoolId
       }
     });
+    revalidatePath("/dashboard/grades");
     return { data: term };
   } catch (error: any) {
     return { error: error.message };
@@ -57,16 +80,12 @@ export async function createTerm(name: string) {
  * école ne correspond simplement à aucune ligne.
  */
 export async function deleteTerm(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
-
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { schoolId: true } });
-  if (!dbUser) return { error: "Utilisateur introuvable" };
+  const auth = await requireActionContext(CADRE_ACADEMIQUE);
+  if (!auth.ok) return { error: auth.error };
 
   try {
     const { count } = await prisma.term.deleteMany({
-      where: { id, schoolId: dbUser.schoolId },
+      where: { id, schoolId: auth.ctx.schoolId },
     });
     if (count === 0) return { error: "Trimestre introuvable dans votre établissement." };
     return { success: true };
@@ -86,12 +105,9 @@ export async function deleteTerm(id: string) {
  * `deleteTerm` ci-dessus.
  */
 export async function setTermDates(id: string, startDate: string | null, endDate: string | null) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
-
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { schoolId: true } });
-  if (!dbUser) return { error: "Utilisateur introuvable" };
+  const auth = await requireActionContext(CADRE_ACADEMIQUE);
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId } = auth.ctx;
 
   const start = startDate ? new Date(startDate) : null;
   const end = endDate ? new Date(endDate) : null;
@@ -103,14 +119,36 @@ export async function setTermDates(id: string, startDate: string | null, endDate
   // sans que personne ne sache pourquoi.
   if (start && end && end < start) return { error: "La date de fin précède la date de début." };
 
+  /**
+   * ⚠️ **L'état AVANT est lu avant l'écriture, sinon il est perdu.** Déplacer un
+   * trimestre décale tout ce qu'il contient ; sans l'ancienne date, personne ne
+   * peut être prévenu de quoi que ce soit — voir `src/lib/planningNotice.ts`.
+   */
+  const avant = await prisma.term.findFirst({
+    where: { id, schoolId },
+    select: { name: true, startDate: true, endDate: true },
+  });
+  if (!avant) return { error: "Trimestre introuvable dans votre établissement." };
+
   try {
     const { count } = await prisma.term.updateMany({
-      where: { id, schoolId: dbUser.schoolId },
+      where: { id, schoolId },
       data: { startDate: start, endDate: end },
     });
     if (count === 0) return { error: "Trimestre introuvable dans votre établissement." };
+
+    await recordPlanningChange(auth.ctx, {
+      entity: "term",
+      entityId: id,
+      name: avant.name,
+      from: { start: avant.startDate, end: avant.endDate },
+      to: { start, end },
+    });
+
     revalidatePath("/dashboard/reports");
     revalidatePath("/dashboard/grades");
+    revalidatePath("/dashboard/settings/pedagogie");
+    revalidatePath("/dashboard");
     return { success: true };
   } catch (error: any) {
     return { error: error.message };
@@ -118,35 +156,52 @@ export async function setTermDates(id: string, startDate: string | null, endDate
 }
 
 export async function createEvaluation(name: string, termId: string, type: 'EXAM' | 'QUIZ' | 'HOMEWORK' | 'PARTICIPATION' | 'OTHER' = 'EXAM') {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
+  const auth = await requireActionContext(CADRE_ACADEMIQUE);
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId } = auth.ctx;
 
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { error: "Utilisateur introuvable" };
+  // ⚠️ Le trimestre doit appartenir à l'école de la SESSION. Sans cette
+  // vérification, `termId` venant du client, une évaluation pouvait être
+  // greffée sur le trimestre d'un autre établissement.
+  const term = await prisma.term.findFirst({ where: { id: termId, schoolId }, select: { id: true } });
+  if (!term) return { error: "Trimestre introuvable dans votre établissement." };
 
   try {
     const evaluation = await prisma.evaluation.create({
-      data: {
-        name,
-        type,
-        termId,
-        schoolId: dbUser.schoolId
-      }
+      data: { name, type, termId, schoolId }
     });
+    revalidatePath("/dashboard/grades");
+    revalidatePath("/dashboard/settings/pedagogie");
     return { data: evaluation };
   } catch (error: any) {
     return { error: error.message };
   }
 }
 
+/**
+ * ⚠️ **CORRECTIF DE SÉCURITÉ (22 août 2026) — fuite inter-établissement.**
+ *
+ * La version précédente faisait `prisma.evaluation.delete({ where: { id } })` :
+ * ni `schoolId` ni contrôle de rôle. Connaître un identifiant d'évaluation
+ * suffisait donc à supprimer celle d'un autre établissement — et la cascade
+ * emporte **ses notes et ses bulletins** (`Grade.evaluationId` et
+ * `ReportCard.evaluationId` sont en `onDelete: Cascade`).
+ *
+ * Sixième fuite de cette famille trouvée dans le projet, exactement le motif
+ * corrigé sur `deleteTerm()` au lot 12.1. Le `deleteMany` rend l'isolation non
+ * contournable : un identifiant étranger ne correspond simplement à aucune ligne.
+ */
 export async function deleteEvaluation(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
+  const auth = await requireActionContext(CADRE_ACADEMIQUE);
+  if (!auth.ok) return { error: auth.error };
 
   try {
-    await prisma.evaluation.delete({ where: { id } });
+    const { count } = await prisma.evaluation.deleteMany({
+      where: { id, schoolId: auth.ctx.schoolId },
+    });
+    if (count === 0) return { error: "Évaluation introuvable dans votre établissement." };
+    revalidatePath("/dashboard/grades");
+    revalidatePath("/dashboard/settings/pedagogie");
     return { success: true };
   } catch (error: any) {
     return { error: error.message };
@@ -543,39 +598,14 @@ export async function getClassSubjects(classId: string) {
 }
 
 /**
- * Quelles matières d'une classe cet utilisateur peut-il saisir ?
+ * Le périmètre de saisie vit dans `src/lib/gradeEntry.ts`, et **nulle part
+ * ailleurs**. Cette règle décide qui a le droit d'écrire des notes : deux
+ * copies finiraient par diverger, et la divergence irait dans le sens permissif
+ * — c'est toujours ce qui arrive.
  *
- * `"ALL"` pour la direction, pour un maître affecté sans matière précise
- * (élémentaire) et pour le professeur principal tant qu'aucune affectation
- * n'existe — sinon on l'enfermerait dehors. Sinon, l'ensemble exact de ses
- * matières affectées.
+ * ⚠️ Ce fichier est `"use server"` : il ne peut pas réexporter la fonction, tout
+ * export y devant être une action asynchrone. D'où l'import.
  */
-async function editableSubjectIds(
-  dbUser: { id: string; role: string },
-  classId: string,
-  classSubjectIds: string[]
-): Promise<"ALL" | Set<string>> {
-  if (["OWNER", "ADMIN", "SECRETARY"].includes(dbUser.role)) return "ALL";
-
-  const assignments = await prisma.teachingAssignment.findMany({
-    where: { classId, teacherId: dbUser.id },
-    select: { subjectId: true },
-  });
-
-  if (assignments.length === 0) {
-    const klass = await prisma.class.findUnique({
-      where: { id: classId },
-      select: { teacherId: true },
-    });
-    // Aucune affectation saisie : le professeur principal garde la main.
-    return klass?.teacherId === dbUser.id ? "ALL" : new Set<string>();
-  }
-
-  // Une affectation sans matière = toutes les matières de la classe.
-  if (assignments.some((a) => a.subjectId === null)) return "ALL";
-
-  return new Set(assignments.map((a) => a.subjectId as string).filter((id) => classSubjectIds.includes(id)));
-}
 
 /** Les affectations d'une classe : qui enseigne quoi. */
 export async function getClassAssignments(classId: string) {
@@ -663,22 +693,25 @@ export async function deleteAssignment(id: string) {
 
 /** Rattache une matière à une classe. */
 export async function addSubjectToClass(classId: string, subjectId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
+  const auth = await requireActionContext(CADRE_ACADEMIQUE);
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId } = auth.ctx;
 
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { error: "Utilisateur introuvable" };
-
-  // Vérifie que la classe appartient bien à l'école de l'utilisateur.
-  const klass = await prisma.class.findFirst({
-    where: { id: classId, schoolId: dbUser.schoolId },
-  });
+  // La classe ET la matière doivent appartenir à l'école de la session. La
+  // matière n'était pas vérifiée : un `subjectId` étranger rattachait la ligne
+  // d'un autre établissement au bulletin de celle-ci.
+  const [klass, subject] = await Promise.all([
+    prisma.class.findFirst({ where: { id: classId, schoolId }, select: { id: true } }),
+    prisma.subject.findFirst({ where: { id: subjectId, schoolId }, select: { id: true } }),
+  ]);
   if (!klass) return { error: "Classe introuvable" };
+  if (!subject) return { error: "Matière introuvable dans votre établissement." };
 
   try {
     const exists = await prisma.classSubject.findFirst({ where: { classId, subjectId } });
     if (!exists) await prisma.classSubject.create({ data: { classId, subjectId } });
+    revalidatePath("/dashboard/settings/pedagogie");
+    revalidatePath("/dashboard/grades");
     return { success: true };
   } catch (error: any) {
     return { error: error.message };
@@ -691,15 +724,11 @@ export async function addSubjectToClass(classId: string, subjectId: string) {
  * sur le bulletin sans les supprimer, ce qui serait pire qu'une erreur.
  */
 export async function removeSubjectFromClass(classId: string, subjectId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
-
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { error: "Utilisateur introuvable" };
+  const auth = await requireActionContext(CADRE_ACADEMIQUE);
+  if (!auth.ok) return { error: auth.error };
 
   const klass = await prisma.class.findFirst({
-    where: { id: classId, schoolId: dbUser.schoolId },
+    where: { id: classId, schoolId: auth.ctx.schoolId },
   });
   if (!klass) return { error: "Classe introuvable" };
 
@@ -710,6 +739,8 @@ export async function removeSubjectFromClass(classId: string, subjectId: string)
 
   try {
     await prisma.classSubject.deleteMany({ where: { classId, subjectId } });
+    revalidatePath("/dashboard/settings/pedagogie");
+    revalidatePath("/dashboard/grades");
     return { success: true };
   } catch (error: any) {
     return { error: error.message };
@@ -733,33 +764,63 @@ export async function getSubjects() {
 }
 
 export async function createSubject(name: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
-
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { error: "Utilisateur introuvable" };
+  const auth = await requireActionContext(CADRE_ACADEMIQUE);
+  if (!auth.ok) return { error: auth.error };
 
   try {
     const subject = await prisma.subject.create({
       data: {
         name,
-        schoolId: dbUser.schoolId
+        schoolId: auth.ctx.schoolId
       }
     });
+    revalidatePath("/dashboard/settings/pedagogie");
+    revalidatePath("/dashboard/grades");
     return { data: subject };
   } catch (error: any) {
     return { error: error.message };
   }
 }
 
+/**
+ * ⚠️ **DEUX CORRECTIFS (22 août 2026), et le second est le plus grave.**
+ *
+ * ① *Fuite inter-établissement.* `prisma.subject.delete({ where: { id } })` sans
+ *    `schoolId` : un identifiant suffisait à supprimer la matière d'une autre
+ *    école. Même motif que `deleteTerm()` et `deleteEvaluation()`.
+ *
+ * ② *Effacement silencieux de notes.* `Grade.subjectId` et `Subject.parentId`
+ *    sont en `onDelete: Cascade`. Supprimer « Français » emportait donc ses
+ *    huit sous-matières **et toutes les notes qui y étaient rattachées**, sans
+ *    un mot. Le refus ci-dessous est de la friction **protectrice** : elle ne
+ *    sert pas l'implémentation, elle empêche de détruire le travail d'un
+ *    trimestre en un clic (règle 4 du projet).
+ */
 export async function deleteSubject(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
+  const auth = await requireActionContext(CADRE_ACADEMIQUE);
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId } = auth.ctx;
+
+  const subject = await prisma.subject.findFirst({
+    where: { id, schoolId },
+    select: { id: true, name: true, children: { select: { id: true } } },
+  });
+  if (!subject) return { error: "Matière introuvable dans votre établissement." };
+
+  const ids = [subject.id, ...subject.children.map((c) => c.id)];
+  const graded = await prisma.grade.count({ where: { subjectId: { in: ids } } });
+  if (graded > 0) {
+    return {
+      error: subject.children.length > 0
+        ? `« ${subject.name} » et ses sous-matières portent ${graded} note(s) : suppression impossible.`
+        : `${graded} note(s) déjà saisie(s) dans « ${subject.name} » : suppression impossible.`,
+    };
+  }
 
   try {
-    await prisma.subject.delete({ where: { id } });
+    await prisma.subject.deleteMany({ where: { id, schoolId } });
+    revalidatePath("/dashboard/settings/pedagogie");
+    revalidatePath("/dashboard/grades");
     return { success: true };
   } catch (error: any) {
     return { error: error.message };
@@ -882,4 +943,71 @@ export async function getGradesInputData(classId: string, subjectId: string, ter
   });
 
   return { data: { students, grades } };
+}
+
+/**
+ * Enregistre l'**avis du conseil** sur le bulletin d'un élève.
+ *
+ * ═══ POURQUOI CETTE ACTION N'EXISTAIT PAS ═══
+ *
+ * `ReportCard.generalComment` est au schéma depuis l'origine et n'était **ni lu
+ * ni écrit nulle part** — vérifié : zéro occurrence dans `src/`. L'avis du
+ * conseil vivait dans un `contentEditable` du générateur : ce que la directrice
+ * écrivait disparaissait au rechargement, sans le moindre avertissement.
+ *
+ * ⚠️ **Réservé à la direction et au secrétariat.** L'avis du conseil engage
+ * l'établissement, pas l'enseignant — même frontière que la validation des
+ * bulletins, et on la lit à la même source (`hasAccess`), jamais d'une liste de
+ * rôles recopiée ici.
+ *
+ * ⚠️ `upsert` sur `(studentId, evaluationId)` : le bulletin peut ne pas encore
+ * exister au moment où l'avis est saisi — la directrice peut commenter avant que
+ * l'enseignant ait validé.
+ */
+export async function saveCouncilComment(input: {
+  studentId: string;
+  classId: string;
+  termId: string;
+  evaluationId: string;
+  comment: string;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non autorisé" };
+
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { error: "Utilisateur introuvable" };
+
+  const { hasAccess } = await import("@/lib/permissions");
+  if (!hasAccess(dbUser.role as never, "/dashboard/documents/validation")) {
+    return { error: "Seule la direction peut renseigner l'avis du conseil." };
+  }
+
+  // Cloisonnement : un identifiant deviné ne doit pas suffire à écrire dans un
+  // autre établissement.
+  const klass = await prisma.class.findFirst({
+    where: { id: input.classId, schoolId: dbUser.schoolId },
+    select: { id: true },
+  });
+  if (!klass) return { error: "Classe introuvable" };
+
+  const comment = input.comment.trim();
+
+  try {
+    await prisma.reportCard.upsert({
+      where: { studentId_evaluationId: { studentId: input.studentId, evaluationId: input.evaluationId } },
+      create: {
+        studentId: input.studentId, classId: input.classId, termId: input.termId,
+        evaluationId: input.evaluationId, schoolId: dbUser.schoolId,
+        // Un avis n'est pas une validation : le statut n'avance pas.
+        generalComment: comment || null,
+      },
+      update: { generalComment: comment || null },
+    });
+    revalidatePath("/dashboard/documents/report-card");
+    revalidatePath("/dashboard/documents/validation");
+    return { success: true };
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : "Enregistrement impossible" };
+  }
 }

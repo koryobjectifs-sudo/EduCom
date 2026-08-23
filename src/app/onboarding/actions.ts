@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { requireActionContext } from '@/lib/actionContext'
+import { applyCurriculum } from '@/lib/pedagogy'
+import { LEVELS } from '@/lib/curriculum'
 
 /**
  * Finalise la configuration d'un établissement.
@@ -45,25 +47,17 @@ export async function completeOnboarding(data: any) {
     // ne correspondait à aucune classe, et le forecast comptait ces élèves comme
     // « hors grille ». Le classement par cycle de `classOrder.ts` en souffrait
     // de la même façon.
-    const CYCLE_BY_LEVEL = {
-      'Maternelle': 'MATERNELLE',
-      'Primaire': 'ELEMENTAIRE',
-      'Collège': 'COLLEGE',
-      'Lycée': 'LYCEE',
-    } as const;
-
-    const CLASSES_BY_LEVEL = {
-      'Maternelle': ['Petite Section', 'Moyenne Section', 'Grande Section'],
-      'Primaire': ['CI', 'CP', 'CE1', 'CE2', 'CM1', 'CM2'],
-      'Collège': ['6ème', '5ème', '4ème', '3ème'],
-      'Lycée': ['Seconde', 'Première', 'Terminale'],
-    } as const;
-
+    /**
+     * ⚠️ Niveaux, cycles et noms de classes viennent de `src/lib/curriculum.ts`.
+     * Ils étaient écrits ici ET dans `Wizard.tsx` : l'écran annonçait un nombre
+     * de classes tenu à la main, cette action en créait un autre. Une seule
+     * table, donc une seule vérité — et l'annonce ne peut plus mentir.
+     */
     const classesToCreate: { name: string; schoolId: string; cycle: any }[] = [];
-    for (const level of Object.keys(CLASSES_BY_LEVEL) as (keyof typeof CLASSES_BY_LEVEL)[]) {
-      if (!data.levels?.includes(level)) continue;
-      for (const name of CLASSES_BY_LEVEL[level]) {
-        classesToCreate.push({ name, schoolId, cycle: CYCLE_BY_LEVEL[level] });
+    for (const level of LEVELS) {
+      if (!data.levels?.includes(level.id)) continue;
+      for (const name of level.classes) {
+        classesToCreate.push({ name, schoolId, cycle: level.cycle });
       }
     }
 
@@ -79,9 +73,45 @@ export async function completeOnboarding(data: any) {
       classesCreated = res.count;
     }
 
-    return { success: true, classesCreated };
+    /**
+     * 3. Le programme sénégalais — **proposé à l'étape 2, appliqué ici.**
+     *
+     * ═══ POURQUOI L'APPLICATION VIT DANS CETTE ACTION, ET PAS DANS LE CLIENT ═══
+     *
+     * Les classes viennent d'être créées, ligne 2 : leurs identifiants
+     * n'existent que côté serveur, à cet instant. Faire un second aller-retour
+     * pour les redemander depuis le navigateur ajouterait une latence et une
+     * fenêtre où l'école existe avec des classes vides. Surtout, la logique
+     * elle-même n'est pas ici : `applyCurriculum()` vit dans
+     * `src/lib/pedagogy.ts` et c'est le MÊME code que le bouton « appliquer le
+     * programme » de l'écran de configuration. Une seule implémentation, deux
+     * portes d'entrée.
+     *
+     * ⚠️ **Un échec du programme n'annule PAS l'installation.** L'école existe,
+     * ses classes existent, elle est utilisable. Le programme se rattrape en un
+     * clic dans Réglages › Configuration pédagogique — exactement le traitement
+     * déjà réservé à la grille tarifaire.
+     */
+    let programme: { subjects: number; links: number; terms: number; evaluations: number } | null = null;
+    if (data.programme?.apply) {
+      try {
+        const report = await applyCurriculum(auth.ctx, {
+          withControls: Boolean(data.programme.withControls),
+        });
+        programme = {
+          subjects: report.subjectsCreated,
+          links: report.linksCreated,
+          terms: report.termsCreated,
+          evaluations: report.evaluationsCreated,
+        };
+      } catch (e) {
+        console.error("Programme non appliqué à l'installation :", e);
+      }
+    }
+
+    return { success: true, classesCreated, programme };
   } catch (error) {
     console.error("Erreur lors de l'onboarding:", error);
-    return { success: false, classesCreated: 0, error: "Une erreur s'est produite lors de la configuration." };
+    return { success: false, classesCreated: 0, programme: null, error: "Une erreur s'est produite lors de la configuration." };
   }
 }

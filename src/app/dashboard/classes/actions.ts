@@ -197,3 +197,61 @@ export async function generateDefaultClasses() {
     return { error: "Erreur lors de la génération des classes." };
   }
 }
+
+export async function generateCycleClasses(cycleId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non autorisé" };
+
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { error: "Utilisateur introuvable" };
+
+  const defaultClasses = [
+    { name: "Petite Section", cycle: "MATERNELLE" },
+    { name: "Moyenne Section", cycle: "MATERNELLE" },
+    { name: "Grande Section", cycle: "MATERNELLE" },
+    { name: "CI", cycle: "ELEMENTAIRE" },
+    { name: "CP", cycle: "ELEMENTAIRE" },
+    { name: "CE1", cycle: "ELEMENTAIRE" },
+    { name: "CE2", cycle: "ELEMENTAIRE" },
+    { name: "CM1", cycle: "ELEMENTAIRE" },
+    { name: "CM2", cycle: "ELEMENTAIRE" },
+    { name: "6ème", cycle: "COLLEGE" },
+    { name: "5ème", cycle: "COLLEGE" },
+    { name: "4ème", cycle: "COLLEGE" },
+    { name: "3ème", cycle: "COLLEGE" },
+    { name: "Seconde", cycle: "LYCEE" },
+    { name: "Première", cycle: "LYCEE" },
+    { name: "Terminale", cycle: "LYCEE" },
+  ];
+
+  const cycleClasses = defaultClasses.filter(c => c.cycle === cycleId);
+
+  try {
+    const existingClasses = await prisma.class.findMany({
+      where: { schoolId: dbUser.schoolId, cycle: cycleId as any }
+    });
+    const existingSet = new Set(existingClasses.map(c => c.name));
+
+    const classesToCreate = cycleClasses
+      .filter(c => !existingSet.has(c.name))
+      .map(c => ({
+        name: c.name,
+        cycle: c.cycle as any,
+        schoolId: dbUser.schoolId,
+      }));
+
+    if (classesToCreate.length > 0) {
+      await prisma.class.createMany({
+        data: classesToCreate
+      });
+    }
+
+    revalidatePath("/dashboard/directory");
+    return { success: true, count: classesToCreate.length };
+  } catch (error) {
+    console.error("Error generating cycle classes:", error);
+    return { error: "Erreur lors de la génération des classes du cycle." };
+  }
+}
+

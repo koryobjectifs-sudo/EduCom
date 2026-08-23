@@ -4,7 +4,7 @@ import { useState } from "react";
 import TeamInviteForm from "./TeamInviteForm";
 import TeamCreateForm from "./TeamCreateForm";
 
-export default function TeamForms() {
+export default function TeamForms({ managers }: { managers: any[] }) {
   const [activeTab, setActiveTab] = useState<"invite" | "create">("create");
 
   return (
@@ -36,14 +36,14 @@ export default function TeamForms() {
           <p className="mb-5 text-role-body leading-relaxed text-text-soft">
             Créez directement le compte d'un collaborateur pour qu'il puisse se connecter immédiatement.
           </p>
-          <TeamCreateForm />
+          <TeamCreateForm managers={managers} />
         </div>
       ) : (
         <div>
           <p className="mb-5 text-role-body leading-relaxed text-text-soft">
             Générez un lien d'invitation sécurisé, à copier et transmettre vous-même au collaborateur.
           </p>
-          <TeamInviteForm />
+          <TeamInviteForm managers={managers} />
         </div>
       )}
     </div>

@@ -88,6 +88,10 @@ export type ReportSection = {
   /** Message d'état vide propre à la section. */
   emptyLabel?: string;
   unavailable: Unavailable[];
+  charts?: {
+    revenue?: { label: string; amount: number }[];
+    methods?: { method: string; label: string; amount: number; count: number }[];
+  };
 };
 
 /**
@@ -352,10 +356,14 @@ async function financeSections(actor: ActorContext, period: Period): Promise<Rep
             "Aucune grille tarifaire officielle : activez-en une dans Réglages › Grille tarifaire."),
       metric("billed", "Facturé sur la période", money.billed, "amount", null,
         `${money.billedCount} facture(s) émise(s) — somme des montants réclamés.`),
+      metric("expected", "Attendu Mensuel", money.expectedMonthly, "amount", null,
+        "Total théorique attendu des scolarités mensuelles (basé sur les inscriptions)."),
       metric("collected2", "Encaissé sur la période", money.collected, "amount", null,
         "Somme des versements réellement reçus."),
       metric("outstanding", "Reste à encaisser", money.outstanding, "amount", null,
-        `${money.outstandingCount} facture(s) non soldée(s), toutes échéances confondues.`),
+        "Écart entre l'attendu mensuel et l'encaissé. Automatiquement calculé sans attendre les factures."),
+      metric("unsettled", "Arriérés facturés", money.unsettledInvoicesOutstanding, "amount", null,
+        `${money.outstandingCount} facture(s) non soldée(s).`),
     ],
     rows: [],
     unavailable: fc && fc.studentsUncovered > 0
@@ -364,6 +372,14 @@ async function financeSections(actor: ActorContext, period: Period): Promise<Rep
           reason: "Ces élèves sont inscrits dans une classe qu'aucune ligne tarifaire ne couvre. Ils ne sont donc PAS comptés dans le forecast — les inclure à zéro aurait faussé l'attendu.",
         }]
       : [],
+    charts: {
+      revenue: [
+        { label: "Attendu", amount: money.expectedMonthly },
+        { label: "Facturé", amount: money.billed },
+        { label: "Encaissé", amount: money.collected },
+      ],
+      methods: snap.byMethod,
+    }
   };
 
   const relances: ReportSection = {
@@ -378,20 +394,6 @@ async function financeSections(actor: ActorContext, period: Period): Promise<Rep
     ],
     rows: [],
     emptyLabel: "Aucune facture échue — rien à relancer.",
-    unavailable: [],
-  };
-
-  const detail: ReportSection = {
-    id: "finance-grille",
-    title: "Grille tarifaire officielle",
-    description: fc ? `« ${fc.scheduleLabel} » — année ${fc.academicYear}.` : undefined,
-    metrics: fc
-      ? fc.lines.map((l) =>
-          metric(`fc-${l.classId}`, l.className, l.total, "amount", null,
-            `${l.students} élève(s) × ${formatAmount(l.perStudent)} FCFA — ${l.fees.map((f) => feeKindLabel(f.kind)).join(", ")}`))
-      : [],
-    rows: [],
-    emptyLabel: "Aucune grille tarifaire officielle n'est active pour cet établissement.",
     unavailable: [],
   };
 
@@ -412,7 +414,7 @@ async function financeSections(actor: ActorContext, period: Period): Promise<Rep
     unavailable: [],
   };
 
-  return [resume, distinction, relances, detail, encaissements, depenses, etats, demandes];
+  return [resume, distinction, relances, encaissements, depenses, etats, demandes];
 }
 
 /* ══════════════════════ SECRÉTARIAT ══════════════════════ */
@@ -759,7 +761,9 @@ async function directionCrossSections(actor: ActorContext, period: Period): Prom
       metric("g-forecast", "Attendu annuel (grille)", fc?.total ?? 0, "amount", null,
         fc ? `Grille « ${fc.scheduleLabel} »` : "Aucune grille officielle active."),
       metric("g-collected", "Encaissé sur la période", snap.collected, "amount", null),
+      metric("g-expected", "Attendu mensuel", money.expectedMonthly, "amount", null),
       metric("g-outstanding", "Reste à encaisser", money.outstanding, "amount", null),
+
       metric("g-decisions", "Décisions en attente", rcSubmitted + expSubmitted + stSubmitted + feeRequests + studentsPending,
         "count", null, "Bulletins déposés, dépenses et états transmis, demandes tarifaires, admissions à valider."),
     ],

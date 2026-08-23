@@ -111,7 +111,24 @@ export type AuditEntity =
   // `auditForEntity("studentDocument", id)` restitue ajout, remplacement,
   // validation, rejet et téléchargement d'une pièce.
   | "studentDocument"
-  | "documentRequirement";
+  | "documentRequirement"
+  // ═══ Configuration pédagogique (22 août 2026) ═══
+  //
+  // AUCUNE table d'historique n'a été créée pour le calendrier scolaire, et
+  // c'est le même arbitrage que pour `transmission` et `diffusion` : l'acte vit
+  // ici. `auditForEntity("evaluation", id)` restitue les déplacements successifs
+  // d'une composition, avec l'ancienne et la nouvelle date dans `details` — ce
+  // qu'une colonne `date` seule ne pourrait jamais dire.
+  //
+  // ⚠️ C'est cette trace qui alimente l'avertissement de changement de planning
+  // affiché aux enseignants (`src/lib/planningNotice.ts`). Sans elle, déplacer
+  // une composition serait un acte SILENCIEUX : la nouvelle date remplacerait
+  // l'ancienne et personne ne saurait qu'il faut prévenir qui que ce soit.
+  | "term"
+  | "evaluation"
+  // Application du programme type. Une seule ligne par application, avec le
+  // détail de ce qui a été créé et de ce qui existait déjà.
+  | "curriculum";
 
 /** Résultat de l'action. Répond au « avec quel résultat ? ». */
 export type AuditOutcome = "success" | "failure" | "denied";

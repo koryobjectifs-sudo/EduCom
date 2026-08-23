@@ -276,6 +276,31 @@ export default function SettingsClient({ school }: { school: any }) {
         </p>
       </div>
 
+      {/* SECTION 3: Finances (Grille tarifaire) */}
+      <div>
+        <h2 className="text-sm font-medium text-text-secondary ml-4 mb-2 uppercase tracking-wider">Finances</h2>
+        <div className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden">
+          <div className="p-5 flex items-center justify-between hover:bg-secondary/30 transition-colors">
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-xl bg-[#fef08a]/40 flex items-center justify-center shadow-sm border border-[#fef08a]">
+                <span className="text-lg">💰</span>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-text-primary">Grille tarifaire officielle</h3>
+                <p className="text-sm text-text-secondary mt-0.5">Définissez les frais de scolarité, inscriptions et autres montants par classe.</p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => window.location.href = "/dashboard/settings/fees"}
+            >
+              Gérer les tarifs <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
     </form>
   );
 }

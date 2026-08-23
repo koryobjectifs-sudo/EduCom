@@ -37,25 +37,21 @@ import { EmptyState } from "@/components/ui/EmptyState";
 
 interface StudentListClientProps {
   students: any[];
+  searchTerm: string;
+  classesData?: any[];
 }
 
-export default function StudentListClient({ students }: StudentListClientProps) {
+export default function StudentListClient({ students, searchTerm, classesData = [] }: StudentListClientProps) {
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [classFilter, setClassFilter] = useState<string>("ALL");
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  /** Classes réellement présentes dans les inscriptions — aucune liste en dur. */
+  /** Classes provenant directement de classesData, sans dépendre des inscriptions */
   const classes = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const s of students) {
-      const c = s.enrollments?.[0]?.class;
-      if (c?.id && !seen.has(c.id)) seen.set(c.id, c.name);
-    }
-    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1], "fr"));
-  }, [students]);
+    return classesData.map(c => [c.id, c.name] as [string, string]).sort((a, b) => a[1].localeCompare(b[1], "fr"));
+  }, [classesData]);
 
   const filteredStudents = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -76,10 +72,9 @@ export default function StudentListClient({ students }: StudentListClientProps) 
     });
   }, [students, searchTerm, statusFilter, classFilter]);
 
-  const hasActiveFilter = searchTerm.trim() !== "" || statusFilter !== "ALL" || classFilter !== "ALL";
+  const hasActiveFilter = statusFilter !== "ALL" || classFilter !== "ALL";
 
   const resetFilters = () => {
-    setSearchTerm("");
     setStatusFilter("ALL");
     setClassFilter("ALL");
   };
@@ -103,86 +98,83 @@ export default function StudentListClient({ students }: StudentListClientProps) 
 
   return (
     <div className="space-y-4">
-      {/* Barre de filtres */}
-      <Card>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-          <Input
-            label="Rechercher"
-            type="search"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Nom de l'élève, du parent, ou téléphone…"
-            className="flex-1"
-          />
-
-          <Select
-            label="Statut"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="lg:w-48"
-          >
-            <option value="ALL">Tous les statuts</option>
-            <option value="ENROLLED">Inscrits</option>
-            <option value="PENDING">En attente</option>
-            <option value="GRADUATED">Diplômés</option>
-            <option value="INACTIVE">Inactifs</option>
-          </Select>
-
-          {classes.length > 0 && (
-            <Select
-              label="Classe"
-              value={classFilter}
-              onChange={(e) => setClassFilter(e.target.value)}
-              className="lg:w-48"
-            >
-              <option value="ALL">Toutes les classes</option>
-              {classes.map(([id, name]) => (
-                <option key={id} value={id}>{name}</option>
-              ))}
-            </Select>
-          )}
-
-          {hasActiveFilter && (
-            <Button
-              variant="ghost"
-              onClick={resetFilters}
-              icon={<X aria-hidden="true" className="h-4 w-4" />}
-            >
-              Réinitialiser
-            </Button>
-          )}
-        </div>
-
-        {hasActiveFilter && (
-          <p aria-live="polite" className="mt-3 text-role-meta text-text-soft">
-            {filteredStudents.length} résultat{filteredStudents.length > 1 ? "s" : ""} sur {students.length}
-          </p>
-        )}
-      </Card>
-
       {/* Tableau */}
       <Card flush>
         <DataTable caption="Liste des élèves de l'établissement">
           <DataTable.Head>
             <tr>
-              <DataTable.HeadCell>Élève</DataTable.HeadCell>
-              <DataTable.HeadCell>Classe</DataTable.HeadCell>
-              <DataTable.HeadCell className="hidden md:table-cell">Parent / Tuteur</DataTable.HeadCell>
-              <DataTable.HeadCell>Statut</DataTable.HeadCell>
-              <DataTable.HeadCell className="text-right">
-                <span className="sr-only">Actions</span>
+              <DataTable.HeadCell className="align-bottom">
+                <div className="flex flex-col gap-2 min-w-[200px]">
+                  <span>Élève</span>
+                  <div className="h-9"></div> 
+                </div>
+              </DataTable.HeadCell>
+              <DataTable.HeadCell className="align-bottom">
+                <div className="flex flex-col gap-2 min-w-[150px]">
+                  <span>Classe</span>
+                  <Select
+                    value={classFilter}
+                    onChange={(e) => setClassFilter(e.target.value)}
+                    selectClassName="h-9 py-1 text-sm"
+                    disabled={classes.length === 0}
+                  >
+                    <option value="ALL">Toutes</option>
+                    {classes.map(([id, name]) => (
+                      <option key={id} value={id}>{name}</option>
+                    ))}
+                  </Select>
+                </div>
+              </DataTable.HeadCell>
+              <DataTable.HeadCell className="hidden md:table-cell align-bottom">
+                <div className="flex flex-col gap-2">
+                  <span>Parent / Tuteur</span>
+                  {/* Filtre couvert par la recherche générale */}
+                  <div className="h-9"></div> 
+                </div>
+              </DataTable.HeadCell>
+              <DataTable.HeadCell className="align-bottom">
+                <div className="flex flex-col gap-2 min-w-[130px]">
+                  <span>Statut</span>
+                  <Select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    selectClassName="h-9 py-1 text-sm"
+                  >
+                    <option value="ALL">Tous</option>
+                    <option value="ENROLLED">Inscrits</option>
+                    <option value="PENDING">En attente</option>
+                    <option value="GRADUATED">Diplômés</option>
+                    <option value="INACTIVE">Inactifs</option>
+                  </Select>
+                </div>
+              </DataTable.HeadCell>
+              <DataTable.HeadCell className="text-right align-bottom">
+                <div className="flex flex-col justify-end h-full gap-2 pb-1">
+                  <span className="sr-only">Actions</span>
+                  {hasActiveFilter && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={resetFilters}
+                      className="h-9 text-text-soft"
+                      title="Réinitialiser"
+                    >
+                      <X aria-hidden="true" className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </DataTable.HeadCell>
             </tr>
           </DataTable.Head>
           <DataTable.Body>
             {filteredStudents.length === 0 ? (
               <DataTable.EmptyRow colSpan={5}>
-                {hasActiveFilter ? (
+                {hasActiveFilter || searchTerm ? (
                   <EmptyState
                     icon={Search}
                     title="Aucun élève ne correspond"
-                    description="Essayez d'autres termes, ou réinitialisez les filtres."
-                    action={{ label: "Réinitialiser les filtres", onClick: resetFilters }}
+                    description="Essayez d'autres termes de recherche, ou réinitialisez les filtres."
+                    action={hasActiveFilter ? { label: "Réinitialiser les filtres", onClick: resetFilters } : undefined}
                     size="sm"
                   />
                 ) : (
