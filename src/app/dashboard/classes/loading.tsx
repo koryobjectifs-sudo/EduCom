@@ -1,7 +1,7 @@
-import { SkeletonPageHeader, SkeletonTable } from "@/components/ui/Skeleton";
+import { SkeletonPageHeader, SkeletonCardList } from "@/components/ui/Skeleton";
 
 /**
- * État de chargement de la liste. Le squelette reprend la forme du tableau réel
+ * État de chargement de la liste. Le squelette reprend la forme des cartes réelles
  * pour que la page ne saute pas à l'arrivée des données.
  *
  * Sans ce fichier, la route héritait du `loading.tsx` du segment `dashboard`,
@@ -12,7 +12,7 @@ export default function Loading() {
   return (
     <div className="space-y-6">
       <SkeletonPageHeader />
-      <SkeletonTable rows={8} columns={5} />
+      <SkeletonCardList count={8} />
     </div>
   );
 }

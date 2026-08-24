@@ -22,6 +22,22 @@
 
 ---
 
+# TÂCHES MANUELLES EN ATTENTE (AJOUTÉ LE 24 AOÛT 2026)
+
+## 0 · Configurer l'authentification dans Supabase
+
+**Ces deux actions doivent être faites par Kory sur le dashboard Supabase :**
+
+1. **Autoriser la redirection e-mail :**
+   - Supabase > Authentication > URL Configuration.
+   - Site URL : `https://educom.school`
+   - Redirect URLs : Ajouter `https://educom.school/auth/callback` et `https://educom.school/**`
+2. **Activer Google Auth :**
+   - Obtenir les clés sur Google Cloud (Client ID, Client Secret).
+   - Les renseigner dans Supabase > Authentication > Providers > Google.
+
+---
+
 # LOT 12.2 — BACKLOG / FOLLOW-UP
 
 ## 1 · Lien vers la grille tarifaire

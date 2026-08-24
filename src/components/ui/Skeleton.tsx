@@ -38,20 +38,46 @@ export function SkeletonTable({
 }) {
   return (
     <div aria-busy="true" className={`overflow-hidden rounded-surface border border-rule bg-surface shadow-card ${className}`}>
-      <div className="flex gap-4 border-b border-rule px-4 py-3">
+      <div className="flex gap-4 border-b border-rule px-4 py-3 hidden md:flex">
         {Array.from({ length: columns }).map((_, i) => (
-          <Skeleton key={i} className="h-3 flex-1" />
+          <Skeleton key={`h-${i}`} className="h-3 flex-1" />
         ))}
       </div>
       <div className="divide-y divide-rule">
         {Array.from({ length: rows }).map((_, r) => (
-          <div key={r} className="flex items-center gap-4 px-4 py-4">
+          <div key={`r-${r}`} className="flex flex-col md:flex-row md:items-center gap-4 px-4 py-4">
             {Array.from({ length: columns }).map((_, c) => (
-              <Skeleton key={c} className={`h-4 flex-1 ${c === 0 ? "max-w-[40%]" : ""}`} />
+              <Skeleton key={`c-${c}`} className={`h-4 flex-1 ${c === 0 ? "max-w-[40%]" : ""}`} />
             ))}
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Squelette de liste de cartes (pour les vues mobiles ou les grilles).
+ */
+export function SkeletonCardList({
+  count = 6,
+  className = "flex flex-col gap-3",
+}: {
+  count?: number;
+  className?: string;
+}) {
+  return (
+    <div aria-busy="true" className={className}>
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 rounded-surface border border-rule bg-surface p-3 shadow-sm">
+          <Skeleton className="h-10 w-10 shrink-0 rounded-control" />
+          <div className="flex flex-1 flex-col gap-2">
+            <Skeleton className="h-4 w-[60%]" />
+            <Skeleton className="h-3 w-[40%]" />
+          </div>
+          <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
+        </div>
+      ))}
     </div>
   );
 }
