@@ -72,9 +72,13 @@ export function NewInvoiceForm({ students, school }: { students: Student[], scho
     const student = students.find(s => s.id === e.target.value);
     setSelectedStudent(student || null);
     if (student) {
-      setTitle(`Facture Scolarité - ${student.firstName} ${student.lastName}`);
+      if (typeof document !== 'undefined') {
+        document.title = `Facture Scolarité - ${student.firstName} ${student.lastName}`;
+      }
     } else {
-      setTitle("Facture Scolarité");
+      if (typeof document !== 'undefined') {
+        document.title = "Facture Scolarité";
+      }
     }
   };
 
@@ -386,8 +390,8 @@ export function NewInvoiceForm({ students, school }: { students: Student[], scho
                 )}
               </div>
 
-              <div className={`flex justify-between items-start border-b border-gray-100 relative z-10 ${paperFormat === "A4-half" ? "pb-4 mb-4" : "pb-8 mb-8"}`}>
-                <div className="flex-1 min-w-0 pr-4">
+              <div className={`flex flex-col sm:flex-row justify-between sm:items-start gap-4 sm:gap-2 print:flex-row print:items-start border-b border-gray-100 relative z-10 ${paperFormat === "A4-half" ? "pb-4 mb-4" : "pb-8 mb-8"}`}>
+                <div className="flex-1 min-w-0 pr-0 sm:pr-4 print:pr-4">
                   <div className="flex items-center gap-3">
                     {school?.logo ? (
                       <img src={school.logo} alt="Logo" className={`${paperFormat === "A4-half" ? "h-6 w-6" : "h-10 w-10"} object-contain rounded-lg shadow-sm flex-shrink-0`} />
@@ -396,15 +400,15 @@ export function NewInvoiceForm({ students, school }: { students: Student[], scho
                         {school?.name ? school.name.charAt(0).toUpperCase() : "E"}
                       </div>
                     )}
-                    <span className={`${paperFormat === "A4-half" ? "text-xs sm:text-base" : "text-xs sm:text-xl"} font-semibold text-gray-900 tracking-tight whitespace-nowrap truncate`}>{school?.name || "Établissement Sans Nom"}</span>
+                    <span className={`${paperFormat === "A4-half" ? "text-xs sm:text-base" : "text-xs sm:text-xl"} font-semibold text-gray-900 tracking-tight whitespace-normal break-words max-w-full leading-snug`}>{school?.name || "Établissement Sans Nom"}</span>
                   </div>
                   <div className={`mt-3 ${paperFormat === "A4-half" ? "text-[10px]" : "text-xs"} text-gray-500 flex flex-col gap-0.5`}>
-                    <span className="whitespace-nowrap truncate">{school?.address || "Adresse non renseignée"}</span>
+                    <span className="whitespace-normal break-words leading-relaxed">{school?.address || "Adresse non renseignée"}</span>
                     <span className="whitespace-nowrap truncate">{[school?.email, school?.phone].filter(Boolean).join(" • ")}</span>
                   </div>
                 </div>
-                <div className="text-right flex-shrink-0 max-w-[50%]">
-                  <h2 className={`${paperFormat === "A4-half" ? "text-sm sm:text-base" : "text-sm sm:text-2xl"} font-light text-gray-900 uppercase tracking-widest whitespace-nowrap`}>{title || "Facture"}</h2>
+                <div className="text-left sm:text-right print:text-right flex-shrink-0 max-w-full sm:max-w-[50%] print:max-w-[50%]">
+                  <h2 className={`${paperFormat === "A4-half" ? "text-sm sm:text-base" : "text-sm sm:text-2xl"} font-light text-gray-900 uppercase tracking-widest whitespace-normal sm:whitespace-nowrap print:whitespace-nowrap`}>{title || "Facture"}</h2>
                   <p className={`${paperFormat === "A4-half" ? "text-[10px]" : "text-sm"} text-gray-500 mt-1 font-medium`}>#INV-{new Date().getFullYear()}-001</p>
                 </div>
               </div>
