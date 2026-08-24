@@ -335,10 +335,31 @@ export async function returnReportCardsToTeacher(
   if (!reason?.trim()) return { error: "Indiquez un motif de renvoi." };
 
   try {
+    // 1. Récupérer un bulletin pour savoir qui l'a validé (l'enseignant)
+    const sample = await prisma.reportCard.findFirst({
+      where: { classId, evaluationId, schoolId: dbUser.schoolId, status: "SUBMITTED" },
+      select: { validatedById: true, class: { select: { name: true } } }
+    });
+
     const res = await prisma.reportCard.updateMany({
       where: { classId, evaluationId, schoolId: dbUser.schoolId, status: "SUBMITTED" },
       data: { status: "RETURNED", returnedReason: reason.trim(), submittedAt: null },
     });
+
+    // 2. Créer la notification
+    if (sample && sample.validatedById && res.count > 0) {
+      await prisma.staffNotification.create({
+        data: {
+          userId: sample.validatedById,
+          kind: "reportcard.returned",
+          title: "Bulletins renvoyés",
+          body: `Le secrétariat a renvoyé les bulletins de ${sample.class.name} pour correction : ${reason.trim()}`,
+          link: "/dashboard/grades",
+          schoolId: dbUser.schoolId,
+        }
+      });
+    }
+
     revalidatePath("/dashboard/documents/validation");
     return { success: true, count: res.count };
   } catch (error: any) {
@@ -360,10 +381,31 @@ export async function approveReportCards(classId: string, evaluationId: string) 
   }
 
   try {
+    // 1. Récupérer un bulletin pour savoir qui l'a validé (l'enseignant)
+    const sample = await prisma.reportCard.findFirst({
+      where: { classId, evaluationId, schoolId: dbUser.schoolId, status: "SUBMITTED" },
+      select: { validatedById: true, class: { select: { name: true } } }
+    });
+
     const res = await prisma.reportCard.updateMany({
       where: { classId, evaluationId, schoolId: dbUser.schoolId, status: "SUBMITTED" },
       data: { status: "APPROVED" },
     });
+
+    // 2. Créer la notification
+    if (sample && sample.validatedById && res.count > 0) {
+      await prisma.staffNotification.create({
+        data: {
+          userId: sample.validatedById,
+          kind: "reportcard.approved",
+          title: "Bulletins validés",
+          body: `Le secrétariat a approuvé les bulletins de ${sample.class.name}.`,
+          link: "/dashboard/grades",
+          schoolId: dbUser.schoolId,
+        }
+      });
+    }
+
     revalidatePath("/dashboard/documents/validation");
     return { success: true, count: res.count };
   } catch (error: any) {
@@ -482,6 +524,28 @@ export async function validateStudentReportCard(
   }
 }
 
+/**
+ * Valide en bloc tous les bulletins d'une classe qui sont encore en brouillon.
+ */
+export async function validateClassReportCards(classId: string, termId: string, evaluationId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non autorisé" };
+
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { error: "Utilisateur introuvable" };
+
+  try {
+    const res = await prisma.reportCard.updateMany({
+      where: { classId, termId, evaluationId, status: "DRAFT" },
+      data: { status: "VALIDATED", validatedAt: new Date(), validatedById: dbUser.id },
+    });
+    return { success: true, count: res.count };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
+
 /** Rouvre un bulletin verrouillé pour correction. */
 export async function reopenStudentReportCard(studentId: string, evaluationId: string) {
   const supabase = await createClient();
@@ -545,6 +609,41 @@ export async function submitClassToSecretariat(
 }
 
 /**
+ * Envoi individuel d'un élève au secrétariat, sans attendre la validation complète de la classe.
+ */
+export async function submitStudentToSecretariat(
+  studentId: string,
+  classId: string,
+  termId: string,
+  evaluationId: string
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non autorisé" };
+
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { error: "Utilisateur introuvable" };
+
+  try {
+    const report = await prisma.reportCard.findFirst({
+      where: { studentId, classId, termId, evaluationId }
+    });
+
+    if (!report) return { error: "Bulletin introuvable." };
+    if (report.status !== "VALIDATED") return { error: "Le bulletin doit être validé avant envoi." };
+
+    await prisma.reportCard.update({
+      where: { id: report.id },
+      data: { status: "SUBMITTED", submittedAt: new Date(), submittedById: dbUser.id },
+    });
+    
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
+
+/**
  * Les élèves inscrits dans une classe.
  *
  * Séparé de `getReportCardData` pour que la liste s'affiche dès que
@@ -592,6 +691,7 @@ export async function getClassSubjects(classId: string) {
   return {
     data: rows.map((r) => ({
       ...r.subject,
+      coefficient: r.coefficient,
       editable: editableIds === "ALL" || editableIds.has(r.subjectId),
     })),
   };

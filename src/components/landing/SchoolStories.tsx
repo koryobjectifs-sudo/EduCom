@@ -133,7 +133,7 @@ export default function SchoolStories() {
 
               <Link
                 href="/register"
-                className="mt-9 inline-flex h-12 items-center gap-2 rounded-control bg-m-ink px-6 text-[15px] font-semibold text-white transition-colors hover:bg-m-ink/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m-ink/40 focus-visible:ring-offset-2"
+                className="mt-9 inline-flex h-12 items-center gap-2 rounded-control bg-m-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-m-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m-primary/40 focus-visible:ring-offset-2"
               >
                 Rejoindre le pilote
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />

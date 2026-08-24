@@ -16,13 +16,32 @@ export default async function DirectoryPage() {
   
   const studentsPromise = prisma.student.findMany({
     where: { AND: [scope, { schoolId }] },
-    include: {
-      parent: true,
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      dateOfBirth: true,
+      status: true,
+      parent: {
+        select: {
+          firstName: true,
+          lastName: true,
+          phone: true,
+        },
+      },
       enrollments: {
-        include: {
-          class: true
-        }
-      }
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          academicYear: true,
+          class: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
     },
     orderBy: {
       createdAt: "desc"

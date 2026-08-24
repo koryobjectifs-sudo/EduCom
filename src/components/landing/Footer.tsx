@@ -27,7 +27,7 @@ export default function Footer() {
             <Link href="/" aria-label="EduCom — accueil" className="inline-flex h-11 items-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/brand/educom-logo-horizontal-blanc.svg"
+                src="/brand/educom-logo-officiel.jpg"
                 alt="EduCom"
                 width={156}
                 height={28}

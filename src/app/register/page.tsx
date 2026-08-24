@@ -70,11 +70,11 @@ export default function RegisterPage() {
 
   if (confirmation) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-ground px-5 py-12">
+      <div className="flex min-h-screen items-center justify-center bg-sunk px-5 py-12">
         <div className="w-full max-w-md">
           <Link href="/" className="mb-8 inline-flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/educom-logo-horizontal.svg" alt="EduCom" width={156} height={28} className="h-7 w-auto" />
+            <img src="/brand/educom-logo-officiel.jpg" alt="EduCom" width={156} height={28} className="h-7 w-auto" />
           </Link>
 
           <div className="rounded-surface border border-rule bg-surface p-7 shadow-card sm:p-9">
@@ -111,9 +111,9 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-ground lg:flex-row">
-      <div className="flex flex-1 flex-col justify-center px-5 py-10 sm:px-8 lg:px-16">
-        <div className="mx-auto w-full max-w-sm">
+    <div className="flex min-h-screen flex-col bg-sunk lg:flex-row">
+      <div className="flex flex-1 flex-col items-center justify-center px-5 py-10 sm:px-8 lg:px-16">
+        <div className="w-full max-w-sm rounded-surface border border-rule bg-surface p-8 shadow-card">
           <Link href="/" className="mb-8 inline-flex items-center gap-2.5">
             {/* ⚠️ Addendum PLG — c'était un « E » blanc dans un carré, dessiné en
                 HTML, alors que `public/brand/` contient le logotype fini. Sur la
@@ -122,7 +122,7 @@ export default function RegisterPage() {
                 l'instant de la connexion ressemble à une page contrefaite. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/brand/educom-logo-horizontal.svg"
+              src="/brand/educom-logo-officiel.jpg"
               alt="EduCom"
               width={156}
               height={28}

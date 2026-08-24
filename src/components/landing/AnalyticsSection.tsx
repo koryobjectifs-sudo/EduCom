@@ -93,7 +93,7 @@ export default function AnalyticsSection() {
                   {[40, 55, 45, 70, 65, 80, 75, 90, 85, 100].map((h, i) => (
                     <div key={i} className="w-full bg-blue-50 rounded-t-sm relative group">
                       <div 
-                        className="absolute bottom-0 inset-x-0 bg-blue-500 rounded-t-sm opacity-80 group-hover:opacity-100 group-hover:bg-blue-600 transition-colors"
+                        className="absolute bottom-0 inset-x-0 bg-m-primary rounded-t-sm opacity-80 group-hover:opacity-100 group-hover:bg-m-primary/90 transition-colors"
                         style={{ height: `${h}%` }}
                       />
                     </div>

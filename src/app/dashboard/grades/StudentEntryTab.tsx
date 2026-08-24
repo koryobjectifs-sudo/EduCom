@@ -4,15 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Loader2, Save, ArrowRight, ArrowLeft, Check, CheckCircle2, CircleDashed, Circle,
-  UserRound, TriangleAlert, Lock, Unlock, Send, X, Undo2, Search,
+  UserRound, TriangleAlert, Lock, Unlock, Send, X, Undo2, Search, Plus,
 } from "lucide-react";
 import { statusLabel } from "@/lib/status";
 import {
   getClassRoster, getClassSubjects, getReportCardData, saveGrades,
   getReportCardStates, validateStudentReportCard, reopenStudentReportCard,
-  submitClassToSecretariat,
+  submitClassToSecretariat, submitStudentToSecretariat, validateClassReportCards,
 } from "./actions";
 import { buildBlocks, type SubjectRow } from "@/lib/bulletin";
+import { triggerCelebration } from "@/lib/celebration";
 
 /** Une matière de la classe, avec le droit de saisie de l'utilisateur courant. */
 type ScopedSubject = SubjectRow & { editable?: boolean };
@@ -96,6 +97,12 @@ export default function StudentEntryTab({
   const [selectedClass, setSelectedClass] = useState(defaults?.classId ?? "");
   const [selectedTerm, setSelectedTerm] = useState(defaults?.termId ?? "");
   const [selectedEvaluation, setSelectedEvaluation] = useState(defaults?.evaluationId ?? "");
+  const [isNewEntryMode, setIsNewEntryMode] = useState(false);
+
+  // Revenir au mode normal dès que l'enseignant change le trimestre ou l'évaluation
+  useEffect(() => {
+    setIsNewEntryMode(false);
+  }, [selectedTerm, selectedEvaluation]);
 
   const [subjects, setSubjects] = useState<ScopedSubject[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -109,6 +116,7 @@ export default function StudentEntryTab({
   const [isBusy, setIsBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "error" | "ok"; text: string } | null>(null);
   const [confirm, setConfirm] = useState<null | "validate" | "submit">(null);
+  const [submitPopup, setSubmitPopup] = useState<string | null>(null);
 
   const selectedTermObj = terms.find((t) => t.id === selectedTerm);
   const evaluations = selectedTermObj?.evaluations || [];
@@ -298,8 +306,39 @@ export default function StudentEntryTab({
     setIsBusy(false);
     if (res?.error) { setFeedback({ kind: "error", text: res.error }); return; }
     await reload();
-    setFeedback({ kind: "ok", text: "Bulletin validé et verrouillé." });
+    
+    // Célébration globale
+    triggerCelebration();
+    // Afficher le popup d'envoi
+    setSubmitPopup(activeStudentId);
+  };
+
+  const doSubmitIndividual = async (submit: boolean) => {
+    const sid = submitPopup;
+    setSubmitPopup(null);
+    
+    if (submit && sid) {
+      setIsBusy(true);
+      const res = await submitStudentToSecretariat(sid, selectedClass, selectedTerm, selectedEvaluation);
+      setIsBusy(false);
+      if (res?.error) { setFeedback({ kind: "error", text: res.error }); return; }
+      await reload();
+      setFeedback({ kind: "ok", text: "Bulletin envoyé au secrétariat." });
+    } else {
+      setFeedback({ kind: "ok", text: "Bulletin enregistré en brouillon." });
+    }
+    
     if (hasNext) setActiveStudentId(students[idx + 1].id);
+  };
+
+  const doValidateAll = async () => {
+    setIsBusy(true); setFeedback(null);
+    const res = await validateClassReportCards(selectedClass, selectedTerm, selectedEvaluation);
+    setIsBusy(false);
+    if (res?.error) { setFeedback({ kind: "error", text: res.error }); return; }
+    await reload();
+    triggerCelebration();
+    setFeedback({ kind: "ok", text: `${res.count} bulletin(s) validé(s).` });
   };
 
   const doReopen = async () => {
@@ -475,15 +514,25 @@ export default function StudentEntryTab({
         </div>
 
         {selectedClass && students.length > 0 && ready && (
-          <div className="p-2.5 border-t border-gray-200 bg-white">
+          <div className="p-2.5 border-t border-gray-200 bg-white flex flex-col gap-2">
+            {!alreadySubmitted && !allValidated && (
+              <button
+                onClick={doValidateAll}
+                disabled={isBusy}
+                className="w-full bg-[#539BEB] text-white px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-[#539BEB]/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Tout valider d'un coup
+              </button>
+            )}
             <button
               onClick={() => setConfirm("submit")}
               disabled={!allValidated || alreadySubmitted || isBusy}
-              className="w-full bg-gray-900 text-white px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-gray-900 text-white px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
               title={alreadySubmitted ? "Déjà déposé" : allValidated ? undefined : "Validez d'abord tous les élèves"}
             >
               <Send className="w-3.5 h-3.5" />
-              {alreadySubmitted ? "Déjà déposé" : "Envoyer au secrétariat"}
+              {alreadySubmitted ? "Déjà déposé" : "Envoyer la classe au secrétariat"}
             </button>
           </div>
         )}
@@ -577,6 +626,26 @@ export default function StudentEntryTab({
                 <p className="text-center p-6 text-sm text-gray-400">
                   Aucune matière rattachée à «&nbsp;{selectedClassObj?.name}&nbsp;».
                 </p>
+              ) : isNewEntryMode ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-white m-4 rounded-2xl border border-gray-100 shadow-sm">
+                  <div className="w-16 h-16 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl grid place-items-center mb-6 shadow-sm">
+                    <Plus className="w-8 h-8 text-[#539BEB]" />
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">Prêt pour un nouveau bulletin</h2>
+                  <p className="text-[14px] text-gray-500 max-w-md mx-auto mb-8 leading-relaxed">
+                    Pour démarrer une nouvelle saisie de notes, sélectionnez simplement un autre <strong>Trimestre</strong> et une autre <strong>Évaluation</strong> dans le panneau de gauche.
+                  </p>
+                  
+                  <div className="bg-gray-50 rounded-xl p-5 text-left border border-gray-100 w-full max-w-md">
+                    <h3 className="font-semibold text-gray-900 text-[13px] mb-2 flex items-center gap-2">
+                      <TriangleAlert className="w-4 h-4 text-amber-500" />
+                      L'évaluation n'existe pas encore ?
+                    </h3>
+                    <p className="text-[13px] text-gray-600 leading-relaxed">
+                      Si vous ne voyez pas l'évaluation souhaitée dans la liste, vous devez d'abord la créer depuis l'onglet <strong>Configuration</strong> en haut à droite.
+                    </p>
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-3">
                   {blocks.map((block) => {
@@ -662,14 +731,22 @@ export default function StudentEntryTab({
 
               <div className="ml-auto flex items-center gap-2">
                 {activeLocked ? (
-                  <button
-                    onClick={doReopen}
-                    disabled={isBusy || statusOf(activeStudentId) !== "VALIDATED"}
-                    className="border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors disabled:opacity-40 flex items-center gap-2"
-                    title={statusOf(activeStudentId) !== "VALIDATED" ? "Déjà déposé au secrétariat" : "Rouvrir pour correction"}
-                  >
-                    <Unlock className="w-3.5 h-3.5" /> Rouvrir
-                  </button>
+                  <>
+                    <button
+                      onClick={doReopen}
+                      disabled={isBusy || statusOf(activeStudentId) !== "VALIDATED"}
+                      className="border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors disabled:opacity-40 flex items-center gap-2"
+                      title={statusOf(activeStudentId) !== "VALIDATED" ? "Déjà déposé au secrétariat" : "Rouvrir pour correction"}
+                    >
+                      <Unlock className="w-3.5 h-3.5" /> Rouvrir
+                    </button>
+                    <button
+                      onClick={() => setIsNewEntryMode(true)}
+                      className="bg-[#539BEB] text-white px-4 py-2 rounded-lg text-[13px] font-medium hover:bg-[#539BEB]/90 transition-colors shadow-sm flex items-center gap-2"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Nouveau bulletin
+                    </button>
+                  </>
                 ) : (
                   <>
                     <button
@@ -678,22 +755,14 @@ export default function StudentEntryTab({
                       className="border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors disabled:opacity-40 flex items-center gap-2"
                     >
                       {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                      Enregistrer
+                      Enregistrer au brouillon
                     </button>
                     <button
                       onClick={() => (activeMissing.length > 0 ? setConfirm("validate") : doValidate())}
                       disabled={isBusy || !ready}
-                      className="bg-emerald-600 text-white px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-emerald-700 transition-colors disabled:opacity-40 flex items-center gap-2 shadow-sm"
+                      className="bg-[#539BEB] text-white px-4 py-2 rounded-lg text-[13px] font-medium hover:bg-[#539BEB]/90 transition-colors disabled:opacity-40 flex items-center gap-2 shadow-sm"
                     >
                       <Lock className="w-3.5 h-3.5" /> Valider
-                    </button>
-                    <button
-                      onClick={() => saveStudent(hasNext)}
-                      disabled={isBusy || !ready}
-                      className="bg-indigo-600 text-white px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-indigo-700 transition-colors disabled:opacity-40 flex items-center gap-2 shadow-sm"
-                    >
-                      {hasNext ? "Enregistrer et suivant" : "Enregistrer et terminer"}
-                      {hasNext ? <ArrowRight className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
                     </button>
                   </>
                 )}
@@ -761,6 +830,39 @@ export default function StudentEntryTab({
               >
                 {confirm === "submit" ? "Confirmer le dépôt" : "Valider quand même"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {submitPopup && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-sm">
+                <Send className="w-8 h-8 text-[#539BEB]" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Envoyer au secrétariat ?</h3>
+              <p className="text-[14px] text-gray-500 max-w-sm mx-auto mb-8 leading-relaxed">
+                Ce bulletin est désormais validé. Souhaitez-vous le transmettre immédiatement au secrétariat, ou le garder de côté pour l'instant ?
+              </p>
+              
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => doSubmitIndividual(true)}
+                  disabled={isBusy}
+                  className="w-full bg-[#539BEB] text-white px-4 py-3 rounded-xl text-[14px] font-semibold hover:bg-[#539BEB]/90 transition-colors shadow-sm flex items-center justify-center gap-2"
+                >
+                  <Send className="w-4 h-4" /> Oui, envoyer ce bulletin
+                </button>
+                <button
+                  onClick={() => doSubmitIndividual(false)}
+                  disabled={isBusy}
+                  className="w-full bg-white text-gray-700 px-4 py-3 rounded-xl text-[14px] font-medium border border-gray-200 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  Non, garder en brouillon pour le moment
+                </button>
+              </div>
             </div>
           </div>
         </div>

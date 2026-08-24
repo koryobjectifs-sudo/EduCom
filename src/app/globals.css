@@ -35,7 +35,7 @@
   /* ─── Couleur d'ancrage ──────────────────────────────────────────────────
      Surchargée à l'exécution par `dashboard/layout.tsx` quand l'école a
      renseigné `School.primaryColor`. Tout le reste en découle. */
-  --color-primary: #0B1F3A;
+  --color-primary: #539BEB;
 
   /* ─── Variantes dérivées du primary ──────────────────────────────────────
      Repli universel en `color-mix` (largement supporté). Le bloc `@supports`
@@ -140,6 +140,8 @@
   --m-ink-soft:   #40506B;  /* texte courant sur papier */
   --m-ink-faint:  #8492A8;  /* métadonnée, légende */
 
+  --m-brand-primary: #539BEB; /* Bleu principal officiel EduCom */
+
   --m-paper:      #FAF8F4;  /* fond éditorial chaud */
   --m-paper-deep: #F2EEE6;  /* second fond, pour alterner sans changer de ton */
   --m-card:       #FFFFFF;
@@ -206,6 +208,7 @@
   --color-m-ink:        var(--m-ink);
   --color-m-ink-soft:   var(--m-ink-soft);
   --color-m-ink-faint:  var(--m-ink-faint);
+  --color-m-primary:    var(--m-brand-primary);
   --color-m-paper:      var(--m-paper);
   --color-m-paper-deep: var(--m-paper-deep);
   --color-m-card:       var(--m-card);

@@ -10,6 +10,29 @@ import {
 } from "@/lib/curriculum";
 
 /**
+ * Renvoie un coefficient par défaut basé sur l'importance générale des matières
+ * dans le système sénégalais (Langue et Maths = 3, Sciences/Langues = 2, Autres = 1).
+ */
+function getStandardCoefficient(subjectName: string): number {
+  const name = subjectName.toLowerCase();
+  if (
+    name.includes("math") || name.includes("calcul") || name.includes("problème") || 
+    name.includes("français") || name.includes("lecture") || name.includes("orthographe") || name.includes("grammaire") || name.includes("expression")
+  ) {
+    return 3;
+  }
+  if (
+    name.includes("anglais") || name.includes("arabe") || name.includes("espagnol") || 
+    name.includes("physique") || name.includes("chimie") || name.includes("svt") || 
+    name.includes("ist") || name.includes("histoire") || name.includes("géographie") || 
+    name.includes("philosophie")
+  ) {
+    return 2;
+  }
+  return 1;
+}
+
+/**
  * **L'écriture de la configuration pédagogique.** Le pendant serveur de
  * `src/lib/curriculum.ts`, qui ne fait que décrire.
  *
@@ -124,9 +147,16 @@ export async function applyCurriculum(
       const subjectId = idByName.get(name);
       if (!subjectId) continue;
       if (already.has(subjectId)) { report.alreadyThere.links++; continue; }
-      // ⚠️ `coefficient` n'est PAS passé : le défaut du schéma vaut 1, et 1 est
-      // la seule valeur qu'on ait le droit de supposer (voir `curriculum.ts`).
-      await prisma.classSubject.create({ data: { classId: entry.classId, subjectId } });
+      
+      const coefficient = getStandardCoefficient(name);
+      
+      await prisma.classSubject.create({ 
+        data: { 
+          classId: entry.classId, 
+          subjectId,
+          coefficient 
+        } 
+      });
       report.linksCreated++;
     }
   }

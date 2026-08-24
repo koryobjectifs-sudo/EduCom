@@ -78,12 +78,11 @@ export default function ClassListClient({ classes, teachers, searchTerm }: { cla
     <div className="space-y-6">
       {/* Cycle Selection Grid */}
       {!selectedCycle && !searchTerm && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           {CYCLES.map((cycle) => {
             const cycleClasses = classes.filter((c) => c.cycle === cycle.id);
             const totalStudents = cycleClasses.reduce((acc, c) => acc + (c._count?.enrollments || 0), 0);
             const Icon = cycle.icon;
-            const empty = cycleClasses.length === 0;
 
             return (
               <button
@@ -91,28 +90,21 @@ export default function ClassListClient({ classes, teachers, searchTerm }: { cla
                 type="button"
                 onClick={() => setSelectedCycle(cycle.id)}
                 aria-label={`Ouvrir le cycle ${cycle.label} — ${cycleClasses.length} classe(s), ${totalStudents} élève(s)`}
-                className="group flex h-full flex-col rounded-surface border border-rule bg-surface p-5 text-left shadow-card transition-colors hover:border-primary/40 hover:bg-sunk/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="group flex items-center justify-between rounded-surface border border-rule bg-surface p-2.5 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-sunk text-text-soft group-hover:text-primary">
-                    <Icon aria-hidden="true" className="h-5 w-5" strokeWidth={1.8} />
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-sunk text-text-soft group-hover:text-primary group-hover:bg-white transition-colors">
+                    <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
                   </span>
-                  <span className="text-role-meta font-semibold tabular-nums text-text-faint">
-                    {cycleClasses.length} classe{cycleClasses.length !== 1 ? "s" : ""}
-                  </span>
+                  <div className="min-w-0 pr-2">
+                    <h3 className="text-[13px] font-semibold text-text group-hover:text-primary transition-colors truncate">
+                      {cycle.label}
+                    </h3>
+                    <p className="text-[11px] text-text-faint truncate">
+                      {cycleClasses.length} classe{cycleClasses.length !== 1 ? "s" : ""} · {totalStudents} élève{totalStudents !== 1 ? "s" : ""}
+                    </p>
+                  </div>
                 </div>
-
-                <h3 className="mt-3 text-role-card font-semibold text-text group-hover:text-primary">
-                  {cycle.label}
-                </h3>
-                <p className="mt-1 flex-1 text-role-meta text-text-faint">{cycle.desc}</p>
-
-                <p className="mt-4 flex items-center gap-1.5 border-t border-rule pt-3 text-role-body text-text-soft">
-                  <Users aria-hidden="true" className="h-4 w-4 text-text-faint" />
-                  <span className="tabular-nums font-medium text-text">{totalStudents}</span>
-                  élève{totalStudents !== 1 ? "s" : ""}
-                  {empty && <span className="ml-auto text-role-meta text-text-faint">à créer</span>}
-                </p>
               </button>
             );
           })}
@@ -121,7 +113,7 @@ export default function ClassListClient({ classes, teachers, searchTerm }: { cla
 
       {/* Classes Grid */}
       {(selectedCycle || searchTerm) && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredClasses.length === 0 ? (
             <div className="col-span-full">
               <EmptyState
@@ -149,7 +141,7 @@ export default function ClassListClient({ classes, teachers, searchTerm }: { cla
                     Générer les classes standards
                   </Button>
                   {error && (
-                    <p className="max-w-sm rounded-control bg-danger/10 px-3 py-2 text-role-meta font-medium text-danger">
+                     <p className="max-w-sm rounded-control bg-danger/10 px-3 py-2 text-role-meta font-medium text-danger">
                       {error}
                     </p>
                   )}
@@ -163,68 +155,43 @@ export default function ClassListClient({ classes, teachers, searchTerm }: { cla
               const count = c._count?.enrollments || 0;
 
               return (
-                /* La carte n'est plus un <Link> englobant : le bouton de
-                   suppression s'y trouvait imbriqué, ce qui est invalide en HTML
-                   et rendait le clavier imprévisible. Le nom porte le lien, la
-                   carte garde son survol. */
                 <div
                   key={c.id}
-                  className="group flex flex-col rounded-surface border border-rule bg-surface p-5 shadow-card transition-colors hover:border-primary/40"
+                  className="group flex items-center justify-between rounded-surface border border-rule bg-surface p-2.5 shadow-sm transition-colors hover:border-primary/40"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-sunk text-text-soft">
-                        <Icon aria-hidden="true" className="h-5 w-5" strokeWidth={1.8} />
-                      </span>
-                      <div className="min-w-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-sunk text-text-soft group-hover:text-primary transition-colors">
+                      <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
                         <Link
                           href={`/dashboard/classes/${c.id}`}
-                          className="block truncate rounded-control text-role-card font-semibold text-text hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                          className="truncate rounded-control text-[13px] font-semibold text-text hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                         >
                           {c.name}
                         </Link>
-                        <p className="text-role-meta text-text-faint">{cycleInfo.label}</p>
+                        <span className="text-[11px] font-medium text-text-soft bg-sunk px-1.5 py-0.5 rounded">
+                          {count} élève{count !== 1 ? "s" : ""}
+                        </span>
                       </div>
-                    </div>
-
-                    {/* Toujours visible : l'ancienne version l'affichait au
-                        survol seulement, donc inatteignable au clavier et au
-                        tactile. */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label={`Supprimer la classe ${c.name}`}
-                      onClick={(e) => handleDeleteClick(e, c.id)}
-                      loading={isDeleting === c.id}
-                      icon={<Trash2 aria-hidden="true" className="h-4 w-4" />}
-                      className="shrink-0 hover:text-danger"
-                    />
-                  </div>
-
-                  {/* L'effectif est l'information la plus consultée : il passe en
-                      chiffre de premier plan plutôt qu'en légende sous le nom. */}
-                  <p className="mt-4 flex items-baseline gap-1.5">
-                    <span className="text-role-section font-semibold tabular-nums text-text">{count}</span>
-                    <span className="text-role-body text-text-soft">
-                      élève{count !== 1 ? "s" : ""} inscrit{count !== 1 ? "s" : ""}
-                    </span>
-                  </p>
-
-                  <div className="mt-4 flex items-center gap-2.5 border-t border-rule pt-3">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-pill bg-sunk">
-                      <User aria-hidden="true" className="h-3.5 w-3.5 text-text-faint" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-role-meta uppercase tracking-wide text-text-faint">
-                        Professeur principal
-                      </p>
-                      <p className="truncate text-role-body font-medium text-text">
+                      <p className="truncate text-[11px] text-text-faint mt-0.5">
                         {c.teacher
                           ? `${c.teacher.firstName} ${c.teacher.lastName}`
-                          : <span className="font-normal text-text-faint">Non assigné</span>}
+                          : "Professeur non assigné"}
                       </p>
                     </div>
                   </div>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Supprimer la classe ${c.name}`}
+                    onClick={(e) => handleDeleteClick(e, c.id)}
+                    loading={isDeleting === c.id}
+                    icon={<Trash2 aria-hidden="true" className="h-3.5 w-3.5" />}
+                    className="shrink-0 hover:text-danger h-7 w-7 p-0 ml-2"
+                  />
                 </div>
               );
             })

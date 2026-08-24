@@ -24,18 +24,15 @@ export default function BottomNav() {
             <Link
               key={item.name}
               href={item.href}
-              className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all duration-200 ${
-                isActive ? "text-primary" : "text-text-muted hover:text-text-secondary"
-              }`}
+              className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all duration-200 ${isActive ? "text-primary" : "text-text-muted hover:text-text-secondary"
+                }`}
             >
               <item.icon
-                className={`h-6 w-6 mb-1 transition-transform duration-200 ${
-                  isActive ? "scale-110" : "scale-100"
-                }`}
+                className={`h-6 w-6 mb-1 transition-transform duration-200 ${isActive ? "scale-110" : "scale-100"
+                  }`}
               />
-              <span className={`text-[10px] font-medium transition-opacity duration-200 ${
-                isActive ? "opacity-100" : "opacity-0 h-0 w-0 overflow-hidden"
-              }`}>
+              <span className={`text-[10px] font-medium transition-opacity duration-200 ${isActive ? "opacity-100" : "opacity-0 h-0 w-0 overflow-hidden"
+                }`}>
                 {item.name}
               </span>
             </Link>

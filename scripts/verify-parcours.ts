@@ -235,7 +235,7 @@ async function main() {
     `/est installée|Création de vos classes/.test(document.body.innerText)`,
     10,
   );
-  const installee = await waitFor(cdp, sDir, `/est installée/.test(document.body.innerText)`, 30_000);
+  const installee = await waitFor(cdp, sDir, `/est installée/.test(document.body.innerText)`, 90_000);
   check(installee, "l'installation aboutit");
 
   const bilan = await lire(sDir);

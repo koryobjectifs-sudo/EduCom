@@ -64,7 +64,7 @@ export default function HeroSection() {
             <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
                 href="/register"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-control bg-m-ink px-6 text-[15px] font-semibold text-white transition-colors hover:bg-m-ink/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m-ink/40 focus-visible:ring-offset-2"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-control bg-m-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-m-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m-primary/40 focus-visible:ring-offset-2"
               >
                 Créer l&apos;espace de mon école
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />

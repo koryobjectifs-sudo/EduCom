@@ -39,7 +39,7 @@ export default function DashboardLayoutClient({
   const isAuthorized = pathname ? hasAccess(userRole as RoleType, pathname) : true;
 
   return (
-    <div className="flex min-h-screen w-full bg-ground print:bg-white">
+    <div className="flex h-screen w-full overflow-hidden bg-ground print:bg-white print:h-auto print:overflow-visible">
       {/* La sidebar gère elle-même sa visibilité (masquée sous lg) : l'envelopper
           dans un conteneur `hidden md:flex` dupliquait la responsabilité et
           faisait apparaître le rail en tablette sans que la largeur suive. */}
@@ -48,7 +48,7 @@ export default function DashboardLayoutClient({
         <div className="print:hidden">
           <TopNav schoolName={schoolName} schoolLogo={schoolLogo} userRole={userRole} userName={userName} />
         </div>
-        <main className="flex-1 w-full relative print:m-0 print:p-0">
+        <main className="flex-1 w-full overflow-y-auto relative print:overflow-visible print:m-0 print:p-0">
           <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 print:max-w-none print:p-0 print:m-0">
             {isAuthorized ? children : (
               <div className="flex h-[50vh] flex-col items-center justify-center text-center">

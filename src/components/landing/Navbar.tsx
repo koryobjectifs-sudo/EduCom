@@ -65,7 +65,7 @@ export default function Navbar() {
           {/* Le vrai logotype, pas une lettre dans un carré. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/brand/educom-logo-horizontal.svg"
+            src="/brand/educom-logo-officiel.jpg"
             alt="EduCom"
             width={156}
             height={28}
@@ -94,7 +94,7 @@ export default function Navbar() {
           </Link>
           <Link
             href="/register"
-            className="inline-flex h-10 items-center rounded-control bg-m-ink px-5 text-[15px] font-semibold text-white transition-colors hover:bg-m-ink/90"
+            className="inline-flex h-10 items-center rounded-control bg-m-primary px-5 text-[15px] font-semibold text-white transition-colors hover:bg-m-primary/90"
           >
             Créer mon école
           </Link>
@@ -128,7 +128,7 @@ export default function Navbar() {
               <Link
                 href="/register"
                 onClick={() => setOuvert(false)}
-                className="inline-flex h-12 items-center justify-center rounded-control bg-m-ink px-5 text-base font-semibold text-white"
+                className="inline-flex h-12 items-center justify-center rounded-control bg-m-primary px-5 text-base font-semibold text-white"
               >
                 Créer mon école
               </Link>

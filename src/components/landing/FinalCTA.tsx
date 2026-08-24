@@ -28,7 +28,7 @@ export default function FinalCTA() {
   return (
     <section className="bg-m-paper px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
       <div className="mx-auto max-w-6xl">
-        <div className="rounded-[20px] bg-m-ink px-7 py-14 sm:px-12 sm:py-16 lg:px-16">
+        <div className="rounded-[20px] bg-m-primary px-7 py-14 sm:px-12 sm:py-16 lg:px-16">
           <div className="max-w-2xl">
             <h2 className="font-display text-[2rem] font-bold leading-[1.12] tracking-[-0.015em] text-white sm:text-[2.5rem]">
               Votre premier document officiel, aujourd&apos;hui.

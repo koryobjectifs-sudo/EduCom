@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
+import { motion } from "framer-motion";
+import { PRO_PRICE_EUR, formatFCFA, TRIAL_DAYS } from "@/lib/pricing";
 
 /**
  * Tarifs — addendum PLG.
@@ -49,37 +53,52 @@ import { ArrowRight, Check } from "lucide-react";
 const FORMULES = [
   {
     id: "essai",
-    nom: "Essai",
-    eur: "Gratuit",
-    cfa: "14 jours",
+    nom: "Freemium",
+    eur: "0 €",
+    cfa: "0 F CFA",
+    periode: `${TRIAL_DAYS} jours`,
     objectif: "Découvrir EduCom et obtenir votre premier résultat concret.",
-    // ⚠️ Aucune fonctionnalité listée : ce qui est ouvert pendant l'essai n'est
-    // pas arrêté. La phrase décrit l'INTENTION de l'essai, ce qui est décidé.
-    note: "Aucune carte bancaire n'est demandée.",
-    cta: "Créer l'espace de mon école",
-    ton: "clair" as const,
+    features: [
+      "Création de votre établissement",
+      "Édition de vos premiers documents",
+      "Aucune carte bancaire requise",
+      "Support par email"
+    ],
+    cta: "Commencer",
+    highlight: false,
   },
   {
     id: "pro",
     nom: "Pro",
-    eur: "20 €",
-    cfa: "≈ 13 100 F CFA",
+    eur: `${PRO_PRICE_EUR} €`,
+    cfa: `≈ ${formatFCFA(PRO_PRICE_EUR)}`,
     periode: "par mois",
-    objectif: "Faire fonctionner l'école au quotidien.",
-    note: null,
-    cta: "Commencer par l'essai",
-    ton: "clair" as const,
+    objectif: "Tout EduCom, simplement.",
+    features: [
+      "Toutes les fonctionnalités actuelles",
+      "Inscriptions et dossiers élèves",
+      "Saisie des notes et bulletins",
+      "Facturation et reçus",
+      "Support prioritaire"
+    ],
+    cta: "Essai gratuit",
+    highlight: true,
   },
   {
-    id: "premium",
-    nom: "Premium",
-    eur: "30 €",
-    cfa: "≈ 19 700 F CFA",
-    periode: "par mois",
-    objectif: "Piloter et automatiser l'école.",
-    note: null,
-    cta: "Commencer par l'essai",
-    ton: "sombre" as const,
+    id: "ondemand",
+    nom: "On Demand",
+    eur: "Sur mesure",
+    cfa: "Sur devis",
+    periode: null,
+    objectif: "Besoin de plus ? Construisons-le ensemble.",
+    features: [
+      "Développement de fonctionnalités spécifiques",
+      "Intégration de paiements",
+      "Automatisations sur mesure",
+      "Accompagnement dédié"
+    ],
+    cta: "Nous contacter",
+    highlight: false,
   },
 ];
 
@@ -94,7 +113,7 @@ const FORMULES = [
 export default function Pricing({ sansEntete = false }: { sansEntete?: boolean }) {
   return (
     <section id="tarifs" className="scroll-mt-20 bg-m-paper-deep">
-      <div className={`mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 ${sansEntete ? "py-16 lg:py-20" : "py-20 lg:py-28"}`}>
+      <div className={`mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 ${sansEntete ? "py-16 lg:py-20" : "py-20 lg:py-28"}`}>
         {!sansEntete && (
           <div className="max-w-2xl">
             <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-ink-faint">
@@ -104,102 +123,146 @@ export default function Pricing({ sansEntete = false }: { sansEntete?: boolean }
               Un prix par école, pas par élève.
             </h2>
             <p className="mt-6 text-[16px] leading-[1.7] text-m-ink-soft">
-              Commencez par les 14 jours d&apos;essai : le temps d&apos;éditer votre premier
+              Commencez par {TRIAL_DAYS} jours d&apos;essai : le temps d&apos;éditer votre premier
               document officiel et de voir si EduCom vous fait gagner vos journées.
             </p>
           </div>
         )}
 
-        <div className={`grid grid-cols-1 gap-5 md:grid-cols-3 ${sansEntete ? "" : "mt-14"}`}>
-          {FORMULES.map((f) => {
-            const sombre = f.ton === "sombre";
+        <motion.div 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: { staggerChildren: 0.2 }
+            }
+          }}
+          className={`grid grid-cols-1 gap-6 md:grid-cols-3 lg:gap-8 ${sansEntete ? "" : "mt-14"} perspective-[1000px]`}
+        >
+          {FORMULES.map((f, i) => {
+            const isHighlighted = f.highlight;
             return (
-              <div
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0, y: 80, scale: 0.8, rotateX: 20, rotateY: i === 0 ? -15 : i === 2 ? 15 : 0 },
+                  visible: { 
+                    opacity: 1, 
+                    y: 0, 
+                    scale: 1,
+                    rotateX: 0,
+                    rotateY: 0,
+                    transition: { type: "spring", stiffness: 80, damping: 20 }
+                  }
+                }}
+                whileHover={{ 
+                  y: -12, 
+                  scale: 1.03,
+                  rotateZ: i === 0 ? -1 : i === 2 ? 1 : 0,
+                  transition: { type: "spring", stiffness: 300, damping: 20 }
+                }}
                 key={f.id}
-                className={`flex flex-col rounded-[14px] p-7 sm:p-8 ${
-                  sombre
-                    ? "bg-m-ink text-white"
-                    : "border border-m-line bg-m-card text-m-ink-soft"
+                className={`relative flex flex-col rounded-[16px] overflow-hidden transition-shadow duration-300 ${
+                  isHighlighted
+                    ? "shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30"
+                    : "bg-white border border-slate-200 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-200/50"
                 }`}
               >
-                <h3
-                  className={`text-[13px] font-bold uppercase tracking-[0.14em] ${
-                    sombre ? "text-white/60" : "text-m-ink-faint"
-                  }`}
-                >
-                  {f.nom}
-                </h3>
-
-                <div className="mt-5">
-                  <p
-                    className={`font-display text-[2.25rem] font-bold leading-none tracking-[-0.02em] ${
-                      sombre ? "text-white" : "text-m-ink"
-                    }`}
-                  >
-                    {f.eur}
-                  </p>
-                  {/* Le franc CFA sur sa propre ligne, à taille lisible : c'est
-                      le montant que la personne compare à son budget. */}
-                  <p
-                    className={`mt-2 text-[15px] font-semibold tabular-nums ${
-                      sombre ? "text-m-accent" : "text-m-accent-deep"
-                    }`}
-                  >
-                    {f.cfa}
-                  </p>
-                  {f.periode && (
-                    <p
-                      className={`mt-1 text-[13px] ${
-                        sombre ? "text-white/55" : "text-m-ink-faint"
-                      }`}
-                    >
-                      {f.periode}
-                    </p>
-                  )}
-                </div>
-
-                <p
-                  className={`mt-6 flex-1 text-[15px] leading-[1.7] ${
-                    sombre ? "text-white/80" : "text-m-ink-soft"
-                  }`}
-                >
-                  {f.objectif}
-                </p>
-
-                {f.note && (
-                  <p
-                    className={`mt-4 flex items-start gap-2 text-[13px] leading-relaxed ${
-                      sombre ? "text-white/70" : "text-m-ink-soft"
-                    }`}
-                  >
-                    <Check
-                      aria-hidden="true"
-                      className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${
-                        sombre ? "text-m-accent" : "text-m-accent-deep"
-                      }`}
-                    />
-                    {f.note}
-                  </p>
+                {/* BORDURE TOURNANTE */}
+                {isHighlighted && (
+                  <motion.div 
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 6, ease: "linear" }}
+                    className="absolute -inset-[150%] z-0 bg-[conic-gradient(from_90deg_at_50%_50%,transparent_70%,#539BEB_100%)] opacity-80"
+                  />
                 )}
 
-                <Link
-                  href="/register"
-                  className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-control px-5 text-[15px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-                    sombre
-                      ? "bg-white text-m-ink hover:bg-white/90 focus-visible:ring-white/60 focus-visible:ring-offset-m-ink"
-                      : "bg-m-ink text-white hover:bg-m-ink/90 focus-visible:ring-m-ink/40"
-                  }`}
-                >
-                  {f.cta}
-                  <ArrowRight aria-hidden="true" className="h-4 w-4" />
-                </Link>
-              </div>
+                {/* CONTENU DE LA CARTE */}
+                <div className={`relative z-10 flex h-full flex-col overflow-hidden ${isHighlighted ? "m-[2px] rounded-[14px] bg-white" : "rounded-[16px]"}`}>
+
+                {/* TOP SECTION */}
+                <div className={`flex flex-col p-6 sm:p-7 ${isHighlighted ? "bg-gradient-to-br from-primary/[0.07] to-white" : "bg-white"}`}>
+                  <div className="flex items-center gap-3">
+                    <h3
+                      className={`text-[15px] font-semibold ${
+                        isHighlighted ? "text-primary" : "text-slate-900"
+                      }`}
+                    >
+                      {f.nom}
+                    </h3>
+                    {isHighlighted && (
+                      <span className="rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                        Populaire
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="mt-4 text-[13px] leading-relaxed text-slate-600 min-h-[40px]">
+                    {f.objectif}
+                  </p>
+
+                  <div className="mt-8 flex flex-col gap-6">
+                    {/* ZONE DE PRIX */}
+                    <div className="flex flex-col">
+                      <div className="flex items-baseline gap-1">
+                        <p className="font-display text-[2.5rem] font-bold leading-none tracking-tight text-slate-900">
+                          {f.eur}
+                        </p>
+                        {f.periode && (
+                          <p className="text-[13px] font-medium text-slate-500">
+                            /{f.periode.replace("par ", "")}
+                          </p>
+                        )}
+                      </div>
+                      <p
+                        className={`mt-1 text-[13px] font-semibold tabular-nums ${
+                          isHighlighted ? "text-primary" : "text-slate-500"
+                        }`}
+                      >
+                        {f.cfa}
+                      </p>
+                    </div>
+
+                    {/* BOUTON D'ACTION */}
+                    <Link
+                      href="/register"
+                      className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                        isHighlighted
+                          ? "bg-slate-900 text-white hover:bg-slate-800 hover:shadow-lg focus-visible:ring-slate-900"
+                          : "bg-slate-900 text-white hover:bg-slate-800 hover:shadow-lg focus-visible:ring-slate-900"
+                      }`}
+                    >
+                      {f.cta}
+                    </Link>
+                  </div>
+                </div>
+
+                {/* BOTTOM SECTION - FEATURES */}
+                <div className={`flex-1 p-6 sm:p-7 border-t ${isHighlighted ? "bg-primary/[0.03] border-primary/10" : "bg-slate-50 border-slate-100"}`}>
+                  <ul className="space-y-4">
+                    {f.features.map((feature, idx) => (
+                      <li key={idx} className="flex items-start gap-3 text-[13px] leading-relaxed text-slate-600">
+                        <Check
+                          aria-hidden="true"
+                          className={`mt-0.5 h-4 w-4 shrink-0 ${
+                            isHighlighted ? "text-primary" : "text-emerald-500"
+                          }`}
+                        />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                </div>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
 
-        {/* ⚠️ Les trois phrases que la grille ne doit jamais perdre. */}
-        <div className="mt-10 grid grid-cols-1 gap-x-10 gap-y-4 border-t border-m-line pt-8 sm:grid-cols-3">
+        {/* ⚠️ Les mentions légales. */}
+        <div className="mt-10 grid grid-cols-1 gap-x-10 gap-y-4 border-t border-m-line pt-8 sm:grid-cols-2">
           <p className="text-[13px] leading-relaxed text-m-ink-soft">
             <span className="font-semibold text-m-ink">Deux monnaies, un seul prix.</span>{" "}
             La parité euro / franc CFA est fixe (1 € = 655,957 F CFA) : les montants ne
@@ -209,11 +272,6 @@ export default function Pricing({ sansEntete = false }: { sansEntete?: boolean }
             <span className="font-semibold text-m-ink">Aucun prélèvement automatique.</span>{" "}
             EduCom n&apos;a pas encore de paiement en ligne : rien ne peut vous être débité,
             et l&apos;essai ne se transforme pas tout seul en abonnement.
-          </p>
-          <p className="text-[13px] leading-relaxed text-m-ink-soft">
-            <span className="font-semibold text-m-ink">Le détail des formules arrive.</span>{" "}
-            La répartition exacte entre Pro et Premium est en cours d&apos;arrêt ; nous ne
-            l&apos;annoncerons pas avant qu&apos;elle soit décidée.
           </p>
         </div>
       </div>

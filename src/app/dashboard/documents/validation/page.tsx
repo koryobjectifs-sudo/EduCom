@@ -11,6 +11,11 @@ export const metadata = {
 
 
 
+import { PageHeader } from "@/components/ui/PageHeader";
+import { DocumentsTabs } from "../DocumentsTabs";
+import { FileStack } from "lucide-react";
+import Link from "next/link";
+
 export default async function ValidationPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -19,19 +24,10 @@ export default async function ValidationPage() {
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
   if (!dbUser) redirect("/login");
 
-  // Contrôle serveur, en plus du refus déclaré dans `permissions.ts` : cette
-  // page expose des notes non encore relues, elle ne doit pas dépendre du seul
-  // middleware.
-  // ⚠️ Contrôle via `hasAccess()`, seule source de vérité. Un tableau `ALLOWED`
-  // local dupliquait la règle : vérifié, il donnait exactement le même ensemble
-  // {OWNER, ADMIN, SECRETARY} que `permissions.ts`, mais il aurait dérivé au
-  // premier changement de rôle. Cette page expose des notes non encore relues :
-  // le contrôle serveur reste indispensable, il change juste de source.
   if (!hasAccess(dbUser.role as RoleType, "/dashboard/documents/validation")) {
     redirect("/dashboard/documents");
   }
 
-  // Un « dépôt » = un couple (classe, évaluation). On agrège les bulletins.
   const cards = await prisma.reportCard.findMany({
     where: { schoolId: dbUser.schoolId, status: { in: ["SUBMITTED", "RETURNED", "APPROVED"] } },
     include: {
@@ -77,7 +73,6 @@ export default async function ValidationPage() {
   }
 
   const submissions = [...grouped.values()].sort((a, b) => {
-    // Ce qui attend une relecture passe devant.
     const rank = (g: any) => (g.counts.SUBMITTED > 0 ? 0 : g.counts.RETURNED > 0 ? 1 : 2);
     const byRank = rank(a) - rank(b);
     if (byRank !== 0) return byRank;
@@ -89,5 +84,26 @@ export default async function ValidationPage() {
       : 1;
   });
 
-  return <ValidationClient submissions={submissions} />;
+  return (
+    <div className="space-y-6 pb-10">
+      <PageHeader
+        breadcrumb={[{ label: "Accueil", href: "/dashboard" }, { label: "Documents" }]}
+        title="Documents"
+        description="Le travail déposé par les enseignants. Relisez, renvoyez pour correction si nécessaire, puis validez pour autoriser l'impression."
+        actions={
+          <Link
+            href="/dashboard/documents/drafts"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-control border border-rule bg-surface px-4 text-role-body font-semibold text-text shadow-card transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
+          >
+            <FileStack aria-hidden="true" className="h-4 w-4" />
+            Brouillons
+          </Link>
+        }
+      />
+      
+      <DocumentsTabs canValidate={true} />
+
+      <ValidationClient submissions={submissions} />
+    </div>
+  );
 }

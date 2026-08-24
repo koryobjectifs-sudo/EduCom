@@ -1,3 +1,6 @@
+"use client";
+
+import { motion } from "framer-motion";
 import { Users, FileSignature, GraduationCap, Wallet, FolderCheck, KeyRound } from "lucide-react";
 
 /**
@@ -90,17 +93,45 @@ export default function Features() {
           </p>
         </div>
 
-        <div className="mt-14 grid grid-cols-1 gap-x-12 gap-y-11 sm:grid-cols-2 lg:grid-cols-3">
+        <motion.div 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: { staggerChildren: 0.1 }
+            }
+          }}
+          className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+        >
           {CAPACITES.map((c) => (
-            <div key={c.titre}>
-              <c.icon aria-hidden="true" className="h-5 w-5 text-m-accent-deep" />
-              <h3 className="mt-4 text-[17px] font-semibold leading-snug text-m-ink">
+            <motion.div 
+              key={c.titre}
+              variants={{
+                hidden: { opacity: 0, y: 30, scale: 0.95 },
+                visible: { 
+                  opacity: 1, 
+                  y: 0, 
+                  scale: 1,
+                  transition: { type: "spring", stiffness: 100, damping: 15 }
+                }
+              }}
+              whileHover={{ 
+                y: -6, 
+                transition: { type: "spring", stiffness: 400, damping: 25 }
+              }}
+              className="group relative flex flex-col rounded-[20px] bg-white p-7 border border-slate-200 shadow-sm transition-shadow hover:shadow-xl hover:border-primary/30"
+            >
+              <div className="mb-5 h-1.5 w-8 rounded-full bg-primary/80 transition-all duration-300 group-hover:w-12 group-hover:bg-primary" />
+              <h3 className="text-[17px] font-semibold leading-snug text-slate-900 group-hover:text-primary transition-colors">
                 {c.titre}
               </h3>
-              <p className="mt-2.5 text-[15px] leading-[1.7] text-m-ink-soft">{c.detail}</p>
-            </div>
+              <p className="mt-3 text-[14.5px] leading-[1.6] text-slate-600">{c.detail}</p>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
         {/* ⚠️ L'encart le plus important de la page : ce que le produit ne fait
             pas. Il ne doit jamais être supprimé « parce que ça fait mauvais

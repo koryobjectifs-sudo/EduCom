@@ -4,15 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ClipboardCheck, Undo2, Printer, Check, Loader2, X, TriangleAlert,
-  Inbox, User, Clock,
+  Undo2, Printer, Check, Loader2, X, TriangleAlert,
+  Inbox, User, Clock, ChevronRight, Layers, ArrowLeft
 } from "lucide-react";
 import { returnReportCardsToTeacher, approveReportCards } from "../../grades/actions";
 
-type Submission = {
+export type Submission = {
   key: string;
   classId: string;
   className: string;
+  cycle: string;
   termId: string;
   termName: string;
   evaluationId: string;
@@ -22,6 +23,13 @@ type Submission = {
   returnedReason: string | null;
   counts: Record<string, number>;
   total: number;
+};
+
+const CYCLE_LABELS: Record<string, string> = {
+  ELEMENTAIRE: "Élémentaire",
+  COLLEGE: "Collège",
+  LYCEE: "Lycée",
+  AUTRE: "Autre",
 };
 
 function StatusBadge({ s }: { s: Submission }) {
@@ -46,12 +54,17 @@ function StatusBadge({ s }: { s: Submission }) {
 
 export default function ValidationClient({ submissions }: { submissions: Submission[] }) {
   const router = useRouter();
+  
+  // State for drill-down
+  const [selectedCycle, setSelectedCycle] = useState<string | null>(null);
+
   const [returning, setReturning] = useState<Submission | null>(null);
   const [reason, setReason] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // Actions
   const doReturn = async () => {
     if (!returning) return;
     setIsBusy(true);
@@ -75,26 +88,24 @@ export default function ValidationClient({ submissions }: { submissions: Submiss
     router.refresh();
   };
 
+  // Data processing
+  const validSubmissions = submissions.filter(s => s.cycle !== "MATERNELLE");
+  
+  const isApproved = (s: Submission) => s.counts.APPROVED > 0 && !(s.counts.SUBMITTED > 0) && !s.counts.RETURNED;
+  const totalClasses = validSubmissions.length;
+  const approvedClasses = validSubmissions.filter(isApproved).length;
+  const progressPercent = totalClasses === 0 ? 0 : Math.round((approvedClasses / totalClasses) * 100);
+
+  const groupedByCycle = validSubmissions.reduce((acc, sub) => {
+    if (!acc[sub.cycle]) acc[sub.cycle] = [];
+    acc[sub.cycle].push(sub);
+    return acc;
+  }, {} as Record<string, Submission[]>);
+
+  const cycles = Object.keys(groupedByCycle).sort();
+
   return (
-    <div className="space-y-6 pb-12 max-w-5xl">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-200 pb-5">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-gray-900 flex items-center gap-2.5">
-            <ClipboardCheck className="w-6 h-6 text-indigo-600" />
-            Validation des bulletins
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 max-w-2xl">
-            Le travail déposé par les enseignants. Relisez, renvoyez pour correction si nécessaire,
-            puis validez pour autoriser l'impression.
-          </p>
-        </div>
-        <Link
-          href="/dashboard/documents"
-          className="text-sm text-gray-500 hover:text-gray-900 shrink-0"
-        >
-          ← Documents
-        </Link>
-      </div>
+    <div className="space-y-6 max-w-5xl">
 
       {notice && (
         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl px-4 py-2.5">
@@ -102,7 +113,29 @@ export default function ValidationClient({ submissions }: { submissions: Submiss
         </div>
       )}
 
-      {submissions.length === 0 ? (
+      {/* Global Progress Bar */}
+      {totalClasses > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <div className="flex items-end justify-between mb-3">
+            <div>
+              <h2 className="text-[15px] font-semibold text-gray-900">Progression globale</h2>
+              <p className="text-[13px] text-gray-500 mt-0.5">Classes validées et prêtes pour l'impression</p>
+            </div>
+            <div className="text-right">
+              <span className="text-2xl font-bold text-[#539BEB]">{progressPercent}%</span>
+              <p className="text-[13px] font-medium text-gray-500">{approvedClasses} sur {totalClasses} classes</p>
+            </div>
+          </div>
+          <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-[#539BEB] transition-all duration-500 ease-out" 
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {validSubmissions.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
           <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <Inbox className="w-7 h-7 text-gray-300" />
@@ -114,77 +147,135 @@ export default function ValidationClient({ submissions }: { submissions: Submiss
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {submissions.map((s) => {
-            const pending = s.counts.SUBMITTED > 0;
-            const approved = s.counts.APPROVED > 0 && !pending && !s.counts.RETURNED;
-            return (
-              <div
-                key={s.key}
-                className="bg-white rounded-2xl border border-gray-200 p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-gray-300 transition-colors"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <h3 className="font-semibold text-gray-900">{s.className}</h3>
-                    <StatusBadge s={s} />
-                    <span className="text-sm text-gray-400">
-                      {s.termName} · {s.evaluationName}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center gap-4 text-xs text-gray-500 flex-wrap">
-                    <span className="flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-gray-400" /> {s.teacher}
-                    </span>
-                    <span>{s.total} bulletin(s)</span>
-                    {s.submittedAt && (
-                      <span className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-gray-400" />
-                        {new Date(s.submittedAt).toLocaleDateString("fr-FR", {
-                          day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
-                        })}
-                      </span>
-                    )}
-                  </div>
-                  {s.returnedReason && s.counts.RETURNED > 0 && (
-                    <p className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5">
-                      Motif du renvoi : {s.returnedReason}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  {pending && (
-                    <>
-                      <button
-                        onClick={() => { setReturning(s); setReason(""); setError(null); }}
-                        disabled={isBusy}
-                        className="border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors disabled:opacity-40 flex items-center gap-1.5"
-                      >
-                        <Undo2 className="w-3.5 h-3.5" /> Renvoyer
-                      </button>
-                      <button
-                        onClick={() => doApprove(s)}
-                        disabled={isBusy}
-                        className="bg-emerald-600 text-white px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-emerald-700 transition-colors disabled:opacity-40 flex items-center gap-1.5"
-                      >
-                        {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                        Valider
-                      </button>
-                    </>
-                  )}
-                  {approved && (
-                    <Link
-                      href={`/dashboard/documents/validation/impression?classId=${s.classId}&termId=${s.termId}&evaluationId=${s.evaluationId}`}
-                      className="bg-indigo-600 text-white px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-indigo-700 transition-colors flex items-center gap-1.5"
-                    >
-                      <Printer className="w-3.5 h-3.5" /> Imprimer
-                    </Link>
-                  )}
-                </div>
+        <>
+          {selectedCycle === null ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {cycles.map((cycle) => {
+                const subs = groupedByCycle[cycle];
+                const total = subs.length;
+                const approved = subs.filter(isApproved).length;
+                const cyclePercent = total === 0 ? 0 : Math.round((approved / total) * 100);
+                
+                return (
+                  <button
+                    key={cycle}
+                    onClick={() => setSelectedCycle(cycle)}
+                    className="group bg-white rounded-2xl border border-gray-200 p-5 text-left hover:border-[#539BEB] hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-[#539BEB]/40"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50/50 flex items-center justify-center text-[#539BEB] group-hover:bg-[#539BEB] group-hover:text-white transition-colors">
+                          <Layers className="w-5 h-5" />
+                        </div>
+                        <h3 className="text-[16px] font-semibold text-gray-900 group-hover:text-[#539BEB] transition-colors">
+                          {CYCLE_LABELS[cycle] || cycle}
+                        </h3>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-[#539BEB] transition-colors" />
+                    </div>
+                    
+                    <div className="flex items-center justify-between text-[13px]">
+                      <span className="font-medium text-gray-700">{approved} / {total} validés</span>
+                      <span className="text-gray-500">{cyclePercent}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
+                      <div 
+                        className="h-full bg-emerald-500 transition-all duration-500 ease-out" 
+                        style={{ width: `${cyclePercent}%` }}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setSelectedCycle(null)}
+                  className="inline-flex items-center gap-1.5 text-[14px] font-medium text-gray-500 hover:text-gray-900 transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Retour aux cycles
+                </button>
+                <h3 className="text-[15px] font-semibold text-gray-900 bg-gray-100 px-3 py-1 rounded-lg">
+                  {CYCLE_LABELS[selectedCycle] || selectedCycle}
+                </h3>
               </div>
-            );
-          })}
-        </div>
+
+              <div className="space-y-3">
+                {groupedByCycle[selectedCycle].map((s) => {
+                  const pending = s.counts.SUBMITTED > 0;
+                  const approved = isApproved(s);
+                  return (
+                    <div
+                      key={s.key}
+                      className="bg-white rounded-2xl border border-gray-200 p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-gray-300 transition-colors"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <h3 className="font-semibold text-gray-900">{s.className}</h3>
+                          <StatusBadge s={s} />
+                          <span className="text-sm text-gray-400">
+                            {s.termName} · {s.evaluationName}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex items-center gap-4 text-xs text-gray-500 flex-wrap">
+                          <span className="flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5 text-gray-400" /> {s.teacher}
+                          </span>
+                          <span>{s.total} bulletin(s)</span>
+                          {s.submittedAt && (
+                            <span className="flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-gray-400" />
+                              {new Date(s.submittedAt).toLocaleDateString("fr-FR", {
+                                day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
+                              })}
+                            </span>
+                          )}
+                        </div>
+                        {s.returnedReason && s.counts.RETURNED > 0 && (
+                          <p className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5">
+                            Motif du renvoi : {s.returnedReason}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {pending && (
+                          <>
+                            <button
+                              onClick={() => { setReturning(s); setReason(""); setError(null); }}
+                              disabled={isBusy}
+                              className="border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                            >
+                              <Undo2 className="w-3.5 h-3.5" /> Renvoyer
+                            </button>
+                            <button
+                              onClick={() => doApprove(s)}
+                              disabled={isBusy}
+                              className="bg-emerald-600 text-white px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-emerald-700 transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                            >
+                              {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                              Valider
+                            </button>
+                          </>
+                        )}
+                        {approved && (
+                          <Link
+                            href={`/dashboard/documents/validation/impression?classId=${s.classId}&termId=${s.termId}&evaluationId=${s.evaluationId}`}
+                            className="bg-indigo-600 text-white px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-indigo-700 transition-colors flex items-center gap-1.5"
+                          >
+                            <Printer className="w-3.5 h-3.5" /> Imprimer
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Dialogue de renvoi */}

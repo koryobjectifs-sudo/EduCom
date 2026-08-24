@@ -85,12 +85,6 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Enseignement",
     items: [
       { name: "Saisie des notes", href: "/dashboard/grades", icon: ClipboardList, short: "Notes" },
-      // Lot 15 — entrée distincte, et non un sous-menu du hub : `TEACHER` n'a
-      // PAS `/dashboard/documents` mais a bien `/dashboard/documents/centre`.
-      // Rattacher le centre au hub l'aurait rendu invisible aux enseignants,
-      // à qui la liste de fournitures de leur classe est destinée. C'est aussi
-      // pourquoi il vit ici et non dans « Secrétariat ».
-      { name: "Centre documentaire", href: "/dashboard/documents/centre", icon: FolderOpen, short: "Centre" },
     ],
   },
   {
@@ -98,6 +92,8 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { name: "Annuaire", href: "/dashboard/directory", icon: Users },
       { name: "Documents", href: "/dashboard/documents", icon: FileText },
+      // Lot 15 — Centre documentaire regroupé avec le reste des documents
+      { name: "Centre documentaire", href: "/dashboard/documents/centre", icon: FolderOpen, short: "Centre" },
       // Lot 16 — sous `/dashboard/students` : exporter, c'est lire un dossier.
       // Aucun droit nouveau, et `PARENT`/`ACCOUNTANT` ne le voient pas.
       { name: "Exports de dossiers", href: "/dashboard/students/export", icon: Package, short: "Exports" },
