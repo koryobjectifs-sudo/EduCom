@@ -451,7 +451,14 @@ export default function StudentEntryTab({
           {!selectedClass ? (
             <p className="p-4 text-xs text-gray-400 text-center">Choisissez votre classe.</p>
           ) : isLoadingClass ? (
-            <div className="flex justify-center p-6"><Loader2 className="w-4 h-4 animate-spin text-indigo-500" /></div>
+            <div className="space-y-2 animate-pulse">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex flex-col gap-2 p-3 border border-rule rounded-lg">
+                  <div className="h-4 w-3/4 bg-sunk rounded-control"></div>
+                  <div className="h-3 w-1/2 bg-sunk/50 rounded-control"></div>
+                </div>
+              ))}
+            </div>
           ) : visibleStudents.length === 0 ? (
             <p className="p-4 text-xs text-gray-400 text-center">
               {students.length === 0 ? "Aucun élève inscrit." : "Aucun résultat."}

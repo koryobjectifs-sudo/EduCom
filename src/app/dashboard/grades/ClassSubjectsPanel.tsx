@@ -102,8 +102,16 @@ export default function ClassSubjectsPanel({
           Sélectionnez une classe pour ajuster son programme.
         </p>
       ) : isLoading ? (
-        <div className="flex justify-center p-6">
-          <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+        <div className="space-y-3 animate-pulse">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="flex flex-col gap-2 p-3 bg-white border border-gray-100 rounded-xl">
+              <div className="h-4 w-1/2 bg-gray-200 rounded-md"></div>
+              <div className="pl-6 space-y-2">
+                <div className="h-3 w-3/4 bg-gray-100 rounded-md"></div>
+                <div className="h-3 w-5/6 bg-gray-100 rounded-md"></div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <>
