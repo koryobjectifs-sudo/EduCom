@@ -133,7 +133,7 @@ export function NewInvoiceForm({ students, school }: { students: Student[], scho
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
+            <h1 className="text-base sm:text-2xl font-semibold tracking-tight text-text-primary">
               Nouvelle Facture
             </h1>
           </div>
@@ -396,7 +396,7 @@ export function NewInvoiceForm({ students, school }: { students: Student[], scho
                         {school?.name ? school.name.charAt(0).toUpperCase() : "E"}
                       </div>
                     )}
-                    <span className={`${paperFormat === "A4-half" ? "text-base" : "text-xl"} font-semibold text-gray-900 tracking-tight whitespace-nowrap truncate`}>{school?.name || "Établissement Sans Nom"}</span>
+                    <span className={`${paperFormat === "A4-half" ? "text-xs sm:text-base" : "text-xs sm:text-xl"} font-semibold text-gray-900 tracking-tight whitespace-nowrap truncate`}>{school?.name || "Établissement Sans Nom"}</span>
                   </div>
                   <div className={`mt-3 ${paperFormat === "A4-half" ? "text-[10px]" : "text-xs"} text-gray-500 flex flex-col gap-0.5`}>
                     <span className="whitespace-nowrap truncate">{school?.address || "Adresse non renseignée"}</span>
@@ -404,7 +404,7 @@ export function NewInvoiceForm({ students, school }: { students: Student[], scho
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0 max-w-[50%]">
-                  <h2 className={`${paperFormat === "A4-half" ? "text-base" : "text-2xl"} font-light text-gray-900 uppercase tracking-widest whitespace-nowrap`}>{title || "Facture"}</h2>
+                  <h2 className={`${paperFormat === "A4-half" ? "text-sm sm:text-base" : "text-sm sm:text-2xl"} font-light text-gray-900 uppercase tracking-widest whitespace-nowrap`}>{title || "Facture"}</h2>
                   <p className={`${paperFormat === "A4-half" ? "text-[10px]" : "text-sm"} text-gray-500 mt-1 font-medium`}>#INV-{new Date().getFullYear()}-001</p>
                 </div>
               </div>
@@ -501,7 +501,7 @@ export function NewInvoiceForm({ students, school }: { students: Student[], scho
                       <span>Taxes (0%)</span>
                       <span>0 FCFA</span>
                     </div>
-                    <div className={`flex justify-between items-center font-semibold text-gray-900 ${paperFormat === "A4-half" ? "text-base" : "text-xl"}`}>
+                    <div className={`flex justify-between items-center font-semibold text-gray-900 ${paperFormat === "A4-half" ? "text-base" : "text-sm sm:text-xl"}`}>
                       <span>Total Net</span>
                       <span>{totalAmount.toLocaleString("fr-FR")} FCFA</span>
                     </div>
