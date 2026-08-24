@@ -221,6 +221,8 @@ model Student {
   id               String        @id @default(uuid())
   firstName        String
   lastName         String
+  matricule        String?
+  gender           String?
   dateOfBirth      DateTime?
   address          String?
   bloodGroup       String?

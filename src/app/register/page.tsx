@@ -6,6 +6,7 @@ import { ArrowRight, Check, MailCheck } from "lucide-react";
 import { register } from "./actions";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
+import { GoogleAuthButton } from "@/components/ui/GoogleAuthButton";
 
 /**
  * Création de l'espace d'un établissement — chantier PLG.
@@ -153,7 +154,20 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+          <div className="mt-6">
+            <GoogleAuthButton mode="signup" />
+          </div>
+
+          <div className="relative mt-6 mb-6">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-rule" />
+            </div>
+            <div className="relative flex justify-center text-role-meta">
+              <span className="bg-surface px-2 text-text-faint">ou avec votre e-mail</span>
+            </div>
+          </div>
+
+          <form className="space-y-4" onSubmit={onSubmit}>
             <Input
               label="Nom de l'établissement"
               id="schoolName"

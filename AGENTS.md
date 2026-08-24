@@ -77,3 +77,25 @@ Le texte intégral vit là-bas ; il n'est **pas recopié ici** pour éviter deux
 
 **Validation finale.** Avant de déclarer un écran terminé, vérifier les quatre principes. S'il fonctionne techniquement mais échoue au test, le dire et proposer l'amélioration **avant** d'annoncer que c'est fini — cohérent avec la règle 2 (« dire ce qui n'a pas été vérifié »).
 
+## 6. Communication ultra-courte
+
+**Ne faites jamais de textes kilométriques.** L'utilisateur souhaite des réponses extrêmement concises et directes. 
+- Allez à l'essentiel en quelques lignes maximum.
+- Donnez des étapes claires et chiffrées sans blabla.
+- Posez vos questions de manière directe.
+
+## 7. Vérifier l'information avant d'instruire
+
+Avant de donner une instruction sur l'interface d'un logiciel externe (Supabase, Vercel, Resend, etc.), vérifiez l'information exacte et actuelle (via une recherche web par exemple). Ne donnez jamais d'indications basées sur des souvenirs potentiellement périmés.
+
+## 8. Interdiction formelle de s'excuser
+
+Ne présentez **jamais** d'excuses. Ne dites pas "désolé", "autant pour moi", ou "je m'excuse". Si une erreur est faite, corrigez-la immédiatement et avancez en donnant l'instruction correcte pour faire gagner du temps.
+
+## 9. Interdiction d'exécuter sans accord si demandé
+
+Quand l'utilisateur demande de ne rien faire et d'expliquer simplement (ou de ne pas exécuter), arrêtez-vous, expliquez, proposez un plan, et attendez explicitement son feu vert.
+
+## 10. Performance au top (Batching)
+
+La plateforme doit être extrêmement rapide et fluide. Pour toute opération massive (création en masse, importations de 500+ entités), n'utilisez jamais de requêtes séquentielles dans une boucle. Privilégiez systématiquement le batching (`createMany`, `createManyAndReturn`) pour réduire le nombre de requêtes à son strict minimum.

@@ -82,12 +82,11 @@ export default function MobileNav({
       <Button
         ref={triggerRef}
         variant="ghost"
-        size="sm"
         onClick={() => setOpen(true)}
         aria-label="Ouvrir la navigation"
         aria-expanded={open}
-        icon={<Menu aria-hidden="true" className="h-5 w-5" />}
-        className="lg:hidden"
+        icon={<Menu aria-hidden="true" className="h-6 w-6 text-text" />}
+        className="lg:hidden h-12 w-12 flex items-center justify-center p-0"
       />
 
       {open && (

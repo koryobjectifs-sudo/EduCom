@@ -39,6 +39,9 @@ export default function ClassListClient({ classes, teachers, searchTerm }: { cla
     { id: "AUTRE", label: "Autres", icon: FolderOpen, desc: "Classes non catégorisées" },
   ];
 
+  const existingCycleIds = new Set(classes.map(c => c.cycle));
+  const activeCycles = CYCLES.filter(c => existingCycleIds.has(c.id));
+
   const visibleClasses = selectedCycle 
     ? classes.filter(c => c.cycle === selectedCycle)
     : classes;
@@ -79,35 +82,45 @@ export default function ClassListClient({ classes, teachers, searchTerm }: { cla
       {/* Cycle Selection Grid */}
       {!selectedCycle && !searchTerm && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-          {CYCLES.map((cycle) => {
-            const cycleClasses = classes.filter((c) => c.cycle === cycle.id);
-            const totalStudents = cycleClasses.reduce((acc, c) => acc + (c._count?.enrollments || 0), 0);
-            const Icon = cycle.icon;
+          {activeCycles.length === 0 ? (
+            <div className="col-span-full">
+              <EmptyState
+                icon={School}
+                title="Aucune classe configurée"
+                description="Votre établissement n'a pas encore de classes. Utilisez le bouton 'Ajouter cycle' en haut pour générer les classes de votre choix."
+              />
+            </div>
+          ) : (
+            activeCycles.map((cycle) => {
+              const cycleClasses = classes.filter((c) => c.cycle === cycle.id);
+              const totalStudents = cycleClasses.reduce((acc, c) => acc + (c._count?.enrollments || 0), 0);
+              const Icon = cycle.icon;
 
-            return (
-              <button
-                key={cycle.id}
-                type="button"
-                onClick={() => setSelectedCycle(cycle.id)}
-                aria-label={`Ouvrir le cycle ${cycle.label} — ${cycleClasses.length} classe(s), ${totalStudents} élève(s)`}
-                className="group flex items-center justify-between rounded-surface border border-rule bg-surface p-2.5 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-sunk text-text-soft group-hover:text-primary group-hover:bg-white transition-colors">
-                    <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
-                  </span>
-                  <div className="min-w-0 pr-2">
-                    <h3 className="text-[13px] font-semibold text-text group-hover:text-primary transition-colors truncate">
-                      {cycle.label}
-                    </h3>
-                    <p className="text-[11px] text-text-faint truncate">
-                      {cycleClasses.length} classe{cycleClasses.length !== 1 ? "s" : ""} · {totalStudents} élève{totalStudents !== 1 ? "s" : ""}
-                    </p>
+              return (
+                <button
+                  key={cycle.id}
+                  type="button"
+                  onClick={() => setSelectedCycle(cycle.id)}
+                  aria-label={`Ouvrir le cycle ${cycle.label} — ${cycleClasses.length} classe(s), ${totalStudents} élève(s)`}
+                  className="group flex items-center justify-between rounded-surface border border-rule bg-surface p-2.5 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-sunk text-text-soft group-hover:text-primary group-hover:bg-white transition-colors">
+                      <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+                    </span>
+                    <div className="min-w-0 pr-2">
+                      <h3 className="text-[13px] font-semibold text-text group-hover:text-primary transition-colors truncate">
+                        {cycle.label}
+                      </h3>
+                      <p className="text-[11px] text-text-faint truncate">
+                        {cycleClasses.length} classe{cycleClasses.length !== 1 ? "s" : ""} · {totalStudents} élève{totalStudents !== 1 ? "s" : ""}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </button>
-            );
-          })}
+                </button>
+              );
+            })
+          )}
         </div>
       )}
 

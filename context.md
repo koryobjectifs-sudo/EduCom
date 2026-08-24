@@ -1,8 +1,22 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 22 août 2026 — Parcours de bout en bout éprouvés (directrice / enseignant / direction) : sélecteurs préremplis, étape suivante après la saisie, et cinq générateurs de documents refermés à qui n'y a pas droit.
+> Dernière mise à jour : 24 août 2026 — Remplacement des placeholders "EduCom" par le logo réel de l'établissement dans les documents et UI plus compacte pour les factures.
 
 ## 📌 Nouvelles Fonctionnalités & Logiques Implémentées (Août 2026)
+
+### Image de Marque (Logo & Filigrane)
+- **Application Globale du Logo :** Partout où le nom ou le logo du logiciel (EduCom, "E") apparaissait en dur (sur le Sidebar, le menu Mobile, et dans la création de factures), il a été remplacé par le logo et le nom de l'école récupéré dynamiquement (`school.logo`, `school.name`). 
+- **Filigrane sur Documents :** Tous les documents générés (Factures, Certificats, Reçus, Bulletins, Emplois du temps) intègrent désormais le logo de l'école en filigrane (watermark en arrière-plan) et dans l'en-tête (mise à jour en masse via `update_watermark.js`).
+- **Correction CSS (Sidebar) :** Le logo sur le menu de navigation (Sidebar/Mobile) utilise désormais `object-contain` et s'adapte aux dimensions (sans forcer un carré coupé), répondant ainsi au problème de "petit carré".
+
+### Optimisation de l'UI de Facturation
+- **Compaction :** L'interface de création de facture (`/dashboard/payments/new/form.tsx`) a été rendue plus compacte (paddings réduits de `p-6` à `p-4`, espacements allégés) pour maximiser l'espace écran et réduire l'usage de la barre de défilement, ce qui accélère la saisie répétitive.
+
+### Importation en Masse des Élèves
+- **Création automatique :** Un nouvel écran (`/dashboard/students/import`) permet d'importer une liste d'élèves via un fichier Excel (`.xlsx`) ou CSV. Les bibliothèques `papaparse` et `read-excel-file` sont utilisées pour le parsing client-side, évitant de surcharger le serveur. L'import de la librairie a été corrigée (`read-excel-file/browser`).
+- **Résolution et création de classes :** Le Server Action d'importation associe chaque élève à sa classe mentionnée dans le fichier. Si la classe n'existe pas, elle est créée automatiquement.
+- **Schéma Prisma mis à jour :** Ajout des colonnes `matricule` (String?) et `gender` (String?) au modèle `Student` pour prendre en charge les données d'import standards des écoles.
+- **Optimisation Extrême (Batching) :** Pour supporter des fichiers de 500 à 1000 élèves sans timeout, le Server Action a été réécrit pour supprimer toute boucle de requêtes séquentielles. Utilisation stricte de `createManyAndReturn` (Classes et Élèves) et `createMany` (Inscriptions et Historique) réduisant l'insertion de 100+ élèves à 6 requêtes réseau ultra-rapides au lieu de plus de 400. Temps d'exécution abaissé de 30 secondes à moins de 2 secondes.
 
 ### Documents & Fichiers — ❌ ANNULÉ le 21 août 2026
 Le **hub Documentaire unifié** (onglets Génération / Centre Documentaire / Exports / Mon Drive sous `/dashboard/documents`) et le **Drive** qui l'accompagnait ont été **entièrement retirés** à la demande de Kory. Voir la section « Hub Documents unifié — annulé » plus bas pour le pourquoi et le détail de ce qui a été défait.

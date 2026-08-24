@@ -7,6 +7,7 @@ import { ArrowRight, ShieldCheck, Smartphone, Building2 } from "lucide-react";
 import { login } from "./actions";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
+import { GoogleAuthButton } from "@/components/ui/GoogleAuthButton";
 
 /**
  * Connexion — chantier PLG.
@@ -143,7 +144,20 @@ function LoginForm() {
             </p>
           )}
 
-          <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+          <div className="mt-6">
+            <GoogleAuthButton mode="login" />
+          </div>
+
+          <div className="relative mt-6 mb-6">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-rule" />
+            </div>
+            <div className="relative flex justify-center text-role-meta">
+              <span className="bg-surface px-2 text-text-faint">ou avec votre e-mail</span>
+            </div>
+          </div>
+
+          <form className="space-y-4" onSubmit={onSubmit}>
             {/* Reprise de la destination demandée. La valeur vient de l'URL et
                 l'action la revalide : chemin interne uniquement. */}
             <input type="hidden" name="suite" value={suite} />

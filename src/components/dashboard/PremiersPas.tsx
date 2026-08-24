@@ -59,17 +59,22 @@ export function PremiersPas({
       </ul>
 
       {canAddStudent ? (
-        <Link
-          href="/dashboard/students/new"
-          className="mt-5 inline-flex h-12 items-center justify-center gap-2 rounded-control bg-primary px-6 text-role-body font-semibold text-white shadow-card transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
-        >
-          <UserPlus aria-hidden="true" className="h-4 w-4" />
-          Inscrire le premier élève
-        </Link>
+        <div className="mt-5 space-y-4">
+          <p className="text-role-body leading-relaxed text-text-soft">
+            Pour commencer, veuillez importer le fichier (Excel/CSV) que vous utilisez déjà pour votre école. Les données seront automatiquement intégrées à la plateforme : c'est la méthode la plus rapide et facile pour démarrer.
+          </p>
+          <Link
+            href="/dashboard/students/import"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-control bg-primary px-6 text-role-body font-semibold text-white shadow-card transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
+          >
+            <UserPlus aria-hidden="true" className="h-4 w-4" />
+            Importer mes données
+          </Link>
+        </div>
       ) : (
         /* Aucun bouton mort : un rôle sans droit d'admission lit pourquoi. */
         <p className="mt-5 text-role-meta leading-relaxed text-text-soft">
-          L&apos;inscription des élèves relève de la direction ou du secrétariat.
+          L&apos;importation des élèves relève de la direction ou du secrétariat.
         </p>
       )}
     </section>

@@ -330,17 +330,25 @@ export default function InvoiceGenerator({ students, school, initialStudentId }:
           className="bg-white w-full p-12 shadow-sm border border-gray-200 rounded-xl flex flex-col text-sm relative print:border-none print:shadow-none print:p-0 print:max-w-none overflow-hidden z-10 transition-all duration-300"
         >
           {/* Subtle background watermark */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-[0.02] pointer-events-none z-0">
-            <div className="w-[500px] h-[500px] rounded-full bg-blue-600 blur-3xl"></div>
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none z-0">
+            {school?.logo ? (
+              <img src={school.logo} alt="Watermark" className="w-[80%] h-[80%] object-contain" />
+            ) : (
+              <div className="w-[500px] h-[500px] rounded-full bg-blue-600 blur-3xl opacity-20"></div>
+            )}
           </div>
 
           <div className="relative z-10 h-full flex flex-col">
             {/* Header */}
-            <div className="flex justify-between items-start border-b border-gray-200 pb-8 mb-8">
+            <div className="flex justify-between items-start border-b border-gray-200 pb-8 mb-8 relative z-10">
               <div className="flex items-center gap-4">
-                <div className="h-16 w-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-sm">
-                  <span className="text-white font-bold text-2xl">{school?.name?.charAt(0) || "E"}</span>
-                </div>
+                {school?.logo ? (
+                  <img src={school.logo} alt="Logo" className="h-16 w-16 object-contain rounded-xl shadow-sm" />
+                ) : (
+                  <div className="h-16 w-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-sm">
+                    <span className="text-white font-bold text-2xl">{school?.name ? school.name.charAt(0).toUpperCase() : "E"}</span>
+                  </div>
+                )}
                 <div>
                   <h1 className="text-2xl font-bold tracking-tight text-gray-900" contentEditable suppressContentEditableWarning>{school?.name || "—"}</h1>
                   {/* Repli fictif retiré. La zone reste éditable : si l'adresse manque en

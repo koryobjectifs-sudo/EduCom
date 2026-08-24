@@ -103,7 +103,7 @@ export function SchoolIdentity({
           src={schoolLogo}
           alt=""
           aria-hidden="true"
-          className="h-9 w-9 shrink-0 rounded-control border border-rule object-cover"
+          className="h-9 w-auto max-w-[80px] shrink-0 rounded-sm object-contain"
         />
       ) : (
         <div

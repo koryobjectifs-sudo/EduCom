@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Users, School, Plus, Search, Layers, Save } from "lucide-react";
+import { Users, School, Plus, Search, Layers, Save, UploadCloud } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import StudentListClient from "../students/StudentListClient";
@@ -91,6 +91,14 @@ export default function DirectoryClient({ studentsData, classesData, teachersDat
             >
               Nouvelle classe
             </Button>
+
+            <Link
+              href="/dashboard/students/import"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-control bg-sunk px-4 text-role-body font-semibold text-text-strong shadow-card transition-colors hover:bg-rule focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            >
+              <UploadCloud aria-hidden="true" className="h-4 w-4 text-primary" />
+              Importer
+            </Link>
 
             <Link
               href="/dashboard/students/new"

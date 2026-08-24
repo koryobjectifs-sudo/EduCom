@@ -248,18 +248,17 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
 
         {/* §9 — une seule action suivante, celle qui mène à la première valeur. */}
         <div className="mt-8 rounded-control border border-rule bg-sunk px-4 py-4">
-          <p className="text-role-card font-semibold text-text">Prochaine étape : votre premier élève</p>
+          <p className="text-role-card font-semibold text-text">Prochaine étape : Importer vos données</p>
           <p className="mt-1 text-role-body leading-relaxed text-text-soft">
-            Dès qu&apos;un élève est inscrit, vous pouvez éditer son certificat de
-            scolarité à l&apos;en-tête de {schoolName} — en une page, prêt à imprimer.
+            Pour commencer, veuillez importer le fichier (Excel/CSV) que vous utilisez déjà. La plateforme sera automatiquement mise à jour : c&apos;est la méthode la plus rapide et la plus facile pour démarrer avec {schoolName}.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button size="lg" onClick={() => router.push("/dashboard/students/new")}>
+            <Button size="lg" onClick={() => router.push("/dashboard/students/import")}>
               <UserPlus aria-hidden="true" className="h-4 w-4" />
-              Inscrire mon premier élève
+              Importer mes données
             </Button>
             <Button size="lg" variant="secondary" onClick={() => router.push("/dashboard")}>
-              Voir le tableau de bord
+              Aller au tableau de bord
             </Button>
           </div>
         </div>
