@@ -337,17 +337,26 @@ export default function PaymentsListClient({
                         </DataTable.Cell>
 
                         <DataTable.Cell className="text-right">
-                          {invoice.status !== "PAID" && canCollect ? (
-                            <PayButton invoiceId={invoice.id} />
-                          ) : invoice.status !== "PAID" ? (
-                            <span className="text-role-meta text-text-faint">
-                              {describeStatus("invoice", invoice.status).label}
-                            </span>
-                          ) : (
-                            <span className="text-role-meta text-text-faint">
-                              {describeStatus("invoice", "PAID").label}
-                            </span>
-                          )}
+                          <div className="flex items-center justify-end gap-2">
+                            {invoice.status !== "PAID" && canCollect ? (
+                              <PayButton invoiceId={invoice.id} />
+                            ) : invoice.status !== "PAID" ? (
+                              <span className="text-role-meta text-text-faint">
+                                {describeStatus("invoice", invoice.status).label}
+                              </span>
+                            ) : (
+                              <span className="text-role-meta text-text-faint">
+                                {describeStatus("invoice", "PAID").label}
+                              </span>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              icon={<Search className="w-4 h-4" />}
+                              href={`/dashboard/payments/${invoice.id}`}
+                              title="Voir la facture"
+                            />
+                          </div>
                         </DataTable.Cell>
                       </DataTable.Row>
                     );
