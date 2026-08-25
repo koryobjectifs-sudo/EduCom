@@ -1,8 +1,13 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 24 août 2026 — Remplacement des placeholders "EduCom" par le logo réel de l'établissement dans les documents et UI plus compacte pour les factures.
+> Dernière mise à jour : 25 août 2026 — Refonte du flux de récupération de mot de passe et onboarding automatique via Google OAuth.
 
 ## 📌 Nouvelles Fonctionnalités & Logiques Implémentées (Août 2026)
+
+### Auth & Onboarding "Fast & Automatic" (25 août 2026)
+- **Mot de Passe Oublié Intégré :** Déploiement du flux complet de récupération de mot de passe (demande `/forgot-password`, routage via `/auth/callback`, mise à jour sécurisée `/update-password`) en s'appuyant strictement sur Supabase Auth (`resetPasswordForEmail`).
+- **Google OAuth On-the-fly :** Le flux OAuth Google a été fiabilisé. Auparavant, une inscription Google créait un profil Auth sans école Prisma associée, menant à une erreur de tableau de bord. Désormais, l'API `/auth/callback` intercepte les nouvelles inscriptions et crée de manière transparente l'établissement (`École de [Nom]`) et l'utilisateur en base.
+- **Page de Bienvenue (`/welcome`) :** Finies les redirections abruptes. L'activation du compte par e-mail ou l'inscription OAuth atterrit désormais sur une "Landing Page de Victoire" chaleureuse invitant formellement le directeur à la prochaine étape (Configurer mon école).
 
 ### School Activation Engine & PLG (25 août 2026)
 - **Objectif "MAKE A SCHOOL OPERATIONAL IN MINUTES"** : Implémentation du moteur d'activation (Widget "Premiers Pas" sur le Dashboard) suivant la progression d'onboarding (école configurée, classes, élèves, enseignants, notes).
