@@ -32,11 +32,60 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createClient()
-  const { error } = await supabase.auth.exchangeCodeForSession(code)
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error) {
     // Le cas de loin le plus fréquent : lien déjà utilisé, ou expiré.
     return NextResponse.redirect(`${origin}/login?erreur=lien_invalide`)
+  }
+
+  // ⚠️ INTERCEPTION "FAST & SECURE" POUR GOOGLE OAUTH
+  // Si l'utilisateur vient d'arriver via Google, il existe dans Supabase Auth
+  // mais n'a pas encore de School ni de User dans Prisma.
+  // On le crée à la volée pour un onboarding immédiat.
+  if (data?.user) {
+    const { prisma } = await import('@/lib/prisma')
+    
+    try {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: data.user.id },
+        select: { id: true },
+      })
+      
+      if (!dbUser) {
+        const metadata = data.user.user_metadata || {}
+        // On sépare le nom complet fourni par Google
+        const fullName = metadata.full_name || ''
+        const parts = fullName.split(' ')
+        const firstName = metadata.first_name || parts[0] || 'Direction'
+        const lastName = metadata.last_name || parts.slice(1).join(' ') || ''
+        const email = data.user.email || ''
+        const schoolName = `École de ${firstName}`
+
+        await prisma.$transaction(async (tx) => {
+          const school = await tx.school.create({ data: { name: schoolName, email } })
+          await tx.user.create({
+            data: {
+              id: data.user.id,
+              email,
+              firstName,
+              lastName,
+              role: 'ADMIN',
+              schoolId: school.id,
+            },
+          })
+        })
+        
+        // Si c'est une création à la volée, on l'envoie vers la page de bienvenue
+        // (même si l'URL demandait /dashboard, on préfère lui souhaiter la bienvenue).
+        if (next === '/dashboard') {
+          return NextResponse.redirect(`${origin}/welcome`)
+        }
+      }
+    } catch (err) {
+      console.error('Erreur lors de la création automatique OAuth:', err)
+      // Si on échoue, on continue : le layout dashboard gérera l'erreur "espace_absent"
+    }
   }
 
   return NextResponse.redirect(`${origin}${next}`)

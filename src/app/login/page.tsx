@@ -172,7 +172,14 @@ function LoginForm() {
               placeholder="direction@votre-ecole.sn"
             />
             <Input
-              label="Mot de passe"
+              label={
+                <span className="flex items-center justify-between w-full">
+                  <span>Mot de passe</span>
+                  <Link href="/forgot-password" className="text-[13px] font-normal text-primary underline-offset-2 hover:underline">
+                    Mot de passe oublié ?
+                  </Link>
+                </span>
+              }
               id="password"
               name="password"
               type="password"

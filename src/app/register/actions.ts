@@ -92,7 +92,7 @@ export async function register(formData: FormData): Promise<RegisterResult | voi
       password,
       options: {
         data: { firstName, lastName },
-        emailRedirectTo: `${origine}/auth/callback?next=/dashboard`,
+        emailRedirectTo: `${origine}/auth/callback?next=/welcome`,
       },
     })
     if (error) {
