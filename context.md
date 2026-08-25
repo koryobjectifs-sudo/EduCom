@@ -9,6 +9,15 @@
 - **Filigrane sur Documents :** Tous les documents générés (Factures, Certificats, Reçus, Bulletins, Emplois du temps) intègrent désormais le logo de l'école en filigrane (watermark en arrière-plan) et dans l'en-tête (mise à jour en masse via `update_watermark.js`).
 - **Correction CSS (Sidebar) :** Le logo sur le menu de navigation (Sidebar/Mobile) utilise désormais `object-contain` et s'adapte aux dimensions (sans forcer un carré coupé), répondant ainsi au problème de "petit carré".
 
+### UI & Responsivité Mobile (24-25 août 2026)
+- **Squelettes de chargement (Skeletons) :** Remplacement systématique de tous les spinners de chargement (`Loader2`) par des squelettes visuels fidèles au contenu final (`SkeletonCardList`, `SkeletonTable`, etc.) sur l'accueil du Dashboard et dans les panneaux de l'interface (ex: sélection de classe pour les notes). L'interface ne "saute" plus lors des chargements.
+- **Typographie et Troncature des Factures :** L'en-tête de la facture (aperçu) a été refondu pour être parfaitement responsive. Sur petits écrans, les titres longs (ex: nom d'école) ne sont plus brutalement tronqués mais s'empilent verticalement (`flex-col`) et s'adaptent dynamiquement, tout en reprenant leur place côte-à-côte lors de l'impression physique.
+- **Accessibilité mobile iOS :** Ajustement de la taille de police de tous les champs `<input>` et `<select>` à `text-base` (16px minimum) sur mobile pour empêcher le zoom automatique non sollicité de Safari iOS, et augmentation des zones de clic (touch targets) pour le menu burger.
+
+### Historique & Archives de Factures
+- **Viewer de Facture (Archives) :** Un nouvel écran (`/dashboard/payments/[id]`) permet désormais de consulter l'aperçu exact d'une facture préalablement générée, validée ou payée, directement depuis la liste d'historique (via une icône loupe).
+- **Titre du document PDF :** La logique du titre de la facture a été dissociée. L'interface affiche toujours "FACTURE SCOLARITÉ" proprement, mais le nom du fichier PDF téléchargé (via `document.title`) inclut dynamiquement le nom de l'élève (ex: `Facture Scolarité - Nom Prénom.pdf`).
+
 ### Optimisation de l'UI de Facturation
 - **Compaction :** L'interface de création de facture (`/dashboard/payments/new/form.tsx`) a été rendue plus compacte (paddings réduits de `p-6` à `p-4`, espacements allégés) pour maximiser l'espace écran et réduire l'usage de la barre de défilement, ce qui accélère la saisie répétitive.
 
