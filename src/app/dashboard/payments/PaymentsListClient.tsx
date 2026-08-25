@@ -12,6 +12,7 @@ import { describeStatus } from "@/lib/status";
 import { PayButton } from "./PayButton";
 import { toast } from "sonner";
 import { quickCollect } from "./actions"; // We will create this
+import Link from "next/link";
 
 type Invoice = {
   id: string;
@@ -349,13 +350,13 @@ export default function PaymentsListClient({
                                 {describeStatus("invoice", "PAID").label}
                               </span>
                             )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              icon={<Search className="w-4 h-4" />}
+                            <Link
                               href={`/dashboard/payments/${invoice.id}`}
                               title="Voir la facture"
-                            />
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                            >
+                              <Search className="w-4 h-4" />
+                            </Link>
                           </div>
                         </DataTable.Cell>
                       </DataTable.Row>

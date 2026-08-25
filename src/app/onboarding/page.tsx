@@ -29,8 +29,8 @@ export default async function OnboardingPage() {
     // ⚠️ Les trois halos flous de 600 px ont été retirés : ils ne portaient
     // aucune information, coûtaient du rendu sur les appareils modestes, et
     // signaient une maquette générée plutôt qu'un outil scolaire.
-    <div className="flex min-h-screen items-center justify-center bg-ground px-4 py-8 sm:py-12">
-      <div className="w-full max-w-3xl">
+    <div className="flex min-h-screen items-center justify-center bg-sunk/50 px-4 py-8 sm:py-12">
+      <div className="w-full max-w-xl">
         <Wizard
           schoolName={dbUser.school.name}
           userName={dbUser.firstName}

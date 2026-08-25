@@ -4,6 +4,13 @@
 
 ## 📌 Nouvelles Fonctionnalités & Logiques Implémentées (Août 2026)
 
+### School Activation Engine & PLG (25 août 2026)
+- **Objectif "MAKE A SCHOOL OPERATIONAL IN MINUTES"** : Implémentation du moteur d'activation (Widget "Premiers Pas" sur le Dashboard) suivant la progression d'onboarding (école configurée, classes, élèves, enseignants, notes).
+- **Mode Démonstration Sécurisé** : Un système d'injection de données fictives permet de remplir le dashboard instantanément.
+  - *Sécurité (Zero-Width Space)* : Toutes les entités injectées (Classes, Matières, Élèves, etc.) portent un marqueur invisible `\u200B` en suffixe de leur nom/matricule. Cela garantit à 100% que la fonction "Vider les données démo" ne supprime aucune donnée réelle, même en cas de nommage identique.
+- **Masquage Intelligent** : L'Onboarding complet et la jauge d'activation sont masqués dynamiquement si l'école a déjà achevé son onboarding et possède de la donnée, évitant de polluer l'interface des écoles opérationnelles.
+- **Bannière Globale** : Affichage d'une `DemoDataBanner` proposant un vidage un-clic en cascade et sans erreur des données de démonstration.
+
 ### Image de Marque (Logo & Filigrane)
 - **Application Globale du Logo :** Partout où le nom ou le logo du logiciel (EduCom, "E") apparaissait en dur (sur le Sidebar, le menu Mobile, et dans la création de factures), il a été remplacé par le logo et le nom de l'école récupéré dynamiquement (`school.logo`, `school.name`). 
 - **Filigrane sur Documents :** Tous les documents générés (Factures, Certificats, Reçus, Bulletins, Emplois du temps) intègrent désormais le logo de l'école en filigrane (watermark en arrière-plan) et dans l'en-tête (mise à jour en masse via `update_watermark.js`).
@@ -3473,3 +3480,10 @@ tant que la fenêtre de rétention court.
 **Ce que cet incident confirme.** La réserve posée en C.4 — « aucune sauvegarde
 constatée, aucune restauration essayée » — n'était pas une précaution
 rhétorique. C'est le premier chantier où elle coûte quelque chose.
+
+### Activation Engine (PLG) & Données de Démonstration (24 août 2026)
+- **School Activation Engine** : Implémentation du tracker d'activation sur l'accueil (`/dashboard`). Le widget `PremiersPas` montre désormais une barre de progression claire de la complétion du compte (Établissement, Classes, Élèves, Équipe, Premières notes).
+- **Injection de Données Démo** : Intégration d'un bouton "Voir EduCom avec des données de démonstration" à la fin de l'onboarding (`Wizard.tsx`).
+- **Données Fictives Séparées** : L'injection (`demo-actions.ts`) crée des classes, matières, évaluations, élèves et notes fictives, toutes préfixées par `[DÉMO]` ou `DEMO-`. Cela permet une séparation totale des données réelles.
+- **Suppression Ciblée** : Sur le Dashboard, une bannière spéciale s'affiche quand des données de démo sont présentes, permettant de les supprimer d'un clic (action serveur stricte supprimant uniquement ce qui commence par `[DÉMO]`), garantissant que la base de l'école n'est jamais effacée.
+- **Importation Solide Conservée** : La page `/dashboard/students/import` utilise déjà `createManyAndReturn` dans une transaction Prisma. En cas d'erreur de format, un rollback automatique a lieu, aucune donnée n'est détruite.

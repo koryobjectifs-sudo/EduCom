@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, ArrowLeft, Check, GraduationCap, School, Building, Baby, UserPlus,
   BookOpen, Info,
@@ -204,102 +205,82 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
 
   if (done) {
     return (
-      <section className="rounded-surface border border-rule bg-surface p-6 shadow-card sm:p-10">
-        <span
-          aria-hidden="true"
-          className="flex h-12 w-12 items-center justify-center rounded-pill bg-success/10 text-success"
-        >
-          <Check className="h-6 w-6" />
-        </span>
+      <motion.section
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="rounded-2xl border border-rule bg-surface p-6 shadow-card sm:p-10 text-center"
+      >
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/10 text-success mb-6">
+          <Check className="h-8 w-8" />
+        </div>
 
-        <h1 className="mt-5 text-role-page font-bold tracking-tight text-text">
-          {schoolName} est installée.
+        <h1 className="text-3xl font-bold tracking-tight text-text">
+          Votre école prend forme.
         </h1>
 
-        {/* ⚠️ Un compte RÉEL, renvoyé par le serveur — jamais la somme espérée. */}
-        <p className="mt-2 text-role-body leading-relaxed text-text-soft">
+        <p className="mt-4 text-[15px] leading-relaxed text-text-soft max-w-md mx-auto">
           {done.classes > 0
-            ? `${done.classes} classe${done.classes > 1 ? "s" : ""} ${done.classes > 1 ? "ont été créées" : "a été créée"} d'après les niveaux que vous enseignez. Vous n'avez rien à saisir de plus.`
+            ? `${done.classes} classe${done.classes > 1 ? "s" : ""} ${done.classes > 1 ? "ont été créées" : "a été créée"}. Vous n'avez rien à saisir de plus pour commencer.`
             : "Votre espace est prêt. Aucune classe n'a été créée — vous pourrez les ajouter à tout moment."}
         </p>
 
-        {/* ⚠️ Le programme n'est annoncé QUE s'il a réellement été écrit : le
-            rapport vient du serveur, et `null` signifie « rien appliqué ». */}
         {done.programme && (
-          <p className="mt-3 flex items-start gap-2 text-role-body leading-relaxed text-text-soft">
-            <BookOpen aria-hidden="true" className="mt-1 h-4 w-4 shrink-0 text-success" />
-            <span>
-              {done.programme.subjects} matière{done.programme.subjects > 1 ? "s" : ""} installée
-              {done.programme.subjects > 1 ? "s" : ""}, {done.programme.links} rattachement
-              {done.programme.links > 1 ? "s" : ""} aux classes, {done.programme.terms} trimestre
-              {done.programme.terms > 1 ? "s" : ""} et {done.programme.evaluations} évaluation
-              {done.programme.evaluations > 1 ? "s" : ""}. Vos enseignants peuvent saisir des notes
-              dès maintenant.
-            </span>
+          <p className="mt-3 text-[15px] leading-relaxed text-text-soft max-w-md mx-auto">
+            Le programme officiel a été installé. Vos enseignants peuvent saisir des notes dès maintenant.
           </p>
         )}
 
         {feeError && (
-          <p className="mt-4 rounded-control border border-warning/30 bg-warning/5 px-3 py-2.5 text-role-meta leading-relaxed text-text-soft">
-            La grille tarifaire n&apos;a pas pu être enregistrée ({feeError}). Votre école
-            fonctionne normalement ; configurez-la dans Réglages › Grille tarifaire.
+          <p className="mt-6 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-sm leading-relaxed text-warning-strong max-w-md mx-auto">
+            La configuration financière n'a pas pu être finalisée ({feeError}), mais vous pouvez commencer à travailler !
           </p>
         )}
 
-        {/* §9 — une seule action suivante, celle qui mène à la première valeur. */}
-        <div className="mt-8 rounded-control border border-rule bg-sunk px-4 py-4">
-          <p className="text-role-card font-semibold text-text">Prochaine étape : Importer vos données</p>
-          <p className="mt-1 text-role-body leading-relaxed text-text-soft">
-            Pour commencer, veuillez importer le fichier (Excel/CSV) que vous utilisez déjà. La plateforme sera automatiquement mise à jour : c&apos;est la méthode la plus rapide et la plus facile pour démarrer avec {schoolName}.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button size="lg" onClick={() => router.push("/dashboard/students/import")}>
-              <UserPlus aria-hidden="true" className="h-4 w-4" />
+        <div className="mt-10 pt-8 border-t border-rule/50">
+          <p className="text-lg font-semibold text-text mb-6">Comment voulez-vous commencer ?</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Button size="lg" onClick={() => router.push("/dashboard/students/import")} className="w-full sm:w-auto">
+              <UserPlus aria-hidden="true" className="h-5 w-5" />
               Importer mes données
             </Button>
-            <Button size="lg" variant="secondary" onClick={() => router.push("/dashboard")}>
-              Aller au tableau de bord
+            <Button size="lg" variant="secondary" onClick={async () => {
+              setBusy(true);
+              const { injectDemoData } = await import("./demo-actions");
+              await injectDemoData();
+              setBusy(false);
+              router.push("/dashboard");
+            }} loading={busy} className="w-full sm:w-auto">
+              Voir avec des données de démonstration
             </Button>
           </div>
         </div>
-      </section>
+      </motion.section>
     );
   }
 
   /* ═══════════════ saisie ═══════════════ */
 
   return (
-    <section className="rounded-surface border border-rule bg-surface shadow-card">
-      {/* En-tête : où suis-je, et combien reste-t-il ? */}
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-rule px-5 py-4 sm:px-8">
-        <div className="flex items-center gap-2.5">
-          <span
-            aria-hidden="true"
-            className="flex h-8 w-8 items-center justify-center rounded-control bg-primary text-role-body font-bold leading-none text-white"
-          >
-            E
-          </span>
-          <span className="text-role-card font-semibold text-text">Installation</span>
+    <div>
+      <header className="flex flex-col items-center justify-center gap-3 mb-8">
+        <div className="flex items-center gap-1.5">
+          {ETAPES.map((_, i) => (
+            <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i + 1 === step ? "w-8 bg-primary" : i + 1 < step ? "w-3 bg-primary/40" : "w-3 bg-rule"}`} />
+          ))}
         </div>
-        <ol className="flex items-center gap-2" aria-label={`Étape ${step} sur ${ETAPES.length}`}>
-          {ETAPES.map((label, i) => {
-            const n = i + 1;
-            return (
-              <li
-                key={label}
-                aria-current={n === step ? "step" : undefined}
-                className={`text-role-meta font-medium ${n === step ? "text-text" : n < step ? "text-text-soft" : "text-text-faint"}`}
-              >
-                <span className="hidden sm:inline">{label}</span>
-                <span className="sm:hidden">{n}</span>
-                {n < ETAPES.length && <span aria-hidden="true" className="ml-2 text-text-faint">›</span>}
-              </li>
-            );
-          })}
-        </ol>
+        <p className="text-sm font-medium text-text-soft">Étape {step} sur {ETAPES.length}</p>
       </header>
 
-      <div className="px-5 py-6 sm:px-8 sm:py-8">
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -15 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          className="rounded-2xl border border-rule bg-surface shadow-card px-5 py-6 sm:px-8 sm:py-8"
+        >
         {erreur && (
           <p role="alert" className="mb-6 rounded-control border border-danger/30 bg-danger/5 px-3 py-2.5 text-role-body text-danger">
             {erreur}
@@ -309,12 +290,11 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
         {/* ─── 1. Niveaux : la seule question obligatoire, et la seule qui construit ─── */}
         {step === 1 && (
           <div>
-            <h1 className="text-role-page font-bold tracking-tight text-text">
-              Bonjour {userName}. Que propose {schoolName} ?
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text">
+              Commençons par votre établissement.
             </h1>
-            <p className="mt-2 text-role-body leading-relaxed text-text-soft">
-              Vos classes seront créées automatiquement. C&apos;est la seule information
-              indispensable pour commencer.
+            <p className="mt-2 text-[15px] leading-relaxed text-text-soft">
+              Sélectionnez les niveaux enseignés. EduCom va générer automatiquement la structure de vos classes.
             </p>
 
             <fieldset className="mt-6">
@@ -367,8 +347,8 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
         {/* ─── 2. Programme : le modèle sénégalais, annoncé avant d'être écrit ─── */}
         {step === 2 && (
           <div>
-            <h1 className="text-role-page font-bold tracking-tight text-text">
-              Voulez-vous partir du programme sénégalais ?
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text">
+              Comment souhaitez-vous configurer l'année ?
             </h1>
             <p className="mt-2 text-role-body leading-relaxed text-text-soft">
               EduCom peut installer les matières officielles de chaque niveau, les trois
@@ -450,8 +430,8 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
               trimestre restent vides pour la même raison — ce sont les vôtres.
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
-              <Button size="lg" variant="ghost" onClick={() => setStep(1)}>
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-rule/70 pt-6">
+              <Button size="lg" variant="secondary" onClick={() => setStep(1)}>
                 <ArrowLeft aria-hidden="true" className="h-4 w-4" />
                 Retour
               </Button>
@@ -556,14 +536,20 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
                 <ArrowLeft aria-hidden="true" className="h-4 w-4" />
                 Retour
               </Button>
-              <Button size="lg" loading={busy} onClick={finish}>
-                {busy ? "Création de vos classes…" : "Terminer l'installation"}
-                {!busy && <ArrowRight aria-hidden="true" className="h-4 w-4" />}
-              </Button>
+              <div className="flex gap-2">
+                <Button size="lg" variant="secondary" onClick={finish} disabled={busy}>
+                  Passer cette configuration
+                </Button>
+                <Button size="lg" loading={busy} onClick={finish}>
+                  {busy ? "Création de vos classes…" : "Terminer l'installation"}
+                  {!busy && <Check aria-hidden="true" className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
           </div>
         )}
-      </div>
-    </section>
+        </motion.div>
+      </AnimatePresence>
+    </div>
   );
 }

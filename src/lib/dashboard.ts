@@ -142,7 +142,19 @@ export type DashboardSnapshot = {
   firstName: string | null;
   schoolName: string | null;
   scope: { money: boolean; students: boolean; validation: boolean };
+  hasDemoData: boolean;
   fresh: { enrolled: number; pending: number; classes: number };
+  activation: {
+    isActivated: boolean;
+    progress: number;
+    steps: {
+      schoolConfigured: boolean;
+      classesCreated: boolean;
+      studentsAdded: boolean;
+      teachersAdded: boolean;
+      firstActionDone: boolean;
+    };
+  };
   brief: {
     tone: "good" | "mixed" | "attention";
     summary: string;
@@ -502,6 +514,7 @@ export async function dashboardSnapshot(
     recentPayments, recentStudents, recentMessages, recentDocs, recentReportCards,
     invoices,
     financeBundle, academic, parents, today, readiness, calendrier,
+    teachersCount, gradesCount,
   ] = await Promise.all([
     prisma.student.count({ where: { schoolId, status: "ENROLLED" } }),
     prisma.student.count({ where: { schoolId, status: "PENDING" } }),
@@ -559,6 +572,8 @@ export async function dashboardSnapshot(
      * n'ouvre qu'une fois par trimestre.
      */
     schoolCalendar(actor, now),
+    prisma.user.count({ where: { schoolId, role: "TEACHER" } }),
+    prisma.grade.count({ where: { class: { schoolId } } }),
   ]);
 
   const newStudents = recentStudents.filter((s) => s.createdAt >= thirtyDaysAgo).length;
@@ -806,11 +821,31 @@ export async function dashboardSnapshot(
     .sort((a, b) => b.at.getTime() - a.at.getTime())
     .slice(0, 5);
 
+  const stepsConfig = {
+    schoolConfigured: true,
+    classesCreated: classes > 0,
+    studentsAdded: enrolled > 0,
+    teachersAdded: classesWithTeacher > 0 || teachersCount > 0,
+    firstActionDone: submittedReportCards > 0 || gradesCount > 0,
+  };
+  const stepValues = Object.values(stepsConfig);
+  const completedSteps = stepValues.filter(Boolean).length;
+  const progress = Math.round((completedSteps / stepValues.length) * 100);
+  const isActivated = stepsConfig.studentsAdded && stepsConfig.firstActionDone;
+  
+  const hasDemoData = await prisma.class.count({ where: { schoolId, name: { endsWith: "\u200B" } } }) > 0;
+
   return {
     firstName: identity.firstName,
     schoolName: identity.schoolName,
     scope,
+    hasDemoData,
     fresh: { enrolled, pending, classes },
+    activation: {
+      isActivated,
+      progress,
+      steps: stepsConfig,
+    },
     brief: {
       tone, summary, priorities,
       counts: {

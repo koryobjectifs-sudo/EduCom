@@ -51,14 +51,14 @@ export default function Hero() {
               variants={itemVariants}
               className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 mb-6 leading-[1.1]"
             >
-              Gérez votre établissement avec <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">simplicité</span>
+              Gérez votre école. <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Sans la complexité.</span>
             </motion.h1>
             
             <motion.p
               variants={itemVariants}
               className="text-lg sm:text-xl text-slate-600 mb-8 leading-relaxed"
             >
-              EduCom réinvente la gestion scolaire. Centralisez l'administration, simplifiez la communication et suivez la réussite de vos élèves sur une seule plateforme intuitive.
+              Votre école peut être opérationnelle en quelques minutes. Centralisez l'administration, inscrivez vos élèves et générez vos premiers bulletins instantanément.
             </motion.p>
             
             <motion.div

@@ -9,6 +9,7 @@ import { FinanceSummary, AcademicSummary, ParentsSummary } from "@/components/da
 import ActivityFeed from "@/components/dashboard/ActivityFeed";
 import RecentInvoices from "@/components/dashboard/RecentInvoices";
 import PremiersPas from "@/components/dashboard/PremiersPas";
+import DemoDataBanner from "@/components/dashboard/DemoDataBanner";
 
 /**
  * Tableau de bord — **poste de commandement** de l'établissement.
@@ -74,12 +75,14 @@ export default async function DashboardHome() {
         counts={snap.brief.counts}
       />
 
-      {brandNew && (
+      {/* The activation engine stays visible until 100% activated */}
+      {!snap.activation.isActivated && (
         <Reveal delay={0.08}>
           <PremiersPas
             schoolName={snap.schoolName ?? "Votre établissement"}
             classesCount={snap.fresh.classes}
             canAddStudent={snap.scope.students}
+            activation={snap.activation}
           />
         </Reveal>
       )}
@@ -92,6 +95,9 @@ export default async function DashboardHome() {
         </Reveal>
       </div>
 
+      {snap.hasDemoData && (
+        <DemoDataBanner />
+      )}
       {/* ── NIVEAU 3 — santé de l'école ── */}
       <Reveal delay={0.18}>
         <SchoolHealth score={snap.health.score} axes={snap.health.axes} />

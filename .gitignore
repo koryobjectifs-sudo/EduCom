@@ -52,6 +52,26 @@ next-env.d.ts
 # ─── Mis de côté à la création du dépôt, jamais à verser ─────────────────────
 /_local/
 
+# ─── Scripts jetables de la racine (mis de côté le 25 août 2026) ─────────────
+# ⚠️ Trois de ces scripts portaient EN CLAIR la SERVICE_ROLE_KEY Supabase (qui
+# contourne toute la RLS), le mot de passe Postgres de production et les tokens
+# Twilio. Historique vérifié le 25 août : ils n'ont JAMAIS été commités. Ils
+# vivent désormais dans `_local/racine-2026-08-25/`.
+#
+# ⚠️ Ces motifs sont ANCRÉS à la racine avec `/` — sans cette ancre, un
+# `delete_*.ts` masquerait silencieusement du vrai code applicatif portant un
+# nom voisin sous `src/`. Ne pas les dés-ancrer.
+/update-env*.mjs
+/delete_*.mjs
+/delete_*.ts
+/scripts/sync-user.ts
+
+# Diffs et correctifs sauvegardés à la main pendant une session de travail.
+# Ancrés eux aussi : un `*.patch` global masquerait `.yarn/patches`.
+/*.patch
+/*.diff
+/*_diff.txt
+
 # ─── Sorties d'outillage local ───────────────────────────────────────────────
 /graphify-out/
 /agent/
