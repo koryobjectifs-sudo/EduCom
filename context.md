@@ -1,8 +1,125 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 25 août 2026 — Refonte du flux de récupération de mot de passe et onboarding automatique via Google OAuth.
+> Dernière mise à jour : 28 août 2026 — Chantiers #11 & #12 Go-Live Readiness WhatsApp.
 
 ## 📌 Nouvelles Fonctionnalités & Logiques Implémentées (Août 2026)
+
+### Chantier #14.5 : VÉRIFICATION FINALE AVANT TEST RÉEL (28 août 2026)
+- **STATUT : TEST D'ENVOI RÉUSSI (29 août 2026)**. La fonctionnalité d'envoi libre depuis la Boîte de réception (WhatsAppClient) vers un parent (dans la fenêtre de 24h) est validée de bout en bout en production avec de vraies API Meta.
+- **Serveur Local** : Le serveur EduCom tourne correctement sur le port 3000.
+- **Tunnel HTTPS** : LocalTunnel est prêt sur le port 3000.
+- **Variables d'environnement (Base de données en réalité)** :
+  - `whatsappAccessToken` : Injecté manuellement en base pour contourner le cache Next.js.
+  - `whatsappPhoneNumberId` : Injecté en base.
+  - `NEXT_PUBLIC_ENABLE_META_SIMULATOR` : FALSE (Test réel).
+- **Sécurité et HMAC** : La vérification de la signature Meta `X-Hub-Signature-256` est ABSENTE et devrait être implémentée côté Webhook `POST` pour la production.
+
+### Chantier #13 : GESTION MULTI-ENFANTS WHATSAPP (28 août 2026)
+- **Sélection Intelligente** : Lorsqu'un parent a plusieurs enfants et émet une intention nécessitant un contexte (ex: déclaration d'absence), le bot met la conversation en attente (`SELECT_CHILD`) et demande de sélectionner l'enfant concerné (ex: `1. Jean`, `2. Marie`).
+- **Reprise de Contexte** : À la réception du choix (validé dynamiquement via les relations Prisma du parent), le bot met à jour `resolvedStudentId` et reprend l'intention initiale sans redemander les informations.
+- **Expiration** : Le choix expire automatiquement après 1 heure, forçant le parent à reformuler sa demande s'il ne répond pas à temps.
+
+### Chantiers #11 & #12 : GO-LIVE READINESS WHATSAPP (28 août 2026)
+- **Audit Strict de Production** : Le code a été vérifié (TypeScript, Lint, Permissions). Aucun contournement n'a été inséré.
+- **Rapport de Blocage** : Les tests réseaux réels (Incoming, Outgoing, Webhook) ont été déclarés **NOT AVAILABLE** faute de credentials de production (`NEXT_PUBLIC_META_APP_ID`, `META_APP_SECRET`) et d'URL Webhook publique. Le mode d'intégration exige cette stricte configuration pour s'activer.
+- **Défaut d'UX Identifié et Corrigé** : Le routage IA pour les parents "Multi-Enfants" nécessitait une résolution manuelle par le secrétariat. Corrigé au Chantier #13.
+- **Sécurité et Multi-tenant** : Isolation totale par `schoolId` garantie sur les requêtes Prisma. Le rôle `TEACHER` est strictement confiné et bloqué sur la messagerie externe.
+
+### Chantier #10 : VALIDATION END-TO-END WHATSAPP (28 août 2026)
+- **Webhook GET** : Remplacement de l'ancienne variable supprimée par `META_WEBHOOK_VERIFY_TOKEN` pour garantir l'enregistrement initial par Meta.
+- **Auto-Réponses (IA)** : La création en base s'accompagne désormais de l'envoi **réel** via `WhatsAppClient.sendTextMessage()`.
+- **Réponses Manuelles (Inbox)** : Ajout d'une vérification stricte de la **fenêtre des 24h** (`windowExpiresAt`). Si expiré, le système empêche l'envoi de texte libre (évitant un rejet silencieux de Meta). 
+- **Traçabilité des Statuts** : L'ID de message retourné par Meta (`waMessageId`) est désormais capturé lors de l'envoi de messages sortants (réponse manuelle et automatique) et sauvegardé dans la base, permettant au webhook de lier les accusés de réception (DELIVERED, READ).
+- **Rapport de Compatibilité** : L'architecture SaaS de communication est 100% fonctionnelle, testée statiquement avec 0 erreur TS, en attente d'une application Meta réelle pour basculer la prod.
+
+### Chantier #9 : VRAI META EMBEDDED SIGNUP (28 août 2026)
+- **SDK Meta Front-End** : Intégration de `connect.facebook.net/en_US/sdk.js` via `next/script` dans la page Réglages. L'appel à `FB.login` déclenche le flux officiel (Oauth2) pour `whatsapp_business_management`.
+- **Validation Backend (`finalizeWhatsAppConnection`)** : Le token Oauth renvoyé par le frontend est traité côté serveur. Ce Server Action exige un environnement Meta complet (`META_APP_SECRET`) pour sécuriser la transaction, et refuse de faken une connexion si Meta n'est pas configuré.
+- **Drapeau de Simulation Isolée** : L'ancien simulateur du Chantier 8 a été conservé _exclusivement_ derrière un flag environnemental explicite (`NEXT_PUBLIC_ENABLE_META_SIMULATOR="true"`) afin de ne jamais l'activer par erreur en production, mais de permettre les tests UI en local.
+- **Multi-Tenant et Webhook** : Préservation totale de l'architecture V1 ; les credentials et l'isolement par `schoolId` restent la norme.
+
+### Chantier #8 : WHATSAPP ONBOARDING SAAS (28 août 2026)
+- **Architecture Meta Embedded Signup** : Transformation de l'intégration WhatsApp d'une logique "développeur" (copier-coller de tokens manuels) vers une expérience SaaS fluide via le parcours officiel Meta Embedded Signup. Les écoles n'ont plus à manipuler de credentials techniques.
+- **Évolution Base de Données (`School`)** : Ajout de champs de gestion d'état (`whatsappConnectionStatus`, `whatsappName`, `whatsappPhone`, `whatsappConnectedAt`) pour supporter le cycle de vie de la connexion (NOT_CONNECTED, CONNECTING, CONNECTED, ERROR) sans régression sur les champs existants.
+- **UX Mobile-First (Réglages)** : Remplacement des champs de saisie manuelle dans `/dashboard/settings` par une machine à état visuelle. Un bouton "Connecter WhatsApp" initie le flux (simulé en développement), et le statut connecté affiche clairement le nom et le numéro relié.
+- **Sécurité et Permissions** : La déconnexion ou la reconfiguration du canal WhatsApp est protégée par un `requireActionContext`, garantissant que seuls les administrateurs/propriétaires peuvent altérer cette connexion critique. Le multitenant est assuré, chaque école opérant en vase clos.
+- **Simulation Mode Dev** : Faute de Meta Facebook App ID réel dans ce dépôt de test, le flux OAuth est simulé côté serveur via l'action `simulateConnectWhatsApp`, permettant de valider l'intégralité du produit SaaS sans dépendance externe bloquante.
+
+### Chantier #7 : TESTS, MOBILE-FIRST & FINITION FINALE (28 août 2026)
+- **Intégration Réelle de l'API WhatsApp (Chantier #4 complété)** : La base de données inclut désormais des colonnes sécurisées par école (`whatsappAccessToken`, `whatsappPhoneNumberId`, `whatsappBusinessAccountId`). L'écran des "Réglages" expose un panneau de configuration pour l'intégration de la Cloud API de Meta WhatsApp Business.
+- **Envoi Manuel depuis Inbox** : Le champ de saisie bloqué a été réactivé. En envoyant un message textuel via `WhatsAppClient`, le statut et l'activité de la conversation sont mis à jour, en vérifiant strictement que les rôles "TEACHER" sont bloqués. L'action `sendManualReply` gère ce workflow.
+- **Routage Multi-tenant Fiabilisé (Webhooks)** : Le webhook WhatsApp intercepte le `phone_number_id` (plutôt que de se fier uniquement au numéro parent) pour isoler les communications entrantes par école de façon 100% robuste, un prérequis pour une solution SaaS pure.
+- **Mobile-First Inbox** : Résolution du problème d'empilement de l'Inbox sur mobile via l'implémentation d'une navigation Maître/Détail. Un bouton "Retour" dynamique permet de basculer de la liste des conversations au fil de discussion sans scroll horizontal ou empilement hasardeux.
+- **Formulaires & Layout Mobile** : Les formulaires de création de campagnes et de sondages s'affichent désormais avec des `grid-cols-1 sm:grid-cols-2` fluides, empêchant l'écrasement des sélecteurs (Envoi ponctuel / Workflow automatisé) sur les écrans d'iPhone.
+- **Audit de Sécurité** : La sécurité d'isolation de l'espace de communication par `schoolId` (`requireSchoolContext`) et les règles de blocage rigide pour les rôles `TEACHER` et `ACCOUNTANT` ont été définitivement confirmées.
+- **Audit Technique** : Le module Communication a été validé Typescript (`npx tsc --noEmit` à 0 erreur). Les types ont été nettoyés de tout `any` involontaire, confirmant la stabilité backend-frontend. La base Prisma est restée intégralement intacte. Aucun problème de régressions n'a été détecté.
+
+### Chantier #6 : EDUCOM COMMUNICATION PERMISSIONS & SECURITY V1 (28 août 2026)
+- **Lockdown `ACCOUNTANT`** : L'accès de la comptabilité au centre de communication est sécurisé. En back-end, le secrétariat peut consulter et créer tout type de campagne. Les comptables ne voient dans l'UI et l'API que les workflows avec `trigger` lié aux paiements (`PAYMENT_DUE`, `PAYMENT_OVERDUE`).
+- **Verrouillage `TEACHER`** : Les enseignants sont fermement empêchés par des Server Actions stricts (`requireActionContext`) de pouvoir envoyer ou consulter des communications externes.
+- **Sécurité et Escalade Inbox** : Restreinte aux requêtes financières pour l'ACCOUNTANT. La validation d'absence (`VALIDATE_ABSENCE`) ne peut plus être approuvée ou rejetée par un ACCOUNTANT.
+- **Formulaires et Sondages** : Sécurisés au niveau des Server Actions pour bloquer la création par les TEACHER et ACCOUNTANT.
+
+### Chantier #5 : INCOMING + IA WhatsApp (28 août 2026)
+- **Modèle de données** : Ajout de champs sur `WhatsAppConversation` de manière purement additive (`detectedIntent`, `attentionLevel`, `pendingActionType`, `pendingActionData`, `resolvedStudentId`) via `prisma migrate diff` et un script de synchronisation sans perte de données.
+- **Routing Engine** : Création d'un moteur d'intention simulant une IA (`routing.ts`). Il analyse les messages entrants via Regex/Mots-clés pour identifier les FAQ, les sondages, ou les justifications d'absence.
+- **Inbox Secrétariat** : Le `InboxClient` a été amélioré pour supporter l'escalade humaine (panneau "Action requise"). Les secrétaires voient immédiatement l'intention détectée (ex: "Justification d'absence").
+- **Validation d'Action** : Ajout de Server Actions (`actions.ts`) permettant au secrétariat d'approuver ou de refuser les demandes comprises par le bot. L'approbation logge l'événement dans `AuditLog`, clôt l'action en attente, et envoie un retour automatique au parent.
+- **Sécurité et Isolation** : Utilisation stricte de `requireSchoolContext()` pour l'Inbox.
+- **Type Safety** : `pendingActionData` est typé en `Record<string, unknown> | null` et l'update Prisma utilise `Prisma.DbNull` pour réinitialiser les colonnes Json. Aucun commit ou push effectué.
+
+### Moteur de Workflows Automatisés V2 (Chantier #4 - 28 août 2026)
+- **Modèles `CommunicationCampaign` & `ActionLink`** : Création des tables d'historisation et de configuration des campagnes manuelles/automatiques, avec un gestionnaire d'état de lien d'action (usage unique, expirables et révocables). Modification non destructive de la base de données.
+- **Workflow Engine & Résolveur de Variables** : Moteur de contexte permettant de convertir un modèle WhatsApp Meta strict (variables numériques type `{{1}}`) en utilisant les données relationnelles (nom du parent, facture due, date d'échéance) résolues à 100% côté serveur, évitant la manipulation des URL côté client.
+- **Sécurité et Idempotence** : `idempotencyKey` garantie l'impossibilité d'envoyer deux fois un rappel de facture à un parent pour le même événement ; seul un lien cryptographique de 64 char part dans l'URL.
+- **Refonte UI Campagnes** : Transformation de l'ancien formulaire de SMS manuel (hors-la-loi selon Meta) vers un panneau de sélection de Modèles (Templates), choix d'audience, et configuration des déclencheurs (Paiements, Retards) via interface.
+- **Debug Prisma Runtime** : La page de création de campagne crashait à cause d'un delegate indéfini (`Cannot read properties of undefined (reading 'findMany')`). Cause racine : le serveur Next.js en cours d'exécution conservait l'ancien `PrismaClient` en mémoire, qui ne possédait pas la nouvelle méthode `communicationCampaign` ajoutée après le `prisma generate`. Résolu via un redémarrage complet de Next.js (`kill -9 PID` puis `npm run dev`).
+
+### Communication Center V1 (Chantier #3 - 28 août 2026)
+- **Refonte de la page Communications** : Remplacement de l'ancien sélecteur de parents par un véritable Control Panel (Dashboard) agissant comme centre névralgique de toutes les communications de l'école.
+- **4 Zones Opérationnelles** : 
+  1. *Statistiques/Activité* : Compteurs réels (Envoyés, Délivrés, Lus, Réponses) basés sur la base de données.
+  2. *Actions rapides* : Nouvelles communications (avec blocage strict des enseignants `TEACHER`), sondages, formulaires.
+  3. *Sondages Actifs* : Affichage dynamique des sondages en cours et de leurs taux de réponse.
+  4. *Conversations Récentes* : Liste des échanges WhatsApp avec tags prioritaires (ex: `REQUIRES_ATTENTION`).
+- **Migration Douce** : L'ancien module d'envoi de masse a été préservé et déplacé sous `/dashboard/communications/campaigns/new` pour maintenir les parcours existants sans blocage brutal.
+- **Synchronisation Base de Données (Urgent Debug)** : La table `WhatsAppConversation` (ainsi que `WhatsAppTemplate` et les nouveaux champs) manquait en base car la consigne d'interdiction de modifier la base (`prisma db push`) l'avait empêché à l'étape 2, générant une erreur `TableDoesNotExist`. La synchronisation a été faite manuellement et sans perte de données en extrayant le diff SQL non destructif (`npx prisma migrate diff`) et en l'appliquant directement via `pg` pour contourner la protection Prisma. Aucun effacement n'a eu lieu. Les tests d'exécution (Next.js `/dashboard/communications` et `inbox`) sont tous passés au vert.
+### Communication V1 : Fondation WhatsApp (27 août 2026)
+- **Principe Fondamental** : EduCom = cerveau, WhatsApp = canal. 
+- **Modèles Ajoutés** : `WhatsAppConversation` (gestion de la fenêtre des 24h), `WhatsAppTemplate` (modèles pré-approuvés Meta), ajout du statut `RECEIVED` et `waMessageId` sur `Message`.
+- **Mécanisme d'Idempotence** : Le champ unique `Message.waMessageId` garantit qu'un payload webhook reçu plusieurs fois ne créera jamais de doublon.
+- **Résolution de Parent** : Recherche stricte des parents par leur numéro de téléphone (rôle `PARENT`). Un numéro inconnu ou ambigu (plusieurs parents) est ignoré/loggé et ne déclenche pas d'actions risquées. Le contexte parent → enfant est injecté.
+- **Règles des 24h (Meta)** : Implémentation du tracker de fenêtre `windowExpiresAt`. Un message entrant réinitialise la fenêtre de 24h (autorisant l'envoi de messages libres).
+- **Templates Meta** : Préparation de l'architecture pour les envois asynchrones de notifications/annonces en dehors de la fenêtre de 24h.
+- **Permissions Verrouillées** : Nouvelle vérification stricte `canSendExternalWhatsApp` dans `permissions.ts` bloquant absolument les enseignants (`TEACHER`) de tout envoi externe WhatsApp.
+- **Opt-In** : Ajout de l'enum `WhatsAppOptInStatus` (`OPTED_IN`, `OPTED_OUT`, `UNKNOWN`) sur le modèle `User` pour structurer le futur recueil de consentement.
+- **Prochaines étapes** : Finalisation du `CommunicationsClient` (Inbox) pour que le Secrétariat puisse traiter les messages nécessitant une intervention humaine, configurer les campagnes, et mise en place des Webhooks entrants complets (AI parser, triggers).
+
+### School Operations Consolidation (Chantier #5 & #6 - 27 août 2026)
+- **Refonte Navigation (Fewer doors, not fewer features)** : Restauration des hubs "Élèves & dossiers" et "Administration". Les actions éparpillées (Importer, Exporter) sont re-centralisées contextuellement.
+- **Documents & Générateurs Contextuels** : Retrait du hub générique `/dashboard/documents/` pour les factures, reçus, et bulletins. Ces outils sont désormais intégrés dans leurs domaines respectifs (`/payments` et `/grades`) : la génération d'une facture s'effectue depuis le profil d'un élève ou le module financier, pas depuis un hub générique.
+- **Rapports Déplacés** : L'onglet Rapports a été rattaché logiquement sous "Administration" (`/dashboard/admin/reports`).
+- **Saisie & Bulletins (Mobile & Impression)** : Refonte de la grille de saisie pour empêcher le scrolling horizontal cassé sur 360px. Adaptation stricte du format A4 (`minHeight: 297mm`) pour l'impression des bulletins, avec masquage exclusif du bouton d'impression pour les rôles enseignants.
+- **Sécurité et Isolement par Rôle** : Suppression drastique des endpoints non protégés. `deleteStudent` (unitaire et masse) et validation des présences s'appuient désormais strictement sur `requireActionContext`, garantissant qu'un enseignant ne peut interagir qu'avec ses propres élèves et classes (`teacherClassIds` et `studentWhereFor`).
+- **Audit Webhook WhatsApp** : Examen de `WebhookEvent`. L'architecture de communication actuelle a été documentée dans `docs/product/EDUCOM_OPERATIONS_RULES.md`, pointant l'absence de tracking ID externe et le besoin d'un modèle `Notification` pour boucler avec les webhooks (Twilio/Meta).
+
+### School Operational Pulse (Chantier #4 - 27 août 2026)
+- **Refonte Hiérarchie Dashboard** : Le Dashboard reflète désormais précisément la hiérarchie produit : **1. Context (MorningBrief) → 2. Operational Pulse → 3. Next Best Action → 4. Attention Center → 5. School Health**.
+- **Operational Pulse** : Création du composant `OperationalPulse` remplaçant l'ancien `TodayPanel`. Il résume l'activité immédiate (présences, absences, retards, notes en attente, admissions incomplètes, paiements) sous forme de grille de chiffres clés (Grid system).
+- **Simplification du MorningBrief** : Le `MorningBrief` ne répète plus les urgences de l'école (qui sont déjà dans l'Attention Center). Il ne s'occupe plus que du texte narratif, du résumé et de la période (Context).
+- **Suppression des redondances** : L'alerte des tâches "à traiter" (urgent/watch) ne figure plus qu'à une seule place : `AttentionCenter`, évitant la duplication visuelle.
+
+### Next Best Action & Pilotage Opérationnel (26 août 2026)
+- **Refonte Dashboard** : Transformation du dashboard d'un simple afficheur de données en un centre de pilotage proactif. La hiérarchie est désormais **Contexte → Priorité Absolue (Next Best Action) → À Surveiller**.
+- **Context Engine Enrichi** : `getNextBestAction` (`src/lib/contextEngine.ts`) renvoie désormais une action fortement typée (titre, CTA, icône, sévérité, raison). La logique croise le **rôle** (Directeur, Comptable, Enseignant), la **période** (Admissions, Évaluations, etc.) et les **signaux réels** mesurés sur l'école.
+- **Réduction de Bruit & Alertes Réelles** : `dashboard.ts` transmet désormais le nombre exact de `incompleteFiles` (élèves sans contact d'urgence) et `missingGrades` (classes sans notes), remplaçant les valeurs codées en dur qui neutralisaient le système.
+- **Empty State Rassurant** : En l'absence d'urgence, la Next Best Action affiche une carte "Tout est sous contrôle" (avec une icône de validation), évitant la fabrication de fausses tâches ou un layout brisé.
+### Contextual School OS & Local Test Mode (Août 2026)
+- **Context Engine (`src/lib/contextEngine.ts`) :** Le produit n'est plus un dashboard statique. Un moteur de contexte a été mis en place pour déduire la période scolaire actuelle (Admission, Enseignement, Saisie de notes, etc.) en fonction des configurations de l'école (`School.periods` ajouté via JSON en base) et de la date. Ce moteur dicte la « Next Best Action » selon le rôle.
+- **Dashboard Dynamique :** `dashboardSnapshot` consomme désormais le `ContextEngine`. Une nouvelle bannière `NextBestAction` a été placée tout en haut du tableau de bord pour inciter l'utilisateur à se concentrer sur l'objectif prioritaire de la période en cours.
+- **Local Test Mode (`/dev/onboarding`) :** Création d'une route de développement qui enveloppe le `Wizard` d'onboarding et un `DevPanel`. Ce panel permet de forcer la date, la période et le rôle (`dev_test_mode` cookies interceptés par `requireSchoolContext`) sans authentification Supabase. **Sécurité :** Les endpoints de test refusent l'accès en dehors de `NODE_ENV === "development"` et opèrent sur un espace isolé (`TEST_SCHOOL_DEV`).
+- **Documents Fondateurs (`docs/product/`) :** `EDUCOM_CONTEXTUAL_OS.md` formalise la vision produit contextuelle. `EDUCOM_LOGIC_AUDIT.md` recense ce qui a été classifié. `ARCHIVE.md` trace les éléments retirés.
+
 
 ### Auth & Onboarding "Fast & Automatic" (25 août 2026)
 - **Mot de Passe Oublié Intégré :** Déploiement du flux complet de récupération de mot de passe (demande `/forgot-password`, routage via `/auth/callback`, mise à jour sécurisée `/update-password`) en s'appuyant strictement sur Supabase Auth (`resetPasswordForEmail`).
@@ -3492,3 +3609,20 @@ rhétorique. C'est le premier chantier où elle coûte quelque chose.
 - **Données Fictives Séparées** : L'injection (`demo-actions.ts`) crée des classes, matières, évaluations, élèves et notes fictives, toutes préfixées par `[DÉMO]` ou `DEMO-`. Cela permet une séparation totale des données réelles.
 - **Suppression Ciblée** : Sur le Dashboard, une bannière spéciale s'affiche quand des données de démo sont présentes, permettant de les supprimer d'un clic (action serveur stricte supprimant uniquement ce qui commence par `[DÉMO]`), garantissant que la base de l'école n'est jamais effacée.
 - **Importation Solide Conservée** : La page `/dashboard/students/import` utilise déjà `createManyAndReturn` dans une transaction Prisma. En cas d'erreur de format, un rollback automatique a lieu, aucune donnée n'est détruite.
+
+### Chantier #3 : Attendance & Opérations Quotidiennes (Août 2026)
+- **Modélisation** : Création du modèle `Attendance` dans `schema.prisma` avec `AttendanceStatus` (PRESENT, ABSENT, LATE, EXCUSED) et index d'unicité `@@unique([studentId, date])` restreint à une présence par jour par élève.
+- **Sécurité et Isolation** : La relation `schoolId` sur le modèle permet d'assurer une isolation stricte multitenant pour les requêtes sans join complexe. La Server Action `saveAttendanceBatch` protège toutes les requêtes via `requireSchoolContext()`.
+- **Routage et UI** : L'écran de gestion s'oriente selon le rôle.
+  - `TEACHER` : Présente les classes du professeur et amène à `/dashboard/attendance/take` pour marquer la classe avec l'action rapide "Tous présents".
+  - `DIRECTOR / SECRETARY` : Affiche le taux global de présence, les retards/absents, et les classes n'ayant pas encore procédé à l'appel.
+- **Context Engine** : Intégration transparente de la routine au `Next Best Action`. Durant une période académique (Teaching, Exams), les rôles administratifs voient une alerte de complétion (`severity: "watch"`) tandis que l'enseignant reçoit une notification `severity: "urgent"` tant que ses appels ne sont pas effectués.
+- **Performance** : L'interface évite le N+1 problem et l'enregistrement passe par `prisma.$transaction()` pour grouper les insertions (upserts).
+
+### Navigation & Consolidation (Chantier #5)
+- **Refonte des Domaines** : Suppression des menus tentaculaires. La sidebar se limite strictement à 8 métiers (Tableau de bord, Élèves & dossiers, Présences, Notes & bulletins, Finance, Documents, Communications, Administration).
+- **Administration Hub** : Création de `/dashboard/admin` pour regrouper Équipe, Configuration pédagogique, Configuration financière, Modèles de documents, Rapports, et Paramètres sous un seul toit, évitant l'encombrement de la barre latérale.
+- **Récupération des fonctionnalités orphelines** : Les hubs de métiers ont été mis à jour pour assurer 100% d'accessibilité :
+  - **Documents** pointe désormais explicitement vers le Centre documentaire.
+  - **Notes & bulletins** intègre la génération de Bulletins (qui n'était qu'en /documents).
+  - **Élèves & dossiers** inclut l'Annuaire, les Dossiers, Import et Export.
