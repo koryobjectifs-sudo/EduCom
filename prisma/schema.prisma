@@ -9,7 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
 
 enum Role {
@@ -20,6 +20,12 @@ enum Role {
   SECRETARY
   ACCOUNTANT
   ASSISTANT
+}
+
+enum WhatsAppOptInStatus {
+  OPTED_IN
+  OPTED_OUT
+  UNKNOWN
 }
 
 model Invitation {
@@ -51,45 +57,52 @@ model DocumentRequest {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
 
 model School {
-  id        String   @id @default(uuid())
-  name      String
-  logo      String?
-  stamp     String?
-  signature String?
+  id                  String   @id @default(uuid())
+  name                String
+  logo                String?
+  stamp               String?
+  signature           String?
   /// Couleur d'ancrage de l'école, en hexadécimal (ex. "#0B1F3A").
   /// `null` = charte EduCom par défaut, définie dans `globals.css`.
   /// SEULE couleur stockée : survol, état actif et accent en sont dérivés en
   /// CSS (voir le bloc @supports de `globals.css`). Ne pas ajouter de colonnes
   /// pour ces variantes — elles dériveraient les unes des autres et
   /// produiraient des chartes incohérentes.
-  primaryColor String?
-  address   String?
-  phone     String?
-  email     String?
-  onboardingCompleted Boolean @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  users     User[]
-  students  Student[]
-  classes   Class[]
-  invoices  Invoice[]
-  payments  Payment[]
-  surveys   Survey[]
-  messages  Message[]
+  primaryColor        String?
+  address             String?
+  phone               String?
+  email               String?
+  onboardingCompleted Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  users            User[]
+  students         Student[]
+  classes          Class[]
+  invoices         Invoice[]
+  payments         Payment[]
+  surveys          Survey[]
+  messages         Message[]
+  waConversations  WhatsAppConversation[]
+  waTemplates      WhatsAppTemplate[]
   documentRequests DocumentRequest[]
-  invitations Invitation[]
-  subjects  Subject[]
-  terms     Term[]
-  evaluations Evaluation[]
-  assignments TeachingAssignment[]
-  reportCards ReportCard[]
-  expenses    Expense[]
-  statements  FinancialStatement[]
+  invitations      Invitation[]
+  subjects         Subject[]
+  terms            Term[]
+  evaluations      Evaluation[]
+  assignments      TeachingAssignment[]
+  reportCards      ReportCard[]
+  expenses         Expense[]
+  statements       FinancialStatement[]
+  attendances      Attendance[]
+
+  /// Les périodes personnalisées du calendrier scolaire.
+  /// Structure attendue: Array de { kind: string, startDate: string, endDate: string }
+  periods Json?
 
   // Lot 12.1 — référentiel financier
   feeSchedules      FeeSchedule[]
@@ -104,31 +117,48 @@ model School {
   /// Lot 15 — centre documentaire de l'établissement.
   docFolders      DocumentFolder[]
   schoolDocuments SchoolDocument[]
+
+  campaigns   CommunicationCampaign[]
+  actionLinks ActionLink[]
+
+  /// Credentials for Meta WhatsApp API integration
+  whatsappAccessToken       String?
+  whatsappPhoneNumberId     String?
+  whatsappBusinessAccountId String?
+  whatsappConnectionStatus  String? @default("NOT_CONNECTED") // NOT_CONNECTED, CONNECTING, CONNECTED, ERROR
+  whatsappName              String?
+  whatsappPhone             String?
+  whatsappConnectedAt       DateTime?
 }
 
 model User {
   id        String   @id @default(uuid()) // Will store Supabase auth.users ID
   email     String   @unique
-  password  String?  // Optional since Supabase handles it
+  password  String? // Optional since Supabase handles it
   firstName String
   lastName  String
-  phone     String?  // Contact phone for parents/teachers
+  phone     String? // Contact phone for parents/teachers
   role      Role     @default(PARENT)
   schoolId  String
   school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  students  Student[] // Children if role is PARENT
-  invoices  Invoice[]
-  messages  Message[]
-  classesTaught Class[] @relation("ClassTeacher")
-  gradesGiven   Grade[]
-  assignments   TeachingAssignment[] @relation("TeacherAssignments")
+  students            Student[] // Children if role is PARENT
+  invoices            Invoice[]
+  messages            Message[]
+  classesTaught       Class[]              @relation("ClassTeacher")
+  gradesGiven         Grade[]
+  assignments         TeachingAssignment[] @relation("TeacherAssignments")
+  recordedAttendances Attendance[]         @relation("RecordedAttendances")
 
-  managerId     String?
-  manager       User?    @relation("Management", fields: [managerId], references: [id], onDelete: SetNull)
-  subordinates  User[]   @relation("Management")
+  managerId    String?
+  manager      User?   @relation("Management", fields: [managerId], references: [id], onDelete: SetNull)
+  subordinates User[]  @relation("Management")
+
+  whatsappOptIn   WhatsAppOptInStatus    @default(UNKNOWN)
+  waConversations WhatsAppConversation[]
+  actionLinks     ActionLink[]
 
   @@index([schoolId])
   @@index([managerId])
@@ -153,7 +183,7 @@ model AuditLog {
   entityId  String?
   userId    String
   schoolId  String
-  details   String?  // JSON or text details of the action
+  details   String? // JSON or text details of the action
   createdAt DateTime @default(now())
 
   @@index([schoolId])
@@ -162,7 +192,7 @@ model AuditLog {
   // tête parce qu'il est TOUJOURS dans le `where` : l'isolation n'est pas
   // optionnelle. Les deux index de tête sont conservés tels quels.
   @@index([schoolId, entity, entityId]) // auditForEntity()
-  @@index([schoolId, createdAt])        // recentAudit()
+  @@index([schoolId, createdAt]) // recentAudit()
 }
 
 /// Historique des transitions de workflow — la trace des actes de validation.
@@ -183,12 +213,12 @@ model AuditLog {
 /// `studentFile` demain. Même convention qu'`AuditLog`, et même conséquence :
 /// supprimer un bulletin ne supprime pas son historique de transitions.
 model WorkflowTransition {
-  id        String   @id @default(uuid())
+  id String @id @default(uuid())
 
   /// Nom de la machine déclarée dans `src/lib/workflow.ts` (`reportCard`, …).
-  workflow  String
-  entity    String
-  entityId  String
+  workflow String
+  entity   String
+  entityId String
 
   /// État de départ. `null` = entrée de l'objet dans le workflow (création).
   fromState String?
@@ -207,7 +237,7 @@ model WorkflowTransition {
   createdAt DateTime @default(now())
 
   @@index([schoolId, entity, entityId, createdAt]) // historique d'un objet
-  @@index([schoolId, workflow, createdAt])         // file d'attente d'un workflow
+  @@index([schoolId, workflow, createdAt]) // file d'attente d'un workflow
 }
 
 enum StudentStatus {
@@ -241,13 +271,16 @@ model Student {
   /// NULL = dérivé des inscriptions (ancien si une inscription porte une année
   /// antérieure, nouveau sinon). Renseigné = la déclaration l'emporte, seul
   /// moyen d'exprimer TRANSFERT, qu'aucune donnée existante ne permet de deviner.
-  kindOverride     StudentKind?
+  kindOverride StudentKind?
 
-  enrollments Enrollment[]
-  invoices    Invoice[]
-  grades      Grade[]
-  reportCards ReportCard[]
-  documents   StudentDocument[]
+  enrollments           Enrollment[]
+  invoices              Invoice[]
+  grades                Grade[]
+  reportCards           ReportCard[]
+  documents             StudentDocument[]
+  attendances           Attendance[]
+  actionLinks           ActionLink[]
+  whatsAppConversations WhatsAppConversation[]
 
   @@index([schoolId])
   @@index([parentId])
@@ -262,29 +295,30 @@ enum EducationalCycle {
 }
 
 model Class {
-  id        String   @id @default(uuid())
-  name      String   // e.g., "CP", "CE1", "6ème A"
-  cycle     EducationalCycle @default(AUTRE)
-  schoolId  String
-  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  
+  id       String           @id @default(uuid())
+  name     String // e.g., "CP", "CE1", "6ème A"
+  cycle    EducationalCycle @default(AUTRE)
+  schoolId String
+  school   School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
   teacherId String?
-  teacher   User?    @relation("ClassTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
-  
+  teacher   User?   @relation("ClassTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  enrollments Enrollment[]
-  grades      Grade[]
-  subjects    ClassSubject[]
-  assignments TeachingAssignment[]
-  reportCards ReportCard[]
-  feeItems    FeeItem[]
+  enrollments     Enrollment[]
+  grades          Grade[]
+  subjects        ClassSubject[]
+  assignments     TeachingAssignment[]
+  reportCards     ReportCard[]
+  feeItems        FeeItem[]
   docRequirements DocumentRequirement[]
+  schoolDocuments SchoolDocument[]
+  attendances     Attendance[]
 
   @@index([schoolId])
   @@index([teacherId])
-  schoolDocuments SchoolDocument[]
 }
 
 model Enrollment {
@@ -293,7 +327,7 @@ model Enrollment {
   student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   classId      String
   class        Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  academicYear String   // e.g., "2023-2024"
+  academicYear String // e.g., "2023-2024"
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -312,25 +346,25 @@ enum InvoiceStatus {
 
 model Invoice {
   id          String        @id @default(uuid())
-  title       String        // e.g., "Facture - Octobre"
+  title       String // e.g., "Facture - Octobre"
   totalAmount Float         @default(0)
   status      InvoiceStatus @default(PENDING)
   dueDate     DateTime
-  
-  schoolId    String
-  school      School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  
-  // Can be billed to a parent OR a specific student
-  studentId   String?
-  student     Student?      @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  parentId    String?
-  parent      User?         @relation(fields: [parentId], references: [id], onDelete: Cascade)
-  
-  items       InvoiceItem[]
-  payments    Payment[]
 
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  // Can be billed to a parent OR a specific student
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  parentId  String?
+  parent    User?    @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  items    InvoiceItem[]
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([schoolId])
   @@index([studentId])
@@ -338,15 +372,15 @@ model Invoice {
 }
 
 model InvoiceItem {
-  id          String   @id @default(uuid())
-  title       String   // e.g. "Scolarité", "Tenue", "Livres"
-  amount      Float
-  quantity    Int      @default(1)
-  
-  invoiceId   String
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime @default(now())
+  id       String @id @default(uuid())
+  title    String // e.g. "Scolarité", "Tenue", "Livres"
+  amount   Float
+  quantity Int    @default(1)
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 
   @@index([invoiceId])
 }
@@ -359,18 +393,18 @@ enum PaymentMethod {
 }
 
 model Payment {
-  id          String        @id @default(uuid())
-  amount      Float
-  method      PaymentMethod @default(CASH)
-  reference   String?       // Transaction ID or Check Number
-  
-  invoiceId   String
-  invoice     Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  
-  schoolId    String
-  school      School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  id        String        @id @default(uuid())
+  amount    Float
+  method    PaymentMethod @default(CASH)
+  reference String? // Transaction ID or Check Number
 
-  createdAt   DateTime      @default(now())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 
   @@index([invoiceId])
   @@index([schoolId])
@@ -393,10 +427,10 @@ model Payment {
 /// ⚠️ Si un jour l'un des deux objets a besoin d'un état que l'autre n'a pas,
 /// il faudra scinder cette énumération. C'est le prix assumé du partage.
 enum FinanceWorkflowStatus {
-  DRAFT     // en préparation, modifiable par son auteur
+  DRAFT // en préparation, modifiable par son auteur
   SUBMITTED // transmis à la direction, verrouillé
-  RETURNED  // renvoyé avec motif, redevient modifiable
-  APPROVED  // validé par la direction — définitif
+  RETURNED // renvoyé avec motif, redevient modifiable
+  APPROVED // validé par la direction — définitif
   CANCELLED // abandonné avant transmission — définitif
 }
 
@@ -414,14 +448,14 @@ enum FinanceWorkflowStatus {
 /// saisie — mais `note` permet alors de préciser, plutôt que d'inventer un
 /// poste par cas particulier.
 enum ExpenseCategory {
-  SALARY      // Salaires et charges du personnel
-  RENT        // Loyer et charges locatives
-  UTILITIES   // Eau, électricité, internet, téléphone
-  SUPPLIES    // Fournitures scolaires et de bureau
+  SALARY // Salaires et charges du personnel
+  RENT // Loyer et charges locatives
+  UTILITIES // Eau, électricité, internet, téléphone
+  SUPPLIES // Fournitures scolaires et de bureau
   MAINTENANCE // Entretien, réparations, travaux
-  TRANSPORT   // Transport, carburant, déplacements
-  EQUIPMENT   // Mobilier, matériel, informatique
-  OTHER       // Autre — à préciser dans `note`
+  TRANSPORT // Transport, carburant, déplacements
+  EQUIPMENT // Mobilier, matériel, informatique
+  OTHER // Autre — à préciser dans `note`
 }
 
 /// Une sortie d'argent de l'établissement.
@@ -453,21 +487,21 @@ enum ExpenseCategory {
 /// citer un acteur même si le compte a disparu. L'historique détaillé vit dans
 /// `WorkflowTransition`.
 model Expense {
-  id             String                @id @default(uuid())
+  id String @id @default(uuid())
 
-  label          String                // « Facture SENELEC août »
-  amount         Float
+  label      String // « Facture SENELEC août »
+  amount     Float
   /// Date à laquelle la dépense a eu lieu. Base des agrégations de période.
-  spentAt        DateTime
-  category       ExpenseCategory       @default(OTHER)
+  spentAt    DateTime
+  category   ExpenseCategory @default(OTHER)
   /// Bénéficiaire / fournisseur. Texte libre : le schéma n'a pas de modèle
   /// fournisseur, et en inventer un pour ce lot serait hors périmètre.
-  payee          String?
+  payee      String?
   /// Référence de la pièce justificative papier. PAS un fichier — voir ci-dessus.
-  receiptRef     String?
-  note           String?
+  receiptRef String?
+  note       String?
 
-  status         FinanceWorkflowStatus @default(DRAFT)
+  status FinanceWorkflowStatus @default(DRAFT)
 
   createdById    String
   submittedAt    DateTime?
@@ -476,11 +510,11 @@ model Expense {
   approvedById   String?
   returnedReason String?
 
-  schoolId       String
-  school         School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([schoolId])
   /// Agrégation « dépenses approuvées de la période » : les trois colonnes du
@@ -518,35 +552,35 @@ model Expense {
 /// SQL. Le contrôle est fait en code (`overlappingStatement`), et `CANCELLED`
 /// existe précisément pour libérer une période réservée par erreur.
 model FinancialStatement {
-  id              String                @id @default(uuid())
+  id String @id @default(uuid())
 
-  periodKind      String                // "day" | "week" | "month" | "term" | "custom"
-  periodFrom      DateTime              // borne incluse
-  periodTo        DateTime              // borne EXCLUE
-  periodLabel     String
+  periodKind  String // "day" | "week" | "month" | "term" | "custom"
+  periodFrom  DateTime // borne incluse
+  periodTo    DateTime // borne EXCLUE
+  periodLabel String
 
-  status          FinanceWorkflowStatus @default(DRAFT)
+  status FinanceWorkflowStatus @default(DRAFT)
 
   /// Instantané arrêté à la soumission. `null` tant que l'état est brouillon.
-  collectedTotal  Float?                // encaissements réels — SUM(Payment.amount)
-  expenseTotal    Float?                // dépenses APPROVED de la période
-  receivableTotal Float?                // factures non soldées échues dans la période
-  balance         Float?                // collectedTotal − expenseTotal
+  collectedTotal  Float? // encaissements réels — SUM(Payment.amount)
+  expenseTotal    Float? // dépenses APPROVED de la période
+  receivableTotal Float? // factures non soldées échues dans la période
+  balance         Float? // collectedTotal − expenseTotal
 
-  comment         String?               // mot du gestionnaire à la direction
+  comment String? // mot du gestionnaire à la direction
 
-  createdById     String
-  submittedAt     DateTime?
-  submittedById   String?
-  approvedAt      DateTime?
-  approvedById    String?
-  returnedReason  String?
+  createdById    String
+  submittedAt    DateTime?
+  submittedById  String?
+  approvedAt     DateTime?
+  approvedById   String?
+  returnedReason String?
 
-  schoolId        String
-  school          School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([schoolId])
   @@index([schoolId, status])
@@ -555,29 +589,29 @@ model FinancialStatement {
 }
 
 model Survey {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   title       String
   description String?
-  questions   Json     // e.g. [{ id: "q1", question: "Etes-vous satisfait ?", options: ["Oui", "Non"] }]
-  isActive    Boolean  @default(true)
-  
-  schoolId    String
-  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  
-  responses   SurveyResponse[]
+  questions   Json // e.g. [{ id: "q1", question: "Etes-vous satisfait ?", options: ["Oui", "Non"] }]
+  isActive    Boolean @default(true)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  responses SurveyResponse[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([schoolId])
 }
 
 model SurveyResponse {
-  id        String   @id @default(uuid())
-  answers   Json     // e.g. { "q1": "Oui" }
-  
-  surveyId  String
-  survey    Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  id      String @id @default(uuid())
+  answers Json // e.g. { "q1": "Oui" }
+
+  surveyId String
+  survey   Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
 
   // Optional: tracking who responded if they provide a name, otherwise anonymous
   respondentName String?
@@ -597,25 +631,99 @@ enum MessageStatus {
   DELIVERED
   READ
   FAILED
+  RECEIVED
 }
 
 model Message {
-  id          String           @id @default(uuid())
-  direction   MessageDirection
-  content     String
-  status      MessageStatus    @default(SENT)
-  
-  schoolId    String
-  school      School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  
-  parentId    String?
-  parent      User?            @relation(fields: [parentId], references: [id], onDelete: SetNull)
+  id        String           @id @default(uuid())
+  direction MessageDirection
+  content   String
+  status    MessageStatus    @default(SENT)
 
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  parentId String?
+  parent   User?   @relation(fields: [parentId], references: [id], onDelete: SetNull)
+
+  waMessageId    String?               @unique
+  conversationId String?
+  conversation   WhatsAppConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  templateId     String? // ID from WhatsAppTemplate if sent via template
+  template       WhatsAppTemplate?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  campaignId     String?
+  campaign       CommunicationCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  idempotencyKey String?                @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([schoolId])
   @@index([parentId])
+  @@index([conversationId])
+}
+
+enum WhatsAppConversationStatus {
+  OPEN
+  WAITING
+  REQUIRES_ATTENTION
+  PAUSED
+  CLOSED
+}
+
+model WhatsAppConversation {
+  id       String @id @default(uuid())
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  parentId String
+  parent   User   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  waPhoneId      String // The school's WhatsApp Phone ID used
+  parentWaNumber String // The parent's WhatsApp number
+
+  status WhatsAppConversationStatus @default(OPEN)
+
+  lastActivityAt  DateTime  @default(now())
+  windowExpiresAt DateTime? // The 24h service window expiration
+
+  messages Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resolvedStudentId String?
+  resolvedStudent   Student? @relation(fields: [resolvedStudentId], references: [id], onDelete: SetNull)
+
+  detectedIntent String? // e.g. "ABSENCE_REQUEST", "POLL_RESPONSE", "SECRETARIAT_REQUEST", "FAQ", "UNKNOWN"
+  attentionLevel String? // e.g. "NORMAL", "URGENT", "ESCALATED"
+
+  pendingActionType String? // e.g. "VALIDATE_ABSENCE"
+  pendingActionData Json?
+
+  @@index([schoolId])
+  @@index([parentId])
+  @@index([schoolId, status])
+}
+
+model WhatsAppTemplate {
+  id       String @id @default(uuid())
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  name       String
+  category   String // e.g., MARKETING, UTILITY, AUTHENTICATION
+  language   String @default("fr")
+  status     String @default("APPROVED")
+  components Json // Stores the header, body, buttons metadata (e.g. { header: "Text", buttons: [...] })
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages               Message[]
+  communicationCampaigns CommunicationCampaign[]
+
+  @@index([schoolId])
 }
 
 /// Journal brut des appels entrants d'un fournisseur externe.
@@ -638,30 +746,30 @@ model Message {
 ///      traité deux fois. C'est le point d'idempotence, arbitré dans
 ///      `rappel.md` §72 avant toute intégration Wave.
 model WebhookEvent {
-  id          String   @id @default(uuid())
+  id        String   @id @default(uuid())
   /// Nom du fournisseur. Aucune valeur n'est imposée par le schéma ; la seule
   /// ligne existante porte 'WHATSAPP'.
-  provider    String
-  payload     Json
-  processed   Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  provider  String
+  payload   Json
+  processed Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model Subject {
-  id        String   @id @default(uuid())
-  name      String   // e.g. "Mathématiques", "Français"
+  id   String @id @default(uuid())
+  name String // e.g. "Mathématiques", "Français"
 
   // Hiérarchie : "Français" regroupe orthographe, vocabulaire, grammaire...
   // Un parent n'est pas noté directement : sa moyenne est calculée à partir
   // de ses enfants sur le bulletin.
-  parentId  String?
-  parent    Subject?  @relation("SubjectTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children  Subject[] @relation("SubjectTree")
+  parentId String?
+  parent   Subject?  @relation("SubjectTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children Subject[] @relation("SubjectTree")
 
-  schoolId  String
-  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  grades    Grade[]
+  grades      Grade[]
   classes     ClassSubject[]
   assignments TeachingAssignment[]
 
@@ -676,12 +784,12 @@ model Subject {
 /// Philosophie n'existe qu'en Terminale, Calcul qu'en élémentaire : sans ce
 /// lien, le menu de saisie propose les matières de toute l'école.
 model ClassSubject {
-  id        String   @id @default(uuid())
+  id String @id @default(uuid())
 
   classId   String
-  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
   subjectId String
-  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
   /// Poids de la matière DANS CETTE CLASSE, sur le bulletin.
   ///
@@ -711,7 +819,7 @@ model ClassSubject {
 /// (professeur de matière au collège/lycée). Deux affectations sur une même
 /// classe permettent à deux maîtres de se partager les matières.
 model TeachingAssignment {
-  id        String   @id @default(uuid())
+  id String @id @default(uuid())
 
   teacherId String
   teacher   User     @relation("TeacherAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
@@ -720,8 +828,8 @@ model TeachingAssignment {
   subjectId String?
   subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
-  schoolId  String
-  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -733,18 +841,18 @@ model TeachingAssignment {
 }
 
 model Term {
-  id        String   @id @default(uuid())
-  name      String   // e.g. "1er Trimestre", "Semestre 1"
+  id        String    @id @default(uuid())
+  name      String // e.g. "1er Trimestre", "Semestre 1"
   startDate DateTime?
   endDate   DateTime?
-  
-  schoolId  String
-  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  
-  grades    Grade[]
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  grades      Grade[]
   evaluations Evaluation[]
   reportCards ReportCard[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -752,25 +860,25 @@ model Term {
 }
 
 enum GradeType {
-  EXAM      // Composition / Examen
-  HOMEWORK  // Devoir de maison
-  QUIZ      // Interrogation
+  EXAM // Composition / Examen
+  HOMEWORK // Devoir de maison
+  QUIZ // Interrogation
   PARTICIPATION // Participation
   OTHER
 }
 
 model Evaluation {
-  id        String   @id @default(uuid())
-  name      String   // e.g. "Contrôle 1", "Composition"
-  type      GradeType @default(EXAM)
-  date      DateTime?
-  
-  termId    String
-  term      Term      @relation(fields: [termId], references: [id], onDelete: Cascade)
-  schoolId  String
-  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  
-  grades    Grade[]
+  id   String    @id @default(uuid())
+  name String // e.g. "Contrôle 1", "Composition"
+  type GradeType @default(EXAM)
+  date DateTime?
+
+  termId   String
+  term     Term   @relation(fields: [termId], references: [id], onDelete: Cascade)
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  grades      Grade[]
   reportCards ReportCard[]
 
   createdAt DateTime @default(now())
@@ -781,11 +889,11 @@ model Evaluation {
 }
 
 enum ReportCardStatus {
-  DRAFT     // saisie en cours, modifiable
+  DRAFT // saisie en cours, modifiable
   VALIDATED // validé par l'enseignant : verrouillé, plus modifiable
   SUBMITTED // déposé au secrétariat
-  RETURNED  // renvoyé pour correction, redevient modifiable
-  APPROVED  // vérifié par le secrétariat, imprimable
+  RETURNED // renvoyé pour correction, redevient modifiable
+  APPROVED // vérifié par le secrétariat, imprimable
 }
 
 /// L'état du bulletin d'un élève pour une évaluation donnée.
@@ -794,16 +902,16 @@ enum ReportCardStatus {
 /// l'enseignant a terminé : le secrétariat ne peut ni savoir quoi relire,
 /// ni quoi imprimer.
 model ReportCard {
-  id             String           @id @default(uuid())
+  id String @id @default(uuid())
 
-  studentId      String
-  student        Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  classId        String
-  class          Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
-  termId         String
-  term           Term             @relation(fields: [termId], references: [id], onDelete: Cascade)
-  evaluationId   String
-  evaluation     Evaluation       @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId      String
+  class        Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
+  termId       String
+  term         Term       @relation(fields: [termId], references: [id], onDelete: Cascade)
+  evaluationId String
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
 
   status         ReportCardStatus @default(DRAFT)
   generalComment String?
@@ -815,11 +923,11 @@ model ReportCard {
   submittedById  String?
   returnedReason String?
 
-  schoolId       String
-  school         School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Une évaluation appartient à un seul trimestre : le couple suffit.
   @@unique([studentId, evaluationId])
@@ -829,33 +937,33 @@ model ReportCard {
 
 model Grade {
   id          String    @id @default(uuid())
-  value       Float     // e.g. 15.5
+  value       Float // e.g. 15.5
   max         Float     @default(20) // Scored out of 20
   coefficient Float     @default(1)
   type        GradeType @default(EXAM)
   comment     String?
   date        DateTime  @default(now())
-  
-  studentId   String
-  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
-  classId     String
-  class       Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
-  
-  subjectId   String
-  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  
-  termId      String
-  term        Term      @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  classId String
+  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  termId String
+  term   Term   @relation(fields: [termId], references: [id], onDelete: Cascade)
 
   evaluationId String?
   evaluation   Evaluation? @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
-  
-  teacherId   String?
-  teacher     User?     @relation(fields: [teacherId], references: [id], onDelete: SetNull)
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  teacherId String?
+  teacher   User?   @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([studentId])
   @@index([classId])
@@ -865,29 +973,29 @@ model Grade {
   @@index([teacherId])
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   LOT 12.1 — RÉFÉRENTIEL FINANCIER
-   ═══════════════════════════════════════════════════════════════════════
-
-   La direction est la source de vérité des tarifs. Le gestionnaire lit la
-   grille et peut DEMANDER une modification ; il ne l'écrit jamais.
-
-   ⚠️ Aucune table d'historique tarifaire n'est créée ici. `AuditLog` porte déjà
-   « qui a fait quoi, quand, sur quel objet » et `WorkflowTransition` porte les
-   changements d'état d'une demande. Ajouter une troisième table aurait produit
-   un système parallèle — exactement ce que le lot 10 a évité pour les factures.
-   ═══════════════════════════════════════════════════════════════════════ */
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ * LOT 12.1 — RÉFÉRENTIEL FINANCIER
+ * ═══════════════════════════════════════════════════════════════════════
+ * La direction est la source de vérité des tarifs. Le gestionnaire lit la
+ * grille et peut DEMANDER une modification ; il ne l'écrit jamais.
+ * ⚠️ Aucune table d'historique tarifaire n'est créée ici. `AuditLog` porte déjà
+ * « qui a fait quoi, quand, sur quel objet » et `WorkflowTransition` porte les
+ * changements d'état d'une demande. Ajouter une troisième table aurait produit
+ * un système parallèle — exactement ce que le lot 10 a évité pour les factures.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
 
 /// Nature d'un frais. Volontairement une énumération : ces postes structurent
 /// la facturation d'un établissement et n'évoluent pas au rythme des écoles.
 /// `OTHER` absorbe les cas particuliers sans imposer de migration.
 enum FeeKind {
-  REGISTRATION  // frais d'inscription
-  TUITION       // scolarité
-  INSURANCE     // assurance
-  CANTEEN       // cantine
-  TRANSPORT     // transport
-  EXAM          // frais d'examen
+  REGISTRATION // frais d'inscription
+  TUITION // scolarité
+  INSURANCE // assurance
+  CANTEEN // cantine
+  TRANSPORT // transport
+  EXAM // frais d'examen
   OTHER
 }
 
@@ -896,16 +1004,16 @@ enum FeeKind {
 /// ⚠️ Détermine comment le forecast compte la ligne, et RIEN d'autre : aucune
 /// facture n'est émise automatiquement à partir d'une cadence.
 enum FeeCadence {
-  ONE_OFF   // une fois, à l'inscription
-  ANNUAL    // une fois dans l'année scolaire
-  TERM      // à chaque trimestre
-  MONTHLY   // chaque mois
+  ONE_OFF // une fois, à l'inscription
+  ANNUAL // une fois dans l'année scolaire
+  TERM // à chaque trimestre
+  MONTHLY // chaque mois
 }
 
 enum FeeScheduleStatus {
-  DRAFT     // en préparation, n'alimente aucun calcul
-  ACTIVE    // grille officielle — la seule qui alimente le forecast
-  ARCHIVED  // conservée pour l'historique, ne calcule plus
+  DRAFT // en préparation, n'alimente aucun calcul
+  ACTIVE // grille officielle — la seule qui alimente le forecast
+  ARCHIVED // conservée pour l'historique, ne calcule plus
 }
 
 /// Grille tarifaire officielle d'un établissement pour une année scolaire.
@@ -931,7 +1039,7 @@ model FeeSchedule {
   items FeeItem[]
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([schoolId])
   @@index([schoolId, status])
@@ -964,7 +1072,7 @@ model FeeItem {
   schedule   FeeSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
   classId String?
-  class   Class?           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  class   Class?            @relation(fields: [classId], references: [id], onDelete: Cascade)
   cycle   EducationalCycle?
 
   /// `schoolId` est dénormalisé ici — il se déduirait de `schedule`, mais
@@ -976,7 +1084,7 @@ model FeeItem {
   changeRequests FeeChangeRequest[]
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([schoolId])
   @@index([scheduleId])
@@ -1012,7 +1120,7 @@ model FeeChangeRequest {
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([schoolId])
   @@index([schoolId, status])
@@ -1032,7 +1140,7 @@ model FeeChangeRequest {
 /// (`Message`), pas pour le personnel. Prétendre notifier hors application
 /// serait simuler un fonctionnement inexistant.
 model StaffNotification {
-  id     String  @id @default(uuid())
+  id     String    @id @default(uuid())
   /// Destinataire. Pas de clé étrangère : une notification doit survivre à la
   /// suppression d'un compte, comme `AuditLog.userId`.
   userId String
@@ -1054,27 +1162,24 @@ model StaffNotification {
   @@index([schoolId, userId, readAt])
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   LOT 13 — DOSSIER NUMÉRIQUE ÉLÈVE
-   ═══════════════════════════════════════════════════════════════════════
-
-   Deux notions distinctes, et c'est tout l'enjeu du modèle :
-
-     DocumentRequirement  ce que l'établissement EXIGE    (la checklist)
-     StudentDocument      ce qu'il a RÉELLEMENT REÇU      (la pièce)
-
-   Les confondre rendrait impossible de dire « il manque X » : un document
-   manquant n'a, par définition, aucune ligne dans la seconde table.
-
-   ⚠️ `DocumentRequest` (lot 09) n'est PAS réutilisé. Il porte les demandes de
-   documents faites à l'établissement (nom, description, statut), n'a ni
-   `studentId` ni `parentId`, et sert un écran existant. Le détourner aurait
-   cassé son comportement et mélangé deux sujets.
-
-   ⚠️ Aucune table d'historique n'est créée : `AuditLog` porte déjà
-   « qui / quoi / quand / sur quel objet / avec quel résultat ». Les événements
-   du dossier y sont écrits avec `entity = "studentDocument"`.
-   ═══════════════════════════════════════════════════════════════════════ */
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ * LOT 13 — DOSSIER NUMÉRIQUE ÉLÈVE
+ * ═══════════════════════════════════════════════════════════════════════
+ * Deux notions distinctes, et c'est tout l'enjeu du modèle :
+ * DocumentRequirement  ce que l'établissement EXIGE    (la checklist)
+ * StudentDocument      ce qu'il a RÉELLEMENT REÇU      (la pièce)
+ * Les confondre rendrait impossible de dire « il manque X » : un document
+ * manquant n'a, par définition, aucune ligne dans la seconde table.
+ * ⚠️ `DocumentRequest` (lot 09) n'est PAS réutilisé. Il porte les demandes de
+ * documents faites à l'établissement (nom, description, statut), n'a ni
+ * `studentId` ni `parentId`, et sert un écran existant. Le détourner aurait
+ * cassé son comportement et mélangé deux sujets.
+ * ⚠️ Aucune table d'historique n'est créée : `AuditLog` porte déjà
+ * « qui / quoi / quand / sur quel objet / avec quel résultat ». Les événements
+ * du dossier y sont écrits avec `entity = "studentDocument"`.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
 
 /// Famille documentaire. Volontairement une énumération courte et stable :
 /// ce sont des rayons de classement, pas la liste des pièces — celle-ci est
@@ -1155,7 +1260,7 @@ model DocumentRequirement {
   documents StudentDocument[]
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([schoolId])
   @@index([schoolId, active])
@@ -1212,7 +1317,7 @@ model StudentDocument {
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([schoolId])
   @@index([schoolId, studentId])
@@ -1220,25 +1325,24 @@ model StudentDocument {
   @@index([requirementId])
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   LOT 15 — CENTRE DOCUMENTAIRE DE L'ÉTABLISSEMENT
-
-   ⚠️ **À ne jamais confondre avec le dossier élève.** `StudentDocument`
-   porte les pièces PERSONNELLES d'un élève (extrait de naissance, certificat
-   médical) ; `SchoolDocument` porte les documents que l'ÉTABLISSEMENT produit
-   ou diffuse (liste de fournitures, règlement, bon de commande). Deux tables,
-   deux écrans, deux logiques d'accès — et aucun transfert de l'une vers
-   l'autre. Les mélanger reviendrait à exposer le dossier médical d'un enfant
-   dans une bibliothèque destinée aux familles.
-
-   ⚠️ **Un seul bucket.** Les fichiers vivent dans `student-documents`, sous
-   `{schoolId}/__etablissement__/{documentId}/{nom}`. Le segment littéral ne
-   peut pas entrer en collision avec un identifiant d'élève, qui est un UUID.
-   Créer un second bucket aurait dédoublé les politiques d'accès.
-
-   ⚠️ **Aucune table d'historique.** `AuditLog` et `WorkflowTransition` portent
-   déjà « qui / quoi / quand / de quel état vers quel état ».
-   ═══════════════════════════════════════════════════════════════════════ */
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ * LOT 15 — CENTRE DOCUMENTAIRE DE L'ÉTABLISSEMENT
+ * ⚠️ **À ne jamais confondre avec le dossier élève.** `StudentDocument`
+ * porte les pièces PERSONNELLES d'un élève (extrait de naissance, certificat
+ * médical) ; `SchoolDocument` porte les documents que l'ÉTABLISSEMENT produit
+ * ou diffuse (liste de fournitures, règlement, bon de commande). Deux tables,
+ * deux écrans, deux logiques d'accès — et aucun transfert de l'une vers
+ * l'autre. Les mélanger reviendrait à exposer le dossier médical d'un enfant
+ * dans une bibliothèque destinée aux familles.
+ * ⚠️ **Un seul bucket.** Les fichiers vivent dans `student-documents`, sous
+ * `{schoolId}/__etablissement__/{documentId}/{nom}`. Le segment littéral ne
+ * peut pas entrer en collision avec un identifiant d'élève, qui est un UUID.
+ * Créer un second bucket aurait dédoublé les politiques d'accès.
+ * ⚠️ **Aucune table d'historique.** `AuditLog` et `WorkflowTransition` portent
+ * déjà « qui / quoi / quand / de quel état vers quel état ».
+ * ═══════════════════════════════════════════════════════════════════════
+ */
 
 /// Cycle de vie d'un document officiel (lot 15).
 ///
@@ -1354,4 +1458,135 @@ model SchoolDocument {
   @@index([schoolId, status])
   @@index([schoolId, folderId])
   @@index([classId])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+/// Présence quotidienne d'un élève.
+model Attendance {
+  id     String           @id @default(uuid())
+  /// Journée concernée. La composante heure doit être ignorée (00:00:00) au niveau métier.
+  date   DateTime         @db.Date
+  status AttendanceStatus
+  reason String?
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId   String
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  recordedById String?
+  recordedBy   User?   @relation("RecordedAttendances", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Un élève ne peut avoir qu'un seul enregistrement de présence par jour.
+  @@unique([studentId, date])
+  @@index([schoolId, date])
+  @@index([classId, date])
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ * CHANTIER 4 — WORKFLOW AUTOMATISÉS ET LIENS SÉCURISÉS
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+
+enum CampaignType {
+  MANUAL_SCHEDULED
+  AUTOMATED_WORKFLOW
+}
+
+enum CampaignTrigger {
+  NONE
+  PAYMENT_DUE
+  PAYMENT_OVERDUE
+  REPORT_CARD_PUBLISHED
+  MEETING_REMINDER
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  PROCESSING
+  SENT
+  COMPLETED
+  PAUSED
+  CANCELLED
+  FAILED
+}
+
+model CommunicationCampaign {
+  id            String          @id @default(uuid())
+  name          String
+  type          CampaignType
+  trigger       CampaignTrigger @default(NONE)
+  triggerConfig Json?
+
+  status      CampaignStatus @default(DRAFT)
+  scheduledAt DateTime?
+
+  audienceConfig Json
+
+  templateId String
+  template   WhatsAppTemplate @relation(fields: [templateId], references: [id])
+
+  sentCount      Int @default(0)
+  deliveredCount Int @default(0)
+  readCount      Int @default(0)
+  repliedCount   Int @default(0)
+  failedCount    Int @default(0)
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  messages Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId])
+  @@index([schoolId, status])
+}
+
+enum ActionLinkStatus {
+  ACTIVE
+  USED
+  REVOKED
+  EXPIRED
+}
+
+model ActionLink {
+  id       String           @id @default(uuid())
+  token    String           @unique
+  action   String // e.g. "view_invoice", "view_report_card"
+  entityId String? // The target entity ID (e.g. invoiceId)
+  status   ActionLinkStatus @default(ACTIVE)
+
+  expiresAt DateTime
+
+  parentId String
+  parent   User   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([token])
+  @@index([schoolId])
+  @@index([parentId])
 }
