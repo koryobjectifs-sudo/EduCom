@@ -2,14 +2,18 @@ import { requireSchoolContext } from "@/lib/documentContext";
 import { dashboardSnapshot } from "@/lib/dashboard";
 import { Reveal } from "@/components/dashboard/Motion";
 import MorningBrief from "@/components/dashboard/MorningBrief";
+import { type PeriodKind } from "@/lib/contextEngine";
 import AttentionCenter from "@/components/dashboard/AttentionCenter";
 import SchoolHealth from "@/components/dashboard/SchoolHealth";
-import TodayPanel from "@/components/dashboard/TodayPanel";
+import OperationalPulse from "@/components/dashboard/OperationalPulse";
 import { FinanceSummary, AcademicSummary, ParentsSummary } from "@/components/dashboard/Summaries";
 import ActivityFeed from "@/components/dashboard/ActivityFeed";
 import RecentInvoices from "@/components/dashboard/RecentInvoices";
 import PremiersPas from "@/components/dashboard/PremiersPas";
 import DemoDataBanner from "@/components/dashboard/DemoDataBanner";
+
+import NextBestAction from "@/components/dashboard/NextBestAction";
+import DomainAccess from "@/components/dashboard/DomainAccess";
 
 /**
  * Tableau de bord — **poste de commandement** de l'établissement.
@@ -53,31 +57,60 @@ import DemoDataBanner from "@/components/dashboard/DemoDataBanner";
 export default async function DashboardHome() {
   const { schoolId, school, user } = await requireSchoolContext();
 
+  let simulation: { date?: Date; period?: PeriodKind } | undefined;
+  if (process.env.NODE_ENV === "development") {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const d = cookieStore.get("dev_test_date")?.value;
+    const p = cookieStore.get("dev_test_period")?.value;
+    if (d || p) simulation = { date: d ? new Date(d) : undefined, period: p as PeriodKind };
+  }
+
   const snap = await dashboardSnapshot(
     { schoolId, userId: user.id, role: user.role },
     { firstName: user.firstName?.trim() || null, schoolName: school?.name ?? null },
+    simulation
   );
 
   // Tant qu'aucun élève n'existe, un mur de zéros n'apprend rien. Le panneau
   // s'efface DE LUI-MÊME au premier élève : il est piloté par une absence
   // réelle, jamais par un drapeau qu'il faudrait penser à baisser.
-  const brandNew = snap.fresh.enrolled === 0 && snap.fresh.pending === 0;
 
   return (
     <div className="space-y-5 pb-12">
-      {/* ── NIVEAU 1 — le brief ── */}
+      {/* ── NIVEAU 1 — CURRENT CONTEXT ── */}
       <MorningBrief
         firstName={snap.firstName}
         schoolName={snap.schoolName}
         summary={snap.brief.summary}
-        priorities={snap.brief.priorities}
-        tone={snap.brief.tone}
-        counts={snap.brief.counts}
+        period={snap.context.period}
       />
+
+      {/* ── NIVEAU 2 — OPERATIONAL PULSE ── */}
+      <Reveal delay={0.06}>
+        <OperationalPulse pulse={snap.pulse} context={snap.context} scope={snap.scope} />
+      </Reveal>
+
+      {/* ── NIVEAU 3 — ATTENTION CENTER ── */}
+      <div id="a-traiter" className="scroll-mt-6">
+        <Reveal delay={0.08}>
+          <AttentionCenter items={snap.attention} />
+        </Reveal>
+      </div>
+
+      {/* ── NIVEAU 4 — NEXT BEST ACTION ── */}
+      <Reveal delay={0.10}>
+        <NextBestAction action={snap.nextBestAction} period={snap.context.period} />
+      </Reveal>
+
+      {/* ── NIVEAU 5 — DOMAIN ACCESS ── */}
+      <Reveal delay={0.11}>
+        <DomainAccess scope={snap.scope} />
+      </Reveal>
 
       {/* The activation engine stays visible until 100% activated */}
       {!snap.activation.isActivated && (
-        <Reveal delay={0.08}>
+        <Reveal delay={0.12}>
           <PremiersPas
             schoolName={snap.schoolName ?? "Votre établissement"}
             classesCount={snap.fresh.classes}
@@ -87,34 +120,16 @@ export default async function DashboardHome() {
         </Reveal>
       )}
 
-      {/* ── NIVEAU 2 — ce qui demande une action ──
-          L'ancre sert la CTA « Voir les priorités » du brief. */}
-      <div id="a-traiter" className="scroll-mt-6">
-        <Reveal delay={0.12}>
-          <AttentionCenter items={snap.attention} />
-        </Reveal>
-      </div>
-
       {snap.hasDemoData && (
         <DemoDataBanner />
       )}
-      {/* ── NIVEAU 3 — santé de l'école ── */}
+
+      {/* ── NIVEAU 5 — SCHOOL HEALTH ── */}
       <Reveal delay={0.18}>
         <SchoolHealth score={snap.health.score} axes={snap.health.axes} />
       </Reveal>
 
-      {/* ── NIVEAU 4 — la journée en cours ── */}
-      <Reveal delay={0.24}>
-        <TodayPanel today={snap.today} />
-      </Reveal>
-
-      {/* ── NIVEAU 5 — trois résumés courts, chacun avec sa porte de sortie ──
-          Sans accès à l'argent, la grille passe à deux colonnes plutôt que de
-          laisser un trou : la mise en page suit le rôle, elle ne le trahit pas. */}
-      {/* ⚠️ Bascule à `xl` (1280 px), pas à `lg` (1024 px). Mesuré au pilote
-          Chrome : à 1024 px, trois colonnes écrasaient les libellés — « Taux de
-          rec… », « Familles en r… » — et les mouvements académiques débordaient
-          hors de leur carte. Deux colonnes à 1024, trois seulement au-delà. */}
+      {/* ── NIVEAU 6 — SUPPORTING INFORMATION (Summaries) ── */}
       <div className={`grid grid-cols-1 gap-5 md:grid-cols-2 ${snap.scope.money ? "xl:grid-cols-3" : ""}`}>
         {snap.scope.money && (
           <Reveal delay={0.30} className="h-full"><FinanceSummary finance={snap.finance} /></Reveal>

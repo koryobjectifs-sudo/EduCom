@@ -4,6 +4,7 @@ import { configurationReadiness, schoolCalendar } from "@/lib/pedagogy";
 import { monthlyForecast } from "@/lib/fees";
 import { pickCurrentTerm } from "@/lib/terms";
 import type { ActorContext } from "@/lib/audit";
+import { determineSchoolContext, getNextBestAction, type CurrentContext, type PeriodKind } from "@/lib/contextEngine";
 
 /**
  * Socle de données du **poste de commandement** — tableau de bord.
@@ -107,8 +108,10 @@ export type ActivityEvent = {
 export type TodayFacts = {
   presentRate: number;
   absentRate: number;
+  presentCount: number;
+  absentCount: number;
   lateCount: number;
-  staffPresentRate: number;
+  excusedCount: number;
   anomalies: string[];
 };
 
@@ -138,12 +141,40 @@ export type ParentsFacts = {
   inboundPending: number;
 };
 
+export type OperationalPulseFacts = {
+  attendance: {
+    recordedClasses: number;
+    pendingClasses: number;
+    totalClasses: number;
+    presents: number;
+    absents: number;
+    lates: number;
+    excused: number;
+  };
+  grades: {
+    missingClasses: number;
+  };
+  payments: {
+    overdueCount: number;
+  };
+  admissions: {
+    pending: number;
+    incomplete: number;
+  };
+};
+
 export type DashboardSnapshot = {
+  /** Variables textuelles (prénom de l'acteur, nom de l'école) */
   firstName: string | null;
   schoolName: string | null;
-  scope: { money: boolean; students: boolean; validation: boolean };
   hasDemoData: boolean;
+  scope: { money: boolean; students: boolean; validation: boolean; pedagogie: boolean };
   fresh: { enrolled: number; pending: number; classes: number };
+  
+  context: CurrentContext;
+  pulse: OperationalPulseFacts;
+  
+  /** Ce qui bloque la configuration initiale. Disparaît dès que tout est OK. */
   activation: {
     isActivated: boolean;
     progress: number;
@@ -179,6 +210,7 @@ export type DashboardSnapshot = {
     id: string; title: string; status: string; totalAmount: number;
     createdAt: Date; student: string | null;
   }[];
+  nextBestAction: import("./contextEngine").NextBestAction | null;
 };
 
 /**
@@ -189,10 +221,47 @@ export type DashboardSnapshot = {
  * l'ajout futur d'un modèle `Attendance` ne touche que ces quelques lignes —
  * `TodayPanel` sait déjà afficher `TodayFacts`.
  */
-async function todaySignal(_actor: ActorContext): Promise<Signal<TodayFacts>> {
-  return nope(
-    "Le suivi des présences n'est pas encore activé : aucun appel n'est enregistré dans EduCom.",
-  );
+async function todaySignal(actor: ActorContext): Promise<Signal<TodayFacts>> {
+  const { schoolId } = actor;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const stats = await prisma.attendance.groupBy({
+    by: ['status'],
+    where: { schoolId, date: now },
+    _count: { status: true },
+  });
+
+  let present = 0, absent = 0, late = 0, excused = 0;
+  for (const s of stats) {
+    if (s.status === 'PRESENT') present = s._count.status;
+    if (s.status === 'ABSENT') absent = s._count.status;
+    if (s.status === 'LATE') late = s._count.status;
+    if (s.status === 'EXCUSED') excused = s._count.status;
+  }
+
+  const totalStudents = await prisma.student.count({
+    where: { schoolId, status: "ENROLLED" }
+  });
+
+  if (totalStudents === 0) {
+    return nope("Aucun élève inscrit.");
+  }
+  
+  const recorded = present + absent + late + excused;
+  if (recorded === 0) {
+    return nope("L'appel n'a pas encore commencé aujourd'hui.");
+  }
+
+  return ok({
+    presentRate: Math.round((present / recorded) * 100),
+    absentRate: Math.round((absent / recorded) * 100),
+    presentCount: present,
+    absentCount: absent,
+    lateCount: late,
+    excusedCount: excused,
+    anomalies: [],
+  });
 }
 
 /* ═════════════════════════════════ finance ═════════════════════════════════ */
@@ -493,10 +562,11 @@ function buildHealth(
 export async function dashboardSnapshot(
   actor: ActorContext,
   identity: { firstName: string | null; schoolName: string | null },
+  simulation?: { date?: Date; period?: PeriodKind }
 ): Promise<DashboardSnapshot> {
   const { schoolId } = actor;
   const role = actor.role as RoleType;
-  const now = new Date();
+  const now = simulation?.date || new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   const scope = {
@@ -514,7 +584,8 @@ export async function dashboardSnapshot(
     recentPayments, recentStudents, recentMessages, recentDocs, recentReportCards,
     invoices,
     financeBundle, academic, parents, today, readiness, calendrier,
-    teachersCount, gradesCount,
+    teachersCount, gradesCount, incompleteFiles, missingGradesCount,
+    attendanceGroup
   ] = await Promise.all([
     prisma.student.count({ where: { schoolId, status: "ENROLLED" } }),
     prisma.student.count({ where: { schoolId, status: "PENDING" } }),
@@ -574,9 +645,35 @@ export async function dashboardSnapshot(
     schoolCalendar(actor, now),
     prisma.user.count({ where: { schoolId, role: "TEACHER" } }),
     prisma.grade.count({ where: { class: { schoolId } } }),
+    prisma.student.count({
+      where: {
+        schoolId,
+        status: "ENROLLED",
+        parentId: null,
+      }
+    }),
+    prisma.class.count({
+      where: {
+        schoolId,
+        teacherId: { not: null },
+        grades: { none: {} } // Heuristic: assigned classes without any grades
+      }
+    }),
+    prisma.attendance.groupBy({
+      by: ["classId"],
+      where: {
+        schoolId,
+        date: new Date(new Date().setHours(0,0,0,0))
+      }
+    })
   ]);
 
-  const newStudents = recentStudents.filter((s) => s.createdAt >= thirtyDaysAgo).length;
+  const newStudents = recentStudents.filter((s: { createdAt: Date }) => s.createdAt >= thirtyDaysAgo).length;
+  
+  // Calculate pending attendance
+  const recordedClassIds = attendanceGroup.map((a: { classId: string }) => a.classId);
+  const pendingAttendanceClasses = classes - recordedClassIds.length;
+
 
   /* ── ce qui demande une action ── */
   const attention: AttentionEntry[] = [];
@@ -812,11 +909,13 @@ export async function dashboardSnapshot(
     })),
     ...(scope.validation
       ? recentReportCards.map((r) => ({
-          id: `rc-${r.id}`, kind: "reportCard" as const,
-          label: `Bulletin ${String(r.status).toLowerCase()} — ${r.student?.firstName ?? ""} ${r.student?.lastName ?? ""}`.trim(),
+          id: `rc-${r.id}`,
+          kind: "reportCard" as const,
+          label: `Bulletin de ${r.student.firstName} ${r.student.lastName} transmis au secrétariat`,
           at: r.updatedAt,
         }))
       : []),
+
   ]
     .sort((a, b) => b.at.getTime() - a.at.getTime())
     .slice(0, 5);
@@ -834,6 +933,19 @@ export async function dashboardSnapshot(
   const isActivated = stepsConfig.studentsAdded && stepsConfig.firstActionDone;
   
   const hasDemoData = await prisma.class.count({ where: { schoolId, name: { endsWith: "\u200B" } } }) > 0;
+
+  const context = await determineSchoolContext(schoolId, role, now, simulation?.period);
+
+  const nextBestAction = getNextBestAction(context, {
+    pendingAdmissions: pending,
+    incompleteFiles: incompleteFiles,
+    unassignedClasses: orphanClasses,
+    missingGrades: missingGradesCount,
+    pendingReportCards: submittedReportCards,
+    overdueFamilies: financeBundle.lateFamilies,
+    classesCount: classes,
+    pendingAttendanceClasses,
+  });
 
   return {
     firstName: identity.firstName,
@@ -868,6 +980,29 @@ export async function dashboardSnapshot(
       createdAt: i.createdAt,
       student: i.student ? `${i.student.firstName} ${i.student.lastName}` : null,
     })),
+    context,
+    pulse: {
+      attendance: {
+        recordedClasses: recordedClassIds.length,
+        pendingClasses: pendingAttendanceClasses,
+        totalClasses: classes,
+        presents: today.ok ? today.value.presentCount : 0,
+        absents: today.ok ? today.value.absentCount : 0,
+        lates: today.ok ? today.value.lateCount : 0,
+        excused: today.ok ? today.value.excusedCount : 0,
+      },
+      grades: {
+        missingClasses: missingGradesCount,
+      },
+      payments: {
+        overdueCount: financeBundle.overdueCount,
+      },
+      admissions: {
+        pending,
+        incomplete: incompleteFiles,
+      }
+    },
+    nextBestAction,
   };
 }
 
