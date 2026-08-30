@@ -23,6 +23,10 @@ export async function createSurvey(data: {
   const auth = await requireActionContext("/dashboard/communications");
   if (!auth.ok) return { error: auth.error };
 
+  if (auth.ctx.role === "TEACHER" || auth.ctx.role === "ACCOUNTANT") {
+    return { error: "Vous n'avez pas les droits pour créer un sondage." };
+  }
+
   try {
     const survey = await prisma.survey.create({
       data: {

@@ -1,103 +1,114 @@
 import { prisma } from "@/lib/prisma";
-import Link from "next/link";
-import CommunicationsClient from "./ClientPage";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { createClient } from "@/lib/supabase/server";
+import { requireSchoolContext } from "@/lib/documentContext";
+import CommunicationCenterClient from "./CommunicationCenterClient";
+import { requireActionContext } from "@/lib/actionContext";
 
-export default async function CommunicationsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+export default async function CommunicationCenterPage() {
+  // Use requireSchoolContext to ensure school isolation
+  const { schoolId } = await requireSchoolContext();
+  
+  // We can also check role, but the layout usually handles basic access.
+  // We will pass the role to the client for UI filtering.
+  const auth = await requireActionContext("/dashboard/communications");
+  const role = auth.ok ? auth.ctx.role : "TEACHER";
+  const isAccountant = role === "ACCOUNTANT";
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { schoolId: true, school: { select: { name: true } } }
+  // 1. Fetch Message Statistics
+  const statsRaw = await prisma.message.groupBy({
+    by: ["status"],
+    _count: true,
+    where: { 
+      schoolId,
+      // For accountant, we might not be able to easily filter messages by intent at this level,
+      // but in a real system we'd filter messages by campaign type or conversation intent.
+      // For now, we'll let them see general message volume or we could filter if needed.
+    }
   });
-  const schoolId = dbUser?.schoolId;
-  if (!schoolId) return null;
-  const schoolName = dbUser?.school?.name ?? "";
-
-  // Fetch all classes
-  const classes = await prisma.class.findMany({
-    where: { schoolId },
-    orderBy: { name: "asc" }
+  
+  const stats = {
+    SENT: 0,
+    DELIVERED: 0,
+    READ: 0,
+    RECEIVED: 0,
+    FAILED: 0
+  };
+  
+  statsRaw.forEach((s) => {
+    if (s.status === "SENT") stats.SENT = s._count;
+    if (s.status === "DELIVERED") stats.DELIVERED = s._count;
+    if (s.status === "READ") stats.READ = s._count;
+    if (s.status === "RECEIVED") stats.RECEIVED = s._count;
+    if (s.status === "FAILED") stats.FAILED = s._count;
   });
 
-  // Fetch all parents with their children
-  const parents = await prisma.user.findMany({
-    where: { role: "PARENT", schoolId },
+  const conversations = await prisma.whatsAppConversation.findMany({
+    where: { 
+      schoolId,
+      ...(isAccountant ? { detectedIntent: { in: ["PAYMENT_QUESTION", "ACTION_REQUEST"] } } : {}) // Just an example of restricting the inbox view
+    },
+    orderBy: { lastActivityAt: "desc" },
+    take: 5,
     include: {
-      students: {
-        include: {
-          enrollments: {
-            include: {
-              class: true
-            }
-          },
-          invoices: {
-            where: { status: "OVERDUE" }
-          }
-        }
+      parent: {
+        select: { firstName: true, lastName: true, phone: true }
+      },
+      messages: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { content: true, status: true, direction: true, createdAt: true }
       }
     }
   });
 
-  // Map parents to an easier format for the client
-  const mappedParents = parents.map(parent => {
-    const studentNames = parent.students.map(s => `${s.firstName} ${s.lastName}`).join(", ");
-    
-    // Check if any of their children are in a specific class
-    const classIds = new Set<string>();
-    parent.students.forEach(s => {
-      s.enrollments.forEach(e => {
-        if (e.classId) classIds.add(e.classId);
-      });
-    });
+  const surveys = isAccountant ? [] : await prisma.survey.findMany({
+    where: { schoolId, isActive: true },
+    include: {
+      _count: {
+        select: { responses: true }
+      }
+    },
+    orderBy: { createdAt: "desc" },
+    take: 5
+  });
 
-    // Check if parent has any overdue invoices across their children
-    const hasOverdueInvoices = parent.students.some(s => s.invoices.length > 0);
-    // Calculate total overdue amount
-    const totalOverdue = parent.students.reduce((sum, s) => {
-      return sum + s.invoices.reduce((invSum, inv) => invSum + inv.totalAmount, 0);
-    }, 0);
+  // 4. Fetch total parents for potential campaigns count
+  const totalParents = await prisma.user.count({
+    where: { schoolId, role: "PARENT" }
+  });
 
-    return {
-      id: parent.id,
-      firstName: parent.firstName,
-      lastName: parent.lastName,
-      phone: parent.phone || "",
-      studentNames,
-      classIds: Array.from(classIds),
-      hasOverdueInvoices,
-      totalOverdue
-    };
+  const campaigns = await prisma.communicationCampaign.findMany({
+    where: { 
+      schoolId,
+      ...(isAccountant ? { trigger: { in: ["PAYMENT_DUE", "PAYMENT_OVERDUE"] } } : {})
+    },
+    orderBy: { createdAt: "desc" },
+    take: 5
+  });
+
+  const school = await prisma.school.findUnique({
+    where: { id: schoolId },
+    select: {
+      whatsappConnectionStatus: true,
+      whatsappName: true,
+      whatsappPhone: true,
+      whatsappConnectedAt: true
+    }
   });
 
   return (
-    <div className="space-y-6 pb-10">
-      <PageHeader
-        breadcrumb={[{ label: "Accueil", href: "/dashboard" }, { label: "Communications" }]}
-        title="Communications WhatsApp"
-        description={`${mappedParents.length} parent${mappedParents.length > 1 ? "s" : ""} joignable${mappedParents.length > 1 ? "s" : ""} · ${classes.length} classe${classes.length > 1 ? "s" : ""}`}
-        actions={
-          <>
-            <Link
-              href="/dashboard/communications/inbox"
-              className="inline-flex h-10 items-center justify-center rounded-control border border-rule bg-surface px-4 text-role-body font-semibold text-text shadow-card transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
-            >
-              Boîte de réception
-            </Link>
-            <Link
-              href="/dashboard/communications/surveys"
-              className="inline-flex h-10 items-center justify-center rounded-control border border-rule bg-surface px-4 text-role-body font-semibold text-text shadow-card transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
-            >
-              Sondages
-            </Link>
-          </>
-        }
-      />
-
-      <CommunicationsClient classes={classes} parents={mappedParents} schoolName={schoolName} />
-    </div>
+    <CommunicationCenterClient 
+      stats={stats} 
+      conversations={conversations} 
+      surveys={surveys}
+      campaigns={campaigns}
+      totalParents={totalParents}
+      role={role}
+      school={school || {
+        whatsappConnectionStatus: null,
+        whatsappName: null,
+        whatsappPhone: null,
+        whatsappConnectedAt: null
+      }}
+    />
   );
 }

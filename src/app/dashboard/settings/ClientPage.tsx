@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Script from "next/script";
 import { updateSchoolSettings } from "./actions";
-import { Save, Building2, Phone, Mail, MapPin, Image as ImageIcon, Loader2, ChevronRight, UploadCloud } from "lucide-react";
+import { Save, Building2, Phone, Mail, MapPin, Image as ImageIcon, ChevronRight, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
 
@@ -25,7 +26,9 @@ export default function SettingsClient({ school }: { school: any }) {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+
   const handleSubmit = async (e: React.FormEvent) => {
+// ... existing handleSubmit ...
     e.preventDefault();
     setIsSaving(true);
     
@@ -45,6 +48,7 @@ export default function SettingsClient({ school }: { school: any }) {
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
+// ... existing handleFileUpload ...
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -57,6 +61,7 @@ export default function SettingsClient({ school }: { school: any }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl mx-auto pb-12">
+// ... existing UI sections up to SECTION 3 ...
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
@@ -300,6 +305,7 @@ export default function SettingsClient({ school }: { school: any }) {
           </div>
         </div>
       </div>
+
 
     </form>
   );
