@@ -23,36 +23,31 @@ import { LEVELS } from '@/lib/curriculum'
 export async function completeOnboarding(data: any) {
   const auth = await requireActionContext()
   if (!auth.ok) return { success: false, classesCreated: 0, error: auth.error }
-  const { schoolId } = auth.ctx
+  const { schoolId, userId } = auth.ctx
 
   try {
-    // 1. Mettre à jour l'école avec les nouvelles informations (téléphone, adresse)
+    // 1. Mettre à jour l'école avec le nom et les contacts
     await prisma.school.update({
       where: { id: schoolId },
       data: {
+        name: data.schoolName,
         phone: data.phone || null,
+        email: data.email || null,
         address: data.address || null,
         onboardingCompleted: true,
       }
     });
 
-    // 2. Générer les classes automatiquement selon les niveaux choisis.
-    //
-    // ⚠️ CORRECTIF LOT 12.2 — le `cycle` n'était PAS renseigné.
-    //
-    // Toutes les classes créées à l'onboarding tombaient sur le défaut `AUTRE`,
-    // alors que le niveau choisi le donne exactement. Conséquence concrète : la
-    // portée « par cycle » de la grille tarifaire (lot 12.1) était **inerte** sur
-    // toute école créée par le parcours — une scolarité déclarée sur ÉLÉMENTAIRE
-    // ne correspondait à aucune classe, et le forecast comptait ces élèves comme
-    // « hors grille ». Le classement par cycle de `classOrder.ts` en souffrait
-    // de la même façon.
-    /**
-     * ⚠️ Niveaux, cycles et noms de classes viennent de `src/lib/curriculum.ts`.
-     * Ils étaient écrits ici ET dans `Wizard.tsx` : l'écran annonçait un nombre
-     * de classes tenu à la main, cette action en créait un autre. Une seule
-     * table, donc une seule vérité — et l'annonce ne peut plus mentir.
-     */
+    // 2. Mettre à jour le responsable (Prénom et Nom)
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        firstName: data.firstName,
+        lastName: data.lastName,
+      }
+    });
+
+    // 3. Générer les classes automatiquement selon les niveaux choisis.
     const classesToCreate: { name: string; schoolId: string; cycle: any }[] = [];
     for (const level of LEVELS) {
       if (!data.levels?.includes(level.id)) continue;
@@ -61,9 +56,6 @@ export async function completeOnboarding(data: any) {
       }
     }
 
-    // ⚠️ Le nombre RÉELLEMENT créé est renvoyé, pas le nombre demandé :
-    // `skipDuplicates` peut en écarter, et l'écran de fin annonce un résultat —
-    // annoncer « 13 classes créées » quand il y en a 9 serait une fiction.
     let classesCreated = 0;
     if (classesToCreate.length > 0) {
       const res = await prisma.class.createMany({
@@ -73,43 +65,7 @@ export async function completeOnboarding(data: any) {
       classesCreated = res.count;
     }
 
-    /**
-     * 3. Le programme sénégalais — **proposé à l'étape 2, appliqué ici.**
-     *
-     * ═══ POURQUOI L'APPLICATION VIT DANS CETTE ACTION, ET PAS DANS LE CLIENT ═══
-     *
-     * Les classes viennent d'être créées, ligne 2 : leurs identifiants
-     * n'existent que côté serveur, à cet instant. Faire un second aller-retour
-     * pour les redemander depuis le navigateur ajouterait une latence et une
-     * fenêtre où l'école existe avec des classes vides. Surtout, la logique
-     * elle-même n'est pas ici : `applyCurriculum()` vit dans
-     * `src/lib/pedagogy.ts` et c'est le MÊME code que le bouton « appliquer le
-     * programme » de l'écran de configuration. Une seule implémentation, deux
-     * portes d'entrée.
-     *
-     * ⚠️ **Un échec du programme n'annule PAS l'installation.** L'école existe,
-     * ses classes existent, elle est utilisable. Le programme se rattrape en un
-     * clic dans Réglages › Configuration pédagogique — exactement le traitement
-     * déjà réservé à la grille tarifaire.
-     */
-    let programme: { subjects: number; links: number; terms: number; evaluations: number } | null = null;
-    if (data.programme?.apply) {
-      try {
-        const report = await applyCurriculum(auth.ctx, {
-          withControls: Boolean(data.programme.withControls),
-        });
-        programme = {
-          subjects: report.subjectsCreated,
-          links: report.linksCreated,
-          terms: report.termsCreated,
-          evaluations: report.evaluationsCreated,
-        };
-      } catch (e) {
-        console.error("Programme non appliqué à l'installation :", e);
-      }
-    }
-
-    return { success: true, classesCreated, programme };
+    return { success: true, classesCreated, programme: null };
   } catch (error) {
     console.error("Erreur lors de l'onboarding:", error);
     return { success: false, classesCreated: 0, programme: null, error: "Une erreur s'est produite lors de la configuration." };

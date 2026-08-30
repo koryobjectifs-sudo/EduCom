@@ -213,3 +213,68 @@ export async function updateStaffMember(formData: FormData) {
     return { error: "Erreur inattendue lors de la mise à jour." };
   }
 }
+
+export async function updateTeacherAssignments(teacherId: string, mainClassIds: string[], subjectAssignments: { classId: string, subjectId: string }[]) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non autorisé" };
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { schoolId: true, role: true }
+  });
+
+  if (!dbUser || (dbUser.role !== "OWNER" && dbUser.role !== "ADMIN")) {
+    return { error: "Vous n'avez pas les droits pour modifier les assignations." };
+  }
+
+  const teacher = await prisma.user.findUnique({
+    where: { id: teacherId, schoolId: dbUser.schoolId }
+  });
+
+  if (!teacher || teacher.role !== "TEACHER") {
+    return { error: "Enseignant invalide." };
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      // 1. Reset main teacher for classes where this teacher is currently the main teacher
+      await tx.class.updateMany({
+        where: { teacherId: teacherId, schoolId: dbUser.schoolId },
+        data: { teacherId: null }
+      });
+
+      // 2. Set this teacher as main teacher for the selected classes
+      if (mainClassIds.length > 0) {
+        await tx.class.updateMany({
+          where: { id: { in: mainClassIds }, schoolId: dbUser.schoolId },
+          data: { teacherId: teacherId }
+        });
+      }
+
+      // 3. Clear existing teaching assignments for this teacher
+      await tx.teachingAssignment.deleteMany({
+        where: { teacherId: teacherId, schoolId: dbUser.schoolId }
+      });
+
+      // 4. Create new teaching assignments
+      if (subjectAssignments.length > 0) {
+        await tx.teachingAssignment.createMany({
+          data: subjectAssignments.map(a => ({
+            teacherId,
+            classId: a.classId,
+            subjectId: a.subjectId,
+            schoolId: dbUser.schoolId
+          }))
+        });
+      }
+    });
+
+    revalidatePath("/dashboard/team");
+    revalidatePath("/dashboard/classes");
+    return { success: true };
+  } catch (err) {
+    console.error("Error updating teacher assignments:", err);
+    return { error: "Erreur inattendue lors de la sauvegarde." };
+  }
+}

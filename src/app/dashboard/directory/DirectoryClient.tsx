@@ -76,37 +76,53 @@ export default function DirectoryClient({ studentsData, classesData, teachersDat
           </div>
           
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => setIsAddingCycle(true)}
-              icon={<Layers aria-hidden="true" className="h-4 w-4" />}
-            >
-              Ajouter cycle
-            </Button>
-            
-            <Button
-              variant="secondary"
-              onClick={() => setIsCreatingClass(true)}
-              icon={<Plus aria-hidden="true" className="h-4 w-4" />}
-            >
-              Nouvelle classe
-            </Button>
+            {activeTab === "classes" && (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsAddingCycle(true)}
+                  icon={<Layers aria-hidden="true" className="h-4 w-4" />}
+                >
+                  Ajouter cycle
+                </Button>
+                
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsCreatingClass(true)}
+                  icon={<Plus aria-hidden="true" className="h-4 w-4" />}
+                >
+                  Nouvelle classe
+                </Button>
+              </>
+            )}
 
-            <Link
-              href="/dashboard/students/import"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-control bg-sunk px-4 text-role-body font-semibold text-text-strong shadow-card transition-colors hover:bg-rule focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-            >
-              <UploadCloud aria-hidden="true" className="h-4 w-4 text-primary" />
-              Importer
-            </Link>
+            {activeTab === "students" && (
+              <>
+                <Link
+                  href="/dashboard/students/export"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-control bg-sunk px-4 text-role-body font-semibold text-text-strong shadow-card transition-colors hover:bg-rule focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                >
+                  <Save aria-hidden="true" className="h-4 w-4 text-primary" />
+                  Exporter
+                </Link>
 
-            <Link
-              href="/dashboard/students/new"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-control bg-primary px-4 text-role-body font-semibold text-white shadow-card transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-            >
-              <Plus aria-hidden="true" className="h-4 w-4" />
-              Nouvelle admission
-            </Link>
+                <Link
+                  href="/dashboard/students/import"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-control bg-sunk px-4 text-role-body font-semibold text-text-strong shadow-card transition-colors hover:bg-rule focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                >
+                  <UploadCloud aria-hidden="true" className="h-4 w-4 text-primary" />
+                  Importer
+                </Link>
+
+                <Link
+                  href="/dashboard/students/new"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-control bg-primary px-4 text-role-body font-semibold text-white shadow-card transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                >
+                  <Plus aria-hidden="true" className="h-4 w-4" />
+                  Nouvelle admission
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </Card>
@@ -163,7 +179,7 @@ export default function DirectoryClient({ studentsData, classesData, teachersDat
       {/* Tab content */}
       <div className="pt-2">
         {activeTab === "students" ? (
-          <StudentListClient students={studentsData} searchTerm={searchTerm} classesData={classesData} />
+          <StudentListClient students={studentsData} searchTerm={searchTerm} classesData={classesData} hideSearchBar />
         ) : (
           <ClassListClient classes={classesData} teachers={teachersData} searchTerm={searchTerm} />
         )}

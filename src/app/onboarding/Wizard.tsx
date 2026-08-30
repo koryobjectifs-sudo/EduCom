@@ -5,61 +5,14 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, ArrowLeft, Check, GraduationCap, School, Building, Baby, UserPlus,
-  BookOpen, Info,
 } from "lucide-react";
-import { LEVELS, classesForLevels, curriculumProposal } from "@/lib/curriculum";
+import { LEVELS, classesForLevels } from "@/lib/curriculum";
 import { completeOnboarding } from "./actions";
-import { createSchedule, upsertFeeItem, activateSchedule } from "../dashboard/settings/fees/actions";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 
-/**
- * Installation d'un établissement — chantier PLG.
- *
- * ═══ L'ORDRE DES QUESTIONS A ÉTÉ INVERSÉ, ET C'EST LE CŒUR DU CHANGEMENT ═══
- *
- * L'ancienne première étape demandait **téléphone et adresse**. Ces deux champs
- * ne débloquent rien : ils ornent l'en-tête d'un document qu'on n'a pas encore
- * produit. On ouvrait donc l'installation par la seule question qui ne construit
- * rien.
- *
- * Les **niveaux** passent en premier parce qu'ils **fabriquent quelque chose de
- * réel** : les classes de l'établissement, en une sélection. C'est la première
- * fois que l'utilisateur voit EduCom faire un travail à sa place.
- *
- * ═══ CE QUI A ÉTÉ RETIRÉ ═══
- *
- * ⚠️ **Une attente fabriquée.** L'écran final jouait
- * `await new Promise(r => setTimeout(r, 1200))`, commenté « Simulate a bit of
- * loading for the "magical" effect », suivi d'une redirection après 2000 ms.
- * Trois secondes et demie d'attente inventée, sur des connexions où chaque
- * seconde est déjà chère. Supprimées.
- *
- * ⚠️ **« Configuration magique 🪄 » et « Création de la magie… »** : le produit
- * range des dossiers d'élèves, il ne fait pas de magie. Le vocabulaire dit
- * maintenant ce qui se passe.
- *
- * ⚠️ **Verre dépoli, halos, coins de 24 px, ombres de 40 px.** Remplacés par le
- * socle du lot 02. Les champs et les boutons viennent des primitives (lot 04)
- * au lieu d'être réécrits.
- *
- * ═══ CE QUI N'A PAS CHANGÉ ═══
- *
- * L'étape tarifaire du lot 12.2 est **conservée telle quelle** — mêmes actions,
- * mêmes gardes, même modèle. Elle devient seulement **visiblement facultative** :
- * la diriger dès l'installation était une friction, la supprimer aurait été une
- * régression.
- */
-
 type WizardProps = { schoolName: string; userName: string };
 
-/**
- * ⚠️ Le NOMBRE de classes n'est plus écrit ici. Il valait « classes: 3 » en dur,
- * à côté d'une table de noms tenue dans `onboarding/actions.ts` : l'écran
- * annonçait un chiffre, l'action en créait un autre, et rien ne les liait.
- * `LEVELS` (dans `src/lib/curriculum.ts`) porte les deux, et le compteur se
- * déduit de la liste réelle.
- */
 const NIVEAUX = LEVELS.map((l) => ({
   ...l,
   label: l.id,
@@ -72,133 +25,46 @@ const NIVEAUX = LEVELS.map((l) => ({
   }[l.id]!,
 }));
 
-const CYCLE_BY_LEVEL: Record<string, string> = Object.fromEntries(
-  LEVELS.map((l) => [l.id, l.cycle]),
-);
-
-/** Quatre étapes de saisie ; la cinquième est un résultat, pas un formulaire. */
-const ETAPES = ["Niveaux", "Programme", "Coordonnées", "Tarifs"];
-
-export default function Wizard({ schoolName, userName }: WizardProps) {
+export default function Wizard({ schoolName: initialSchoolName, userName: initialUserName }: WizardProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [phone, setPhone] = useState("");
+  const [schoolName, setSchoolName] = useState(initialSchoolName === "École en configuration" ? "" : initialSchoolName);
   const [address, setAddress] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [niveaux, setNiveaux] = useState<string[]>([]);
+  const [firstName, setFirstName] = useState(initialUserName === "À configurer" ? "" : "");
+  const [lastName, setLastName] = useState("");
+
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{
-    classes: number;
-    programme: { subjects: number; links: number; terms: number; evaluations: number } | null;
-  } | null>(null);
+  const [done, setDone] = useState<{ classes: number } | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
-
-  /**
-   * Étape financière — lot 12.2, inchangée.
-   *
-   * ⚠️ Ce n'est PAS un second système de setup : elle appelle les actions de
-   * `/dashboard/settings/fees`, donc les mêmes gardes, le même modèle et le même
-   * audit. Chaînes vides = frais non renseigné ; aucun montant n'est pré-rempli,
-   * suggérer un tarif reviendrait à inventer une donnée métier.
-   */
-  /**
-   * Étape « Programme » — **proposée, jamais imposée.**
-   *
-   * ⚠️ Les deux cases sont pré-cochées, et c'est un choix produit assumé : une
-   * école sénégalaise qui s'inscrit enseigne, dans son immense majorité, le
-   * programme officiel en trois trimestres. Décocher est un geste ; tout saisir
-   * à la main en est trois cents. « Proposé » veut dire *modifiable en un clic
-   * et annoncé avant d'écrire* — c'est exactement ce que fait cet écran, qui
-   * affiche le décompte réel avant validation.
-   *
-   * ⚠️ Les contrôles sont une case SÉPARÉE parce qu'ils ne sont pas le socle :
-   * Kory a arbitré « 3 trimestres + 3 compositions » comme commun, les
-   * contrôles comme libres. Les fondre dans la même case aurait effacé cette
-   * distinction.
-   */
-  const [applyProgramme, setApplyProgramme] = useState(true);
-  const [withControls, setWithControls] = useState(true);
-
-  const [registrationFee, setRegistrationFee] = useState("");
-  const [tuitionByLevel, setTuitionByLevel] = useState<Record<string, string>>({});
-  const [feeError, setFeeError] = useState<string | null>(null);
 
   const toggle = (id: string) =>
     setNiveaux((prev) => (prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id]));
 
-  /** Nombre de classes que la sélection va produire — annoncé avant de valider. */
-  const classesPrevues = niveaux.reduce(
-    (n, id) => n + (NIVEAUX.find((x) => x.id === id)?.classes.length ?? 0),
-    0,
-  );
-
-  /**
-   * Ce que le programme produirait — **calculé, jamais estimé**.
-   *
-   * `curriculumProposal()` est le module pur du programme : la même fonction que
-   * le serveur appellera pour écrire. L'écran ne peut donc pas annoncer un
-   * chiffre que l'application démentira ensuite.
-   */
-  const projection = curriculumProposal(classesForLevels(niveaux), { withControls });
-
-  const createInitialGrid = async (): Promise<string | null> => {
-    const registration = Number(registrationFee);
-    const tuitions = Object.entries(tuitionByLevel)
-      .filter(([, v]) => v.trim() !== "" && Number(v) > 0)
-      .map(([level, v]) => ({ level, amount: Number(v) }));
-
-    const hasRegistration = registrationFee.trim() !== "" && registration > 0;
-    if (!hasRegistration && tuitions.length === 0) return null;
-
-    const year = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
-    const created = await createSchedule({ academicYear: year, label: `Grille officielle ${year}` });
-    if ("error" in created && created.error) return created.error;
-    const scheduleId = (created as { data?: { id: string } }).data?.id;
-    if (!scheduleId) return "La grille n'a pas pu être créée.";
-
-    if (hasRegistration) {
-      const r = await upsertFeeItem({
-        scheduleId, kind: "REGISTRATION" as never, label: "Frais d'inscription",
-        amount: registration, cadence: "ONE_OFF" as never, mandatory: true, classId: null, cycle: null,
-      });
-      if (r.error) return r.error;
-    }
-    for (const t of tuitions) {
-      const r = await upsertFeeItem({
-        scheduleId, kind: "TUITION" as never, label: `Scolarité ${t.level.toLowerCase()}`,
-        amount: t.amount, cadence: "ANNUAL" as never, mandatory: true,
-        classId: null, cycle: CYCLE_BY_LEVEL[t.level] as never,
-      });
-      if (r.error) return r.error;
-    }
-    const act = await activateSchedule(scheduleId);
-    if (act.error) return act.error;
-    return null;
-  };
-
   async function finish() {
     setBusy(true);
     setErreur(null);
-    setFeeError(null);
 
-    // ⚠️ Les classes DOIVENT exister avant la grille : une ligne tarifaire visant
-    // une classe est vérifiée contre l'école, et le forecast lit les inscriptions.
     const res = await completeOnboarding({
-      phone, address, levels: niveaux,
-      programme: { apply: applyProgramme, withControls },
+      schoolName,
+      address,
+      phone,
+      email,
+      levels: niveaux,
+      firstName,
+      lastName
     });
+    
     if (!res.success) {
       setBusy(false);
       setErreur(res.error ?? "La configuration n'a pas pu être enregistrée.");
       return;
     }
 
-    // L'échec de la grille n'annule PAS l'installation : l'école reste
-    // utilisable, la configuration financière est simplement signalée incomplète.
-    const gridError = await createInitialGrid();
-    if (gridError) setFeeError(gridError);
-
     setBusy(false);
-    setDone({ classes: res.classesCreated, programme: res.programme ?? null });
+    setDone({ classes: res.classesCreated });
   }
 
   /* ═══════════════ résultat ═══════════════ */
@@ -216,42 +82,33 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
         </div>
 
         <h1 className="text-3xl font-bold tracking-tight text-text">
-          Votre école prend forme.
+          🎉 Félicitations !
         </h1>
 
         <p className="mt-4 text-[15px] leading-relaxed text-text-soft max-w-md mx-auto">
-          {done.classes > 0
-            ? `${done.classes} classe${done.classes > 1 ? "s" : ""} ${done.classes > 1 ? "ont été créées" : "a été créée"}. Vous n'avez rien à saisir de plus pour commencer.`
-            : "Votre espace est prêt. Aucune classe n'a été créée — vous pourrez les ajouter à tout moment."}
+          <strong className="text-text font-semibold">{schoolName}</strong> est maintenant configurée dans EduCom. Votre établissement est prêt, commençons à lui donner vie.
         </p>
 
-        {done.programme && (
-          <p className="mt-3 text-[15px] leading-relaxed text-text-soft max-w-md mx-auto">
-            Le programme officiel a été installé. Vos enseignants peuvent saisir des notes dès maintenant.
-          </p>
-        )}
-
-        {feeError && (
-          <p className="mt-6 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-sm leading-relaxed text-warning-strong max-w-md mx-auto">
-            La configuration financière n'a pas pu être finalisée ({feeError}), mais vous pouvez commencer à travailler !
-          </p>
-        )}
-
         <div className="mt-10 pt-8 border-t border-rule/50">
-          <p className="text-lg font-semibold text-text mb-6">Comment voulez-vous commencer ?</p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" onClick={() => router.push("/dashboard/students/import")} className="w-full sm:w-auto">
-              <UserPlus aria-hidden="true" className="h-5 w-5" />
-              Importer mes données
+          <div className="flex flex-col items-center justify-center gap-4">
+            <Button size="lg" onClick={() => router.push("/dashboard/students/import")} className="w-full sm:w-auto text-base h-12 px-8">
+              <UserPlus aria-hidden="true" className="mr-2 h-5 w-5" />
+              Importer mes élèves
             </Button>
-            <Button size="lg" variant="secondary" onClick={async () => {
+            <p className="text-[12px] text-text-soft mb-2">
+              Commencez par importer votre fichier Excel ou CSV pour configurer votre école plus rapidement.
+            </p>
+            <Button size="lg" variant="ghost" onClick={async () => {
               setBusy(true);
               const { injectDemoData } = await import("./demo-actions");
               await injectDemoData();
-              setBusy(false);
               router.push("/dashboard");
-            }} loading={busy} className="w-full sm:w-auto">
-              Voir avec des données de démonstration
+            }} className="w-full sm:w-auto text-text-soft hover:text-text mt-2" loading={busy}>
+              {busy ? "Génération en cours..." : "Voir avec des données de démonstration"}
+            </Button>
+            <Button size="lg" variant="ghost" onClick={() => router.push("/dashboard")} className="w-full sm:w-auto text-text-soft hover:text-text mt-2">
+              Accéder à mon école
+              <ArrowRight aria-hidden="true" className="ml-2 h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -259,84 +116,65 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
     );
   }
 
-  /* ═══════════════ saisie ═══════════════ */
-
   return (
-    <div>
-      <header className="flex flex-col items-center justify-center gap-3 mb-8">
-        <div className="flex items-center gap-1.5">
-          {ETAPES.map((_, i) => (
-            <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i + 1 === step ? "w-8 bg-primary" : i + 1 < step ? "w-3 bg-primary/40" : "w-3 bg-rule"}`} />
+    <div className="w-full">
+      <div className="mb-8 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              className={`h-1.5 w-12 rounded-full transition-colors duration-300 ${
+                i + 1 === step
+                  ? "bg-primary"
+                  : i + 1 < step
+                  ? "bg-primary/30"
+                  : "bg-rule"
+              }`}
+            />
           ))}
         </div>
-        <p className="text-sm font-medium text-text-soft">Étape {step} sur {ETAPES.length}</p>
-      </header>
+        <div className="text-[12px] font-semibold tracking-wider text-text-faint">
+          ÉTAPE {step} SUR 5
+        </div>
+      </div>
+
+      {erreur && (
+        <div role="alert" className="mb-6 rounded-control border border-danger/30 bg-danger/5 px-4 py-3 text-[14px] leading-relaxed text-danger">
+          {erreur}
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
         <motion.div
           key={step}
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -15 }}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
-          className="rounded-2xl border border-rule bg-surface shadow-card px-5 py-6 sm:px-8 sm:py-8"
+          className="rounded-2xl border border-rule/40 bg-surface p-5 sm:p-7 shadow-sm"
         >
-        {erreur && (
-          <p role="alert" className="mb-6 rounded-control border border-danger/30 bg-danger/5 px-3 py-2.5 text-role-body text-danger">
-            {erreur}
-          </p>
-        )}
-
-        {/* ─── 1. Niveaux : la seule question obligatoire, et la seule qui construit ─── */}
+        
         {step === 1 && (
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text">
-              Commençons par votre établissement.
+            <h1 className="text-[20px] font-bold tracking-tight text-text text-center">
+              Quel est le nom de votre établissement ?
             </h1>
-            <p className="mt-2 text-[15px] leading-relaxed text-text-soft">
-              Sélectionnez les niveaux enseignés. EduCom va générer automatiquement la structure de vos classes.
+            <p className="mt-1.5 text-[13px] leading-relaxed text-text-soft text-center">
+              Commençons par identifier votre école.
             </p>
 
-            <fieldset className="mt-6">
-              <legend className="sr-only">Niveaux enseignés</legend>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {NIVEAUX.map((n) => {
-                  const actif = niveaux.includes(n.id);
-                  return (
-                    <label
-                      key={n.id}
-                      className={`flex cursor-pointer items-start gap-3 rounded-control border px-4 py-4 transition-colors ${
-                        actif ? "border-primary bg-primary/5" : "border-rule bg-surface hover:bg-sunk"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 h-5 w-5 shrink-0"
-                        checked={actif}
-                        onChange={() => toggle(n.id)}
-                      />
-                      <span className="min-w-0">
-                        <span className="flex items-center gap-2 text-role-card font-semibold text-text">
-                          <n.icon aria-hidden="true" className="h-4 w-4 text-text-faint" />
-                          {n.label}
-                        </span>
-                        <span className="mt-0.5 block text-role-meta leading-relaxed text-text-soft">
-                          {n.desc} · {n.classes} classes
-                        </span>
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            </fieldset>
+            <div className="mt-6">
+              <Input
+                label="Nom de l'établissement"
+                value={schoolName}
+                onChange={(e) => setSchoolName(e.target.value)}
+                placeholder="Complexe scolaire Mariama Bâ"
+                autoFocus
+              />
+            </div>
 
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-role-meta text-text-soft" aria-live="polite">
-                {classesPrevues > 0
-                  ? `${classesPrevues} classes seront créées.`
-                  : "Choisissez au moins un niveau."}
-              </p>
-              <Button size="lg" disabled={niveaux.length === 0} onClick={() => setStep(2)}>
+            <div className="mt-6 flex justify-end pt-5 border-t border-rule/30">
+              <Button size="lg" onClick={() => setStep(2)} disabled={!schoolName.trim()}>
                 Continuer
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Button>
@@ -344,98 +182,31 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
           </div>
         )}
 
-        {/* ─── 2. Programme : le modèle sénégalais, annoncé avant d'être écrit ─── */}
         {step === 2 && (
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text">
-              Comment souhaitez-vous configurer l'année ?
+            <h1 className="text-[20px] font-bold tracking-tight text-text text-center">
+              Où se trouve votre établissement ?
             </h1>
-            <p className="mt-2 text-role-body leading-relaxed text-text-soft">
-              EduCom peut installer les matières officielles de chaque niveau, les trois
-              trimestres et leurs compositions. Vous resterez libre de tout modifier ensuite.
+            <p className="mt-1.5 text-[13px] leading-relaxed text-text-soft text-center">
+              Indiquez l'adresse de votre école.
             </p>
 
-            <div className="mt-6 space-y-3">
-              <label
-                className={`flex cursor-pointer items-start gap-3 rounded-control border px-4 py-4 transition-colors ${
-                  applyProgramme ? "border-primary bg-primary/5" : "border-rule bg-surface hover:bg-sunk"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-5 w-5 shrink-0"
-                  checked={applyProgramme}
-                  onChange={() => setApplyProgramme((v) => !v)}
-                />
-                <span className="min-w-0">
-                  <span className="flex items-center gap-2 text-role-card font-semibold text-text">
-                    <BookOpen aria-hidden="true" className="h-4 w-4 text-text-faint" />
-                    Installer le programme officiel
-                  </span>
-                  {/* ⚠️ Des nombres RÉELS, calculés par le même module que le
-                      serveur utilisera pour écrire — jamais une estimation. */}
-                  <span className="mt-1 block text-role-meta leading-relaxed text-text-soft">
-                    {projection.totals.subjects} matières · {projection.totals.links} rattachements aux
-                    classes · {projection.totals.terms} trimestres · {projection.totals.evaluations} évaluations.
-                  </span>
-                </span>
-              </label>
-
-              {/* Les contrôles ne sont PAS le socle : case distincte, décochable. */}
-              <label
-                className={`ml-0 flex cursor-pointer items-start gap-3 rounded-control border px-4 py-3.5 transition-colors sm:ml-8 ${
-                  !applyProgramme
-                    ? "border-rule bg-sunk opacity-50"
-                    : withControls ? "border-primary/40 bg-primary/5" : "border-rule bg-surface hover:bg-sunk"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-5 w-5 shrink-0"
-                  checked={withControls}
-                  disabled={!applyProgramme}
-                  onChange={() => setWithControls((v) => !v)}
-                />
-                <span className="min-w-0">
-                  <span className="text-role-body font-semibold text-text">
-                    Ajouter aussi un contrôle par trimestre
-                  </span>
-                  <span className="mt-0.5 block text-role-meta leading-relaxed text-text-soft">
-                    Sans contrôle, chaque trimestre n&apos;a qu&apos;une note par matière : celle de
-                    la composition. Beaucoup d&apos;écoles en ajoutent un — vous pourrez en créer
-                    autant que vous voulez plus tard.
-                  </span>
-                </span>
-              </label>
+            <div className="mt-6">
+              <Input
+                label="Adresse de l'établissement"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Quartier, ville"
+                autoFocus
+              />
             </div>
 
-            {/* ⚠️ Ce que le modèle NE couvre PAS est dit ici, pas découvert
-                trois semaines plus tard devant un bulletin vide. */}
-            {applyProgramme && projection.uncovered.length > 0 && (
-              <p className="mt-4 flex items-start gap-2 rounded-control border border-rule bg-sunk px-3 py-2.5 text-role-meta leading-relaxed text-text-soft">
-                <Info aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>
-                  {projection.uncovered.map((u) => u.className).join(", ")} n&apos;
-                  {projection.uncovered.length > 1 ? "auront" : "aura"} pas de matières :{" "}
-                  {projection.uncovered[0].reason.toLowerCase()} Vous les composerez à la main.
-                </span>
-              </p>
-            )}
-
-            <p className="mt-5 max-w-xl text-role-meta leading-relaxed text-text-soft">
-              {/* Le coefficient est LE point où une valeur inventée ferait des
-                  dégâts invisibles : elle déciderait de moyennes réelles. */}
-              Toutes les matières arrivent au <span className="font-medium text-text">coefficient 1</span> :
-              il n&apos;existe pas de barème national, chaque école a le sien. Les dates de
-              trimestre restent vides pour la même raison — ce sont les vôtres.
-            </p>
-
-            <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-rule/70 pt-6">
-              <Button size="lg" variant="secondary" onClick={() => setStep(1)}>
-                <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+            <div className="mt-6 flex items-center justify-between pt-5 border-t border-rule/30">
+              <Button size="lg" variant="ghost" onClick={() => setStep(1)}>
+                <ArrowLeft aria-hidden="true" className="h-4 w-4 mr-2" />
                 Retour
               </Button>
-              <Button size="lg" onClick={() => setStep(3)}>
+              <Button size="lg" onClick={() => setStep(3)} disabled={!address.trim()}>
                 Continuer
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Button>
@@ -443,111 +214,147 @@ export default function Wizard({ schoolName, userName }: WizardProps) {
           </div>
         )}
 
-        {/* ─── 3. Coordonnées : facultatif, et l'écran le dit ─── */}
         {step === 3 && (
           <div>
-            <h1 className="text-role-page font-bold tracking-tight text-text">
-              Coordonnées de l&apos;établissement
+            <h1 className="text-[20px] font-bold tracking-tight text-text text-center">
+              Comment peut-on contacter votre établissement ?
             </h1>
-            <p className="mt-2 text-role-body leading-relaxed text-text-soft">
-              Elles s&apos;impriment en en-tête de vos attestations et de vos bulletins.
-              Facultatif — vous pourrez les ajouter dans les réglages.
+            <p className="mt-1.5 text-[13px] leading-relaxed text-text-soft text-center">
+              Ajoutez les coordonnées officielles de votre école.
             </p>
 
-            <div className="mt-6 max-w-md space-y-4">
+            <div className="mt-6 space-y-4">
               <Input
-                label="Téléphone"
+                label="Téléphone de l'établissement"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+221 77 000 00 00"
                 inputMode="tel"
+                autoFocus
               />
               <Input
-                label="Adresse"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Quartier, ville"
+                label="Adresse e-mail de l'établissement"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="direction@ecole.sn"
+                type="email"
               />
             </div>
 
-            <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+            <div className="mt-6 flex items-center justify-between pt-5 border-t border-rule/30">
               <Button size="lg" variant="ghost" onClick={() => setStep(2)}>
-                <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+                <ArrowLeft aria-hidden="true" className="h-4 w-4 mr-2" />
                 Retour
               </Button>
-              <div className="flex flex-wrap gap-2">
-                <Button size="lg" variant="secondary" onClick={() => setStep(4)}>Passer</Button>
-                <Button size="lg" onClick={() => setStep(4)}>
-                  Continuer
-                  <ArrowRight aria-hidden="true" className="h-4 w-4" />
-                </Button>
-              </div>
+              <Button size="lg" onClick={() => setStep(4)} disabled={!phone.trim() || !email.trim()}>
+                Continuer
+                <ArrowRight aria-hidden="true" className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         )}
 
-        {/* ─── 4. Tarifs : lot 12.2, conservé, rendu explicitement facultatif ─── */}
         {step === 4 && (
           <div>
-            <h1 className="text-role-page font-bold tracking-tight text-text">Vos tarifs officiels</h1>
-            <p className="mt-2 text-role-body leading-relaxed text-text-soft">
-              Vous êtes la source de vérité des tarifs. Ils serviront à calculer
-              automatiquement le montant attendu — votre gestionnaire n&apos;aura rien à
-              ressaisir. Facultatif : laissez vide pour configurer plus tard.
+            <h1 className="text-[20px] font-bold tracking-tight text-text text-center">
+              Quels cycles votre établissement propose-t-il ?
+            </h1>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-text-soft text-center">
+              Sélectionnez les cycles enseignés dans votre établissement.
             </p>
 
-            <div className="mt-6 max-w-md space-y-4">
-              <Input
-                label="Frais d'inscription"
-                hint="Une fois, tous niveaux confondus. En FCFA."
-                type="number"
-                min="0"
-                inputMode="numeric"
-                value={registrationFee}
-                onChange={(e) => setRegistrationFee(e.target.value)}
-                placeholder="0"
-                inputClassName="tabular-nums"
-              />
-              {niveaux.map((level) => (
-                <Input
-                  key={level}
-                  label={`Scolarité annuelle — ${level}`}
-                  hint="En FCFA."
-                  type="number"
-                  min="0"
-                  inputMode="numeric"
-                  value={tuitionByLevel[level] ?? ""}
-                  onChange={(e) => setTuitionByLevel({ ...tuitionByLevel, [level]: e.target.value })}
-                  placeholder="0"
-                  inputClassName="tabular-nums"
-                />
-              ))}
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {NIVEAUX.map((n) => {
+                const Icon = n.icon;
+                const checked = niveaux.includes(n.id);
+                return (
+                  <label
+                    key={n.id}
+                    className={`group relative flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-all duration-200 ${
+                      checked
+                        ? "border-primary bg-primary/[0.02] shadow-[0_0_12px_rgba(var(--color-primary),0.06)] ring-1 ring-primary"
+                        : "border-rule/60 bg-transparent hover:border-rule hover:bg-sunk/30"
+                    }`}
+                  >
+                    <input type="checkbox" className="sr-only" checked={checked} onChange={() => toggle(n.id)} />
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-200 ${
+                      checked ? "bg-primary/10 text-primary" : "bg-sunk text-text-faint group-hover:text-text-soft"
+                    }`}>
+                      <Icon aria-hidden="true" className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className={`text-[13px] font-semibold transition-colors ${checked ? "text-primary" : "text-text"}`}>
+                        {n.label}
+                      </div>
+                    </div>
+                    <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-all duration-200 ${
+                      checked ? "border-primary bg-primary text-white" : "border-rule bg-transparent group-hover:border-text-faint"
+                    }`}>
+                      {checked && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
+                    </div>
+                  </label>
+                );
+              })}
             </div>
 
-            <p className="mt-5 max-w-xl text-role-meta leading-relaxed text-text-soft">
-              Cantine, transport, assurance et tarifs par classe s&apos;ajoutent à tout moment
-              dans <span className="font-medium text-text">Réglages › Grille tarifaire</span>.
-              Champs vides : aucun montant n&apos;est supposé, et l&apos;application indique
-              simplement que la configuration financière est incomplète.
-            </p>
-
-            <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
-              <Button size="lg" variant="ghost" onClick={() => setStep(3)} disabled={busy}>
-                <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+            <div className="mt-5 flex items-center justify-between pt-5 border-t border-rule/30">
+              <Button size="lg" variant="ghost" onClick={() => setStep(3)}>
+                <ArrowLeft aria-hidden="true" className="h-4 w-4 mr-2" />
                 Retour
               </Button>
-              <div className="flex gap-2">
-                <Button size="lg" variant="secondary" onClick={finish} disabled={busy}>
-                  Passer cette configuration
-                </Button>
-                <Button size="lg" loading={busy} onClick={finish}>
-                  {busy ? "Création de vos classes…" : "Terminer l'installation"}
-                  {!busy && <Check aria-hidden="true" className="h-4 w-4" />}
-                </Button>
-              </div>
+              <Button size="lg" onClick={() => setStep(5)} disabled={niveaux.length === 0}>
+                Continuer
+                <ArrowRight aria-hidden="true" className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         )}
+
+        {step === 5 && (
+          <div>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
+              <School className="h-6 w-6" />
+            </div>
+            
+            <h1 className="text-[20px] font-bold tracking-tight text-text text-center">
+              Votre école est presque prête !
+            </h1>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-text-soft text-center px-4">
+              Les informations essentielles de votre établissement sont maintenant configurées.
+              <br/>Il nous reste simplement à identifier la personne responsable.
+            </p>
+
+            <div className="mt-6 space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Input
+                  label="Prénom"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Jean"
+                  autoFocus
+                />
+                <Input
+                  label="Nom"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Dupont"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-between pt-5 border-t border-rule/30">
+              <Button size="lg" variant="ghost" onClick={() => setStep(4)} disabled={busy}>
+                <ArrowLeft aria-hidden="true" className="h-4 w-4 mr-2" />
+                Retour
+              </Button>
+              <Button size="lg" onClick={finish} disabled={!firstName.trim() || !lastName.trim() || busy} loading={busy}>
+                Terminer
+                {!busy && <ArrowRight aria-hidden="true" className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+        )}
+
         </motion.div>
       </AnimatePresence>
     </div>

@@ -66,13 +66,10 @@ function messageFr(code: string | undefined, brut: string): string {
 }
 
 export async function register(formData: FormData): Promise<RegisterResult | void> {
-  const schoolName = (formData.get('schoolName') as string ?? '').trim()
-  const firstName = (formData.get('firstName') as string ?? '').trim()
-  const lastName = (formData.get('lastName') as string ?? '').trim()
   const email = (formData.get('email') as string ?? '').trim().toLowerCase()
   const password = formData.get('password') as string
 
-  if (!schoolName || !email || !password || !firstName || !lastName) {
+  if (!email || !password) {
     return { error: 'Tous les champs sont requis.' }
   }
 
@@ -91,7 +88,7 @@ export async function register(formData: FormData): Promise<RegisterResult | voi
       email,
       password,
       options: {
-        data: { firstName, lastName },
+        data: { firstName: "Responsable", lastName: "EduCom" },
         emailRedirectTo: `${origine}/auth/callback?next=/welcome`,
       },
     })
@@ -127,13 +124,13 @@ export async function register(formData: FormData): Promise<RegisterResult | voi
       // son école aussi. On ne recrée rien.
       if (existant?.schoolId) return
 
-      const school = await tx.school.create({ data: { name: schoolName, email } })
+      const school = await tx.school.create({ data: { name: "École en configuration", email } })
       await tx.user.create({
         data: {
           id: user!.id, // même identifiant que Supabase Auth : c'est la jointure
           email,
-          firstName,
-          lastName,
+          firstName: "Responsable",
+          lastName: "EduCom",
           role: 'ADMIN',
           schoolId: school.id,
         },

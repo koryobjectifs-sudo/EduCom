@@ -60,7 +60,10 @@ export default function ClassListClient({ classes, teachers, searchTerm }: { cla
   const confirmDelete = async () => {
     if (!classToDelete) return;
     setIsDeleting(classToDelete);
-    await deleteClass(classToDelete);
+    const res = await deleteClass(classToDelete);
+    if (res.error) {
+      setError(res.error);
+    }
     setIsDeleting(null);
     setClassToDelete(null);
     router.refresh();
@@ -188,11 +191,15 @@ export default function ClassListClient({ classes, teachers, searchTerm }: { cla
                           {count} élève{count !== 1 ? "s" : ""}
                         </span>
                       </div>
-                      <p className="truncate text-[11px] text-text-faint mt-0.5">
-                        {c.teacher
-                          ? `${c.teacher.firstName} ${c.teacher.lastName}`
-                          : "Professeur non assigné"}
-                      </p>
+                      <div className="truncate text-[11px] text-text-faint mt-0.5">
+                        {c.teacher ? (
+                          <span>{c.teacher.firstName} {c.teacher.lastName}</span>
+                        ) : (
+                          <Link href="/dashboard/team" className="text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                            Assigner un enseignant
+                          </Link>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -230,7 +237,7 @@ export default function ClassListClient({ classes, teachers, searchTerm }: { cla
           </>
         }
       >
-        Êtes-vous sûr de vouloir supprimer cette classe ? Cette action est irréversible et supprimera les inscriptions associées.
+        Êtes-vous sûr de vouloir supprimer cette classe ? Cette action est irréversible.
       </Modal>
     </div>
   );

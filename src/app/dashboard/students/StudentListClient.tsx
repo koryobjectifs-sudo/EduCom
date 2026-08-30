@@ -3,13 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, MoreVertical, GraduationCap, FileText, FileBadge, X } from "lucide-react";
+import { Search, MoreVertical, GraduationCap, FileText, FileBadge, X, Trash2 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
 import { DataTable } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Modal } from "@/components/ui/Modal";
+import { deleteStudent, deleteStudents, assignStudentToClass } from "./actions";
 
 /**
  * Annuaire des élèves — écran quotidien du secrétariat.
@@ -37,16 +39,39 @@ import { EmptyState } from "@/components/ui/EmptyState";
 
 interface StudentListClientProps {
   students: any[];
-  searchTerm: string;
   classesData?: any[];
+  searchTerm?: string;
+  onSearchChange?: (value: string) => void;
+  hideSearchBar?: boolean;
 }
 
-export default function StudentListClient({ students, searchTerm, classesData = [] }: StudentListClientProps) {
+export default function StudentListClient({ 
+  students, 
+  classesData = [], 
+  searchTerm: externalSearchTerm,
+  onSearchChange,
+  hideSearchBar 
+}: StudentListClientProps) {
   const router = useRouter();
+  const [internalSearchTerm, setInternalSearchTerm] = useState("");
+  const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : internalSearchTerm;
+
+  const handleSearchChange = (val: string) => {
+    if (onSearchChange) onSearchChange(val);
+    else setInternalSearchTerm(val);
+  };
+  
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [classFilter, setClassFilter] = useState<string>("ALL");
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [studentToAssign, setStudentToAssign] = useState<string | null>(null);
+  const [assignClassId, setAssignClassId] = useState<string>("");
+  const [isAssigning, setIsAssigning] = useState(false);
 
   /** Classes provenant directement de classesData, sans dépendre des inscriptions */
   const classes = useMemo(() => {
@@ -96,79 +121,115 @@ export default function StudentListClient({ students, searchTerm, classesData = 
     };
   }, [openDropdownId]);
 
+  const handleBulkDelete = async () => {
+    setIsDeleting(true);
+    await deleteStudents(Array.from(selectedIds));
+    setSelectedIds(new Set());
+    setShowBulkDeleteModal(false);
+    setIsDeleting(false);
+    router.refresh();
+  };
+
+  const handleSingleDelete = async () => {
+    if (!studentToDelete) return;
+    setIsDeleting(true);
+    await deleteStudent(studentToDelete);
+    setStudentToDelete(null);
+    setIsDeleting(false);
+    router.refresh();
+  };
+
+  const handleAssignClass = async () => {
+    if (!studentToAssign || !assignClassId) return;
+    setIsAssigning(true);
+    await assignStudentToClass(studentToAssign, assignClassId);
+    setIsAssigning(false);
+    setStudentToAssign(null);
+    setAssignClassId("");
+    router.refresh();
+  };
+
   return (
     <div className="space-y-4">
+      {/* Barre de filtres */}
+      <Card className="p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
+        {!hideSearchBar ? (
+          <div className="w-full sm:max-w-md relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-faint pointer-events-none" />
+            <Input
+              type="search"
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Rechercher un dossier élève (nom, prénom)..."
+              inputClassName="pl-9"
+            />
+          </div>
+        ) : (
+          <div className="flex-1" />
+        )}
+        <div className="flex w-full sm:w-auto items-center gap-3">
+          <Select
+            value={classFilter}
+            onChange={(e) => setClassFilter(e.target.value)}
+            disabled={classes.length === 0}
+            className="w-full sm:w-48"
+          >
+            <option value="ALL">Toutes les classes</option>
+            {classes.map(([id, name]) => (
+              <option key={id} value={id}>{name}</option>
+            ))}
+          </Select>
+          <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full sm:w-40"
+          >
+            <option value="ALL">Tous les statuts</option>
+            <option value="ENROLLED">Inscrits</option>
+            <option value="PENDING">En attente</option>
+            <option value="GRADUATED">Diplômés</option>
+            <option value="INACTIVE">Inactifs</option>
+          </Select>
+          {hasActiveFilter && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={resetFilters}
+              className="shrink-0 text-text-soft"
+              title="Réinitialiser"
+            >
+              <X aria-hidden="true" className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </Card>
+
       {/* Tableau */}
       <Card flush>
         <DataTable caption="Liste des élèves de l'établissement">
           <DataTable.Head>
             <tr>
-              <DataTable.HeadCell className="align-bottom">
-                <div className="flex flex-col gap-2 min-w-[200px]">
-                  <span>Élève</span>
-                  <div className="h-9"></div> 
-                </div>
+              <DataTable.HeadCell className="w-12">
+                <input
+                  type="checkbox"
+                  className="rounded border-rule text-primary focus:ring-primary/40 h-4 w-4"
+                  checked={filteredStudents.length > 0 && selectedIds.size === filteredStudents.length}
+                  onChange={(e) => {
+                    if (e.target.checked) setSelectedIds(new Set(filteredStudents.map(s => s.id)));
+                    else setSelectedIds(new Set());
+                  }}
+                />
               </DataTable.HeadCell>
-              <DataTable.HeadCell className="align-bottom">
-                <div className="flex flex-col gap-2 min-w-[150px]">
-                  <span>Classe</span>
-                  <Select
-                    value={classFilter}
-                    onChange={(e) => setClassFilter(e.target.value)}
-                    selectClassName="h-9 py-1 text-sm"
-                    disabled={classes.length === 0}
-                  >
-                    <option value="ALL">Toutes</option>
-                    {classes.map(([id, name]) => (
-                      <option key={id} value={id}>{name}</option>
-                    ))}
-                  </Select>
-                </div>
-              </DataTable.HeadCell>
-              <DataTable.HeadCell className="hidden md:table-cell align-bottom">
-                <div className="flex flex-col gap-2">
-                  <span>Parent / Tuteur</span>
-                  {/* Filtre couvert par la recherche générale */}
-                  <div className="h-9"></div> 
-                </div>
-              </DataTable.HeadCell>
-              <DataTable.HeadCell className="align-bottom">
-                <div className="flex flex-col gap-2 min-w-[130px]">
-                  <span>Statut</span>
-                  <Select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    selectClassName="h-9 py-1 text-sm"
-                  >
-                    <option value="ALL">Tous</option>
-                    <option value="ENROLLED">Inscrits</option>
-                    <option value="PENDING">En attente</option>
-                    <option value="GRADUATED">Diplômés</option>
-                    <option value="INACTIVE">Inactifs</option>
-                  </Select>
-                </div>
-              </DataTable.HeadCell>
-              <DataTable.HeadCell className="text-right align-bottom">
-                <div className="flex flex-col justify-end h-full gap-2 pb-1">
-                  <span className="sr-only">Actions</span>
-                  {hasActiveFilter && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={resetFilters}
-                      className="h-9 text-text-soft"
-                      title="Réinitialiser"
-                    >
-                      <X aria-hidden="true" className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </DataTable.HeadCell>
+              <DataTable.HeadCell>Élève</DataTable.HeadCell>
+              <DataTable.HeadCell>Classe</DataTable.HeadCell>
+              <DataTable.HeadCell className="hidden md:table-cell">Parent / Tuteur</DataTable.HeadCell>
+              <DataTable.HeadCell>Statut</DataTable.HeadCell>
+              <DataTable.HeadCell className="text-right"><span className="sr-only">Actions</span></DataTable.HeadCell>
             </tr>
           </DataTable.Head>
           <DataTable.Body>
             {filteredStudents.length === 0 ? (
-              <DataTable.EmptyRow colSpan={5}>
+              <DataTable.EmptyRow colSpan={6}>
                 {hasActiveFilter || searchTerm ? (
                   <EmptyState
                     icon={Search}
@@ -202,6 +263,21 @@ export default function StudentListClient({ students, searchTerm, classesData = 
                     onClick={() => router.push(`/dashboard/students/${student.id}`)}
                     className="group cursor-pointer"
                   >
+                    <DataTable.Cell>
+                      <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="rounded border-rule text-primary focus:ring-primary/40 h-4 w-4"
+                          checked={selectedIds.has(student.id)}
+                          onChange={(e) => {
+                            const next = new Set(selectedIds);
+                            if (e.target.checked) next.add(student.id);
+                            else next.delete(student.id);
+                            setSelectedIds(next);
+                          }}
+                        />
+                      </div>
+                    </DataTable.Cell>
                     <DataTable.Cell>
                       <div className="flex items-center gap-3">
                         <span
@@ -245,7 +321,20 @@ export default function StudentListClient({ students, searchTerm, classesData = 
                           )}
                         </>
                       ) : (
-                        <span className="text-text-faint">Non assigné</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-text-faint">Non assigné</span>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-6 px-2 text-[10px] bg-primary/10 text-primary border-transparent hover:bg-primary/20"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setStudentToAssign(student.id);
+                            }}
+                          >
+                            Assigner
+                          </Button>
+                        </div>
                       )}
                     </DataTable.Cell>
 
@@ -289,7 +378,7 @@ export default function StudentListClient({ students, searchTerm, classesData = 
                           {[
                             { label: "Voir le profil", icon: GraduationCap, href: `/dashboard/students/${student.id}` },
                             { label: "Générer un certificat", icon: FileBadge, href: `/dashboard/documents/certificate?studentId=${student.id}` },
-                            { label: "Générer un bulletin", icon: FileText, href: `/dashboard/documents/report-card?studentId=${student.id}` },
+                            { label: "Générer un bulletin", icon: FileText, href: `/dashboard/grades/report-card?studentId=${student.id}` },
                           ].map(({ label, icon: Icon, href }) => (
                             <button
                               key={label}
@@ -306,6 +395,20 @@ export default function StudentListClient({ students, searchTerm, classesData = 
                               {label}
                             </button>
                           ))}
+                          <div className="h-px w-full bg-rule my-1" />
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdownId(null);
+                              setStudentToDelete(student.id);
+                            }}
+                            className="flex w-full items-center gap-2 rounded-control px-3 py-2 text-role-body font-medium text-danger transition-colors hover:bg-danger/10"
+                          >
+                            <Trash2 aria-hidden="true" className="h-4 w-4" />
+                            Supprimer
+                          </button>
                         </div>
                       )}
                     </DataTable.Cell>
@@ -318,14 +421,107 @@ export default function StudentListClient({ students, searchTerm, classesData = 
 
         {filteredStudents.length > 0 && (
           <DataTable.Footer>
-            <span>
-              {filteredStudents.length} élève{filteredStudents.length > 1 ? "s" : ""} affiché
-              {filteredStudents.length > 1 ? "s" : ""}
-              {hasActiveFilter ? ` sur ${students.length}` : ""}
-            </span>
+            <div className="flex items-center justify-between w-full">
+              <span>
+                {filteredStudents.length} élève{filteredStudents.length > 1 ? "s" : ""} affiché
+                {filteredStudents.length > 1 ? "s" : ""}
+                {hasActiveFilter ? ` sur ${students.length}` : ""}
+              </span>
+              {selectedIds.size > 0 && (
+                <Button 
+                  variant="danger" 
+                  size="sm" 
+                  onClick={() => setShowBulkDeleteModal(true)}
+                  icon={<Trash2 className="w-4 h-4" />}
+                >
+                  Supprimer ({selectedIds.size})
+                </Button>
+              )}
+            </div>
           </DataTable.Footer>
         )}
       </Card>
+
+      <Modal
+        open={studentToDelete !== null}
+        onClose={() => setStudentToDelete(null)}
+        title="Supprimer l'élève ?"
+        size="sm"
+        dismissible={!isDeleting}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setStudentToDelete(null)} disabled={isDeleting}>Annuler</Button>
+            <Button variant="danger" onClick={handleSingleDelete} loading={isDeleting}>Supprimer</Button>
+          </>
+        }
+      >
+        Êtes-vous sûr de vouloir supprimer cet élève ? Cette action est irréversible.
+      </Modal>
+
+      <Modal
+        open={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        title="Supprimer la sélection ?"
+        size="sm"
+        dismissible={!isDeleting}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowBulkDeleteModal(false)} disabled={isDeleting}>Annuler</Button>
+            <Button variant="danger" onClick={handleBulkDelete} loading={isDeleting}>Confirmer la suppression</Button>
+          </>
+        }
+      >
+        Vous êtes sur le point de supprimer {selectedIds.size} élève(s). Cette action est irréversible.
+      </Modal>
+      {/* Assign Class Modal */}
+      <Modal
+        open={studentToAssign !== null}
+        onClose={() => {
+          setStudentToAssign(null);
+          setAssignClassId("");
+        }}
+        title="Assigner à une classe"
+        size="sm"
+        dismissible={!isAssigning}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setStudentToAssign(null);
+                setAssignClassId("");
+              }}
+              disabled={isAssigning}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleAssignClass}
+              loading={isAssigning}
+              disabled={!assignClassId}
+            >
+              Assigner
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text-soft">
+            Sélectionnez la classe dans laquelle vous souhaitez inscrire cet élève pour l'année en cours.
+          </p>
+          <Select
+            label="Classe"
+            value={assignClassId}
+            onChange={(e) => setAssignClassId(e.target.value)}
+          >
+            <option value="" disabled>Choisir une classe...</option>
+            {classes.map(([id, name]) => (
+              <option key={id} value={id}>{name}</option>
+            ))}
+          </Select>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -53,12 +53,19 @@ export type ModalProps = {
   children?: ReactNode;
   /** Zone d'actions en pied, alignée à droite. */
   footer?: ReactNode;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "full";
   /** `false` : ni clic sur le fond ni `Escape` ne ferment. */
   dismissible?: boolean;
 };
 
-const SIZE = { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-2xl" } as const;
+const SIZE = { 
+  sm: "max-w-sm", 
+  md: "max-w-lg", 
+  lg: "max-w-2xl",
+  xl: "max-w-4xl",
+  "2xl": "max-w-6xl",
+  full: "max-w-[calc(100vw-2rem)]",
+} as const;
 
 export function Modal({
   open,

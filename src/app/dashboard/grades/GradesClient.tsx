@@ -34,7 +34,7 @@ export default function GradesClient({
   const tab: TabType = canConfigure ? activeTab : "saisie";
 
   return (
-    <div className="relative bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-140px)]">
+    <div className="relative bg-white md:rounded-2xl border-y md:border border-gray-100 shadow-sm overflow-hidden flex flex-col h-auto min-h-[calc(100vh-140px)] md:h-[calc(100vh-140px)]">
       {/* Il n'y a plus qu'un écran de saisie : une barre d'onglets à un seul
           bouton ne servait qu'à voler de la hauteur au bulletin. La
           configuration devient un accès discret, et un retour quand on y est. */}
@@ -48,25 +48,23 @@ export default function GradesClient({
           </button>
           <span className="text-[13px] font-semibold text-gray-900 ml-1">Configuration</span>
         </div>
-      ) : canConfigure ? (
-        <button
-          onClick={() => setActiveTab("config")}
-          className="absolute right-3 top-3 z-20 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium text-gray-500 bg-white/90 border border-gray-200 shadow-sm hover:text-gray-900 hover:border-gray-300 transition-colors"
-          title="Trimestres, évaluations et matières"
-        >
-          <Settings className="w-3.5 h-3.5" /> Configuration
-        </button>
       ) : null}
 
       {/* La saisie gère elle-même son espace : pas de marge extérieure, le
           bulletin doit occuper toute la largeur disponible. */}
       <div
         className={`flex-1 bg-gray-50/30 min-h-0 ${
-          tab === "config" ? "overflow-auto p-6" : "overflow-hidden"
+          tab === "config" ? "overflow-auto p-6" : "overflow-y-auto md:overflow-hidden"
         }`}
       >
         {tab === "saisie" && (
-          <StudentEntryTab terms={initialTerms} classes={classes} defaults={defaults} />
+          <StudentEntryTab 
+            terms={initialTerms} 
+            classes={classes} 
+            defaults={defaults}
+            canConfigure={canConfigure}
+            onConfigClick={() => setActiveTab("config")}
+          />
         )}
         {tab === "config" && (
           <ConfigTab terms={initialTerms} subjects={initialSubjects} classes={classes} />

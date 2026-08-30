@@ -32,7 +32,7 @@ function revalidateAcademique() {
   revalidatePath("/dashboard/grades");
   revalidatePath("/dashboard/grades/bulletin");
   revalidatePath("/dashboard/grades/saisie");
-  revalidatePath("/dashboard/reports");
+  revalidatePath("/dashboard/admin/reports");
   revalidatePath("/dashboard");
 }
 

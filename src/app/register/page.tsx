@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, MailCheck } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, MailCheck } from "lucide-react";
 import { register } from "./actions";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
@@ -33,9 +33,9 @@ import { GoogleAuthButton } from "@/components/ui/GoogleAuthButton";
 
 /** Ce qui suit immédiatement l'inscription. Écrit ici pour supprimer l'inconnu. */
 const SUITE = [
-  "Vos classes créées d'après les niveaux que vous enseignez",
-  "Votre premier élève inscrit",
-  "Son certificat de scolarité, prêt à imprimer",
+  "Configuration de votre école",
+  "Importation de vos élèves",
+  "Votre premier tableau de bord",
 ];
 
 export default function RegisterPage() {
@@ -112,31 +112,21 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-sunk lg:flex-row">
-      <div className="flex flex-1 flex-col items-center justify-center px-5 py-10 sm:px-8 lg:px-16">
-        <div className="w-full max-w-sm rounded-surface border border-rule bg-surface p-8 shadow-card">
-          <Link href="/" className="mb-8 inline-flex items-center gap-2.5">
-            {/* ⚠️ Addendum PLG — c'était un « E » blanc dans un carré, dessiné en
-                HTML, alors que `public/brand/` contient le logotype fini. Sur la
-                page où l'on saisit son mot de passe, la marque doit être la
-                MÊME que sur la page d'accueil : un substitut de logo à
-                l'instant de la connexion ressemble à une page contrefaite. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/brand/educom-logo-officiel.jpg"
-              alt="EduCom"
-              width={156}
-              height={28}
-              className="h-7 w-auto"
-            />
+    <div className="flex min-h-[100dvh] flex-col items-center bg-sunk p-4 sm:p-6 overflow-y-auto">
+      <div className="w-full max-w-[380px] my-auto rounded-[20px] border border-rule/40 bg-surface p-6 sm:p-7 shadow-sm relative z-10">
+        <div className="mb-6 flex flex-col items-center justify-center relative">
+          <Link href="/" className="absolute left-0 top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-8 w-8 rounded-full text-text-soft transition-colors hover:bg-sunk hover:text-text" aria-label="Retour à l'accueil">
+            <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           </Link>
+          <img src="/brand/educom-logo-officiel.jpg" alt="EduCom" className="h-6 w-auto object-contain" />
+        </div>
 
-          <h1 className="text-role-page font-bold tracking-tight text-text">
-            Créer l&apos;espace de votre école
-          </h1>
-          <p className="mt-2 text-role-body text-text-soft">
-            Trois minutes, et votre premier document officiel est prêt.
-          </p>
+        <h1 className="text-[20px] font-bold tracking-tight text-text text-center">
+          Créer votre espace
+        </h1>
+        <p className="mt-1.5 text-[13px] text-text-soft text-center leading-relaxed">
+          Trois minutes pour démarrer votre école.
+        </p>
 
           {erreur && (
             <div
@@ -168,85 +158,65 @@ export default function RegisterPage() {
           </div>
 
           <form className="space-y-4" onSubmit={onSubmit}>
-            <Input
-              label="Nom de l'établissement"
-              id="schoolName"
-              name="schoolName"
-              required
-              autoFocus
-              placeholder="Complexe scolaire Mariama Bâ"
-              hint="Il apparaîtra sur vos bulletins et vos attestations."
-            />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Input label="Prénom" id="firstName" name="firstName" required autoComplete="given-name" />
-              <Input label="Nom" id="lastName" name="lastName" required autoComplete="family-name" />
+            <div className="grid grid-cols-1 gap-4">
+              <Input
+                label="Adresse e-mail"
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                placeholder="direction@votre-ecole.sn"
+              />
+              <Input
+                label="Mot de passe"
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={6}
+              />
             </div>
-            <Input
-              label="Adresse e-mail"
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              placeholder="direction@votre-ecole.sn"
-            />
-            <Input
-              label="Mot de passe"
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={6}
-              hint="Six caractères au minimum."
-            />
             <Button type="submit" size="lg" block loading={loading}>
               Créer l&apos;espace de mon école
               {!loading && <ArrowRight aria-hidden="true" className="h-4 w-4" />}
             </Button>
           </form>
 
-          {/* ⚠️ Aucun lien mort : le texte contractuel n'existe pas encore, et
-              l'écran le dit plutôt que de pointer vers `#`. */}
-          <p className="mt-4 text-role-meta leading-relaxed text-text-faint">
-            Les conditions d&apos;utilisation et la politique de confidentialité
-            sont en cours de rédaction ; elles vous seront communiquées avant toute
-            mise en service auprès des familles.
+          <p className="mt-4 text-[12px] text-center leading-relaxed text-text-faint">
+            En créant votre espace, vous acceptez nos conditions d'utilisation.
           </p>
 
-          <p className="mt-8 text-role-body text-text-soft">
+          <p className="mt-6 text-center text-[13px] text-text-soft">
             Votre école est déjà sur EduCom ?{" "}
-            <Link href="/login" className="font-semibold text-primary underline-offset-2 hover:underline">
+            <Link href="/login" className="font-semibold text-text underline-offset-2 hover:underline">
               Se connecter
             </Link>
           </p>
         </div>
-      </div>
 
-      {/* ─── Ce qui vient après, écrit noir sur blanc ───
-          Une inscription est un saut dans l'inconnu. Annoncer les trois étapes
-          suivantes coûte trois lignes et supprime l'hésitation. */}
-      <div className="hidden bg-primary px-16 py-16 lg:flex lg:w-[42%] lg:flex-col lg:justify-center">
-        <p className="text-role-section font-semibold leading-snug text-white">
-          Après cette page, dans l&apos;ordre :
+      {/* ─── Ce qui vient après, écrit noir sur blanc ─── */}
+      <div className="mt-6 hidden w-full max-w-2xl px-4 text-center xl:block">
+        <p className="text-[12px] font-semibold text-text-soft mb-3 uppercase tracking-wider">
+          Ensuite, dans l'ordre :
         </p>
-        <ol className="mt-8 space-y-5">
+        <ul className="flex items-start justify-center gap-6 text-left">
           {SUITE.map((etape, i) => (
-            <li key={etape} className="flex gap-4">
+            <li key={etape} className="flex items-center gap-2.5">
               <span
                 aria-hidden="true"
-                className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-pill border border-white/30 text-role-meta font-semibold text-white"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface border border-rule/50 text-[11px] font-bold text-text-soft shadow-sm"
               >
                 {i + 1}
               </span>
-              <span className="text-role-body leading-relaxed text-white/85">{etape}</span>
+              <span className="text-[12px] font-medium text-text-soft">{etape}</span>
             </li>
           ))}
-        </ol>
-        <p className="mt-10 flex items-start gap-3 text-role-meta leading-relaxed text-white/70">
-          <Check aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
-          Rien n&apos;est facturé aujourd&apos;hui : EduCom n&apos;a pas encore de
-          module de paiement en ligne.
+        </ul>
+        <p className="mt-6 text-[12px] text-text-faint flex items-center justify-center gap-2">
+          <Check aria-hidden="true" className="h-3.5 w-3.5" />
+          Rien n'est facturé aujourd'hui
         </p>
       </div>
     </div>
