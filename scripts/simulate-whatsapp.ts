@@ -2,7 +2,13 @@ import { prisma } from '../src/lib/prisma';
 import crypto from 'crypto';
 
 async function run() {
-  const waPhone = "REDACTED_TEST_PHONE"; // Parent phone without the '+' sign for WhatsApp
+  // ⚠️ Aucun numéro réel en dur ici : ce fichier est versé. Le numéro du parent
+  // de test se passe par l'environnement, sans le « + » (format attendu par Meta).
+  const waPhone = process.env.TEST_PARENT_PHONE;
+  if (!waPhone) {
+    console.error("TEST_PARENT_PHONE manquant. Exemple : TEST_PARENT_PHONE=221XXXXXXXXX npm run script -- scripts/simulate-whatsapp.ts");
+    process.exit(1);
+  }
   const text = process.argv[2] || "Bonjour, je voudrais savoir comment justifier l'absence de mon fils";
 
   const payload = {
