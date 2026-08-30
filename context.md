@@ -1,8 +1,21 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 28 août 2026 — Chantiers #11 & #12 Go-Live Readiness WhatsApp.
+> Dernière mise à jour : 30 août 2026 — Étape 1 : mise sous contrôle Git du chantier Antigravity.
 
 ## 📌 Nouvelles Fonctionnalités & Logiques Implémentées (Août 2026)
+
+### Étape 1 : MISE SOUS CONTRÔLE GIT DU CHANTIER ANTIGRAVITY (30 août 2026)
+- **Le point de départ** : quatre jours de travail Antigravity vivaient **entièrement dans le working tree** — 76 fichiers modifiés/supprimés et 61 fichiers non suivis, zéro commit depuis `1f36fcc`. Un `git clean` ou un crash effaçait tout.
+- **Décision : branche plutôt que `main`.** Les 9 commits sont sur `chantier/whatsapp-nav-context-os`. `main` est intact. Un `git merge --ff-only chantier/whatsapp-nav-context-os` les y ramène quand Kory le décide.
+- **Découpage en 9 commits thématiques** (nettoyage, schéma, WhatsApp, navigation, tableau de bord contextuel, présences, transverses, docs, correctif) plutôt qu'un fourre-tout : un `git revert` reste possible module par module.
+- **⚠️ LE PIÈGE — deux scripts non suivis portaient des secrets EN CLAIR.** `scripts/inject-tokens.ts` contenait le **jeton d'accès Meta WhatsApp de production**, `scripts/inject-all.ts` un **vrai numéro sénégalais**. Historique vérifié : jamais commités. Déplacés dans `_local/scripts-2026-08-30/`. **Le jeton Meta a vécu en clair sur disque : le régénérer depuis la console Meta.**
+- **⚠️ Le piège dans le piège** : un troisième numéro réel était en dur dans `scripts/simulate-whatsapp.ts`, et celui-là **est passé dans le commit `15b01d9`**. Corrigé ensuite (`TEST_PARENT_PHONE`), mais il reste dans l'historique de la branche. Tant qu'elle n'est pas poussée, l'historique est réécrivable — **à trancher avant tout `git push`**.
+- **La leçon** : le scan de secrets doit tourner **avant** `git add`, pas après. Il a fonctionné sur les fichiers non suivis (2 détections) mais la relecture du diff commité a d'abord échoué en silence — `ugrep` a rejeté l'expression pour « complexité » et la sortie vide ressemblait à un succès. **Une commande qui échoue en silence ressemble exactement à une commande qui réussit.** Relancer motif par motif.
+- **Écarté de la racine** : 3 images de test, `apply_sql.ts`, `check.ts`, `test-prisma.ts`, `test-phone.ts`, `sync.sql`, `update_watermark.js`, `webhook_debug.log` (charges utiles réelles du webhook), 3 `.bak`, 14 scripts jetables. Tous dans `_local/`, motifs ancrés ajoutés au `.gitignore`.
+- **⚠️ Correction d'une note périmée** : `context.md` affirmait « pas de dossier `prisma/migrations` ». **Faux** — il existe et est versé (`00000000000000_baseline/migration.sql` + `README.md`). Un `rmdir` a échoué dessus, ce qui a évité de le supprimer.
+- **Vérifié** : `npx tsc --noEmit` → **0 erreur**, avant et après le nettoyage. Arbre de travail propre.
+- **NON vérifié** : aucun écran n'a été ouvert dans un navigateur. Le rendu réel des routes déplacées reste à éprouver (étape 4).
+
 
 ### Chantier #14.5 : VÉRIFICATION FINALE AVANT TEST RÉEL (28 août 2026)
 - **STATUT : TEST D'ENVOI RÉUSSI (29 août 2026)**. La fonctionnalité d'envoi libre depuis la Boîte de réception (WhatsAppClient) vers un parent (dans la fenêtre de 24h) est validée de bout en bout en production avec de vraies API Meta.
