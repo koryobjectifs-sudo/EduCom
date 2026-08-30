@@ -105,7 +105,7 @@ export default function InvoiceGenerator({ students, school, initialStudentId }:
             }
           }
           setShowEditorModal(true);
-          window.history.replaceState({}, '', '/dashboard/documents/invoice');
+          window.history.replaceState({}, '', '/dashboard/payments/invoice');
         }, 50);
       }
     }

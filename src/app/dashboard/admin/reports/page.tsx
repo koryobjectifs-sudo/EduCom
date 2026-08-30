@@ -6,11 +6,11 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { resolvePeriod, toDateInput } from "@/lib/finance";
 import { buildReport } from "@/lib/reports";
-import { PeriodPicker } from "../payments/_finance/PeriodPicker";
+import { PeriodPicker } from "../../payments/_finance/PeriodPicker";
 import { SectionBlock, ComparisonNotice, GroupBlock, NotificationBanner } from "./ReportSections";
 import { DepartmentFilter } from "./DepartmentFilter";
 
-const PATH = "/dashboard/reports";
+const PATH = "/dashboard/admin/reports";
 
 /**
  * Centre de rapports — lot 12.

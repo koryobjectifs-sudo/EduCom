@@ -5,7 +5,7 @@ import { useTransition, useState } from "react";
 import { toast } from "sonner";
 import { BellDot, Check } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { markNotificationRead } from "../settings/fees/actions";
+import { markNotificationRead } from "../../settings/fees/actions";
 
 /**
  * Une notification non lue, avec son bouton de lecture. Lot 12.2.

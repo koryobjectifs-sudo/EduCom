@@ -28,7 +28,7 @@ import type { Bulletin } from "@/lib/bulletin";
  * ou `studentId` au générateur, qui les jetait.
  */
 export default function ReportCardGenerator({
-  bulletin, klass, term, evaluation, academicYear, school, canEditCouncil, focusStudentId,
+  bulletin, klass, term, evaluation, academicYear, school, canEditCouncil, canPrint = true, focusStudentId, embed,
 }: {
   bulletin: Bulletin;
   klass: { id: string; name: string };
@@ -37,7 +37,9 @@ export default function ReportCardGenerator({
   academicYear: string;
   school: { name?: string | null; logo?: string | null; signature?: string | null; stamp?: string | null } | null;
   canEditCouncil: boolean;
+  canPrint?: boolean;
   focusStudentId: string | null;
+  embed?: boolean;
 }) {
   const [printOnly, setPrintOnly] = useState<string | null>(focusStudentId);
 
@@ -47,35 +49,39 @@ export default function ReportCardGenerator({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-surface border border-rule bg-surface px-4 py-3 shadow-card print:hidden">
-        <div className="min-w-0">
-          <p className="text-role-body font-semibold text-text">
-            {students.length} bulletin{students.length > 1 ? "s" : ""} — {klass.name}
-          </p>
-          <p className="text-role-meta text-text-soft">
-            {term.name}
-            {evaluation ? ` · ${evaluation.name}` : " · toutes les évaluations du trimestre"}
-            {" · barème /"}{bulletin.scale}
-          </p>
+      {!embed && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-surface border border-rule bg-surface px-4 py-3 shadow-card print:hidden">
+          <div className="min-w-0">
+            <p className="text-role-body font-semibold text-text">
+              {students.length} bulletin{students.length > 1 ? "s" : ""} — {klass.name}
+            </p>
+            <p className="text-role-meta text-text-soft">
+              {term.name}
+              {evaluation ? ` · ${evaluation.name}` : " · toutes les évaluations du trimestre"}
+              {" · barème /"}{bulletin.scale}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {printOnly && (
+              <button
+                onClick={() => setPrintOnly(null)}
+                className="rounded-control border border-rule bg-surface px-3 py-2 text-role-meta font-medium text-text-soft transition-colors hover:text-primary"
+              >
+                Tout afficher
+              </button>
+            )}
+            {canPrint && (
+              <button
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-2 rounded-control bg-primary px-4 py-2 text-role-body font-semibold text-white transition-all duration-200 hover:bg-primary-hover"
+              >
+                <Printer aria-hidden="true" className="h-4 w-4" />
+                Imprimer
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {printOnly && (
-            <button
-              onClick={() => setPrintOnly(null)}
-              className="rounded-control border border-rule bg-surface px-3 py-2 text-role-meta font-medium text-text-soft transition-colors hover:text-primary"
-            >
-              Tout afficher
-            </button>
-          )}
-          <button
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-control bg-primary px-4 py-2 text-role-body font-semibold text-white transition-all duration-200 hover:bg-primary-hover"
-          >
-            <Printer aria-hidden="true" className="h-4 w-4" />
-            Imprimer
-          </button>
-        </div>
-      </div>
+      )}
 
       {bulletin.mixedScales && (
         <p className="flex items-start gap-2 rounded-control border border-warning/20 bg-warning/10 px-3.5 py-2.5 text-role-meta text-warning print:hidden">

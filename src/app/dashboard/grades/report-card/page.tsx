@@ -39,7 +39,7 @@ export default async function ReportCardPage({
    * classes à quiconque était connecté — un **parent** compris, qui héritait du
    * chemin par le préfixe `/dashboard/documents`. Fuite reproduite en sonde.
    */
-  const { schoolId, user } = await requirePathAccess("/dashboard/documents/report-card");
+  const { schoolId, user } = await requirePathAccess("/dashboard/grades/report-card");
   const role = user.role as RoleType;
   const sp = await searchParams;
   const one = (k: string) => (typeof sp[k] === "string" && sp[k] ? (sp[k] as string) : undefined);
@@ -48,6 +48,7 @@ export default async function ReportCardPage({
   let classId = one("classId");
   let termId = one("termId");
   const evaluationId = one("evaluationId");
+  const isEmbed = one("embed") === "1";
 
   // ── Résolution de ce qui manque, jamais une question posée à l'utilisateur ──
   if (studentId && !classId) {
@@ -105,7 +106,7 @@ export default async function ReportCardPage({
     const p = new URLSearchParams();
     const merged = { classId, termId, evaluationId, studentId: studentId ?? undefined, ...patch };
     for (const [k, v] of Object.entries(merged)) if (v) p.set(k, v);
-    return `/dashboard/documents/report-card?${p.toString()}`;
+    return `/dashboard/grades/report-card?${p.toString()}`;
   };
 
   const loaded = classId && termId
@@ -141,20 +142,22 @@ export default async function ReportCardPage({
   );
 
   return (
-    <div className="space-y-5 pb-12">
-      <div className="print:hidden">
-        <PageHeader
-          breadcrumb={[
-            { label: "Accueil", href: "/dashboard" },
-            { label: "Documents", href: "/dashboard/documents" },
-            { label: "Bulletins" },
-          ]}
-          title="Bulletins"
-          description="Générés automatiquement à partir des notes saisies."
-        />
-      </div>
+    <div className={isEmbed ? "" : "space-y-5 pb-12"}>
+      {!isEmbed && (
+        <div className="print:hidden">
+          <PageHeader
+            breadcrumb={[
+              { label: "Accueil", href: "/dashboard" },
+              { label: "Documents", href: "/dashboard/documents" },
+              { label: "Bulletins" },
+            ]}
+            title="Bulletins"
+            description="Générés automatiquement à partir des notes saisies."
+          />
+        </div>
+      )}
 
-      {Selectors}
+      {!isEmbed && Selectors}
 
       {!loaded ? (
         <div className="print:hidden">
@@ -188,6 +191,7 @@ export default async function ReportCardPage({
             select: { name: true, logo: true, signature: true, stamp: true },
           })}
           canEditCouncil={hasAccess(role, "/dashboard/documents/validation")}
+          canPrint={role !== "TEACHER"}
           focusStudentId={studentId}
         />
       )}

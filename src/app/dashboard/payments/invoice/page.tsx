@@ -8,7 +8,7 @@ export const metadata = {
   title: "Générateur de Factures - EduCom",
 };
 
-const PATH = "/dashboard/documents/invoice";
+const PATH = "/dashboard/payments/invoice";
 
 /**
  * ⚠️ **Garde ajoutée au lot 11.1.** `PARENT` héritait de cet écran par le

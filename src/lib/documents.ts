@@ -34,33 +34,6 @@ export type DocumentKind = {
 
 export const DOCUMENT_KINDS: DocumentKind[] = [
   {
-    id: "report-card",
-    slug: "report-card",
-    name: "Bulletin de notes",
-    description: "Bulletin trimestriel d'un élève, avec moyennes par matière et appréciations.",
-    icon: FileText,
-    subject: "élève",
-    primary: true,
-  },
-  {
-    id: "invoice",
-    slug: "invoice",
-    name: "Facture de scolarité",
-    description: "Facture détaillée des frais, à remettre à la famille.",
-    icon: ReceiptText,
-    subject: "élève",
-    primary: true,
-  },
-  {
-    id: "receipt",
-    slug: "receipt",
-    name: "Reçu de paiement",
-    description: "Justificatif d'un versement encaissé.",
-    icon: Receipt,
-    subject: "élève",
-    primary: true,
-  },
-  {
     id: "certificate",
     slug: "certificate",
     name: "Certificat de scolarité",

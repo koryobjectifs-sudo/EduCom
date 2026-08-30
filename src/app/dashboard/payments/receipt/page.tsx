@@ -4,7 +4,7 @@ import { requireSchoolContext } from "@/lib/documentContext";
 import { hasAccess, firstAllowedPath } from "@/lib/permissions";
 import ReceiptGenerator from "./Generator";
 
-const PATH = "/dashboard/documents/receipt";
+const PATH = "/dashboard/payments/receipt";
 
 /**
  * ⚠️ **Garde ajoutée au lot 11.1.** Même fuite que le générateur de factures :

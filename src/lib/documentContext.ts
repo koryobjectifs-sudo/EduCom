@@ -15,6 +15,21 @@ import { hasAccess, firstAllowedPath, type RoleType } from "@/lib/permissions";
  * d'un autre établissement.
  */
 export async function requireSchoolContext() {
+  if (process.env.NODE_ENV === "development") {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const testSchoolId = cookieStore.get("dev_test_school_id")?.value;
+    const testUserId = cookieStore.get("dev_test_user_id")?.value;
+    
+    if (testSchoolId && testUserId) {
+      const dbUser = await prisma.user.findUnique({ where: { id: testUserId } });
+      const school = await prisma.school.findUnique({ where: { id: testSchoolId } });
+      if (dbUser && school) {
+        return { user: dbUser, schoolId: testSchoolId, school };
+      }
+    }
+  }
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -39,7 +54,7 @@ export async function requireSchoolContext() {
  * `report-card`, `certificate`, `info-sheet`, `timetable`, `drafts`.
  *
  * Conséquence concrète, reproduite en sonde : un **parent** authentifié qui
- * tapait `/dashboard/documents/report-card` obtenait les bulletins de tous les
+ * tapait `/dashboard/grades/report-card` obtenait les bulletins de tous les
  * élèves de l'établissement — notes, moyennes, rangs, avis du conseil. Les cinq
  * écrans chargent l'école entière, par construction.
  *

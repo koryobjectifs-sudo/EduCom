@@ -93,7 +93,7 @@ export default function ReceiptGenerator({ students, school, initialStudentId }:
             }
           }
           setShowEditorModal(true);
-          window.history.replaceState({}, '', '/dashboard/documents/receipt');
+          window.history.replaceState({}, '', '/dashboard/payments/receipt');
         }, 50);
       }
     }

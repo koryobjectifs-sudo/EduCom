@@ -21,6 +21,21 @@ export const ROLE_LABELS: Record<RoleType, { label: string; description: string 
   PARENT:     { label: "Parent",        description: "Paiements et documents de ses enfants" },
 };
 
+/**
+ * Vérifie si le rôle de l'utilisateur l'autorise à envoyer des communications
+ * externes (WhatsApp, SMS, Email) aux parents.
+ * 
+ * ⚠️ Règle absolue : Les enseignants (TEACHER) n'ont JAMAIS le droit de
+ * déclencher des communications externes depuis EduCom.
+ */
+export function canSendExternalWhatsApp(role: RoleType | string): boolean {
+  if (role === "TEACHER") return false;
+  // ACCOUNTANT peut envoyer des rappels, SECRETARY/ADMIN/OWNER ont l'accès global,
+  // ASSISTANT peut aussi selon le mapping.
+  const allowedRoles = ["OWNER", "ADMIN", "SECRETARY", "ACCOUNTANT", "ASSISTANT"];
+  return allowedRoles.includes(role);
+}
+
 /** Libellé français d'un rôle, ou la valeur brute si elle est inconnue. */
 export function roleLabel(role: RoleType | string): string {
   return ROLE_LABELS[role as RoleType]?.label ?? role;
@@ -87,7 +102,7 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
     // l'état de ses bulletins. `buildReport()` borne la vue à ses classes
     // (affectation ou titularité) ; il n'accède à aucun chiffre financier,
     // aucune section « finance » n'étant produite pour son rôle.
-    "/dashboard/reports",
+    "/dashboard/admin/reports",
   ],
 
   // Un parent ne voit que ce qui le concerne. Pas d'accès à l'accueil : le
@@ -104,7 +119,7 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
     // pas `financeSnapshot()`, qui agrège toute l'école. C'est la seule raison
     // pour laquelle cette entrée est sûre — la retirer du rapport familial
     // rendrait cette permission dangereuse.
-    "/dashboard/reports",
+    "/dashboard/admin/reports",
   ],
 
   // Le comptable édite factures et reçus : ils vivent dans `/dashboard/documents`,
@@ -114,7 +129,8 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
     "/dashboard$",
     "/dashboard/payments",
     "/dashboard/documents",
-    "/dashboard/reports",
+    "/dashboard/communications",
+    "/dashboard/admin/reports",
   ],
 
   SECRETARY: [
@@ -149,7 +165,7 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
 
     // Lot 12 — le secrétariat a son rapport : dossiers élèves, demandes de
     // documents, bulletins à relire, communications. Aucune section financière.
-    "/dashboard/reports",
+    "/dashboard/admin/reports",
   ],
 
   ASSISTANT: [
@@ -158,7 +174,7 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
     "/dashboard/directory",
     "/dashboard/documents",
     "/dashboard/communications",
-    "/dashboard/reports",
+    "/dashboard/admin/reports",
   ],
 };
 
@@ -196,8 +212,8 @@ export const ROLE_DENIALS: Partial<Record<RoleType, string[]>> = {
     // d'émission. Le refus est la correction juste, et il est ici — pas dans une
     // règle locale à chaque écran.
     "/dashboard/payments/new",
-    "/dashboard/documents/invoice",
-    "/dashboard/documents/receipt",
+    "/dashboard/payments/invoice",
+    "/dashboard/payments/receipt",
     "/dashboard/documents/reminder",
 
     // ═══ 22 août 2026 — LES CINQ GÉNÉRATEURS OUBLIÉS ═══
@@ -205,7 +221,7 @@ export const ROLE_DENIALS: Partial<Record<RoleType, string[]>> = {
     // ⚠️ **Fuite mesurée, pas théorique.** Les quatre refus ci-dessus ont été
     // posés aux lots 11.1 et 12.2 ; **cinq écrans de la même famille y ont
     // échappé**, et aucun d'eux ne portait de garde de chemin non plus. Un
-    // parent authentifié qui tapait `/dashboard/documents/report-card` lisait
+    // parent authentifié qui tapait `/dashboard/grades/report-card` lisait
     // donc **les bulletins de tous les élèves de l'établissement** — notes,
     // moyennes, rangs, appréciations du conseil.
     //
@@ -217,7 +233,7 @@ export const ROLE_DENIALS: Partial<Record<RoleType, string[]>> = {
     // ⚠️ Ce refus ne suffit PAS à lui seul : `hasAccess()` ne protège que ce
     // qui l'appelle, et ces cinq pages ne l'appelaient pas. Chacune reçoit
     // aussi sa garde (`redirect`). Les deux sont nécessaires.
-    "/dashboard/documents/report-card",
+    "/dashboard/grades/report-card",
     "/dashboard/documents/certificate",
     "/dashboard/documents/info-sheet",
     "/dashboard/documents/timetable",

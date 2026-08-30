@@ -132,7 +132,7 @@ export type Report = {
 /**
  * Rapport correspondant à un rôle.
  *
- * ⚠️ Ce n'est **pas** une table de permissions. L'accès à `/dashboard/reports`
+ * ⚠️ Ce n'est **pas** une table de permissions. L'accès à `/dashboard/admin/reports`
  * reste décidé par `hasAccess()` seul ; cette fonction ne dit que *quelle vue*
  * montrer à quelqu'un qui est déjà entré. Un rôle inconnu renvoie `null` et la
  * page redirige — elle n'invente pas une vue par défaut.
