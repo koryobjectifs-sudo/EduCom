@@ -114,3 +114,10 @@ yarn-error.log*
 # ⚠️ Journal brut du webhook Meta : contient des charges utiles réelles
 # (numéros de parents, identifiants de messages). Jamais versé.
 /webhook_debug.log
+
+# ⚠️ Fichiers d'identifiants OAuth téléchargés depuis Google Cloud. Ils portent
+# le `client_secret` EN CLAIR. Le fichier vit normalement hors du dépôt
+# (`~/Downloads`), mais un glisser-déposer malheureux suffirait : le motif est
+# ancré ici et à n'importe quelle profondeur, contrairement aux motifs de la
+# section du 25 août qui ne couvrent que la racine.
+client_secret*.json

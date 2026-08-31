@@ -90,7 +90,7 @@ export async function simulateConnectWhatsApp() {
  * Validates the Meta Embedded Signup payload, fetches WABA info,
  * and securely saves the credentials to the school.
  */
-export async function finalizeWhatsAppConnection(accessToken: string) {
+export async function finalizeWhatsAppConnection(code: string) {
   const auth = await requireActionContext("/dashboard/settings");
   if (!auth.ok) return { error: auth.error };
 
@@ -99,6 +99,57 @@ export async function finalizeWhatsAppConnection(accessToken: string) {
   }
 
   try {
+    // 0. Échanger le code d'Embedded Signup contre le jeton métier du client.
+    //
+    // ⚠️ Avec `response_type: 'code'`, Meta ne renvoie PAS de jeton au navigateur :
+    // il renvoie un code à usage unique, qui ne vit que 30 secondes et doit être
+    // échangé de serveur à serveur. Le code lisait auparavant
+    // `authResponse.accessToken`, toujours `undefined` dans ce mode — la
+    // connexion échouait donc systématiquement.
+    //
+    // Forme des paramètres vérifiée directement auprès du Graph API : ni
+    // `redirect_uri` ni `grant_type` ne sont attendus pour ce flux.
+    const exchangeRes = await fetch(
+      `https://graph.facebook.com/v19.0/oauth/access_token` +
+        `?client_id=${process.env.NEXT_PUBLIC_META_APP_ID}` +
+        `&client_secret=${process.env.META_APP_SECRET}` +
+        `&code=${encodeURIComponent(code)}`
+    );
+    const exchangeData = await exchangeRes.json();
+
+    if (!exchangeData.access_token) {
+      // ══════════════════════════════════════════════════════════════════════
+      // DIAGNOSTIC TEMPORAIRE — LOT 18B. À RETIRER une fois la cause trouvée.
+      //
+      // Le message d'erreur générique renvoyé à l'écran ne permettait pas de
+      // distinguer « code périmé » de « mauvais paramètres » ni de « ce n'est
+      // pas un code ». On journalise donc ce que Meta répond RÉELLEMENT.
+      //
+      // ⚠️ Aucun secret : ni le code complet, ni le jeton, ni le client_secret.
+      // Le code est à usage unique et vit 30 secondes ; on n'en garde que la
+      // longueur et les 4 premiers caractères, ce qui suffit à reconnaître un
+      // jeton d'accès (`EAA…`, ~200+ caractères) glissé à la place d'un code.
+      // ══════════════════════════════════════════════════════════════════════
+      const e = exchangeData?.error ?? {};
+      console.error("── DIAGNOSTIC Embedded Signup ─────────────────────────");
+      console.error("  HTTP                :", exchangeRes.status);
+      console.error("  valeur reçue du front : longueur =", code?.length ?? 0,
+                    "| début =", (code ?? "").slice(0, 4) + "…",
+                    "| ressemble à un jeton EAA =", (code ?? "").startsWith("EAA"));
+      console.error("  app_id utilisé      :", process.env.NEXT_PUBLIC_META_APP_ID);
+      console.error("  Meta error.message  :", e.message ?? "(aucun)");
+      console.error("  Meta error.type     :", e.type ?? "(aucun)");
+      console.error("  Meta error.code     :", e.code ?? "(aucun)");
+      console.error("  Meta error.subcode  :", e.error_subcode ?? "(aucun)");
+      console.error("  Meta fbtrace_id     :", e.fbtrace_id ?? "(aucun)");
+      console.error("  clés de la réponse  :", Object.keys(exchangeData ?? {}).join(", "));
+      console.error("───────────────────────────────────────────────────────");
+
+      return { error: "Le code de connexion Meta est invalide ou a expiré (durée de vie : 30 secondes). Relancez la connexion." };
+    }
+
+    const accessToken: string = exchangeData.access_token;
+
     // 1. Validate token via debug_token
     const debugRes = await fetch(`https://graph.facebook.com/v19.0/debug_token?input_token=${accessToken}&access_token=${process.env.NEXT_PUBLIC_META_APP_ID}|${process.env.META_APP_SECRET}`);
     const debugData = await debugRes.json();
@@ -145,18 +196,37 @@ export async function finalizeWhatsAppConnection(accessToken: string) {
     const whatsappPhone = phoneData.display_phone_number;
 
     // 3. Atomic Database Update
-    await prisma.school.update({
-      where: { id: auth.ctx.schoolId },
-      data: {
-        whatsappConnectionStatus: "CONNECTED",
-        whatsappName: whatsappName,
-        whatsappPhone: whatsappPhone,
-        whatsappConnectedAt: new Date(),
-        whatsappAccessToken: accessToken, // Store the long-lived or valid system token
-        whatsappPhoneNumberId: phoneNumberId,
-        whatsappBusinessAccountId: wabaId,
+    //
+    // ⚠️ Cette écriture a son PROPRE `catch`. Elle était auparavant dans le bloc
+    // qui entoure les appels Meta, si bien qu'un échec de base — typiquement le
+    // rejet de l'index unique sur `whatsappPhoneNumberId` — était annoncé à
+    // l'écran comme « erreur de communication avec les serveurs de Meta ».
+    // On cherchait alors du côté de Meta un problème qui n'y était pas.
+    try {
+      await prisma.school.update({
+        where: { id: auth.ctx.schoolId },
+        data: {
+          whatsappConnectionStatus: "CONNECTED",
+          whatsappName: whatsappName,
+          whatsappPhone: whatsappPhone,
+          whatsappConnectedAt: new Date(),
+          whatsappAccessToken: accessToken, // Store the long-lived or valid system token
+          whatsappPhoneNumberId: phoneNumberId,
+          whatsappBusinessAccountId: wabaId,
+        }
+      });
+    } catch (dbError: unknown) {
+      // P2002 : violation d'unicité. Le seul cas réaliste est un numéro déjà
+      // rattaché à un autre établissement — la cause exacte du cloisonnement
+      // multi-locataire posé au lot précédent.
+      const code = (dbError as { code?: string })?.code;
+      if (code === "P2002") {
+        return { error: "Ce numéro WhatsApp est déjà relié à un autre établissement. Déconnectez-le de cet établissement avant de le rattacher ici." };
       }
-    });
+      // SÉCURITÉ : ne jamais journaliser l'erreur brute, elle peut porter les valeurs écrites.
+      console.error("Embedded Signup: échec de l'enregistrement en base (code:", code ?? "inconnu", ")");
+      return { error: "La connexion à Meta a réussi, mais l'enregistrement dans EduCom a échoué. Réessayez." };
+    }
 
     revalidatePath("/dashboard/settings");
     return { success: true };

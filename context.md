@@ -1,8 +1,144 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 30 août 2026 — Étape 1 : mise sous contrôle Git du chantier Antigravity.
+> Dernière mise à jour : 31 août 2026 — LOT 18D : nouvelle configuration Embedded Signup (1047210954578180) câblée et vérifiée dans le bundle servi.
 
 ## 📌 Nouvelles Fonctionnalités & Logiques Implémentées (Août 2026)
+
+### LOT 18C — AUDIT DE L'APPLICATION META (31 août 2026)
+- **Ce qui est PROUVÉ par le Graph API** (jeton d'application, lecture seule) : l'app `EduCom Chatbot` (`1636040594916603`) existe et ses identifiants sont valides ; le **produit WhatsApp est bien présent** ; l'abonnement webhook `whatsapp_business_account` est **actif**, pointe sur l'URL du tunnel, et **`messages` fait partie des 10 champs abonnés**. Les points 3 et « webhook » de l'audit sont donc réglés.
+- **⚠️ Deux champs obligatoires pour l'examen de l'app sont VIDES** : `privacy_policy_url` et `category` ne sont pas renvoyés par le Graph. Or aucun des deux ne peut manquer si l'application a passé l'App Review. C'est une preuve indirecte mais solide que **l'app n'a jamais été soumise**.
+- **Le prérequis documenté par Meta pour l'Embedded Signup est unique** : « You will not be able to onboard business customers until your app has been approved for **advanced access** for each of the permissions it requires » — donc `whatsapp_business_management`. Le mode Live, la vérification d'entreprise et l'URL de confidentialité **ne sont pas listés comme prérequis directs** de l'Embedded Signup, contrairement à ce qu'on lit souvent.
+- **⚠️ Le `config_id` n'est PAS lisible via le Graph** (`GraphMethodException`) — c'est le comportement normal des configurations de connexion, **ce n'est donc la preuve de rien**. Ne pas en conclure qu'il est invalide.
+
+
+### LOT 18B — META BLOQUE AVANT DE DÉLIVRER LE CODE (31 août 2026)
+- **⚠️ PREUVE PAR L'ABSENCE, et elle est décisive.** Repère posé dans le journal du serveur (57 058 octets) juste avant la tentative réelle. Après : **une seule requête HTTP dans tout le delta — `GET /dashboard/communications 200`**. Zéro `POST`, zéro invocation de Server Action, zéro appel `graph.facebook`, zéro sortie du bloc DIAGNOSTIC. **Le serveur n'a jamais été sollicité.** Le backend est donc hors de cause : il n'a reçu aucun code, n'a rien échangé, et n'a aucune réponse de Meta à analyser.
+- **Message affiché par Meta** : « This option is unavailable right now. You can try other ways to continue on … ». Il vient de la fenêtre Meta elle-même, **avant** l'émission du code. C'est un refus côté Embedded Signup, pas un échec d'échange.
+- **⚠️ MA SONDE PRÉCÉDENTE ÉTAIT INVALIDE — à ne pas rejouer.** Tester un domaine via `oauth/access_token?redirect_uri=…` interroge la liste « Valid OAuth Redirect URIs », **que l'Embedded Signup n'utilise pas** (le flux n'envoie aucun `redirect_uri`). L'erreur 191 obtenue ainsi ne dit rien des « Allowed Domains for the JavaScript SDK ». Elle a fait ajouter des domaines — utile par ailleurs — mais elle ne prouvait pas la cause. **Une sonde ne vaut que si elle emprunte le même chemin que le code testé.**
+- **Méthode qui a marché** : poser un repère d'octets dans le journal avant l'essai, puis ne lire que le delta. Le bruit de Prisma rend toute lecture globale illisible.
+
+
+### LOT 18B — AUCUN DOMAINE N'EST DÉCLARÉ DANS L'APPLICATION META (31 août 2026)
+- **⚠️ Sonde décisive, et elle se fait sans navigateur** : appeler `oauth/access_token` avec un `redirect_uri` portant le domaine à tester. Erreur **191** = domaine absent des « App Domains ». Testé le 31 août sur les trois candidats — `res-obligation-singh-seems.trycloudflare.com`, `www.educom.school`, `educom.school` : **les trois renvoient 191, aucun n'est déclaré**.
+- **La même sonde sans `redirect_uri` renvoie « Invalid verification code format » (code 100)** : la forme de la requête d'échange est donc **acceptée** par Meta, seul le faux code est rejeté. Cela innocente les paramètres du backend — ni `redirect_uri` ni `grant_type` ne manquent.
+- **Chemin unique confirmé** : un seul `FB.login` dans tout le dépôt, un seul appelant de `finalizeWhatsAppConnection`, les trois correctifs en place. Aucun ancien chemin ne les contourne. **Le bouton est monté dans `CommunicationCenterClient`, pas dans les Réglages** — utile à savoir pour tester.
+- **Diagnostic temporaire posé** dans `settings/actions.ts` : journalise `error.message/type/code/subcode/fbtrace_id` de Meta, la longueur du code reçu et ses 4 premiers caractères (assez pour reconnaître un jeton `EAA…` glissé à la place d'un code). **Aucun secret.** ⚠️ **À RETIRER** une fois la cause confirmée.
+
+
+### LOT 18 — POURQUOI TOUTES LES ÉCOLES ÉTAIENT DÉCONNECTÉES (31 août 2026)
+- **Ce n'était NI un bug, NI la base, NI Meta : quelqu'un a cliqué « Déconnecter WhatsApp ».** Preuve : SENG.CO ACADEMY a été modifiée **seule** le 31 août à `00:22:41`, alors que les 94 autres portent toutes `2026-08-30T22:29:24` (mon script de nettoyage). Et ses **six** colonnes WhatsApp sont à `null` avec `NOT_CONNECTED` — la signature exacte de `disconnectWhatsApp()`, qui écrit précisément ces six-là. Aucune donnée métier perdue (96 conversations, 99 messages, 8 modèles intacts).
+- **⚠️ AUCUNE TRACE DANS LE JOURNAL D'AUDIT, et c'est le vrai défaut.** `connect`, `finalize` et `disconnect` n'appellent **jamais** `recordAudit` — la dernière entrée du journal date du 29 août. Couper la messagerie d'un établissement est pourtant une action critique et irréversible côté jeton. Sans trace, il a fallu reconstituer la cause par les horodatages. **À corriger** : trois appels à `recordAudit` dans `settings/actions.ts`.
+- **⚠️ DÉFAUT DE DIAGNOSTIC CORRIGÉ — une panne de base était annoncée comme une panne Meta.** L'écriture `prisma.school.update` vivait dans le même `try` que les appels Graph, dont le `catch` renvoie « Erreur lors de la communication avec les serveurs de Meta ». Un rejet de l'index unique sur `whatsappPhoneNumberId` — le cas réaliste depuis le lot précédent — aurait donc envoyé chercher chez Meta un problème qui n'y est pas. L'écriture a désormais son propre `catch`, avec un message dédié pour `P2002` (« numéro déjà relié à un autre établissement »).
+- **⚠️ LA PRODUCTION NE PORTE PAS LES CORRECTIFS.** `www.educom.school` sert `origin/main` (`1f36fcc`) ; les deux corrections de l'Embedded Signup (`FB.init` jamais appelé, `authResponse.code` au lieu de `accessToken`) vivent sur la branche locale, **non commitées**. **Se reconnecter depuis la production échouerait encore** — la reconnexion doit se faire depuis le tunnel HTTPS, qui sert le code corrigé.
+- **Vérifié** : webhook public toujours opérationnel (challenge exact avec l'agent Meta, POST non signé refusé en 403) ; les trois correctifs d'Embedded Signup présents dans le code ; `tsc` 0 erreur ; lint inchangé (0 avant, 0 après).
+
+
+### LOT 17 — LES CAMPAGNES NE MENTENT PLUS (31 août 2026)
+- **Le mensonge était à TROIS endroits, pas un.** (1) la base recevait `SCHEDULED`/`PROCESSING` ; (2) le toast disait « Campagne créée avec succès » et les boutons « Créer et Planifier » / « Activer le Workflow » ; (3) la liste affichait le statut brut (`SCHEDULED`) suivi de « 0 envoyés ». Corriger un seul endroit aurait laissé les deux autres promettre.
+- **Décision : `DRAFT` en base, pas un statut conditionnel.** Écrire une promesse en base la propage ensuite partout — écrans, exports, statistiques — et il faudrait la démentir à chaque point d'affichage. La vérité est stockée une fois.
+- **⚠️ L'override d'affichage couvre AUSSI les campagnes déjà en base.** Deux campagnes portent `SCHEDULED`/`PROCESSING` d'avant le correctif. `campaignStateLabel` neutralise tout statut qui promet, plutôt que de réécrire des données métier pour rattraper un défaut d'affichage.
+- **Autorité unique : `src/lib/campaignDispatch.ts`.** Même discipline que `channels.ts` — aucun écran ne juge seul s'il peut écrire « planifiée ». `CAMPAIGN_DISPATCH_AVAILABLE` porte en commentaire les **trois** conditions à réunir avant de passer à `true` (appel réel au moteur, tâche planifiée, école connectée + opt-in).
+- **⚠️ Le vérifieur teste le GARDAGE, pas la présence des mots.** Première version : elle interdisait « planifiée » n'importe où, et échouait sur la branche légitime qui ne s'exécute que si le drapeau est vrai. Un tel contrôle pousse à supprimer du bon code. Il vérifie désormais qu'un mot d'envoi est **précédé du drapeau** dans les 400 caractères. `scripts/verify-campaign-honesty.ts`, cinq propriétés.
+- **Vérifieur éprouvé par MUTATION** : drapeau forcé à `true` alors que rien n'envoie → **ÉCHEC** attendu, puis restauration et retour au vert. Un vérifieur qui ne peut pas échouer ne prouve rien.
+- **Vérifié** : `tsc` 0 erreur ; lint **identique avant/après** sur les 3 fichiers modifiés (3, 7 et 1 erreurs préexistantes), **0 erreur** sur les 2 fichiers neufs ; la page compile sans erreur au journal de dev.
+- **Non fait, volontairement** : l'envoi réel n'est pas branché. C'est le lot suivant.
+
+
+### LOT 17 — AUDIT DE DIFFUSION (31 août 2026)
+- **⚠️ ÉTAT DE LA BASE : plus AUCUNE école n'est connectée à WhatsApp.** 95 écoles, **0 jeton, 0 phone_number_id, 0 `CONNECTED`**. SENG.CO ACADEMY en portait après la rotation du 31 août (empreinte `7ac2b4d461f6` vérifiée). Les six colonnes remises à `null` avec le statut `NOT_CONNECTED` correspondent exactement à ce que fait `disconnectWhatsApp` — la déconnexion a donc probablement été déclenchée depuis les Réglages. **Rien ne peut partir tant qu'une école n'est pas reconnectée.**
+- **⚠️ LES CAMPAGNES N'ENVOIENT RIEN, ET L'ÉCRAN NE LE DIT PAS.** `campaigns/new/actions.ts` crée la campagne avec le statut `SCHEDULED`/`PROCESSING` puis s'arrête : l'appel `workflowEngine.processManualCampaign(campaign.id)` est **en commentaire, ligne 58**. Une directrice qui crée une campagne voit « planifiée » et croit ses familles prévenues.
+- **⚠️ LE MOTEUR DE WORKFLOWS EST DU CODE MORT.** `processAutomatedWorkflows` se documente comme « point d'entrée CRON », mais `vercel.json` ne déclare qu'un seul cron, `/api/cron/overdue`, qui ne touche pas à WhatsApp. **Aucun appelant dans tout `src/`.**
+- **⚠️ DEUX NOTIONS CONCURRENTES DE « PEUT-ON ENVOYER ».** `src/lib/channels.ts` — présenté comme « la seule autorité sur la question » — raisonne encore sur **Twilio**, et son registre `SEND_IMPLEMENTATIONS` est **vide**. Il ignore totalement le chemin Meta (`src/lib/whatsapp/client.ts`) qui, lui, envoie pour de vrai. Conséquence : le centre documentaire et le dossier élève affichent « Préparer la remise » alors que la messagerie, elle, envoie. Les deux ne se parlent pas. `TWILIO_PHONE_NUMBER` n'est d'ailleurs pas un expéditeur WhatsApp (pas de préfixe `whatsapp:`), donc `channels.ts` a raison **pour Twilio** — il est simplement aveugle à Meta.
+- **Ce qui marche vraiment** : la réponse manuelle depuis la boîte de réception (`inbox/actions.ts`) appelle réellement `WhatsAppClient.sendTextMessage`, vérifie la fenêtre des 24 h, capture le `waMessageId` et écrit `SENT`. C'est le **seul** chemin d'envoi prouvé du produit.
+- **E-mail : aucun fournisseur.** Aucune dépendance installée (ni Resend, ni Nodemailer, ni SendGrid). Les seuls e-mails réellement émis sont ceux de **Supabase Auth** (confirmation, réinitialisation, invitation) — authentification uniquement, jamais communication scolaire. **Google Drive : rien du tout**, `drive` n'est qu'une étiquette dans `channels.ts`.
+
+
+### Google OAuth — configuration Supabase appliquée (31 août 2026)
+- **Fait par l'API de gestion Supabase**, pas à la main : fournisseur Google activé, Client ID posé, Site URL passé de `http://localhost:3000` à `https://www.educom.school`, et `uri_allow_list` — **qui était VIDE** — renseignée avec les trois origines (production, localhost, tunnel).
+- **⚠️ `urllib` est bloqué par Cloudflare sur `api.supabase.com`** : le `PATCH` renvoyait `403 error code: 1010` (contrôle d'intégrité du navigateur) alors que le même appel en `curl` passe. Ce n'est pas un problème d'autorisation — chercher du côté du jeton aurait fait perdre du temps. **Utiliser `curl` pour l'API de gestion.** Le corps est transmis par entrée standard, pour que le secret ne figure ni dans `argv` ni sur le disque.
+- **⚠️ Le Site URL valait `http://localhost:3000` en base.** Sans correction, toute redirection non explicitement autorisée y renvoyait — en production, un utilisateur authentifié aurait atterri sur une machine de développement.
+- **Vérifié en réel, quatre points** : relecture par l'API (`external_google_enabled=true`, Client ID conforme, secret présent, Site URL et trois URL de redirection enregistrées) ; `/auth/v1/authorize?provider=google` répond **302** au lieu de `400 provider is not enabled` ; l'URL générée porte le bon `client_id` et le bon `redirect_uri` Supabase ; **Google sert l'écran de connexion** au bout de la chaîne. Idem depuis `localhost`.
+- **⚠️ SÉCURITÉ — le jeton `sbp_` a été collé en clair dans la conversation.** Il donne un accès complet à la *configuration* du projet Supabase. Il vit dans `.env` (ignoré par Git, vérifié : 0 fichier suivi), mais **il doit être révoqué et recréé** sur `supabase.com/dashboard/account/tokens` une fois la configuration terminée.
+
+
+### Google OAuth — comment vérifier SANS navigateur (31 août 2026)
+- **Deux sondes non authentifiées suffisent à situer une panne OAuth**, et elles évitent des allers-retours à l'aveugle dans deux consoles :
+  1. **Fournisseur activé côté Supabase ?** `GET https://<ref>.supabase.co/auth/v1/authorize?provider=google` — s'il est éteint, Supabase répond lui-même `400 {"error_code":"validation_failed","msg":"Unsupported provider: provider is not enabled"}`. C'est exactement ce qu'il répondait le 31 août.
+  2. **URI de redirection enregistrée côté Google ?** Appeler `accounts.google.com/o/oauth2/v2/auth` avec le `client_id` et l'URI : une page contenant `redirect_uri_mismatch` = non enregistrée, l'écran de connexion Google = acceptée.
+- **Résultat du 31 août** : la référence corrigée `slqjdyfdzvuqjxegojwu` est **ACCEPTÉE** par Google (écran de connexion servi), l'ancienne `slqjdfdzvuqjxegojwu` renvoie `redirect_uri_mismatch`. **La correction Google Cloud a donc bien pris.** Il ne reste que l'activation du fournisseur côté Supabase.
+- **⚠️ La clé de service NE PERMET PAS de configurer les fournisseurs.** `GET api.supabase.com/v1/projects/<ref>/config/auth` avec `SUPABASE_SERVICE_ROLE_KEY` → **401 « JWT could not be decoded »**. Il faut un **Personal Access Token** (`sbp_…`, créé sur `supabase.com/dashboard/account/tokens`). Sans lui, l'activation du fournisseur et les URL de redirection restent des gestes manuels dans le tableau de bord.
+
+
+### Google OAuth — audit de la configuration (31 août 2026)
+- **⚠️ BLOQUANT — l'URI de redirection déclarée dans Google Cloud désigne un projet Supabase INEXISTANT.** Lu directement dans le fichier `client_secret_*.json` : `slqjdfdzvuqjxegojwu` (19 caractères). Réel : `slqjdyfdzvuqjxegojwu` (20 caractères). **Une seule faute** — le `y` après `slqjd` manque. (Une première lecture, faite sur l'URI recopiée à la main dans la conversation, laissait croire à une seconde inversion : elle n'existe pas dans le fichier. Toujours lire la source, jamais sa transcription.) Vérifié par requête HTTP : le projet réel répond **401** sur `/auth/v1/health` (service vivant, clé attendue), le projet saisi ne résout **même pas** (000). Google renverra `redirect_uri_mismatch` à chaque tentative. **Une référence Supabase fait toujours 20 caractères : compter est le contrôle le plus rapide.**
+- **⚠️ L'origine de production n'est PAS `https://educom.school`.** L'apex renvoie un **308 vers `https://www.educom.school`**, et c'est `www` qui sert réellement l'application (titre EduCom confirmé, `/login` en 200). Or `GoogleAuthButton` construit sa redirection avec `window.location.origin` : après le 308, l'origine est donc `www`. **C'est `https://www.educom.school/**` qui doit figurer dans les URL de redirection autorisées de Supabase** — déclarer l'apex seul laisserait la connexion échouer en production.
+- **Aucun code à modifier.** Le parcours est déjà correct de bout en bout : `signInWithOAuth` côté client, `exchangeCodeForSession` dans `src/app/auth/callback/route.ts`, garde anti-redirection ouverte sur `next`, et création à la volée de l'école et de l'utilisateur Prisma pour un premier accès Google. L'architecture Supabase existante est réutilisée telle quelle.
+- **Non vérifiable depuis le dépôt** : l'activation du fournisseur Google dans Supabase et la saisie du client secret se font dans le tableau de bord Supabase. La clé de service ne donne pas accès à cette configuration.
+- **`client_secret*.json` ajouté au `.gitignore`**, ancré à n'importe quelle profondeur. Le fichier vit dans `~/Downloads` et n'a jamais approché le dépôt — mais il porte le secret en clair, et ce dépôt est public.
+
+
+### Authentification derrière un tunnel HTTPS (31 août 2026)
+- **⚠️ LE PIÈGE — Next bloque ses propres ressources de dev depuis un hôte non déclaré, et l'échec est MUET.** En développement, Next refuse `/_next/static/*` et `/_next/hmr` à toute origine autre que `localhost`. La page HTML, elle, est servie normalement en **200** : l'écran de connexion s'affiche, semble sain… mais les chunks JavaScript sont refusés, React n'hydrate jamais, et le Server Action `login` ne part pas. **Le formulaire ne fait simplement rien, sans le moindre message d'erreur.** La preuve était dans `.next/dev/logs/next-development.log` (« Blocked cross-origin request to Next.js dev resource … »), pas à l'écran.
+- **⚠️ Piège de méthode** : un `curl` sur *un* asset avait renvoyé 200 et m'avait fait conclure trop vite que le tunnel passait. Un seul asset ne prouve rien — il faut lire le journal du serveur, qui seul énumère les refus.
+- **Deux garde-fous distincts, tous deux à ouvrir** : `allowedDevOrigins` (ressources de dev) **et** `experimental.serverActions.allowedOrigins` (un Server Action compare `Origin` à `Host` et abandonne s'ils diffèrent — derrière un tunnel ils diffèrent toujours). Le premier seul aurait laissé la connexion échouer pour une raison entièrement différente.
+- **Décision : piloté par `DEV_ALLOWED_ORIGINS` dans `.env`, pas écrit en dur.** Les URL de tunnel sont éphémères ; coder l'hôte dans `next.config.ts` obligerait à modifier le dépôt à chaque redémarrage. La liste est **vide par défaut** : ce sont des listes blanches explicites, la protection CSRF reste entière pour toute origine non déclarée, et Next ignore `allowedDevOrigins` en production.
+- **Vérifié après redémarrage** : `/login` en 200 et **6 chunks sur 6 chargés** depuis le tunnel *et* depuis localhost ; `/dashboard/settings` renvoie 307 vers la connexion des deux côtés (protection intacte) ; **0 blocage** dans le journal. `tsc` 0 erreur, `next.config.ts` propre au lint.
+- **NON vérifié** : la connexion réelle avec identifiants — elle exige un navigateur.
+- **⚠️ Deux points relevés au passage, hors chantier** : (1) `src/app/dashboard/team/actions.ts:59` retombe en dur sur `http://localhost:3000` pour les liens d'invitation, alors que `register` et `forgot-password` dérivent correctement l'origine de `x-forwarded-proto` + `host` ; `NEXT_PUBLIC_SITE_URL` n'est pas défini. (2) Une requête `GET /register?email=…&password=…` figure dans le journal de dev : **un mot de passe transitant en paramètre d'URL finit écrit dans les logs**. À corriger, ce n'est pas un accident isolé du poste de dev.
+
+
+### Phase 14 — POURQUOI META RENVOYAIT VERS /business/cancel (31 août 2026)
+- **⚠️ CAUSE N°1, ET ELLE EST VICIEUSE — `FB.init()` n'était JAMAIS appelé.** `window.fbAsyncInit` était assigné **dans le `onLoad` du `<Script>`**, donc *après* l'exécution du SDK. Or le SDK appelle `fbAsyncInit` pendant son propre chargement : au moment où il la cherchait, la fonction n'existait pas encore. Résultat : SDK chargé mais **non initialisé**. Et comme `window.FB` existait bel et bien, le garde `if (!window.FB)` passait sans rien détecter — `FB.login` partait sur un SDK sans `appId`, Meta annulait la session et renvoyait vers `/dialog/oauth/business/cancel/`. Le « Confirm Form Resubmission / ERR_CACHE_MISS » de Chrome n'est **qu'un symptôme** : le navigateur rejoue la redirection d'annulation. **Chercher la cause côté Meta était une impasse.**
+- **Corrigé** : `FB.init()` est appelé directement dans `onLoad` (le SDK y est déjà exécuté), et un état `sdkReady` distingue désormais « SDK absent » de « SDK non initialisé » — les deux pannes produisaient jusqu'ici le même message inutile.
+- **⚠️ CAUSE N°2 — `http://localhost:3000` ne peut PAS fonctionner, jamais.** Meta impose HTTPS pour Facebook Login for Business, et le domaine hôte doit figurer dans « Allowed Domains for the JavaScript SDK ». Vérifié dans la documentation, pas supposé. **L'Embedded Signup doit donc être lancé depuis l'URL HTTPS du tunnel**, pas depuis localhost. Vérifié : le tunnel sert l'application et les assets `_next` en 200, sans avertissement d'origine croisée — aucun `allowedDevOrigins` nécessaire.
+- **Écartées après vérification** : en-têtes de sécurité (aucun COOP/COEP/CSP dans `next.config.ts`, les popups ne sont pas bloquées) ; `config_id` (présent) ; identifiants d'application (validés en réel auprès du Graph API).
+- **Observation, sans incidence ici** : aucun écouteur `postMessage` n'est posé pour récupérer les `sessionInfo` de Meta. Ce n'est pas la cause — le WABA et le `phone_number_id` sont résolus côté serveur à partir du jeton — mais c'est le complément recommandé par Meta.
+- **⚠️ L'URL Cloudflare est ÉPHÉMÈRE** : elle change à chaque redémarrage du tunnel, et doit être re-déclarée **à la fois** dans les domaines autorisés du SDK et dans le webhook. Pour sortir de ce cycle, il faudra un domaine stable.
+
+
+### Go-Live WhatsApp — PHASE 14 : EMBEDDED SIGNUP (31 août 2026)
+- **⚠️ BUG BLOQUANT TROUVÉ — l'Embedded Signup ne pouvait PAS fonctionner.** Le front appelait `FB.login` avec `response_type: 'code'` et `override_default_response_type: true`, puis lisait `response.authResponse.accessToken`. **Dans le mode `code`, Meta ne renvoie aucun jeton** : il renvoie un code à usage unique. `accessToken` valait donc toujours `undefined`, et `finalizeWhatsAppConnection` partait valider `input_token=undefined` — échec systématique avec le message trompeur « jeton invalide ou expiré ». Le code n'avait jamais été exécuté en conditions réelles.
+- **Corrigé** : le front transmet `authResponse.code`, et le serveur l'échange contre le jeton métier du client avant de poursuivre. **⚠️ Le code ne vit que 30 secondes** — l'échange doit rester serveur-à-serveur et immédiat, sans étape intermédiaire.
+- **⚠️ Forme des paramètres VÉRIFIÉE, pas devinée.** La documentation Meta décrit le flux mais ne publie pas l'appel d'échange. Sondé directement : `GET /v19.0/oauth/access_token?client_id=&client_secret=&code=` renvoie « Invalid verification code format » sur un faux code — donc l'endpoint et les identifiants sont acceptés, et **ni `redirect_uri` ni `grant_type` ne sont attendus**. Une erreur portant sur le code seul prouve que le reste de la requête est bon.
+- **Identifiants Meta validés en réel** : `client_credentials` sur le Graph API renvoie un jeton d'application, et `debug_token` confirme que l'`app_id` correspond à `NEXT_PUBLIC_META_APP_ID`. Ce n'est pas une lecture de `.env`, c'est une réponse de Meta.
+- **Vérifié aussi** : `META_APP_SECRET` n'est référencé dans aucun `.tsx` et ne porte pas le préfixe `NEXT_PUBLIC` ; les 4 Server Actions ne renvoient que `{ success: true }` ; aucun `updateMany` ; les 4 écritures visent `where: { id: auth.ctx.schoolId }` ; simulateur à `false` ; `/dashboard/settings` réservé à OWNER/ADMIN.
+- **NON vérifié** : le parcours navigateur lui-même. `FB.login` exige un clic humain et une session Meta — impossible à exécuter ici. La résolution du WABA et du phone_number_id ne pourra être prouvée qu'après ce clic.
+
+
+### Go-Live WhatsApp — PHASES 10 à 12 (30 août 2026)
+- **⚠️ LOCALTUNNEL EST INUTILISABLE POUR META — et l'échec est silencieux si on ne teste qu'avec curl.** Le tunnel répond correctement à un `User-Agent` type curl (HTTP 200, challenge exact), mais sert son interstitiel « Tunnel website ahead! » en **HTTP 511** à un navigateur, et renvoie **HTTP 408** à `facebookexternalhit/1.1`. Autrement dit : un test local au `curl` passe au vert pendant que Meta, lui, ne peut pas valider le webhook. **Toujours tester un tunnel avec l'agent de Meta, jamais avec celui par défaut.**
+- **Remplacé par Cloudflare Tunnel** (`npx -y cloudflared tunnel --url http://localhost:3000`), sans interstitiel. Vérifié sur les trois agents (Meta, navigateur, curl) : **challenge exact et HTTP 200 dans les trois cas**, mauvais jeton → 403, POST non signé → 403, POST signé avec l'agent de Meta → 200. L'URL `*.trycloudflare.com` est **éphémère** : elle change à chaque redémarrage et doit être re-déclarée dans la console Meta à chaque fois.
+- **Rotation du jeton faite proprement.** `scripts/rotate-whatsapp-token.ts` : essai à blanc par défaut, déduit **une seule** école (statut `CONNECTED` + jeton non nul) et s'interrompt sinon, lit le jeton depuis `.env`, `update` sur un id unique — **jamais `updateMany`**, aucun identifiant en dur. Vérification par **empreintes SHA-256** uniquement : `cda44759723a` → `7ac2b4d461f6`, correspond à `.env`, et 0 autre école touchée. Le jeton n'apparaît dans aucun fichier suivi, ni dans tout l'historique Git, ni dans les journaux du serveur.
+- **⚠️ RAPPEL DE HIÉRARCHIE — `.env` ne suffit jamais.** `WhatsAppClient.forSchool()` lit **d'abord** `School.whatsappAccessToken` en base et ne se rabat sur `WHATSAPP_ACCESS_TOKEN` que si la colonne est vide. Changer la variable d'environnement sans toucher la base ne fait donc **rien** pour une école connectée. C'est ce piège qui a rendu la rotation nécessaire côté base.
+- **⚠️ L'OPT-IN EST UN MUR, et il est fermé.** Inspection complète : `whatsappOptIn` est **lu à un seul endroit** (`workflowEngine.ts:107`, garde avant envoi automatisé) et **écrit nulle part** — aucune interface, aucune Server Action, aucun handler entrant ne le fait passer à `OPTED_IN`. Aucun opt-in implicite n'existe non plus. Conséquence : 194 comptes `UNKNOWN`, **aucun workflow automatisé ne peut envoyer quoi que ce soit**, sans erreur ni trace. Décider *où* le consentement est recueilli est un arbitrage produit — **rien n'a été inventé, la décision revient à Kory**.
+- **Tests réellement exécutés** : GET challenge public (3 agents), GET jeton faux, POST non signé, POST signé — tous via l'URL HTTPS publique. **Aucun test Meta réel** : ni configuration de la console, ni message d'un vrai parent.
+- **Prochaine étape** : déclarer l'URL Cloudflare dans Meta → WhatsApp → Configuration → Webhooks, puis phases 13 à 18.
+
+
+### Go-Live WhatsApp — PHASES 1 à 12 (30 août 2026)
+- **⚠️ `prisma db push` REFUSE de poser une contrainte unique sans `--accept-data-loss`**, et son avertissement est **générique** : « si des doublons existent, cela échouera ». Ce n'est pas un constat sur les données. Utiliser le drapeau reviendrait à désarmer l'avertissement sans le lire. **La bonne voie est `CREATE UNIQUE INDEX` en SQL** : PostgreSQL refuse lui-même l'index en cas de doublon, donc le garde-fou reste armé là où il compte. Deux scripts idempotents suivent ce modèle (`add-unique-whatsapp-phone-index.ts`, `add-unique-conversation-index.ts`), essai à blanc par défaut. Le nom d'index doit être **exactement** celui qu'attend Prisma, sinon `migrate diff` reste rouge.
+- **✅ HMAC posé et RÉELLEMENT éprouvé** sur le serveur de dev : sans signature → 403, signature malformée → 403, signature d'un autre secret → 403, signature valide → 200 ; et le GET de vérification Meta répond toujours le challenge exact (jeton faux → 403).
+- **⚠️ LE PIÈGE DU HMAC — signer le corps BRUT.** La signature porte sur les octets exacts envoyés par Meta. Re-sérialiser un objet déjà analysé (`JSON.stringify(await req.json())`) produit d'autres octets — ordre des clés, espaces, échappement unicode — et la signature ne tombe **jamais** juste. Le handler lit donc `req.text()` **avant** de parser. Le simulateur (`scripts/simulate-whatsapp.ts`) a dû être aligné : il ne signait pas, il testait un chemin que la production rejette désormais.
+- **⚠️ BUG TROUVÉ ET CORRIGÉ — les statuts pouvaient reculer.** `processStatuses` écrasait le statut sans condition. Meta ne garantit pas l'ordre des callbacks : un `sent` arrivant après un `read` faisait régresser READ → SENT, et un message lu repassait en « envoyé » dans l'Inbox. Le garde est désormais **dans la clause WHERE** (`notIn` des statuts déjà atteints + FAILED terminal), pas dans un lire-puis-écrire — deux callbacks simultanés ne peuvent plus se courir dessus. **Non éprouvé à l'exécution** : cela demanderait de fabriquer des messages de test.
+- **Décision : aucune contrainte unique sur `WebhookEvent`.** La table est **morte** (jamais écrite dans `src/`, 0 ligne) et surtout **le payload WhatsApp Cloud API ne fournit aucun identifiant d'événement global** — seulement le `wamid`, déjà `UNIQUE` sur `Message.waMessageId` et déjà dédupliqué à l'entrée. Poser une contrainte supposerait d'inventer un identifiant : écarté.
+- **`WhatsAppConversation` : contrainte unique composite** sur (`schoolId`, `parentWaNumber`, `waPhoneId`) — le triplet exact que le webhook interroge avant de créer. Sans elle, deux messages simultanés passent tous deux par la branche « pas trouvée » et créent deux fils.
+- **⚠️ L'OPT-IN EST UN MUR SILENCIEUX.** `workflowEngine.ts` refuse d'envoyer si `whatsappOptIn !== OPTED_IN` — le garde est correct et échoue fermé. Mais **rien dans le code ne passe jamais un parent à `OPTED_IN`** : 194 comptes, tous `UNKNOWN`. Conséquence : **aucun workflow automatisé ne peut envoyer quoi que ce soit aujourd'hui**, sans erreur ni trace. Où recueillir le consentement est une décision produit, pas technique — **en attente d'arbitrage de Kory**.
+- **Bloqué sur l'extérieur** : aucun tunnel HTTPS public n'est actif, donc Meta ne peut pas appeler le webhook. Les 5 variables Meta sont en revanche toutes définies dans `.env`, et le simulateur est bien à `false`.
+- **Vérifié** : `tsc --noEmit` 0 erreur ; drift Prisma ↔ base = 0 ; lint des fichiers touchés = 3 erreurs **toutes pré-existantes** (`any` sur `processMessages`, `processStatuses`, un `catch`). L'unique erreur que j'avais introduite (`body: any`) a été corrigée par un type explicite.
+
+
+### Étape 3.1 : ISOLATION MULTI-LOCATAIRE WHATSAPP (30 août 2026) — ✅ APPLIQUÉ
+- **⚠️ LE PIÈGE MAJEUR — un `updateMany` sans `where`.** `scripts/inject-tokens.ts` écrivait le jeton Meta de production dans **toutes** les écoles : 94 écoles ont fini avec **le même jeton et le même `phone_number_id`** (`COUNT(DISTINCT)` = 1 pour les deux), toutes marquées `CONNECTED`. Le webhook résolvait l'école par `findFirst({ where: { whatsappPhoneNumberId } })` : avec 94 candidates et aucun `orderBy`, PostgreSQL en renvoyait une **arbitraire**. Un message de parent pouvait atterrir chez le mauvais locataire — et c'est arrivé (COMPLEXE ASTOU BA porte 1 message Meta sans avoir jamais été connectée).
+- **⚠️ PIRE QUE LE BLOCKER INITIAL — `GET /api/dev-messages` était une fuite publique.** Aucune authentification, aucun cloisonnement : la route renvoyait le `whatsappAccessToken` de **toutes** les écoles en JSON clair, plus les 5 derniers messages tous locataires confondus. Corrigée : le jeton n'est plus lu du tout, et la route répond 404 hors développement. (`api/dev/setup` était correctement fermée par `NODE_ENV`, elle.)
+- **Comment l'école légitime a été identifiée — sans arbitrage.** Le script fautif n'écrivait que 3 colonnes. Les signaux qu'il ne touchait pas désignent **une seule** école : SENG.CO ACADEMY porte l'unique `whatsappBusinessAccountId`, l'unique `whatsappName`, l'unique `whatsappPhone`, l'unique `whatsappConnectedAt` (29 août 00:40), 243 élèves et 3 des 4 messages à identifiant Meta. Le script de nettoyage **déduit** ce critère au lieu de le coder en dur, et s'interrompt s'il ne désigne pas exactement une école.
+- **Décision : le routage refuse au lieu de choisir.** Le webhook lit désormais deux candidates (`findMany take: 2`). Plus d'une → refus, message abandonné, 200 rendu à Meta (un réessai ne corrige pas une collision de configuration). Zéro → refus également : **le repli sur l'école du parent a été supprimé**, c'était de l'arbitrage déguisé, un numéro pouvant correspondre à des parents de plusieurs écoles.
+- **`School.whatsappPhoneNumberId` passe en `@unique`.** En PostgreSQL un index unique autorise plusieurs `NULL` : les écoles non connectées cohabitent sans collision. ⚠️ **La contrainte n'est PAS encore en base** — elle échouerait tant que les 93 doublons existent.
+- **✅ Appliqué le 30 août** : 93 écoles nettoyées, index unique posé. Vérifié : 1 seule école porte un `phone_number_id`, 0 doublon, 94 écoles à `NOT_CONNECTED`, et **aucune donnée métier perdue** (95 écoles / 2 243 élèves / 194 comptes / 96 conversations / 99 messages, identiques avant et après).
+- **Sauvegarde sans secret, volontairement** : le fichier `backups/whatsapp-credentials-*.json` ne contient **aucun jeton**. Les 94 écoles portaient la même valeur et l'école conservée la garde : l'écrire dans un fichier recréerait le secret en clair, soit exactement le problème qu'on répare.
+- **Chemins d'écriture vérifiés** : `finalizeWhatsAppConnection` et `simulateConnectWhatsApp` utilisent `update({ where: { id: auth.ctx.schoolId } })` avec `requireActionContext`, et `/dashboard/settings` n'est ouvert qu'à `OWNER`/`ADMIN`. Aucun `updateMany` sur `School` ne subsiste dans `src/`.
+- **Vérifié** : `tsc --noEmit` 0 erreur ; les 3 erreurs ESLint des fichiers touchés sont pré-existantes (`any` déjà présents), sur 688 problèmes à l'échelle du dépôt. Branche de refus du routage éprouvée sur les données réelles (2 candidates renvoyées → REFUS).
+- **NON vérifié** : aucun test Meta réel. Le jeton reste à régénérer côté console Meta.
+
 
 ### Étape 1 : MISE SOUS CONTRÔLE GIT DU CHANTIER ANTIGRAVITY (30 août 2026)
 - **Le point de départ** : quatre jours de travail Antigravity vivaient **entièrement dans le working tree** — 76 fichiers modifiés/supprimés et 61 fichiers non suivis, zéro commit depuis `1f36fcc`. Un `git clean` ou un crash effaçait tout.
@@ -3639,3 +3775,74 @@ rhétorique. C'est le premier chantier où elle coûte quelque chose.
   - **Documents** pointe désormais explicitement vers le Centre documentaire.
   - **Notes & bulletins** intègre la génération de Bulletins (qui n'était qu'en /documents).
   - **Élèves & dossiers** inclut l'Annuaire, les Dossiers, Import et Export.
+
+---
+
+## LOT 18D — Nouvelle configuration Embedded Signup (31 août 2026)
+
+**Ce qui a changé.** Une configuration « WhatsApp Embedded Signup » a été créée
+côté Meta (jeton d'utilisateur système, 60 jours, actif « comptes WhatsApp »,
+permissions `whatsapp_business_management` + `whatsapp_business_messaging`).
+`NEXT_PUBLIC_META_CONFIG_ID` passe de `2637198510423352` à `1047210954578180`.
+L'ancienne valeur n'était **pas** prouvée fautive (le lot 18C avait conclu
+*cause non prouvée*) ; on ne l'a donc pas « corrigée », on l'a remplacée par une
+configuration dont on connaît la nature avec certitude, ce qui n'était pas le
+cas de la précédente.
+
+**Piège coûteux, à retenir.** `NEXT_PUBLIC_*` est **inliné à la compilation** par
+Turbopack. Changer la ligne dans `.env` sans redémarrer `next dev` laisse
+l'ancien identifiant dans le bundle : on teste alors une valeur qui n'existe
+plus dans le fichier qu'on est en train de lire. Vérification qui tranche
+vraiment — récupérer le chunk **par HTTP** sur le serveur qui tourne et y
+chercher la valeur ; le contenu de `.env` ne prouve rien.
+Preuve obtenue ici : `config_id: ("TURBOPACK compile-time value", "1047210954578180")`
+dans le chunk du widget servi (0 occurrence de l'ancien ID).
+Autre faux ami : `.next/dev/**` conserve les chunks périmés des builds
+précédents. Un `grep` sur le dossier retrouve donc l'ancien ID **même après un
+redémarrage réussi** — ce n'est pas un échec, ces fichiers ne sont plus servis.
+
+**Audit du flux existant (avant toute modification).** Un seul parcours de
+connexion existe, il ne faut pas en créer un second : widget
+`WhatsAppConnectionWidget` (monté sur `/dashboard/communications`, **pas** sur
+`/dashboard/settings` malgré les `revalidatePath` des actions), et
+`finalizeWhatsAppConnection` dans `settings/actions.ts`. Sont corrects :
+l'ordonnancement de `FB.init`, `response_type: 'code'`, l'échange code→jeton
+côté serveur, `debug_token`, l'extraction du WABA, l'écriture atomique.
+
+**Manques confirmés par la documentation Meta, non traités dans ce lot :**
+
+1. **`POST /{waba-id}/subscribed_apps` absent** — Meta l'exige explicitement
+   pour chaque client qui termine le parcours. Sans cet appel, **aucun message
+   entrant de cette école n'atteindra jamais notre webhook**, quand bien même
+   le webhook est actif et abonné au champ `messages`. C'est le manque le plus
+   grave, et il est invisible : rien n'échoue, il ne se passe simplement rien.
+2. **`POST /{phone-number-id}/register` absent** (`messaging_product` + `pin` à
+   6 chiffres) — prérequis Cloud API du numéro émetteur.
+3. **Aucun écouteur `window.addEventListener('message')`** pour les événements
+   `WA_EMBEDDED_SIGNUP` (FINISH / CANCEL + motif) de `sessionInfoVersion: 3`.
+   C'est précisément l'angle mort des lots 18B et 18C : quand Meta annule, on ne
+   dispose d'aucune trace côté client, et les logs serveur sont muets puisque
+   aucun code n'est jamais émis.
+4. Jeton système à **60 jours** sans champ d'expiration ni renouvellement en
+   base : panne silencieuse programmée.
+5. `whatsappAccessToken` stocké **en clair**.
+6. `phonesData.data[0]` pris à l'aveugle si le WABA porte plusieurs numéros.
+
+**Toujours en suspens côté Meta (hors code) :** l'accès avancé sur
+`whatsapp_business_management` / `whatsapp_business_messaging` reste la question
+non tranchée du lot 18C — créer une configuration ne l'accorde pas. Et l'URL du
+webhook pointe encore sur un tunnel `trycloudflare` éphémère.
+
+**Ordre retenu :** (1) config_id + redémarrage ✅ fait — (2) écouteur
+`message` ✅ fait — (3) nouvelle tentative réelle ⏳ — (4) `subscribed_apps` +
+`register` une fois le code obtenu.
+
+**Écouteur de diagnostic (étape 2).** `WhatsAppConnectionWidget` porte désormais
+un `useEffect` purement observateur, marqué `[DIAG 18E]`, filtré sur les origines
+`www.facebook.com` et `web.facebook.com`, qui journalise en console les
+événements `WA_EMBEDDED_SIGNUP` : `event`, `current_step`, `error_message`,
+`error_id`, et les clés de `data`. Les identifiants WABA / numéro sont masqués
+aux 4 derniers caractères ; Meta n'envoie de toute façon ici ni jeton ni code.
+À retirer une fois la cause identifiée. Les 3 alertes ESLint du fichier
+(`Link2` inutilisé, deux `any`) **préexistaient** dans HEAD — vérifié, elles ne
+viennent pas de cet ajout.

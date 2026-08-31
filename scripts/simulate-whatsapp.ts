@@ -1,4 +1,3 @@
-import { prisma } from '../src/lib/prisma';
 import crypto from 'crypto';
 
 async function run() {
@@ -52,10 +51,26 @@ async function run() {
   };
 
   try {
+    // Le webhook vérifie désormais `X-Hub-Signature-256`. Le simulateur doit
+    // signer comme Meta, sinon il teste un chemin que la production rejette.
+    // ⚠️ Signer la chaîne EXACTE envoyée, pas l'objet : deux sérialisations
+    // d'un même objet ne produisent pas les mêmes octets.
+    const appSecret = process.env.META_APP_SECRET;
+    if (!appSecret) {
+      console.error("META_APP_SECRET manquant : le webhook rejettera la requête (échec fermé).");
+      process.exit(1);
+    }
+    const rawBody = JSON.stringify(payload);
+    const signature =
+      "sha256=" + crypto.createHmac("sha256", appSecret).update(rawBody, "utf8").digest("hex");
+
     const res = await fetch("http://localhost:3000/api/webhooks/whatsapp", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      headers: {
+        "Content-Type": "application/json",
+        "X-Hub-Signature-256": signature,
+      },
+      body: rawBody
     });
     console.log("Status:", res.status);
     console.log("Simulated incoming message:", text);

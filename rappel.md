@@ -22,6 +22,221 @@
 
 ---
 
+# 🎯 ÉTAT WHATSAPP / META — 31 AOÛT 2026
+
+> **C'est ici qu'on reprend.** Cette section prime sur tout le reste du fichier
+> tant que le cœur WhatsApp n'est pas fonctionnel.
+>
+> **Objectif final :** rendre le parcours WhatsApp EduCom réellement fonctionnel
+> de bout en bout — connexion d'une école → connexion de son WhatsApp Business →
+> réception des messages → réponse depuis EduCom → envoi de campagnes → statuts
+> correctement suivis.
+>
+> **Règle de travail, non négociable :** ne jamais supposer la cause d'une erreur
+> Meta. Toujours lire la réponse réelle de Meta avant de modifier le code. Ne pas
+> élargir le périmètre tant que le blocage courant n'est pas résolu.
+
+## Authentification Google — ✅ TERMINÉ
+
+- OAuth Google en production : fonctionne.
+- Site URL = `https://www.educom.school`, Redirect URLs configurées.
+- Provider Google activé côté Supabase.
+
+**Ce sujet est clos.** Ne pas y revenir.
+
+## Meta / WhatsApp — configuration
+
+| Élément | État |
+|---|---|
+| Meta App ID `1636040594916603` | ✅ |
+| Embedded Signup config ID `1047210954578180` | ✅ nouveau, créé le 31 août |
+| `.env` → `NEXT_PUBLIC_META_CONFIG_ID` | ✅ mis à jour |
+| `.env.example` | ✅ documenté, sans valeur |
+| Serveur redémarré après changement du `NEXT_PUBLIC_*` | ✅ |
+| Nouvel ID présent dans le bundle **réellement servi** | ✅ vérifié par HTTP |
+| Ancien ID `2637198510423352` servi ? | ✅ **non — 0 occurrence** |
+
+## Meta — produit et webhook
+
+- ✅ Produit WhatsApp présent dans l'application Meta.
+- ✅ Webhook `whatsapp_business_account` **actif**.
+- ✅ Champ `messages` abonné.
+- ⚠️ Le webhook pointe encore sur un **tunnel Cloudflare temporaire**
+  (`res-obligation-singh-seems.trycloudflare.com`). Domaine stable à traiter
+  avant toute mise en production réelle — voir P1 §15.
+
+## Embedded Signup — état du code
+
+Tout ce qui suit est **vérifié et correct** :
+
+- `FB.init()` appelé au bon moment.
+- `FB.login()` avec `response_type: 'code'`, `override_default_response_type`,
+  `sessionInfoVersion: '3'`.
+- Échange du code **côté serveur**, `debug_token`, récupération du WABA,
+  récupération des numéros, écriture en base.
+- Actions authentifiées, `schoolId` issu de la session.
+- Index unique sur `whatsappPhoneNumberId`, P2002 traité à part.
+- **Un seul flow** — aucun parcours parallèle hérité.
+
+## Diagnostic `[DIAG 18E]` — en place
+
+- ✅ Écouteur temporaire `WA_EMBEDDED_SIGNUP` ajouté (purement observateur).
+- ✅ Capture `FINISH` / `CANCEL` / `ERROR`, plus `current_step`,
+  `error_message`, `error_id`.
+- ✅ Logs préfixés `[DIAG 18E]`, données sensibles masquées.
+- ✅ TypeScript : 0 erreur. Compilation dev : OK.
+- ⚠️ Les 3 alertes ESLint du fichier **préexistaient** — pas dues à cet ajout.
+- ⚠️ **Temporaire : à retirer après résolution** (voir §7).
+
+## Dernier test réel — ÉCHEC, cause non confirmée
+
+Meta a affiché dans sa propre fenêtre :
+
+> *« This option is unavailable right now »*
+
+Faits établis sur ce test :
+
+- Le serveur n'a reçu **aucune Server Action**.
+- `finalizeWhatsAppConnection()` n'a donc **jamais** été appelé.
+- **Aucun** échange `oauth/access_token` n'a eu lieu.
+
+➡️ Meta bloque **avant** d'émettre le code. Le backend n'est pas en cause.
+➡️ **La cause exacte du refus n'est TOUJOURS PAS confirmée.** C'est précisément
+ce que `[DIAG 18E]` doit révéler. Ne rien corriger avant de l'avoir lue.
+
+---
+
+# P0 — À FAIRE EN PREMIER
+
+### 1. Retenter l'Embedded Signup avec le diagnostic 18E ⬅️ **PROCHAIN STEP**
+
+1. Ouvrir `/dashboard/communications`.
+2. **Ouvrir la console Chrome AVANT de cliquer** (F12 → Console).
+3. Filtrer sur `[DIAG 18E]`.
+4. Cliquer « Connecter WhatsApp ».
+5. Aller jusqu'au blocage **ou** jusqu'à `FINISH` — ne pas fermer la fenêtre
+   Meta trop vite : c'est à l'annulation que le motif arrive.
+6. Capturer `event`, `current_step`, `error_message`, `error_id`.
+
+**Ne pas modifier le backend avant d'avoir cette information.**
+
+### 2. Si Meta autorise le flow
+
+Enchaîner immédiatement : vérifier que le code est reçu → `finalizeWhatsAppConnection(code)`
+→ échange code → access token → récupérer le WABA → récupérer le bon numéro →
+enregistrer les credentials de **SENG.CO ACADEMY** → confirmer `CONNECTED`.
+
+### 3. Après une connexion réussie — obligatoire
+
+- `POST /{waba-id}/subscribed_apps`
+- `POST /{phone-number-id}/register`
+
+Sans ces deux appels, le numéro **ne peut ni recevoir ni envoyer** via la Cloud
+API. Le premier est le plus perfide : rien n'échoue, il ne se passe simplement
+rien.
+
+### 4. Test end-to-end réel
+
+Une fois SENG.CO ACADEMY connectée : envoyer un vrai WhatsApp vers le numéro →
+confirmer la réception webhook → confirmer la création et le routage de la
+conversation → répondre depuis l'Inbox → confirmer l'envoi réel → confirmer le
+`waMessageId` → confirmer `DELIVERED` → confirmer `READ`.
+
+---
+
+# APRÈS LE PREMIER FLOW WHATSAPP RÉUSSI
+
+### 5. Choix du numéro
+
+Ne plus prendre `phonesData.data[0]` à l'aveugle. Si le WABA porte plusieurs
+numéros, identifier ou faire choisir explicitement le bon.
+
+### 6. Rafraîchissement de l'UI
+
+Le flow appelle `revalidatePath("/dashboard/settings")` alors que le widget est
+monté dans `/dashboard/communications` → l'écran ne reflète pas immédiatement
+`CONNECTED`. À corriger.
+
+### 7. Supprimer le diagnostic temporaire `[DIAG 18E]`
+
+**Seulement** après avoir identifié ET résolu le problème Meta.
+
+---
+
+# P1 — AVANT PILOTE
+
+### 8. Cycle de vie du token WhatsApp
+
+Le token système est configuré pour **60 jours**. À décider et implémenter :
+suivi de l'expiration, renouvellement, alerte avant échéance. Sans cela : panne
+silencieuse programmée.
+
+### 9. Sécurité du token
+
+`whatsappAccessToken` est stocké **en clair** en base. À traiter avant tout
+déploiement à grande échelle.
+
+### 10. Journal d'audit
+
+Ajouter des événements d'audit sur `connect`, `finalize`, `disconnect`. La
+déconnexion est une action critique et doit être traçable.
+
+### 11. Opt-in
+
+194 comptes analysés, **0 `OPTED_IN`**. Le workflow automatisé est bloqué par
+cette condition. Décision produit **puis** implémentation, avant toute
+automatisation réelle.
+
+### 12. Workflows
+
+Le moteur existe mais **n'est jamais appelé**. Ajouter le mécanisme
+d'exécution / cron approprié.
+
+### 13. Campagnes
+
+État actuel : campagne créée en `DRAFT`, aucune diffusion réelle, interface
+honnête, `CAMPAIGN_DISPATCH_AVAILABLE = false`. Brancher le vrai dispatch Meta
+**avant** d'autoriser `SCHEDULED` / `PROCESSING` / envoi réel.
+
+### 14. Channels
+
+`channels.ts` raisonne encore principalement sur Twilio. À réconcilier avec le
+chemin Meta/WhatsApp réel.
+
+### 15. Webhook stable
+
+Remplacer le tunnel `res-obligation-singh-seems.trycloudflare.com` par une URL
+stable avant pilote / production.
+
+---
+
+# P2 — REPORTÉ
+
+Twilio · Google Drive · SMS · e-mail scolaire · polish UI · fonctionnalités
+secondaires.
+
+**Ne pas y travailler tant que le cœur WhatsApp n'est pas fonctionnel.**
+
+---
+
+# ORDRE DE REPRISE
+
+1. Lire `rappel.md`.
+2. Vérifier que le serveur dev **et** le tunnel sont actifs.
+3. Tester l'Embedded Signup avec `[DIAG 18E]`.
+4. Lire la réponse réelle de Meta.
+5. Résoudre le blocage Meta.
+6. Obtenir une première école `CONNECTED`.
+7. Ajouter `subscribed_apps`.
+8. Ajouter `register`.
+9. Tester la réception réelle.
+10. Tester la réponse réelle.
+11. Tester les statuts `DELIVERED` / `READ`.
+12. **Ensuite seulement** : campagnes + workflows + opt-in + channels.
+13. Enfin : sécurité, cycle de vie du token, webhook stable.
+
+---
+
 # TÂCHES MANUELLES EN ATTENTE (AJOUTÉ LE 24 AOÛT 2026)
 
 ## 0 · Configurer l'authentification dans Supabase

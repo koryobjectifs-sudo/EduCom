@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { MessageCircle, Search, CheckSquare, Square, Filter, Users, Send, Check, Copy, History, ChevronRight, Loader2, Bot, Calendar, Settings } from "lucide-react";
 import { toast } from "sonner";
+import { CAMPAIGN_DISPATCH_AVAILABLE } from "@/lib/campaignDispatch";
 import { createCommunicationCampaign } from "./actions";
 import { Input, Select, Textarea } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
@@ -47,7 +48,18 @@ export default function CommunicationsClient({
       });
 
       if (res.success) {
-        toast.success("Campagne créée avec succès !");
+        // ⚠️ Ne JAMAIS écrire « planifiée », « envoyée » ni « succès » nu : rien
+        // n'est parti. Le message dit ce qui a eu lieu (l'enregistrement) et ce
+        // qui n'a PAS eu lieu (l'envoi), sinon l'utilisatrice repart en croyant
+        // les familles prévenues.
+        if (CAMPAIGN_DISPATCH_AVAILABLE) {
+          toast.success("Campagne créée et planifiée.");
+        } else {
+          toast.success("Campagne préparée.", {
+            description: "Aucun message n'a été envoyé : la diffusion n'est pas encore disponible.",
+            duration: 6000,
+          });
+        }
         router.push("/dashboard/communications");
       } else {
         toast.error(res.error || "Une erreur est survenue.");
@@ -151,7 +163,11 @@ export default function CommunicationsClient({
             </Button>
             <Button type="submit" disabled={isPending} className="w-full sm:w-auto justify-center">
               {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-              {type === "MANUAL_SCHEDULED" ? "Créer et Planifier" : "Activer le Workflow"}
+              {CAMPAIGN_DISPATCH_AVAILABLE
+                ? (type === "MANUAL_SCHEDULED" ? "Créer et Planifier" : "Activer le Workflow")
+                /* Le libellé du bouton est une promesse, lui aussi : « Planifier »
+                   et « Activer » annoncent un départ qui n'aura pas lieu. */
+                : (type === "MANUAL_SCHEDULED" ? "Préparer la campagne" : "Préparer le workflow")}
             </Button>
           </div>
         </form>

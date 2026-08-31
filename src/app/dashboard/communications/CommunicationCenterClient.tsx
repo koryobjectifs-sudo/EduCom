@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CAMPAIGN_DISPATCH_AVAILABLE, campaignStateLabel } from "@/lib/campaignDispatch";
 import { 
   MessageCircle, BarChart3, AlertCircle, FileText, Send, CheckCircle2, CheckSquare, ListTodo, Plus, ChevronRight 
 } from "lucide-react";
@@ -187,9 +188,19 @@ export default function CommunicationCenterClient({
                         {camp.type === "AUTOMATED_WORKFLOW" ? "Automatisée" : "Manuelle"} • {new Date(camp.createdAt).toLocaleDateString("fr-FR")}
                       </div>
                     </div>
+                    {/* ⚠️ Le statut brut de la base ne s'affiche PLUS tel quel :
+                        « SCHEDULED » et « PROCESSING » annoncent un envoi qui
+                        n'existe pas. Le libellé passe par l'autorité unique, qui
+                        couvre aussi les campagnes créées avant ce correctif. */}
                     <div className="text-right">
-                      <div className="text-sm font-medium text-primary">{camp.status}</div>
-                      <div className="text-xs text-dim">{camp.sentCount} envoyés</div>
+                      <div className="text-sm font-medium text-text">
+                        {campaignStateLabel(camp.status).label}
+                      </div>
+                      <div className="text-xs text-dim max-w-[15rem]">
+                        {CAMPAIGN_DISPATCH_AVAILABLE
+                          ? `${camp.sentCount} envoyés`
+                          : campaignStateLabel(camp.status).hint}
+                      </div>
                     </div>
                   </div>
                 ))

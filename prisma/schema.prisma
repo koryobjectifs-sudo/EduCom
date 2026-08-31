@@ -123,9 +123,16 @@ model School {
 
   /// Credentials for Meta WhatsApp API integration
   whatsappAccessToken       String?
-  whatsappPhoneNumberId     String?
+  /// Identifiant Meta du numéro émetteur. UNIQUE, et c'est structurel :
+  /// le webhook entrant résout l'école à partir de cette seule valeur. Quand
+  /// deux écoles la partagent, le routage devient ambigu et un message de
+  /// parent peut atterrir chez le mauvais locataire — c'est exactement ce qui
+  /// s'est produit après une injection en masse (94 écoles, même valeur).
+  /// En PostgreSQL un index unique autorise plusieurs NULL : toutes les écoles
+  /// non connectées peuvent donc rester à `null` sans se gêner.
+  whatsappPhoneNumberId     String?   @unique
   whatsappBusinessAccountId String?
-  whatsappConnectionStatus  String? @default("NOT_CONNECTED") // NOT_CONNECTED, CONNECTING, CONNECTED, ERROR
+  whatsappConnectionStatus  String?   @default("NOT_CONNECTED") // NOT_CONNECTED, CONNECTING, CONNECTED, ERROR
   whatsappName              String?
   whatsappPhone             String?
   whatsappConnectedAt       DateTime?
@@ -701,6 +708,12 @@ model WhatsAppConversation {
   pendingActionType String? // e.g. "VALIDATE_ABSENCE"
   pendingActionData Json?
 
+  /// Une conversation par (école, numéro du parent, numéro émetteur de l'école).
+  /// C'est exactement le triplet sur lequel le webhook cherche une conversation
+  /// existante avant d'en créer une : sans cette contrainte, deux messages
+  /// arrivant en même temps passent tous les deux par la branche « pas trouvée »
+  /// et créent deux fils pour le même parent.
+  @@unique([schoolId, parentWaNumber, waPhoneId])
   @@index([schoolId])
   @@index([parentId])
   @@index([schoolId, status])

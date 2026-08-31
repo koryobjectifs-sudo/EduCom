@@ -59,8 +59,48 @@ const ENTETES_SECURITE = [
   { key: "Permissions-Policy", value: "geolocation=(), microphone=(), payment=(), usb=()" },
 ];
 
+/**
+ * ═══ ORIGINES DE DÉVELOPPEMENT AUTORISÉES ═══
+ *
+ * ⚠️ En développement, Next.js bloque par défaut l'accès à ses ressources
+ * internes (`/_next/static/*`, `/_next/hmr`) depuis un hôte autre que
+ * `localhost`. La page HTML est bien servie — donc tout semble fonctionner —
+ * mais les chunks JavaScript sont refusés, React n'hydrate jamais, et les
+ * Server Actions ne partent pas. Une connexion échoue alors **sans le moindre
+ * message d'erreur à l'écran** : le formulaire ne fait simplement rien.
+ *
+ * C'est ce qui empêchait l'authentification derrière le tunnel HTTPS.
+ *
+ * ⚠️ Réglage de DÉVELOPPEMENT uniquement — Next l'ignore en production, il
+ * n'ouvre donc rien sur le déploiement réel.
+ *
+ * L'hôte se déclare dans `DEV_ALLOWED_ORIGINS` (séparés par des virgules)
+ * plutôt qu'en dur : les URL de tunnel sont éphémères et changent à chaque
+ * redémarrage. `localhost` reste autorisé d'office par Next.
+ */
+const originesDevAutorisees = (process.env.DEV_ALLOWED_ORIGINS ?? "")
+  .split(",")
+  .map((h) => h.trim())
+  .filter(Boolean);
+
 const nextConfig: NextConfig = {
   distDir: surVercel ? ".next" : process.env.NEXT_DIST_DIR || ".next",
+  ...(originesDevAutorisees.length > 0 ? { allowedDevOrigins: originesDevAutorisees } : {}),
+  /**
+   * ⚠️ Second garde-fou, distinct du précédent. Un Server Action compare
+   * l'en-tête `Origin` à `Host` (ou `X-Forwarded-Host`) et **abandonne** la
+   * requête s'ils diffèrent. Derrière un tunnel, le navigateur envoie l'origine
+   * publique tandis que le serveur voit son propre hôte : la connexion
+   * échouerait encore, et pour une raison entièrement différente de celle des
+   * ressources de dev bloquées.
+   *
+   * C'est une LISTE BLANCHE explicite, pas une désactivation : la protection
+   * CSRF reste entière pour toute origine non déclarée, et la liste est vide
+   * tant que `DEV_ALLOWED_ORIGINS` n'est pas renseignée.
+   */
+  ...(originesDevAutorisees.length > 0
+    ? { experimental: { serverActions: { allowedOrigins: originesDevAutorisees } } }
+    : {}),
 
   async headers() {
     return [{ source: "/:path*", headers: ENTETES_SECURITE }];
