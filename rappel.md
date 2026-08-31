@@ -22,6 +22,62 @@
 
 ---
 
+# 🔒 BASELINE PROTÉGÉE — « V1 OG »
+
+> **V1 OG = l'état exact d'EduCom AVANT le chantier d'optimisation UX/UI.**
+> Figée le **31 août 2026**. Ne jamais l'écraser, la déplacer ni la remplacer
+> sans autorisation explicite de Kory.
+
+**Référence : le tag `v1-og`** — trois ancres redondantes pointent sur le même commit :
+
+| Ancre | Nature |
+|---|---|
+| `v1-og` | tag **annoté** (porte un message, survit à `git gc`) |
+| `baseline/v1-og` | branche dédiée, jamais utilisée pour travailler |
+| le SHA du commit | affiché par `git rev-parse v1-og^{commit}` |
+
+## Commande « RETURN TO V1 OG »
+
+Quand Kory dit **RETURN TO V1 OG**, c'est un ordre de restauration DIRECT :
+pas de question, pas d'annulation partielle, pas de reconstitution
+approximative de l'ancienne interface.
+
+```bash
+git checkout baseline/v1-og      # ou : git reset --hard v1-og
+```
+
+Restaure d'un coup : UI, UX, layouts, navigation, structure du dashboard,
+architecture de l'information, composants, styles, routes et changements de
+configuration versionnés faits pendant l'optimisation.
+
+**Après restauration :** vérifier l'état du dépôt, vérifier que l'application
+démarre, confirmer la restauration, faire un rapport bref. **Ne jamais
+réappliquer automatiquement les changements UX/UI annulés.**
+
+## Règle des itérations
+
+```
+V1 OG → Expérience A → RETURN TO V1 OG → Expérience B
+```
+
+Une expérience ne devient **jamais** la nouvelle baseline. Seule une
+approbation explicite de Kory peut établir une nouvelle baseline.
+
+## ⚠️ Ce que la baseline NE couvre PAS
+
+- **`.env` n'est pas suivi par Git** (`.gitignore:37` → `.env*`). Un
+  `git checkout` ne le restaurera donc jamais. Une copie a été prise hors
+  versionnement : `.env.v1-og.snapshot` (permissions `600`, elle-même ignorée
+  par Git). À restaurer **à la main** si besoin.
+- **La base de données.** Aucun rollback Git ne défait une migration Prisma ni
+  une écriture de données. Si un chantier UX/UI touche au schéma, il faut un
+  plan de retour arrière séparé.
+- **Rien n'a été poussé.** La baseline est **locale**. Elle disparaîtrait avec
+  la machine — à pousser (`git push origin v1-og baseline/v1-og`) quand Kory
+  le décidera.
+
+---
+
 # 🎯 ÉTAT WHATSAPP / META — 31 AOÛT 2026
 
 > **C'est ici qu'on reprend.** Cette section prime sur tout le reste du fichier

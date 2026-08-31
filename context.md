@@ -1,6 +1,6 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 31 août 2026 — LOT 18D : nouvelle configuration Embedded Signup (1047210954578180) câblée et vérifiée dans le bundle servi.
+> Dernière mise à jour : 31 août 2026 — Baseline protégée « V1 OG » figée (tag `v1-og`) avant le chantier UX/UI.
 
 ## 📌 Nouvelles Fonctionnalités & Logiques Implémentées (Août 2026)
 
@@ -3846,3 +3846,44 @@ aux 4 derniers caractères ; Meta n'envoie de toute façon ici ni jeton ni code.
 À retirer une fois la cause identifiée. Les 3 alertes ESLint du fichier
 (`Link2` inutilisé, deux `any`) **préexistaient** dans HEAD — vérifié, elles ne
 viennent pas de cet ajout.
+
+---
+
+## Baseline « V1 OG » — 31 août 2026
+
+**Décision.** Avant d'ouvrir le chantier d'optimisation UX/UI, Kory a demandé un
+point de restauration protégé de l'état courant, nommé **V1 OG**. Il est figé sur
+`chantier/whatsapp-nav-context-os` et porte le tag **`v1-og`**.
+
+**Pourquoi trois ancres** (tag annoté `v1-og`, branche `baseline/v1-og`, et le SHA) :
+un tag léger peut être déplacé sans laisser de trace, et une branche peut être
+supprimée par mégarde. Trois références redondantes rendent la perte
+silencieuse improbable — c'est exactement le risque que le protocole vise.
+
+**La baseline se contient elle-même.** Le protocole vit dans `rappel.md`, qui est
+*dans* le commit baseline : un « RETURN TO V1 OG » ne peut donc pas effacer les
+instructions qui le décrivent. C'est aussi pourquoi la documentation nomme le
+tag et jamais un SHA en dur — un SHA écrit avant le commit qui le contient ne
+peut être qu'un SHA faux.
+
+**Contrôle fait avant de commiter.** Les 20 fichiers ont été passés au crible,
+motif par motif (jetons `EAA…`, PAT `sbp_…`, JWT `eyJ…`, URL Postgres avec mot
+de passe, numéros sénégalais). Seul `.env.example` a réagi, sur les
+**placeholders** `postgres.xxxx:password` — rien de réel. Le balayage se fait
+motif par motif depuis qu'un `grep` combiné avait échoué en silence
+(« exceeds complexity limits ») en renvoyant un vide qui ressemblait à un succès.
+
+**Trois limites, à connaître avant de croire la baseline complète :**
+
+1. **`.env` n'est pas dans Git** (`.gitignore:37`). Aucun `git checkout` ne le
+   restaurera. Copie prise hors versionnement : `.env.v1-og.snapshot`, en `600`,
+   ignorée elle aussi. Restauration manuelle.
+2. **La base de données n'est pas couverte.** Git ne défait ni une migration
+   Prisma ni une écriture. Tout chantier touchant au schéma a besoin de son
+   propre plan de retour arrière.
+3. **Rien n'est poussé.** La baseline est locale ; elle disparaît avec la
+   machine tant que `git push origin v1-og baseline/v1-og` n'a pas été fait.
+
+**Règle des itérations.** `V1 OG → Expérience A → RETURN TO V1 OG → Expérience B`.
+Une expérience ne devient jamais la nouvelle baseline : seule une approbation
+explicite de Kory peut en établir une. Le protocole complet vit dans `rappel.md`.
