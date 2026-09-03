@@ -85,7 +85,7 @@ export default function DraftsList({ students, classes }: { students: any[], cla
 
   const resumeDraft = (type: string, id: string) => {
     if (type === "report-card") {
-      router.push(`/dashboard/documents/report-card?studentId=${id}`);
+      router.push(`/dashboard/grades/report-card?studentId=${id}`);
     } else if (type === "certificate") {
       router.push(`/dashboard/documents/certificate?studentId=${id}`);
     } else if (type === "info-sheet") {
@@ -93,9 +93,9 @@ export default function DraftsList({ students, classes }: { students: any[], cla
     } else if (type === "timetable") {
       router.push(`/dashboard/documents/timetable?classId=${id}`);
     } else if (type === "invoice") {
-      router.push(`/dashboard/documents/invoice?studentId=${id}`);
+      router.push(`/dashboard/payments/invoice?studentId=${id}`);
     } else if (type === "receipt") {
-      router.push(`/dashboard/documents/receipt?studentId=${id}`);
+      router.push(`/dashboard/payments/receipt?studentId=${id}`);
     }
   };
 

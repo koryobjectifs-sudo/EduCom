@@ -6,6 +6,7 @@ import { updateStaffMember } from "./actions";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
 import { X, Save, Edit2 } from "lucide-react";
+import TeacherActionsWrapper from "./TeacherActionsWrapper";
 
 interface User {
   id: string;
@@ -18,7 +19,17 @@ interface User {
 
 const ASSIGNABLE: RoleType[] = ["TEACHER", "SECRETARY", "ACCOUNTANT", "ASSISTANT", "ADMIN"];
 
-export default function OrgChartClient({ members }: { members: User[] }) {
+export default function OrgChartClient({ 
+  members,
+  classesData,
+  subjectsData,
+  teachingAssignments 
+}: { 
+  members: User[];
+  classesData?: any[];
+  subjectsData?: any[];
+  teachingAssignments?: any[];
+}) {
   const [editingNode, setEditingNode] = useState<User | null>(null);
 
   // Build the tree
@@ -68,37 +79,49 @@ export default function OrgChartClient({ members }: { members: User[] }) {
     return (
       <li key={node.id}>
         <div className="relative z-10 flex flex-col items-center group">
-          <div className="relative flex flex-col items-center gap-3 rounded-2xl border border-rule bg-surface p-4 shadow-sm transition-all hover:shadow-md w-[260px] text-center">
+          <div className="relative flex flex-col gap-2 rounded-xl border border-rule bg-surface p-3 shadow-sm transition-all hover:shadow-md w-[200px] text-left">
             
-            <div className="flex w-full items-start justify-between">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-ground border border-rule font-semibold text-text shadow-sm">
-                {initials}
-              </span>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ground border border-rule text-xs font-semibold text-text shadow-sm">
+                  {initials}
+                </span>
+                <div className="min-w-0">
+                  <p className="font-semibold text-text text-xs truncate leading-tight">{node.firstName} {node.lastName}</p>
+                  <p className="text-[10px] text-text-soft truncate mt-0.5">{info?.description || roleLabel(node.role)}</p>
+                </div>
+              </div>
               
               <button 
                 onClick={() => setEditingNode(node)}
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-text-faint hover:text-primary rounded-full hover:bg-primary/5"
+                className="opacity-0 group-hover:opacity-100 shrink-0 transition-opacity p-1.5 text-text-faint hover:text-primary rounded-full hover:bg-primary/5 -mt-1 -mr-1"
                 title="Modifier les rôles et accès"
               >
-                <Edit2 className="h-4 w-4" />
+                <Edit2 className="h-3 w-3" />
               </button>
             </div>
 
-            <div className="text-left w-full mt-1">
-              <p className="font-semibold text-text text-base truncate">{node.firstName} {node.lastName}</p>
-              <p className="text-sm text-text-soft truncate">{info?.description || roleLabel(node.role)}</p>
-            </div>
-
-            <div className="flex w-full items-center justify-between mt-2 pt-3 border-t border-rule/50">
-              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${badgeClass}`}>
-                {roleLabel(node.role)}
+            <div className="flex w-full items-center justify-between mt-1 pt-2 border-t border-rule/50">
+              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-semibold leading-none ${badgeClass}`}>
+                {roleLabel(node.role).substring(0, 15)}{roleLabel(node.role).length > 15 ? '.' : ''}
               </span>
               
-              {reportCount > 0 && (
-                <span className="px-2 py-1 rounded-full bg-sunk text-text-soft text-xs font-medium border border-rule">
-                  +{reportCount}
-                </span>
-              )}
+              <div className="flex items-center gap-1">
+                {node.role === "TEACHER" && classesData && subjectsData && teachingAssignments && (
+                  <TeacherActionsWrapper 
+                    teacher={node}
+                    classes={classesData}
+                    subjects={subjectsData}
+                    allAssignments={teachingAssignments}
+                    compact={true}
+                  />
+                )}
+                {reportCount > 0 && (
+                  <span className="px-1 py-0.5 rounded-full bg-sunk text-text-soft text-[9px] font-medium border border-rule leading-none">
+                    +{reportCount}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>

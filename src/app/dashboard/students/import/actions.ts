@@ -17,7 +17,65 @@ export type ImportRow = {
   status?: string;
 };
 
-export async function importStudents(rows: ImportRow[]) {
+export type ImportPreviewResult = {
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  classesCount: number;
+  duplicatesCount: number;
+  classesDetected: string[];
+  duplicateNames: string[];
+};
+
+export async function previewImport(rows: ImportRow[]): Promise<{ data?: ImportPreviewResult; error?: string }> {
+  const auth = await requireActionContext("/dashboard/students");
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId } = auth.ctx;
+
+  if (!rows || rows.length === 0) {
+    return { error: "Le fichier ne contient aucune donnée." };
+  }
+
+  const validRows = rows.filter(r => r.firstName && r.lastName);
+  const invalidRows = rows.length - validRows.length;
+
+  const uniqueClassNames = Array.from(new Set(validRows.map(r => r.className?.trim()).filter(Boolean))) as string[];
+
+  // Fetch existing students to check for potential duplicates based on First Name + Last Name
+  const existingStudents = await prisma.student.findMany({
+    where: { schoolId },
+    select: { firstName: true, lastName: true }
+  });
+
+  const existingSet = new Set(existingStudents.map(s => `${s.firstName.toLowerCase().trim()}|${s.lastName.toLowerCase().trim()}`));
+  
+  let duplicatesCount = 0;
+  const duplicateNames: string[] = [];
+
+  for (const row of validRows) {
+    const key = `${row.firstName.toLowerCase().trim()}|${row.lastName.toLowerCase().trim()}`;
+    if (existingSet.has(key)) {
+      duplicatesCount++;
+      if (duplicateNames.length < 5) {
+        duplicateNames.push(`${row.firstName} ${row.lastName}`);
+      }
+    }
+  }
+
+  return {
+    data: {
+      totalRows: rows.length,
+      validRows: validRows.length,
+      invalidRows,
+      classesCount: uniqueClassNames.length,
+      duplicatesCount,
+      classesDetected: uniqueClassNames,
+      duplicateNames
+    }
+  };
+}
+
+export async function importStudents(rows: ImportRow[], skipDuplicates: boolean = false) {
   const auth = await requireActionContext("/dashboard/students");
   if (!auth.ok) return { error: auth.error };
   const { schoolId, userId } = auth.ctx;
@@ -29,10 +87,24 @@ export async function importStudents(rows: ImportRow[]) {
   try {
     const year = currentAcademicYear();
     let importedCount = 0;
+    const classBreakdownMap = new Map<string, number>();
 
-    const validRows = rows.filter(r => r.firstName && r.lastName);
+    let validRows = rows.filter(r => r.firstName && r.lastName);
+    
+    if (skipDuplicates) {
+      const existingStudents = await prisma.student.findMany({
+        where: { schoolId },
+        select: { firstName: true, lastName: true }
+      });
+      const existingSet = new Set(existingStudents.map(s => `${s.firstName.toLowerCase().trim()}|${s.lastName.toLowerCase().trim()}`));
+      validRows = validRows.filter(r => {
+        const key = `${r.firstName.toLowerCase().trim()}|${r.lastName.toLowerCase().trim()}`;
+        return !existingSet.has(key);
+      });
+    }
+
     if (validRows.length === 0) {
-      return { error: "Aucun élève valide n'a été trouvé dans le fichier." };
+      return { error: "Aucun élève valide (ou nouveau) n'a été trouvé dans le fichier." };
     }
 
     await prisma.$transaction(async (tx) => {
@@ -133,6 +205,9 @@ export async function importStudents(rows: ImportRow[]) {
               classId,
               academicYear: year,
             });
+            // Update breakdown
+            const currentCount = classBreakdownMap.get(className) || 0;
+            classBreakdownMap.set(className, currentCount + 1);
           }
         }
       }
@@ -153,7 +228,13 @@ export async function importStudents(rows: ImportRow[]) {
 
     revalidatePath("/dashboard/students");
     revalidatePath("/dashboard/classes");
-    return { success: true, count: importedCount };
+    
+    // Sort breakdown by class name
+    const classesSummary = Array.from(classBreakdownMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return { success: true, count: importedCount, classesSummary };
   } catch (error: any) {
     console.error("Erreur lors de l'import:", error);
     return { error: "Une erreur est survenue lors de l'importation. Veuillez vérifier le format de votre fichier." };

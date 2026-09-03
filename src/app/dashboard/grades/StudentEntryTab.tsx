@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Loader2, Save, ArrowRight, ArrowLeft, Check, CheckCircle2, CircleDashed, Circle,
-  UserRound, TriangleAlert, Lock, Unlock, Send, X, Undo2, Search, Plus,
+  UserRound, TriangleAlert, Lock, Unlock, Send, X, Undo2, Search, Plus, Settings, FileText,
 } from "lucide-react";
 import { statusLabel } from "@/lib/status";
+import { Modal } from "@/components/ui/Modal";
 import {
   getClassRoster, getClassSubjects, getReportCardData, saveGrades,
   getReportCardStates, validateStudentReportCard, reopenStudentReportCard,
@@ -63,7 +64,7 @@ const LABEL = "block text-[10px] font-semibold uppercase tracking-wider text-gra
 const SELECT =
   "w-full border border-gray-200 rounded-lg px-2 py-1.5 text-[13px] bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 outline-none transition-shadow disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400";
 const FIELD =
-  "w-full border rounded-md px-2 py-1 text-[13px] focus:ring-2 focus:ring-indigo-500 outline-none transition-colors disabled:cursor-not-allowed";
+  "w-full border rounded-md px-2 py-2 sm:py-1 text-base sm:text-[13px] min-h-[44px] sm:min-h-0 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors disabled:cursor-not-allowed";
 
 /**
  * ⚠️ **LES TROIS SÉLECTEURS ARRIVENT DÉJÀ REMPLIS — 22 août 2026.**
@@ -86,12 +87,14 @@ const FIELD =
  * besoin réel. Ce sont des **défauts**, pas un verrouillage.
  */
 export default function StudentEntryTab({
-  terms, classes, defaults,
+  terms, classes, defaults, canConfigure, onConfigClick,
 }: {
   terms: any[];
   classes: any[];
   /** Résolus par le serveur. Chaînes vides seulement si la donnée n'existe pas. */
   defaults?: { classId: string; termId: string; evaluationId: string };
+  canConfigure?: boolean;
+  onConfigClick?: () => void;
 }) {
   const router = useRouter();
   const [selectedClass, setSelectedClass] = useState(defaults?.classId ?? "");
@@ -110,6 +113,7 @@ export default function StudentEntryTab({
   const [statuses, setStatuses] = useState<StatusMap>({});
   const [returnedReason, setReturnedReason] = useState<string | null>(null);
   const [activeStudentId, setActiveStudentId] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
   const [isLoadingClass, setIsLoadingClass] = useState(false);
@@ -360,15 +364,41 @@ export default function StudentEntryTab({
     setFeedback({ kind: "ok", text: `Classe déposée au secrétariat (${res.count} bulletins).` });
   };
 
+  const doPreview = async () => {
+    if (!activeStudentId || !ready) return;
+    // Si ce n'est pas validé, on sauvegarde d'abord pour que l'aperçu soit à jour
+    if (!activeLocked) {
+      const payload = buildPayload(activeStudentId);
+      if (payload.length > 0) {
+        setIsBusy(true);
+        await saveGrades(payload);
+        setIsBusy(false);
+      }
+    }
+    const url = `/preview/report-card?classId=${selectedClass}&termId=${selectedTerm}&evaluationId=${selectedEvaluation}&studentId=${activeStudentId}`;
+    setPreviewUrl(url);
+  };
+
   const activeMissing = activeStudentId ? missingFor(activeStudentId) : [];
 
   return (
-    <div className="flex h-full bg-white relative">
+    <div className="flex flex-col md:flex-row h-full bg-white relative">
       {/* ══════════════ Colonne de travail ══════════════ */}
-      <aside className="w-64 shrink-0 border-r border-gray-200 flex flex-col bg-gradient-to-b from-gray-50/80 to-gray-50/40">
+      <aside className="w-full md:w-64 shrink-0 border-b md:border-b-0 md:border-r border-gray-200 flex flex-col bg-gradient-to-b from-gray-50/80 to-gray-50/40 max-h-[45vh] md:max-h-none">
         <div className="p-3 space-y-2.5 border-b border-gray-200">
           <div>
-            <label className={LABEL}>Classe</label>
+            <div className="flex items-end justify-between mb-1">
+              <label className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Classe</label>
+              {canConfigure && (
+                <button
+                  onClick={onConfigClick}
+                  className="flex items-center gap-1 text-[10px] font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100 px-1.5 py-0.5 rounded transition-colors border border-indigo-100"
+                  title="Configurer les trimestres, évaluations et matières"
+                >
+                  <Settings className="w-3 h-3" /> Configurer
+                </button>
+              )}
+            </div>
             {/* ⚠️ Pas d'option vide quand il n'y a qu'une classe : proposer
                 « Choisir… » à qui n'a rien à choisir est une fausse question. */}
             <select className={SELECT} value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}>
@@ -376,7 +406,7 @@ export default function StudentEntryTab({
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <label className={LABEL}>Trimestre</label>
               <select
@@ -673,45 +703,47 @@ export default function StudentEntryTab({
                           </div>
                         )}
 
-                        <table className="w-full text-left border-collapse">
-                          <tbody>
-                            {block.rows.map((sub) => {
-                              const e = entryFor(activeStudentId, sub.id);
-                              const locked = activeLocked || sub.editable === false;
-                              return (
-                                <tr key={sub.id} className="border-b border-gray-50 last:border-0 hover:bg-indigo-50/20">
-                                  <td className={`py-1 pr-3 text-[13px] text-gray-700 ${block.title ? "pl-4" : "font-semibold text-gray-900"}`}>
-                                    {sub.name}
-                                  </td>
-                                  <td className="py-1 pr-1.5 w-20">
-                                    <input
-                                      type="number" min="0" max="20" step="0.25" placeholder="--"
-                                      value={e.value} disabled={locked}
-                                      onChange={(ev) => updateEntry(sub.id, "value", ev.target.value)}
-                                      className={`${FIELD} font-semibold text-center ${inputTone(e.value, locked)}`}
-                                    />
-                                  </td>
-                                  <td className="py-1 pr-1.5 w-16">
-                                    <input
-                                      type="number" min="1" max="10" step="0.5"
-                                      value={e.coefficient} disabled={locked}
-                                      onChange={(ev) => updateEntry(sub.id, "coefficient", ev.target.value)}
-                                      className={`${FIELD} border-gray-200 bg-white text-center text-gray-500 disabled:bg-gray-50`}
-                                    />
-                                  </td>
-                                  <td className="py-1 pr-2">
-                                    <input
-                                      type="text" placeholder="Appréciation…"
-                                      value={e.comment} disabled={locked}
-                                      onChange={(ev) => updateEntry(sub.id, "comment", ev.target.value)}
-                                      className={`${FIELD} border-transparent bg-transparent hover:border-gray-200 focus:border-gray-200 focus:bg-white disabled:bg-transparent`}
-                                    />
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                            <tbody>
+                              {block.rows.map((sub) => {
+                                const e = entryFor(activeStudentId, sub.id);
+                                const locked = activeLocked || sub.editable === false;
+                                return (
+                                  <tr key={sub.id} className="border-b border-gray-50 last:border-0 hover:bg-indigo-50/20">
+                                    <td className={`py-1 pr-3 text-[13px] text-gray-700 ${block.title ? "pl-4" : "font-semibold text-gray-900"}`}>
+                                      {sub.name}
+                                    </td>
+                                    <td className="py-1 pr-1.5 w-16 sm:w-20">
+                                      <input
+                                        type="number" min="0" max="20" step="0.25" placeholder="--"
+                                        value={e.value} disabled={locked}
+                                        onChange={(ev) => updateEntry(sub.id, "value", ev.target.value)}
+                                        className={`${FIELD} font-semibold text-center ${inputTone(e.value, locked)}`}
+                                      />
+                                    </td>
+                                    <td className="py-1 pr-1.5 w-12 sm:w-16">
+                                      <input
+                                        type="number" min="1" max="10" step="0.5"
+                                        value={e.coefficient} disabled={locked}
+                                        onChange={(ev) => updateEntry(sub.id, "coefficient", ev.target.value)}
+                                        className={`${FIELD} border-gray-200 bg-white text-center text-gray-500 disabled:bg-gray-50`}
+                                      />
+                                    </td>
+                                    <td className="py-1 pr-2">
+                                      <input
+                                        type="text" placeholder="Appréciation…"
+                                        value={e.comment} disabled={locked}
+                                        onChange={(ev) => updateEntry(sub.id, "comment", ev.target.value)}
+                                        className={`${FIELD} border-transparent bg-transparent hover:border-gray-200 focus:border-gray-200 focus:bg-white disabled:bg-transparent`}
+                                      />
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     );
                   })}
@@ -745,13 +777,21 @@ export default function StudentEntryTab({
                       className="border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors disabled:opacity-40 flex items-center gap-2"
                       title={statusOf(activeStudentId) !== "VALIDATED" ? "Déjà déposé au secrétariat" : "Rouvrir pour correction"}
                     >
-                      <Unlock className="w-3.5 h-3.5" /> Rouvrir
+                      <Unlock className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Rouvrir</span>
+                    </button>
+                    <button
+                      onClick={doPreview}
+                      disabled={isBusy || !ready}
+                      className="border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors disabled:opacity-40 flex items-center gap-2"
+                      title="Aperçu du bulletin"
+                    >
+                      <FileText className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Aperçu</span>
                     </button>
                     <button
                       onClick={() => setIsNewEntryMode(true)}
                       className="bg-[#539BEB] text-white px-4 py-2 rounded-lg text-[13px] font-medium hover:bg-[#539BEB]/90 transition-colors shadow-sm flex items-center gap-2"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Nouveau bulletin
+                      <Plus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Nouveau bulletin</span>
                     </button>
                   </>
                 ) : (
@@ -760,9 +800,18 @@ export default function StudentEntryTab({
                       onClick={() => saveStudent(false)}
                       disabled={isBusy || !ready}
                       className="border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors disabled:opacity-40 flex items-center gap-2"
+                      title="Enregistrer au brouillon"
                     >
                       {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                      Enregistrer au brouillon
+                      <span className="hidden sm:inline">Brouillon</span>
+                    </button>
+                    <button
+                      onClick={doPreview}
+                      disabled={isBusy || !ready}
+                      className="border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors disabled:opacity-40 flex items-center gap-2"
+                      title="Aperçu du bulletin"
+                    >
+                      <FileText className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Aperçu</span>
                     </button>
                     <button
                       onClick={() => (activeMissing.length > 0 ? setConfirm("validate") : doValidate())}
@@ -873,6 +922,17 @@ export default function StudentEntryTab({
             </div>
           </div>
         </div>
+      )}
+
+      {previewUrl && (
+        <Modal open={!!previewUrl} onClose={() => setPreviewUrl(null)} title="Aperçu du bulletin" size="xl">
+          <div 
+            className="bg-gray-100/50 rounded-lg overflow-y-auto flex justify-center items-start h-[calc(100vh-180px)] p-2 touch-pan-y"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
+            <iframe src={previewUrl} className="w-[800px] max-w-full h-full min-h-[600px] sm:min-h-full bg-white shadow-sm ring-1 ring-gray-200 rounded border-0" />
+          </div>
+        </Modal>
       )}
     </div>
   );

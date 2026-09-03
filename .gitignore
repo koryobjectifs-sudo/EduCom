@@ -88,3 +88,36 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+# ─── Nettoyage du 30 août 2026 ───────────────────────────────────────────────
+# ⚠️ Deux scripts non suivis portaient des données sensibles EN CLAIR :
+# `scripts/inject-tokens.ts` (jeton d'accès Meta WhatsApp de production) et
+# `scripts/inject-all.ts` (numéro de téléphone sénégalais réel). Historique
+# vérifié le 30 août : ils n'ont JAMAIS été commités. Ils vivent désormais dans
+# `_local/scripts-2026-08-30/`. Le jeton Meta doit être considéré comme exposé
+# sur disque et régénéré depuis la console Meta.
+#
+# Motifs ANCRÉS à la racine avec `/` — sans l'ancre, `test-*.ts` masquerait de
+# vrais fichiers de test sous `src/`. Ne pas les dés-ancrer.
+/test-*.ts
+/apply_sql.ts
+/check.ts
+/sync.sql
+
+# Sauvegardes manuelles laissées par les agents pendant un refactor.
+*.bak
+
+# SQL de synchronisation de schéma produit à la main pendant une session.
+# Jamais versé : la source de vérité reste `prisma/schema.prisma`.
+/pending_changes.sql
+/update_watermark.js
+# ⚠️ Journal brut du webhook Meta : contient des charges utiles réelles
+# (numéros de parents, identifiants de messages). Jamais versé.
+/webhook_debug.log
+
+# ⚠️ Fichiers d'identifiants OAuth téléchargés depuis Google Cloud. Ils portent
+# le `client_secret` EN CLAIR. Le fichier vit normalement hors du dépôt
+# (`~/Downloads`), mais un glisser-déposer malheureux suffirait : le motif est
+# ancré ici et à n'importe quelle profondeur, contrairement aux motifs de la
+# section du 25 août qui ne couvrent que la racine.
+client_secret*.json

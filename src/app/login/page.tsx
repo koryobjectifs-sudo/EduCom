@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, ShieldCheck, Smartphone, Building2 } from "lucide-react";
+import { ArrowRight, ArrowLeft, ShieldCheck, Smartphone, Building2 } from "lucide-react";
 import { login } from "./actions";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
@@ -100,30 +100,20 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-sunk lg:flex-row">
+    <div className="flex min-h-[100dvh] flex-col items-center bg-sunk p-4 sm:p-6 overflow-y-auto">
       {/* ─── Formulaire ─── */}
-      <div className="flex flex-1 flex-col items-center justify-center px-5 py-10 sm:px-8 lg:px-16">
-        <div className="w-full max-w-sm rounded-surface border border-rule bg-surface p-8 shadow-card">
-          <Link href="/" className="mb-10 inline-flex items-center gap-2.5">
-            {/* ⚠️ Addendum PLG — c'était un « E » blanc dans un carré, dessiné en
-                HTML, alors que `public/brand/` contient le logotype fini. Sur la
-                page où l'on saisit son mot de passe, la marque doit être la
-                MÊME que sur la page d'accueil : un substitut de logo à
-                l'instant de la connexion ressemble à une page contrefaite. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/brand/educom-logo-officiel.jpg"
-              alt="EduCom"
-              width={156}
-              height={28}
-              className="h-7 w-auto"
-            />
+      <div className="w-full max-w-[380px] my-auto rounded-[20px] border border-rule/40 bg-surface p-6 sm:p-7 shadow-sm relative z-10">
+        <div className="mb-6 flex flex-col items-center justify-center relative">
+          <Link href="/" className="absolute left-0 top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-8 w-8 rounded-full text-text-soft transition-colors hover:bg-sunk hover:text-text" aria-label="Retour à l'accueil">
+            <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           </Link>
+          <img src="/brand/educom-logo-officiel.jpg" alt="EduCom" className="h-6 w-auto object-contain" />
+        </div>
 
-          <h1 className="text-role-page font-bold tracking-tight text-text">Connexion</h1>
-          <p className="mt-2 text-role-body text-text-soft">
-            Accédez à l&apos;espace de votre établissement.
-          </p>
+        <h1 className="text-[20px] font-bold tracking-tight text-text text-center">Connexion</h1>
+        <p className="mt-1.5 text-[13px] text-text-soft text-center leading-relaxed">
+          Accédez à l'espace de votre établissement.
+        </p>
 
           {/* ⚠️ `role="alert"` : l'échec doit être annoncé, pas seulement coloré. */}
           {messageLien && !erreur && (
@@ -193,31 +183,25 @@ function LoginForm() {
             </Button>
           </form>
 
-          <p className="mt-8 text-role-body text-text-soft">
-            Votre établissement n&apos;est pas encore sur EduCom ?{" "}
-            <Link href="/register" className="font-semibold text-primary underline-offset-2 hover:underline">
-              Créer l&apos;espace de mon école
+          <p className="mt-6 text-center text-[13px] text-text-soft">
+            Pas encore sur EduCom ?{" "}
+            <Link href="/register" className="font-semibold text-text underline-offset-2 hover:underline">
+              Créer un espace
             </Link>
           </p>
         </div>
-      </div>
 
-      {/* ─── Preuve, pas décor ───
-          Masqué sous 1024 px : sur un téléphone, la seule chose utile est le
-          formulaire. Y empiler des arguments repousserait le bouton hors écran. */}
-      <div className="hidden bg-primary px-16 py-16 lg:flex lg:w-[42%] lg:flex-col lg:justify-center">
-        <p className="text-role-section font-semibold leading-snug text-white">
-          Le dossier de chaque élève, les bulletins, les frais et les documents
-          officiels — au même endroit.
-        </p>
-        <ul className="mt-10 space-y-7">
+      <div className="mt-6 hidden w-full max-w-2xl px-4 text-center xl:block">
+        <ul className="flex items-start justify-center gap-4">
           {PREUVES.map((p) => (
-            <li key={p.titre} className="flex gap-4">
-              <p.icon aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-white/70" />
-              <span>
-                <span className="block text-role-body font-semibold text-white">{p.titre}</span>
-                <span className="mt-0.5 block text-role-meta leading-relaxed text-white/70">{p.detail}</span>
-              </span>
+            <li key={p.titre} className="flex flex-1 flex-col items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface shadow-sm border border-rule/40">
+                <p.icon aria-hidden="true" className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div>
+                <span className="block text-[12px] font-semibold text-text">{p.titre}</span>
+                <span className="mt-0.5 block text-[12px] text-text-soft leading-relaxed">{p.detail}</span>
+              </div>
             </li>
           ))}
         </ul>

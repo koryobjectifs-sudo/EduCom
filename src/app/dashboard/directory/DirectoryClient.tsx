@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import DossiersClient from "../students/dossiers/DossiersClient";
+import { FolderOpen } from "lucide-react";
 import { Users, School, Plus, Search, Layers, Save, UploadCloud } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -29,7 +31,7 @@ type DirectoryClientProps = {
 
 export default function DirectoryClient({ studentsData, classesData, teachersData }: DirectoryClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"students" | "classes">("students");
+  const [activeTab, setActiveTab] = useState<"students" | "classes" | "dossiers">("students");
   const [searchTerm, setSearchTerm] = useState("");
   
   // Modals state
@@ -76,96 +78,107 @@ export default function DirectoryClient({ studentsData, classesData, teachersDat
           </div>
           
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => setIsAddingCycle(true)}
-              icon={<Layers aria-hidden="true" className="h-4 w-4" />}
-            >
-              Ajouter cycle
-            </Button>
-            
-            <Button
-              variant="secondary"
-              onClick={() => setIsCreatingClass(true)}
-              icon={<Plus aria-hidden="true" className="h-4 w-4" />}
-            >
-              Nouvelle classe
-            </Button>
+            {activeTab === "classes" && (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsAddingCycle(true)}
+                  icon={<Layers aria-hidden="true" className="h-4 w-4" />}
+                >
+                  Ajouter cycle
+                </Button>
+                
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsCreatingClass(true)}
+                  icon={<Plus aria-hidden="true" className="h-4 w-4" />}
+                >
+                  Nouvelle classe
+                </Button>
+              </>
+            )}
 
-            <Link
-              href="/dashboard/students/import"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-control bg-sunk px-4 text-role-body font-semibold text-text-strong shadow-card transition-colors hover:bg-rule focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-            >
-              <UploadCloud aria-hidden="true" className="h-4 w-4 text-primary" />
-              Importer
-            </Link>
+            {activeTab === "students" && (
+              <>
+                <Link
+                  href="/dashboard/students/export"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-control bg-sunk px-4 text-role-body font-semibold text-text-strong shadow-card transition-colors hover:bg-rule focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                >
+                  <Save aria-hidden="true" className="h-4 w-4 text-primary" />
+                  Exporter
+                </Link>
 
-            <Link
-              href="/dashboard/students/new"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-control bg-primary px-4 text-role-body font-semibold text-white shadow-card transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-            >
-              <Plus aria-hidden="true" className="h-4 w-4" />
-              Nouvelle admission
-            </Link>
+                <Link
+                  href="/dashboard/students/import"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-control bg-sunk px-4 text-role-body font-semibold text-text-strong shadow-card transition-colors hover:bg-rule focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                >
+                  <UploadCloud aria-hidden="true" className="h-4 w-4 text-primary" />
+                  Importer
+                </Link>
+
+                <Link
+                  href="/dashboard/students/new"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-control bg-primary px-4 text-role-body font-semibold text-white shadow-card transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                >
+                  <Plus aria-hidden="true" className="h-4 w-4" />
+                  Nouvelle admission
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </Card>
 
-      {/* Tabs navigation */}
+      {/* ═══ ONGLETS ═══
+          Trois entrées, pilotées par un tableau : les deux premières étaient
+          écrites à la main et dupliquaient 20 lignes chacune. « Dossiers élèves »
+          rejoint l'annuaire — c'est le même sujet vu sous un autre angle, et le
+          menu qui les séparait imposait un détour pour rien. */}
       <div className="border-b border-rule">
-        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-          <button
-            onClick={() => setActiveTab("students")}
-            className={`
-              whitespace-nowrap flex py-4 px-1 border-b-2 font-medium text-sm transition-colors
-              ${
-                activeTab === "students"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-text-soft hover:text-text hover:border-rule"
-              }
-            `}
-          >
-            <Users className="mr-2 h-5 w-5" />
-            Élèves
-            <span
-              className={`ml-2 rounded-full py-0.5 px-2.5 text-xs font-medium ${
-                activeTab === "students" ? "bg-primary/10 text-primary" : "bg-sunk text-text-soft"
-              }`}
-            >
-              {studentsData.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("classes")}
-            className={`
-              whitespace-nowrap flex py-4 px-1 border-b-2 font-medium text-sm transition-colors
-              ${
-                activeTab === "classes"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-text-soft hover:text-text hover:border-rule"
-              }
-            `}
-          >
-            <School className="mr-2 h-5 w-5" />
-            Classes
-            <span
-              className={`ml-2 rounded-full py-0.5 px-2.5 text-xs font-medium ${
-                activeTab === "classes" ? "bg-primary/10 text-primary" : "bg-sunk text-text-soft"
-              }`}
-            >
-              {classesData.length}
-            </span>
-          </button>
+        <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Vues de l'annuaire">
+          {([
+            { cle: "students", libelle: "Élèves", Icone: Users, compte: studentsData.length },
+            { cle: "classes", libelle: "Classes", Icone: School, compte: classesData.length },
+            { cle: "dossiers", libelle: "Dossiers élèves", Icone: FolderOpen, compte: studentsData.length },
+          ] as const).map(({ cle, libelle, Icone, compte }) => {
+            const actif = activeTab === cle;
+            return (
+              <button
+                key={cle}
+                type="button"
+                onClick={() => setActiveTab(cle)}
+                aria-current={actif ? "page" : undefined}
+                className={`whitespace-nowrap flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors pointer-coarse:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+                  actif
+                    ? "border-primary text-primary"
+                    : "border-transparent text-text-soft hover:text-text hover:border-rule"
+                }`}
+              >
+                <Icone aria-hidden="true" className="mr-2 h-5 w-5" />
+                {libelle}
+                <span
+                  className={`ml-2 rounded-full py-0.5 px-2.5 text-xs font-medium ${
+                    actif ? "bg-primary/10 text-primary" : "bg-sunk text-text-soft"
+                  }`}
+                >
+                  {compte}
+                </span>
+              </button>
+            );
+          })}
         </nav>
       </div>
 
-      {/* Tab content */}
+      {/* Contenu de l'onglet */}
       <div className="pt-2">
-        {activeTab === "students" ? (
-          <StudentListClient students={studentsData} searchTerm={searchTerm} classesData={classesData} />
-        ) : (
+        {activeTab === "students" && (
+          <StudentListClient students={studentsData} searchTerm={searchTerm} classesData={classesData} hideSearchBar />
+        )}
+        {activeTab === "classes" && (
           <ClassListClient classes={classesData} teachers={teachersData} searchTerm={searchTerm} />
+        )}
+        {activeTab === "dossiers" && (
+          <DossiersClient studentsData={studentsData} classesData={classesData} />
         )}
       </div>
 

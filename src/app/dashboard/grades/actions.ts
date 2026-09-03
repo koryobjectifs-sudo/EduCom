@@ -145,7 +145,7 @@ export async function setTermDates(id: string, startDate: string | null, endDate
       to: { start, end },
     });
 
-    revalidatePath("/dashboard/reports");
+    revalidatePath("/dashboard/admin/reports");
     revalidatePath("/dashboard/grades");
     revalidatePath("/dashboard/settings/pedagogie");
     revalidatePath("/dashboard");
@@ -224,21 +224,25 @@ async function verifyPassword(email: string, password: string) {
   return !error;
 }
 
+import { teacherClassIds } from "@/lib/studentScope";
+
 /** Récapitulatif d'une classe pour l'écran de fin de saisie. */
 export async function getClassCompletionSummary(
   classId: string,
   termId: string,
   evaluationId: string
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
+  const auth = await requireActionContext();
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId, role } = auth.ctx;
 
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { error: "Utilisateur introuvable" };
+  if (role === "TEACHER") {
+    const allowed = await teacherClassIds(auth.ctx);
+    if (!allowed.includes(classId)) return { error: "Non autorisé pour cette classe." };
+  }
 
   const [klass, term, evaluation, enrollments, cards, grades, subjectCount] = await Promise.all([
-    prisma.class.findFirst({ where: { id: classId, schoolId: dbUser.schoolId } }),
+    prisma.class.findFirst({ where: { id: classId, schoolId } }),
     prisma.term.findUnique({ where: { id: termId } }),
     prisma.evaluation.findUnique({ where: { id: evaluationId } }),
     prisma.enrollment.findMany({ where: { classId }, include: { student: true } }),
@@ -495,12 +499,14 @@ export async function validateStudentReportCard(
   termId: string,
   evaluationId: string
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
+  const auth = await requireActionContext();
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId, role, userId } = auth.ctx;
 
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { error: "Utilisateur introuvable" };
+  if (role === "TEACHER") {
+    const allowed = await teacherClassIds(auth.ctx);
+    if (!allowed.includes(classId)) return { error: "Non autorisé pour cette classe." };
+  }
 
   try {
     await prisma.reportCard.upsert({
@@ -509,13 +515,13 @@ export async function validateStudentReportCard(
         studentId, classId, termId, evaluationId,
         status: "VALIDATED",
         validatedAt: new Date(),
-        validatedById: dbUser.id,
-        schoolId: dbUser.schoolId,
+        validatedById: userId,
+        schoolId,
       },
       update: {
         status: "VALIDATED",
         validatedAt: new Date(),
-        validatedById: dbUser.id,
+        validatedById: userId,
       },
     });
     return { success: true };
@@ -528,17 +534,19 @@ export async function validateStudentReportCard(
  * Valide en bloc tous les bulletins d'une classe qui sont encore en brouillon.
  */
 export async function validateClassReportCards(classId: string, termId: string, evaluationId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
+  const auth = await requireActionContext();
+  if (!auth.ok) return { error: auth.error };
+  const { role, userId } = auth.ctx;
 
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { error: "Utilisateur introuvable" };
+  if (role === "TEACHER") {
+    const allowed = await teacherClassIds(auth.ctx);
+    if (!allowed.includes(classId)) return { error: "Non autorisé pour cette classe." };
+  }
 
   try {
     const res = await prisma.reportCard.updateMany({
       where: { classId, termId, evaluationId, status: "DRAFT" },
-      data: { status: "VALIDATED", validatedAt: new Date(), validatedById: dbUser.id },
+      data: { status: "VALIDATED", validatedAt: new Date(), validatedById: userId },
     });
     return { success: true, count: res.count };
   } catch (error: any) {
@@ -548,9 +556,22 @@ export async function validateClassReportCards(classId: string, termId: string, 
 
 /** Rouvre un bulletin verrouillé pour correction. */
 export async function reopenStudentReportCard(studentId: string, evaluationId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
+  const auth = await requireActionContext();
+  if (!auth.ok) return { error: auth.error };
+
+  // Verification if TEACHER is not explicitly strictly required here because
+  // studentScope can't easily be checked without knowing the classId,
+  // but let's fetch it first.
+  if (auth.ctx.role === "TEACHER") {
+    const report = await prisma.reportCard.findUnique({
+      where: { studentId_evaluationId: { studentId, evaluationId } },
+      select: { classId: true }
+    });
+    if (report) {
+      const allowed = await teacherClassIds(auth.ctx);
+      if (!allowed.includes(report.classId)) return { error: "Non autorisé." };
+    }
+  }
 
   try {
     await prisma.reportCard.update({
@@ -574,12 +595,14 @@ export async function submitClassToSecretariat(
   termId: string,
   evaluationId: string
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
+  const auth = await requireActionContext();
+  if (!auth.ok) return { error: auth.error };
+  const { role, userId } = auth.ctx;
 
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { error: "Utilisateur introuvable" };
+  if (role === "TEACHER") {
+    const allowed = await teacherClassIds(auth.ctx);
+    if (!allowed.includes(classId)) return { error: "Non autorisé pour cette classe." };
+  }
 
   const enrollments = await prisma.enrollment.findMany({
     where: { classId },
@@ -600,7 +623,7 @@ export async function submitClassToSecretariat(
   try {
     await prisma.reportCard.updateMany({
       where: { classId, evaluationId, status: "VALIDATED" },
-      data: { status: "SUBMITTED", submittedAt: new Date(), submittedById: dbUser.id },
+      data: { status: "SUBMITTED", submittedAt: new Date(), submittedById: userId },
     });
     return { success: true, count: studentIds.length };
   } catch (error: any) {
@@ -617,12 +640,14 @@ export async function submitStudentToSecretariat(
   termId: string,
   evaluationId: string
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
+  const auth = await requireActionContext();
+  if (!auth.ok) return { error: auth.error };
+  const { role, userId } = auth.ctx;
 
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { error: "Utilisateur introuvable" };
+  if (role === "TEACHER") {
+    const allowed = await teacherClassIds(auth.ctx);
+    if (!allowed.includes(classId)) return { error: "Non autorisé pour cette classe." };
+  }
 
   try {
     const report = await prisma.reportCard.findFirst({
@@ -634,7 +659,7 @@ export async function submitStudentToSecretariat(
 
     await prisma.reportCard.update({
       where: { id: report.id },
-      data: { status: "SUBMITTED", submittedAt: new Date(), submittedById: dbUser.id },
+      data: { status: "SUBMITTED", submittedAt: new Date(), submittedById: userId },
     });
     
     return { success: true };
@@ -1104,7 +1129,7 @@ export async function saveCouncilComment(input: {
       },
       update: { generalComment: comment || null },
     });
-    revalidatePath("/dashboard/documents/report-card");
+    revalidatePath("/dashboard/grades/report-card");
     revalidatePath("/dashboard/documents/validation");
     return { success: true };
   } catch (error: unknown) {

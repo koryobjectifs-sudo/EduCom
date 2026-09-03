@@ -128,6 +128,19 @@ export async function deleteClass(id: string) {
   if (!dbUser) return { error: "Utilisateur introuvable" };
 
   try {
+    const studentCount = await prisma.enrollment.count({
+      where: {
+        classId: id,
+        student: { schoolId: dbUser.schoolId }
+      }
+    });
+
+    if (studentCount > 0) {
+      return { 
+        error: `Cette classe contient encore ${studentCount} élève(s). Pour supprimer cette classe, vous devez d'abord retirer ou réaffecter tous les élèves qui lui sont associés.` 
+      };
+    }
+
     await prisma.class.delete({
       where: { 
         id,

@@ -128,7 +128,7 @@ export function FinanceSummary({ finance }: { finance: Signal<FinanceFacts> }) {
       title="Finance"
       description="Recouvrement du mois en cours"
       icon={Wallet}
-      href="/dashboard/reports?dept=finance"
+      href="/dashboard/admin/reports?dept=finance"
       cta="Voir le rapport financier"
     >
       {finance.ok ? (
@@ -177,7 +177,7 @@ export function AcademicSummary({ academic }: { academic: Signal<AcademicFacts> 
       title="Performance académique"
       description={academic.ok ? academic.value.termName : "Résultats de l'établissement"}
       icon={GraduationCap}
-      href="/dashboard/reports?dept=teaching"
+      href="/dashboard/admin/reports?dept=teaching"
       cta="Voir le rapport académique"
     >
       {academic.ok ? (

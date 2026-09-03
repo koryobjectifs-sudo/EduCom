@@ -167,3 +167,82 @@ export async function createStudent(formData: FormData) {
   }
   redirect("/dashboard/students");
 }
+
+export async function deleteStudent(id: string) {
+  const auth = await requireActionContext("/dashboard/students");
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId } = auth.ctx;
+
+  try {
+    await prisma.student.delete({
+      where: {
+        id,
+        schoolId,
+      },
+    });
+    revalidatePath("/dashboard/students");
+    revalidatePath("/dashboard/directory");
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur lors de la suppression de l'élève:", error);
+    return { error: "Erreur lors de la suppression de l'élève." };
+  }
+}
+
+export async function deleteStudents(ids: string[]) {
+  const auth = await requireActionContext("/dashboard/students");
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId } = auth.ctx;
+
+  if (!ids || ids.length === 0) {
+    return { error: "Aucun élève sélectionné." };
+  }
+
+  try {
+    const result = await prisma.student.deleteMany({
+      where: {
+        id: { in: ids },
+        schoolId,
+      },
+    });
+    revalidatePath("/dashboard/students");
+    revalidatePath("/dashboard/directory");
+    return { success: true, count: result.count };
+  } catch (error) {
+    console.error("Erreur lors de la suppression massive:", error);
+    return { error: "Erreur lors de la suppression des élèves." };
+  }
+}
+
+export async function assignStudentToClass(studentId: string, classId: string) {
+  const auth = await requireActionContext("/dashboard/students");
+  if (!auth.ok) return { error: auth.error };
+
+  try {
+    const student = await prisma.student.findFirst({
+      where: { id: studentId, schoolId: auth.ctx.schoolId }
+    });
+    if (!student) return { error: "Élève introuvable." };
+
+    const cls = await prisma.class.findFirst({
+      where: { id: classId, schoolId: auth.ctx.schoolId }
+    });
+    if (!cls) return { error: "Classe introuvable." };
+
+    const academicYear = currentAcademicYear();
+
+    await prisma.enrollment.create({
+      data: {
+        studentId,
+        classId,
+        academicYear,
+      }
+    });
+
+    revalidatePath("/dashboard/students");
+    return { success: true };
+  } catch (error) {
+    console.error("Error assigning student to class:", error);
+    return { error: "Erreur lors de l'assignation." };
+  }
+}

@@ -20,13 +20,22 @@ export default async function DocumentsHub() {
         title="Documents"
         description={`${visibleKinds.length} modèle${visibleKinds.length > 1 ? "s" : ""} disponible${visibleKinds.length > 1 ? "s" : ""} · vos informations d'établissement, cachet et signature sont insérés automatiquement`}
         actions={
-          <Link
-            href="/dashboard/documents/drafts"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-control border border-rule bg-surface px-4 text-role-body font-semibold text-text shadow-card transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
-          >
-            <FileStack aria-hidden="true" className="h-4 w-4" />
-            Brouillons
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/dashboard/documents/centre"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-control border border-rule bg-surface px-4 text-role-body font-semibold text-text shadow-card transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
+            >
+              <FileStack aria-hidden="true" className="h-4 w-4" />
+              Centre documentaire
+            </Link>
+            <Link
+              href="/dashboard/documents/drafts"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-control border border-rule bg-surface px-4 text-role-body font-semibold text-text shadow-card transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
+            >
+              <FileStack aria-hidden="true" className="h-4 w-4" />
+              Brouillons
+            </Link>
+          </div>
         }
       />
 

@@ -193,7 +193,7 @@ export default function CompletionClient({
           </button>
 
           <Link
-            href={`/dashboard/documents/report-card?classId=${classId}&termId=${termId}`}
+            href={`/dashboard/grades/report-card?classId=${classId}&termId=${termId}`}
             className="group bg-white border border-gray-200 rounded-2xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
           >
             <div className="flex items-center gap-3 mb-1.5">

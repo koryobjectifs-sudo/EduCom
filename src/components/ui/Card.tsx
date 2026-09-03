@@ -37,6 +37,10 @@ export type CardProps = {
   className?: string;
   /** Classe appliquée au corps uniquement. */
   bodyClassName?: string;
+  onClick?: () => void;
+  onKeyDown?: (e: any) => void;
+  role?: string;
+  tabIndex?: number;
 };
 
 export function Card({
@@ -48,11 +52,21 @@ export function Card({
   flush = false,
   className = "",
   bodyClassName = "",
+  onClick,
+  onKeyDown,
+  role,
+  tabIndex,
 }: CardProps) {
   const hasHeader = Boolean(title || description || actions);
 
   return (
-    <div className={`overflow-hidden rounded-surface border border-rule bg-surface shadow-card ${className}`}>
+    <div 
+      className={`overflow-hidden rounded-surface border border-rule bg-surface shadow-card ${className}`}
+      onClick={onClick}
+      onKeyDown={onKeyDown}
+      role={role}
+      tabIndex={tabIndex}
+    >
       {/*
         ⚠️ Lot 16.1 — l'en-tête s'EMPILE sous 640 px. En ligne, `shrink-0` sur les
         actions écrasait le titre : mesuré au pilote Chrome à 390 px, la colonne

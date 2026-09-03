@@ -1,13 +1,13 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Package } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { requireSchoolContext } from "@/lib/documentContext";
 import { hasAccess, firstAllowedPath } from "@/lib/permissions";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { auditForEntity, type AuditRecord } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { studentFile } from "@/lib/studentFile";
-import { canSeeHealthData } from "@/lib/studentScope";
+import { canSeeHealthData, canSeeCategory } from "@/lib/studentScope";
 import { channels, DIFFUSION_CHANNELS } from "@/lib/channels";
 import { DossierClient } from "./DossierClient";
 
@@ -58,6 +58,32 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
 
   const fullName = `${file.student.firstName} ${file.student.lastName}`;
 
+  /**
+   * Les rayons du dossier, résolus **côté serveur**.
+   *
+   * ⚠️ Le hub montre TOUS les rayons, y compris vides : un dossier qui
+   * n'apparaît que lorsqu'il contient déjà quelque chose est un dossier qu'on
+   * ne peut pas remplir. Mais un enseignant n'a rien à faire d'un rayon
+   * « Santé » qu'il ne pourra pas ouvrir : la liste est donc filtrée par
+   * `canSeeCategory()`, la même règle que le téléchargement et la diffusion.
+   * Le composant client n'en décide rien — il reçoit la liste déjà bornée.
+   */
+  const categories = (["IDENTITE", "INSCRIPTION", "SCOLARITE", "SANTE", "EXAMENS", "TRANSFERT", "AUTRES"] as const)
+    .filter((c) => canSeeCategory(ctx, c));
+
+  /**
+   * Rayons personnalisés de l'école — « Bourse », « Cantine »…
+   *
+   * ⚠️ Ils appartiennent à l'ÉTABLISSEMENT, pas à cet élève : un classeur par
+   * enfant serait ingérable dès la troisième inscription. Ils s'ajoutent aux
+   * sept catégories officielles sans jamais les remplacer.
+   */
+  const folders = await prisma.studentDocFolder.findMany({
+    where: { schoolId },
+    orderBy: [{ position: "asc" }, { name: "asc" }],
+    select: { id: true, name: true },
+  });
+
   return (
     <div className="space-y-6 pb-10">
       <PageHeader
@@ -67,20 +93,26 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
           { label: fullName, href: `/dashboard/students/${id}` },
           { label: "Dossier" },
         ]}
-        title={`Dossier — ${fullName}`}
-        description="Pièces administratives, scolarité et historique. Les fichiers sont stockés de façon privée et ne sont accessibles qu'après contrôle des droits."
+        /* ⚠️ Le `<h1>` dit « Dossier », le nom de l'élève vient dessous. Le titre
+           répondait aux deux questions à la fois (« Dossier — Pape Mbaye ») et
+           n'en posait aucune nettement : on lit d'abord OÙ l'on est, puis DE QUI
+           il s'agit. Le fil d'Ariane et le bouton « Fiche élève » ramènent à
+           l'élève ; aucune destination n'a été inventée. */
+        title="Dossier"
+        description={
+          <>
+            <span className="block text-role-card font-semibold text-text">{fullName}</span>
+            <span className="mt-1 block text-role-meta text-text-soft">
+              Les fichiers sont stockés de façon privée et ne sont accessibles qu&apos;après contrôle des droits.
+            </span>
+          </>
+        }
         actions={
-          <div className="flex flex-wrap gap-2">
-          {/* Lot 16 — l'export part de l'écran de préparation, jamais d'un
-              téléchargement direct : on doit voir ce qui manque AVANT de
-              produire une archive qu'un tiers prendra pour un dossier complet. */}
-          <Link
-            href={`/dashboard/students/export?students=${id}`}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-control border border-rule bg-surface px-4 text-role-body font-semibold text-text shadow-card transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-          >
-            <Package aria-hidden="true" className="h-4 w-4" />
-            Exporter le dossier
-          </Link>
+          /* ⚠️ Scanner, Importer et Exporter ne sont PLUS ici : ils vivent dans
+             la barre d'outils du hub, avec les dossiers sur lesquels ils
+             agissent. Un « Exporter » en haut de page ET un dans le hub, c'était
+             deux boutons pour un seul geste — le défaut relevé sur l'annuaire.
+             Ne reste ici que la navigation. */
           <Link
             href={`/dashboard/students/${id}`}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-control border border-rule bg-surface px-4 text-role-body font-semibold text-text shadow-card transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
@@ -88,11 +120,12 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
             <ArrowLeft aria-hidden="true" className="h-4 w-4" />
             Fiche élève
           </Link>
-          </div>
         }
       />
 
       <DossierClient
+        categories={categories}
+        folders={folders}
         /* ⚠️ Capacités résolues côté SERVEUR : `channels()` lit `process.env`.
            Un composant client qui l'importerait embarquerait du code serveur
            dans le bundle navigateur — le défaut exact du lot 13.1. */
@@ -155,6 +188,7 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
           id: d.id,
           label: d.label,
           category: String(d.category),
+          folderId: d.folderId,
           status: String(d.status),
           fileName: d.fileName,
           sizeBytes: d.sizeBytes,

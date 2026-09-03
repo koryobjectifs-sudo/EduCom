@@ -1,16 +1,73 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { ArrowLeft, Mail, Phone, MapPin, GraduationCap, Calendar, User as UserIcon, Activity, HeartPulse, FileText, ReceiptText, FileBadge, FolderOpen } from "lucide-react";
-import { StatusBadge } from "@/components/ui/Badge";
-import { canSeeHealthData, studentWhereFor } from "@/lib/studentScope";
+import { ArrowLeft, ChevronRight, FileText, ReceiptText, FileBadge, FolderOpen, AlertTriangle, Check } from "lucide-react";
+import { statusLabel } from "@/lib/status";
+import { canSeeHealthData } from "@/lib/studentScope";
+import { hasAccess } from "@/lib/permissions";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { BUCKET } from "@/lib/studentFile";
+import { AvatarPhoto } from "./AvatarPhoto";
+import { loadStudent360, SECTIONS, sectionValide } from "./data";
+import {
+  VoletEleve, SectionApercu, SectionScolarite, SectionPresence,
+  SectionNotes, SectionFinance, SectionFamille, SectionDocuments,
+} from "./sections";
+
+/**
+ * Fiche élève — « Student 360 ».
+ *
+ * ═══ CE QUI A CHANGÉ, ET POURQUOI ═══
+ *
+ * La fiche était une page unique de cinq cartes. Elle disait qui était l'élève,
+ * mais rien de ce que l'établissement sait de lui : ni assiduité, ni résultats,
+ * ni bulletins, ni échanges avec la famille. **Ces données existaient toutes
+ * dans le schéma** et n'étaient rattachées à l'élève sur aucun écran.
+ *
+ * La structure reprend le modèle d'interaction d'une fiche RH professionnelle —
+ * identité en ancre, volet de contexte permanent, sections navigables — et le
+ * remplit avec ce qui compte dans une école. La thèse de la vue générale vient
+ * de la recherche sur les systèmes d'information scolaires : **voir la présence,
+ * les résultats et l'argent au même endroit** est ce qui permet d'intervenir
+ * avant que la situation ne s'installe. C'est exactement ce qu'aucun écran
+ * d'EduCom ne permettait.
+ *
+ * ⚠️ **Aucune route nouvelle.** Les sections sont un paramètre de requête
+ * (`?section=`) rendu par le serveur : l'URL reste `/dashboard/students/[id]`,
+ * chaque section est partageable, et rien n'est masqué derrière un état client.
+ *
+ * ⚠️ **Aucune donnée inventée.** Chaque bloc lit une table existante. Quand la
+ * donnée n'existe pas, l'écran l'écrit (« Aucun appel enregistré ») au lieu
+ * d'afficher un zéro qui ressemblerait à une alerte.
+ *
+ * ⚠️ **Les bornes de rôle sont inchangées** : `studentWhereFor()` décide quel
+ * élève est visible, `canSeeHealthData()` décide si le médical est RENDU — il
+ * n'est jamais masqué en CSS.
+ */
+
+/* Le langage des boutons du produit, appliqué à des liens de navigation.
+   Les classes sont celles de la primitive `Button` (variantes primary et
+   secondary) : la fiche n'introduit aucun style nouveau. */
+const ACTION_BASE =
+  "inline-flex items-center justify-center gap-2 rounded-control px-3 h-10 text-role-label font-medium shadow-card transition-colors " +
+  "pointer-coarse:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+/* ⚠️ Ces actions vivent sur le BANDEAU, pas sur une surface blanche. Un bouton
+   `bg-primary` y disparaîtrait (même famille de couleur que le fond) et un
+   bouton `bg-surface text-text` y ferait une tache grise. La principale devient
+   donc blanche pleine, les secondaires des contours blancs translucides —
+   c'est le contraste avec le bandeau qui porte la hiérarchie. */
+const ACTION_PRINCIPALE = `${ACTION_BASE} bg-white text-band border border-transparent hover:bg-white/90 active:bg-white/80`;
+const ACTION_NEUTRE = `${ACTION_BASE} bg-white/10 text-white border border-white/30 hover:bg-white/20 active:bg-white/25`;
 
 export default async function StudentProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ section?: string }>;
 }) {
   const { id } = await params;
+  const { section } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -23,294 +80,235 @@ export default async function StudentProfilePage({
   // sanguin, les notes médicales et le lien vers le dossier : la borne de rôle
   // manquait, exactement comme sur le dossier lui-même (audit du lot 13).
   const actor = { userId: dbUser.id, schoolId: dbUser.schoolId, role: dbUser.role };
-  const scope = await studentWhereFor(actor);
   const health = canSeeHealthData(actor);
 
-  const student = await prisma.student.findFirst({
-    where: { AND: [scope, { id, schoolId: dbUser.schoolId }] },
-    include: {
-      parent: true,
-      enrollments: {
-        include: {
-          class: true,
-        },
-        orderBy: { academicYear: "desc" },
-      },
-      invoices: {
-        orderBy: { createdAt: "desc" },
-        take: 3
-      }
-    },
-  });
+  const d = await loadStudent360(actor, id);
 
-  if (!student) {
+  if (!d) {
     return (
       <div className="text-center py-12">
         <h2 className="text-xl font-semibold">Élève introuvable</h2>
-        <Link href="/dashboard/students" className="text-blue-900 hover:underline mt-4 inline-block">Retour à l'annuaire</Link>
+        <Link href="/dashboard/students" className="text-primary hover:underline mt-4 inline-block">
+          Retour aux élèves
+        </Link>
       </div>
     );
   }
 
+  const { student, completeness } = d;
+  const active = sectionValide(section);
   const currentEnrollment = student.enrollments[0];
+  const initiales = `${student.firstName[0] ?? ""}${student.lastName[0] ?? ""}`.toUpperCase();
+  const matricule = student.id.split("-")[0].toUpperCase();
+
+  // ⚠️ Le bucket est PRIVÉ. On ne transmet jamais `photoPath` au navigateur :
+  // seulement une URL signée à durée courte, calculée après que le chargement
+  // ci-dessus a déjà borné l'élève par `studentWhereFor()`. Un acteur hors
+  // périmètre n'atteint pas cette ligne : `d` est nul et la page a rendu
+  // « Élève introuvable ».
+  let photoUrl: string | null = null;
+  if (student.photoPath) {
+    const { data } = await createAdminClient().storage
+      .from(BUCKET)
+      .createSignedUrl(student.photoPath, 300);
+    photoUrl = data?.signedUrl ?? null;
+  }
+  // Voir l'élève ne donne pas le droit de le modifier — même règle que la
+  // server action, qui refait le contrôle côté serveur de toute façon.
+  const peutModifier = hasAccess(dbUser.role, "/dashboard/students");
 
   return (
-    <div className="space-y-6 max-w-6xl pb-12">
-      {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-100 pb-4">
-        <div className="flex items-center gap-4">
+    <div className="space-y-6 max-w-7xl pb-12">
+
+      {/* ═══════════ BANDEAU D'IDENTITÉ ═══════════
+          Le bandeau coloré porte l'identité, les actions et les onglets ; la
+          photo le CHEVAUCHE par le bas. C'est la disposition qui donne à une
+          fiche son ancrage : l'élève est identifié avant toute donnée.
+
+          ⚠️ Pas d'`overflow-hidden` sur cet en-tête — il rognerait justement le
+          débordement de la photo, qui est tout l'effet recherché. */}
+      <header className="relative rounded-surface bg-band p-5 shadow-card sm:mb-12 sm:p-6 sm:pl-[13rem]">
+
+        <div className="mb-4 flex items-center gap-2">
           <Link
             href="/dashboard/students"
-            className="rounded-full p-2 text-gray-400 hover:bg-gray-50 hover:text-gray-500 transition-colors"
+            aria-label="Retour aux élèves et dossiers"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-control text-white/70 transition-colors hover:bg-white/15 hover:text-white pointer-coarse:min-h-11 pointer-coarse:min-w-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           </Link>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
-              Profil Élève
-            </h1>
-          </div>
-        </div>
-        
-        {/* Quick Actions Shortcuts */}
-        {/* `flex-wrap` : sur mobile les quatre raccourcis débordaient sur une
-            seule ligne. Le dossier est en tête — c'est le point d'entrée du
-            lot 13, et le plus utilisé au quotidien par le secrétariat. */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href={`/dashboard/students/${student.id}/dossier`}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
-          >
-            <FolderOpen className="h-4 w-4" /> Dossier
-          </Link>
-          <Link 
-            href={`/dashboard/documents/certificate?studentId=${student.id}`}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors"
-          >
-            <FileBadge className="h-4 w-4" /> Certificat
-          </Link>
-          <Link 
-            href={`/dashboard/documents/report-card?studentId=${student.id}`}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-          >
-            <FileText className="h-4 w-4" /> Bulletin
-          </Link>
-          <Link 
-            href={`/dashboard/documents/invoice?studentId=${student.id}`}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
-          >
-            <ReceiptText className="h-4 w-4" /> Facturer
-          </Link>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Left Column: Identity Card */}
-        <div className="xl:col-span-1 space-y-6">
-          <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
-            <div className="bg-blue-900 h-24"></div>
-            <div className="px-6 pb-6 relative">
-              <div className="h-20 w-20 rounded-full border-4 border-white bg-blue-100 flex items-center justify-center text-blue-900 font-semibold text-2xl absolute -top-10 shadow-sm">
-                {student.firstName[0]}{student.lastName[0]}
-              </div>
-              <div className="mt-12">
-                <h2 className="text-xl font-bold text-gray-900">{student.firstName} {student.lastName}</h2>
-                <p className="text-sm text-gray-500 font-medium mt-1">Matricule: {student.id.split("-")[0].toUpperCase()}</p>
-                
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <StatusBadge domain="student" status={student.status} />
-                  <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 ring-1 ring-inset ring-blue-700/10">
-                    {currentEnrollment?.class?.name || "Sans classe"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-6 border-t border-gray-100 pt-6 space-y-4">
-                <div className="flex items-center gap-3 text-sm text-gray-600">
-                  <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0">
-                    <Calendar className="h-4 w-4 text-gray-500" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Date de naissance</p>
-                    <p>{student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString("fr-FR") : "Non renseignée"}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-gray-600">
-                  <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0">
-                    <MapPin className="h-4 w-4 text-gray-500" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Adresse</p>
-                    <p>{student.address || "Non renseignée"}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-gray-600">
-                  <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0">
-                    <GraduationCap className="h-4 w-4 text-gray-500" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Inscription</p>
-                    <p>Enregistré le {student.createdAt.toLocaleDateString("fr-FR")}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <nav aria-label="Fil d'Ariane" className="min-w-0">
+            <ol className="flex flex-wrap items-center gap-1 text-role-meta text-white/60">
+              {/* ⚠️ `min-h-11` sur pointeur grossier : mesurés au doigt, ces deux
+                  liens faisaient 15 et 18 px de haut. Le fil d'Ariane reste un
+                  moyen de navigation, donc une cible — l'apparence ne change pas
+                  à la souris, seule la zone tactile grandit. */}
+              <li className="flex items-center">
+                <Link href="/dashboard" className="inline-flex items-center transition-colors hover:text-white pointer-coarse:min-h-11">Accueil</Link>
+              </li>
+              <li className="flex items-center gap-1">
+                <ChevronRight aria-hidden="true" className="h-3 w-3 shrink-0" />
+                <Link href="/dashboard/students" className="inline-flex items-center transition-colors hover:text-white pointer-coarse:min-h-11">Élèves &amp; dossiers</Link>
+              </li>
+              <li className="flex items-center gap-1">
+                <ChevronRight aria-hidden="true" className="h-3 w-3 shrink-0" />
+                <span aria-current="page" className="text-white/85">Fiche élève</span>
+              </li>
+            </ol>
+          </nav>
         </div>
 
-        {/* Right Column: Details */}
-        <div className="xl:col-span-2 space-y-6">
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Parents / Responsable */}
-            <div className="rounded-2xl border border-gray-100 bg-white shadow-sm flex flex-col">
-              <div className="border-b border-gray-100 px-6 py-4 flex items-center gap-3">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <UserIcon className="h-5 w-5 text-blue-600" />
-                </div>
-                <h3 className="text-base font-semibold text-gray-900">Responsable Légal</h3>
-              </div>
-              <div className="p-6 flex-grow">
-                {student.parent ? (
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-lg font-bold text-gray-900">{student.parent.firstName} {student.parent.lastName}</p>
-                      <p className="text-sm font-medium text-gray-500">Parent / Tuteur</p>
-                    </div>
-                    <div className="space-y-3 pt-2">
-                      {student.parent.email && (
-                        <div className="flex items-center gap-3 text-sm">
-                          <Mail className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-700">{student.parent.email}</span>
-                        </div>
-                      )}
-                      {student.parent.phone && (
-                        <div className="flex items-center gap-3 text-sm">
-                          <Phone className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-700">{student.parent.phone}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center space-y-3">
-                    <UserIcon className="h-8 w-8 text-gray-300" />
-                    <p className="text-sm text-gray-500">Aucun responsable légal assigné.</p>
-                  </div>
-                )}
-              </div>
+        {/* L'identité est l'ancre visuelle ; les actions la suivent, et passent
+            sous elle dès que la largeur ne permet plus de les mettre en regard. */}
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+
+          <div className="flex min-w-0 items-center gap-4 sm:items-start sm:gap-6">
+            {/* ⚠️ La marge basse NÉGATIVE est ce qui fait déborder la photo sous
+                le bandeau : elle retire de la hauteur au bandeau sans déplacer
+                la photo. Le `<div className="h-14">` en pied d'en-tête rend
+                cette place, sinon la photo mordrait sur le contenu suivant.
+                Sous 640 px il n'y a pas de débordement — la place manque, et
+                une photo à cheval sur deux fonds y serait illisible. */}
+            <div className="shrink-0 sm:absolute sm:bottom-0 sm:left-6 sm:translate-y-[30%]">
+              <AvatarPhoto
+                studentId={student.id}
+                initiales={initiales}
+                photoUrl={photoUrl}
+                modifiable={peutModifier}
+              />
             </div>
 
-            {/* Medical & Emergency */}
-            <div className="rounded-2xl border border-gray-100 bg-white shadow-sm flex flex-col">
-              <div className="border-b border-gray-100 px-6 py-4 flex items-center gap-3">
-                <div className="p-2 bg-rose-50 rounded-lg">
-                  <HeartPulse className="h-5 w-5 text-rose-600" />
-                </div>
-                <h3 className="text-base font-semibold text-gray-900">Dossier Médical & Urgence</h3>
-              </div>
-              <div className="p-6 flex-grow space-y-5">
-                {/* ⚠️ Le bloc médical n'est pas caché en CSS : il n'est pas rendu
-                    du tout. Un `hidden` laisserait la donnée dans la source de la
-                    page, donc lisible par qui n'y a pas droit. Le contact
-                    d'urgence, lui, reste affiché : joindre une famille pendant un
-                    incident fait partie du travail de tout le personnel. */}
-                {health ? (
+            {/* Matricule, classe et statut tiennent sur UNE ligne : c'est ce qui
+                distingue une fiche d'une pile de champs. Ils passent à la ligne
+                d'eux-mêmes sous 640 px plutôt que de se comprimer. */}
+            <div className="min-w-0">
+              <p className="text-role-meta font-medium uppercase tracking-wide text-white/60">Élève</p>
+              <h1 className="mt-1 text-[30px] font-semibold leading-tight tracking-tight text-white break-words sm:text-[36px]">
+                {student.firstName} {student.lastName}
+              </h1>
+
+              <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2 text-role-label">
+                <span className="text-white/70">
+                  <span className="text-white/50">Matricule</span>{" "}
+                  <span className="font-medium text-white tabular-nums">{matricule}</span>
+                </span>
+                <span aria-hidden="true" className="hidden h-3 w-px bg-white/25 sm:inline-block" />
+                <span className="text-white/70">
+                  <span className="text-white/50">Classe</span>{" "}
+                  <span className="font-medium text-white">{currentEnrollment?.class?.name || "Sans classe"}</span>
+                </span>
+                <span aria-hidden="true" className="hidden h-3 w-px bg-white/25 sm:inline-block" />
+                {/* ⚠️ Pas de `StatusBadge` ici. La primitive dessine une pastille
+                    claire à texte coloré, pensée pour un fond blanc : sur le
+                    bandeau, « Inscrit » y devenait un vert pâle sur bleu, sous le
+                    seuil de lisibilité. Le statut est repris en clair, et la
+                    primitive reste inchangée pour tout le reste du produit. */}
+                <span className="inline-flex items-center gap-1.5 rounded-pill bg-white/15 px-2.5 py-1 text-role-meta font-medium text-white ring-1 ring-inset ring-white/25">
+                  <span aria-hidden="true" className="h-1.5 w-1.5 rounded-pill bg-white/80" />
+                  {statusLabel("student", student.status)}
+                </span>
+
+                {/* ⚠️ Le badge de complétude vient du MÊME `completeness` que
+                    le dossier affiche — voir `data.ts`. Il n'existe que si une
+                    checklist est configurée : afficher « 0 % » sur une école
+                    qui n'exige encore aucune pièce dirait que le dossier est
+                    vide, alors que c'est la règle qui manque. Cliquable, il
+                    mène directement au hub documentaire — pas seulement un
+                    chiffre, une porte d'entrée. */}
+                {completeness && completeness.configured && (
                   <>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Groupe Sanguin</p>
-                        <p className="text-base font-bold text-gray-900 mt-0.5">{student.bloodGroup || "Non renseigné"}</p>
-                      </div>
-                      {student.bloodGroup && (
-                        <div className="h-10 w-10 bg-rose-100 rounded-full flex items-center justify-center">
-                          <span className="text-rose-600 font-black text-sm">{student.bloodGroup}</span>
-                        </div>
+                    <span aria-hidden="true" className="hidden h-3 w-px bg-white/25 sm:inline-block" />
+                    <Link
+                      href={`/dashboard/students/${student.id}/dossier`}
+                      className={`inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-role-meta font-semibold ring-1 ring-inset transition-colors pointer-coarse:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
+                        completeness.percent === 100
+                          ? "bg-success/20 text-white ring-success/40 hover:bg-success/30"
+                          : "bg-warning/20 text-white ring-warning/40 hover:bg-warning/30"
+                      }`}
+                    >
+                      {completeness.percent === 100 ? (
+                        <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                      ) : (
+                        <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
                       )}
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Notes Médicales (Allergies, PAI)</p>
-                      <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                        {student.medicalNotes || "Aucune note médicale ou allergie signalée."}
-                      </p>
-                    </div>
+                      Dossier {completeness.percent} % complet
+                    </Link>
                   </>
-                ) : (
-                  <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                    Les informations médicales relèvent du secrétariat et ne sont pas affichées ici.
-                  </p>
-                )}
-
-                <div className="border-t border-gray-100 pt-4">
-                  <p className="text-xs font-bold text-rose-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-                    <Activity className="w-3 h-3" /> Contact en cas d'urgence
-                  </p>
-                  <div className="flex flex-col gap-1 text-sm">
-                    <span className="font-semibold text-gray-900">{student.emergencyContact || "Non renseigné"}</span>
-                    <span className="text-gray-600">{student.emergencyPhone}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Academic History & Invoices */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
-              <div className="border-b border-gray-100 px-6 py-4">
-                <h3 className="text-base font-semibold text-gray-900">Historique Scolaire</h3>
-              </div>
-              <div className="p-6">
-                {student.enrollments.length > 0 ? (
-                  <div className="space-y-4">
-                    {student.enrollments.map((enr) => (
-                      <div key={enr.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 last:pb-0">
-                        <div>
-                          <p className="font-semibold text-gray-900">{enr.class?.name}</p>
-                          <p className="text-xs text-gray-500">Année {enr.academicYear}</p>
-                        </div>
-                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-md">Terminé</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500 text-center py-4">Aucun historique d'inscription.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
-              <div className="border-b border-gray-100 px-6 py-4 flex justify-between items-center">
-                <h3 className="text-base font-semibold text-gray-900">Dernières Factures</h3>
-                <Link href={`/dashboard/documents/invoice?studentId=${student.id}`} className="text-xs font-bold text-blue-600 hover:text-blue-700">
-                  Créer
-                </Link>
-              </div>
-              <div className="p-6">
-                {student.invoices.length > 0 ? (
-                  <div className="space-y-4">
-                    {student.invoices.map((inv) => (
-                      <div key={inv.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 last:pb-0">
-                        <div>
-                          <p className="font-semibold text-gray-900">{inv.totalAmount} FCFA</p>
-                          <p className="text-xs text-gray-500">{new Date(inv.dueDate).toLocaleDateString("fr-FR")}</p>
-                        </div>
-                        <StatusBadge domain="invoice" status={inv.status} size="sm" />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-4 space-y-2">
-                    <ReceiptText className="w-8 h-8 text-gray-300 mx-auto" />
-                    <p className="text-sm text-gray-500">Aucune facture enregistrée.</p>
-                  </div>
                 )}
               </div>
             </div>
           </div>
 
+          {/* Mêmes quatre destinations qu'avant. Le dossier est la principale :
+              c'est le point d'entrée du lot 13, le plus utilisé au quotidien. */}
+          <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
+            <Link href={`/dashboard/students/${student.id}/dossier`} className={ACTION_PRINCIPALE}>
+              <FolderOpen aria-hidden="true" className="h-4 w-4" /> Dossier
+            </Link>
+            <Link href={`/dashboard/documents/certificate?studentId=${student.id}`} className={ACTION_NEUTRE}>
+              <FileBadge aria-hidden="true" className="h-4 w-4" /> Certificat
+            </Link>
+            <Link href={`/dashboard/grades/report-card?studentId=${student.id}`} className={ACTION_NEUTRE}>
+              <FileText aria-hidden="true" className="h-4 w-4" /> Bulletin
+            </Link>
+            <Link href={`/dashboard/payments/invoice?studentId=${student.id}`} className={ACTION_NEUTRE}>
+              <ReceiptText aria-hidden="true" className="h-4 w-4" /> Facturer
+            </Link>
+          </div>
         </div>
+
+        {/* ═══ NAVIGATION DE FICHE ═══
+
+            ⚠️ Ce sont des LIENS, pas un état client : chaque section a son URL,
+            elle est partageable, et le retour arrière du navigateur fonctionne.
+            Aucune route n'est ajoutée — `?section=` reste la même page.
+
+            ⚠️ `overflow-x-auto` sur la barre et `min-w-max` sur la liste : sous
+            390 px les sept entrées ne tiennent pas, elles défilent DANS la barre
+            au lieu de faire déborder la page. */}
+        <nav aria-label="Sections de la fiche" className="-mx-5 mt-5 overflow-x-auto px-5 sm:-mx-6 sm:mt-6 sm:px-6">
+          <ul className="flex min-w-max items-center gap-6">
+            {SECTIONS.map((s) => {
+              const actif = s.cle === active;
+              return (
+                <li key={s.cle}>
+                  <Link
+                    href={`/dashboard/students/${student.id}?section=${s.cle}`}
+                    aria-current={actif ? "page" : undefined}
+                    className={`inline-flex items-center whitespace-nowrap rounded-t-control px-3 pt-2.5 pb-2 text-role-label font-medium transition-colors pointer-coarse:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
+                      actif
+                        ? "bg-surface text-band shadow-card"
+                        : "text-white/70 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    {s.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </header>
+
+      {/* ═══════════ VOLET PERMANENT + SECTION ═══════════
+
+          Le volet reste affiché quelle que soit la section : c'est ce qui évite
+          de perdre l'élève de vue en consultant ses notes. Sous 1024 px il passe
+          AU-DESSUS du contenu, où il joue son rôle de résumé. */}
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+        <aside className="lg:col-span-4 xl:col-span-3">
+          <VoletEleve d={d} health={health} />
+        </aside>
+
+        <main className="lg:col-span-8 xl:col-span-9">
+          {active === "apercu" && <SectionApercu d={d} studentId={student.id} />}
+          {active === "scolarite" && <SectionScolarite d={d} />}
+          {active === "presence" && <SectionPresence d={d} />}
+          {active === "notes" && <SectionNotes d={d} />}
+          {active === "finance" && <SectionFinance d={d} studentId={student.id} />}
+          {active === "famille" && <SectionFamille d={d} health={health} />}
+          {active === "documents" && <SectionDocuments d={d} studentId={student.id} />}
+        </main>
       </div>
     </div>
   );

@@ -92,7 +92,11 @@ async function main() {
   // ---- 2. TOKENS DE LA CHARTE ----
   console.log(`\n[2] VALEURS DE LA CHARTE VALIDÉE`);
   const expected: [string, string][] = [
-    ["--color-primary", "#0B1F3A"],
+    // ⚠️ #539BEB depuis le commit eb099f4 (24 août 2026), livré avec
+    // `public/brand/educom-logo-officiel.jpg` et commenté « Bleu principal
+    // officiel EduCom ». La sonde attendait encore le bleu nuit du tout premier
+    // commit : c'est ELLE qui était en retard sur la charte, pas l'inverse.
+    ["--color-primary", "#539BEB"],
     ["--color-success", "#047857"],
     ["--color-warning", "#B45309"],
     ["--color-danger", "#B91C1C"],

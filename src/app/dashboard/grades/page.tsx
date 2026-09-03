@@ -76,6 +76,23 @@ export default async function GradesEntryChoicePage() {
             </p>
           </div>
         </Link>
+
+        <Link 
+          href="/dashboard/grades/report-card"
+          className="group relative rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-primary/50 hover:shadow-md hover:shadow-primary/5 flex items-center gap-3 w-full sm:w-64"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <FileText className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-[14px] font-semibold text-slate-900 group-hover:text-primary transition-colors">
+              3. Bulletins
+            </h2>
+            <p className="mt-0.5 text-[12px] text-slate-500">
+              Générer et imprimer
+            </p>
+          </div>
+        </Link>
       </div>
 
       {/* Planning des évaluations */}

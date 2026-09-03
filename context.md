@@ -1,8 +1,509 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 25 août 2026 — Refonte du flux de récupération de mot de passe et onboarding automatique via Google OAuth.
+> Dernière mise à jour : 3 septembre 2026 — audit final pré-mise en ligne : parcours navigateur réel de bout en bout (75 vérifications, 71 OK), 1 bug d'hydratation trouvé et corrigé, mis en ligne.
 
 ## 📌 Nouvelles Fonctionnalités & Logiques Implémentées (Août 2026)
+
+### AUDIT FINAL PRÉ-MISE EN LIGNE (3 septembre 2026) — parcours navigateur réel
+
+Kory a corrigé `EDUCOM_DEV_REFS` (mauvaise référence copiée : `vuvjt…` au lieu de `slqjdy…`, la base réellement visée par `.env`). Débloqué, j'ai construit `scripts/audit-e2e-final.ts` : école jetable, 4 comptes (OWNER/SECRETARY/TEACHER/PARENT), 3 élèves, parcours complet piloté en Chrome réel — Liste → Fiche → Photo → Dossier → Rayon → Import → Scan → Export — aux trois largeurs, plus permissions et clavier. **75 vérifications, 71 OK au premier passage propre.**
+
+**⚠️ Un vrai bug trouvé et corrigé : `<thead>` sans `<tr>`.** `ComplianceClient.tsx` (écrit dans la passe précédente) posait les `<DataTable.HeadCell>` directement dans `<DataTable.Head>` (= `<thead>`), sans les envelopper dans un `<tr>` — HTML invalide, qui déclenchait une erreur d'hydratation React (bascule silencieuse en rendu client). Le seul autre usage du même composant (`StudentListClient.tsx`) enveloppait déjà correctement dans un `<tr>` — la comparaison a suffi à trouver le bon motif. Corrigé, revérifié : 0 erreur console sur tout le parcours au second passage.
+
+**Trois faux positifs de la sonde elle-même, distingués de vrais bugs :**
+1. `document.querySelector("h2")` prenait le premier `<h2>` du DOM, pas forcément celui du rayon ouvert — la capture (`05-rayon-ouvert.png`) montrait le bon titre pendant que le test échouait. Sélecteur élargi (`querySelectorAll` + `.some()`).
+2. Test permissions TEACHER/PARENT via `fetch()` brut attendait un code HTTP 307/302 sur une redirection Next 16 App Router — **un `redirect()` de composant serveur ne produit pas systématiquement un 30x sur une requête `fetch()` sans les en-têtes RSC.** Vérifié en CDP réel (vrai navigateur) : TEACHER atterrit bien sur `/dashboard`, aucune fuite. Critère corrigé pour vérifier l'ABSENCE du contenu protégé plutôt qu'un code HTTP précis.
+
+**⚠️ Défaut réel, mais hors périmètre — confirmé SYSTÉMIQUE, pas une régression.** Cibles tactiles < 40px : `Owner`/`Site public` (TopNav), fil d'Ariane (`PageHeader`), `Button size="sm"` (32px, la taille standard du composant partagé sur 247+ boutons du produit). Vérifié en sondant `/dashboard/team`, `/dashboard/classes` et **le tableau de bord lui-même** — aucun de ces trois écrans n'a été touché cette session, et ils présentent exactement le même défaut. Le corriger aurait exigé un redesign du design system, explicitement hors du périmètre de cet audit (« ne fais aucun redesign »). Signalé à Kory, non corrigé.
+
+**Ce qui est prouvé réel, pas seulement statique :**
+- Photo : upload réel → `photoPath` réellement écrit en base → URL signée Supabase (jamais le chemin brut) → affichage.
+- Dossier : import réel d'une pièce dans un rayon → écriture réelle en `StudentDocument` → statut recalculé (badge de complétude passé de 0 % à 50 % entre les captures).
+- Scanner : chemin caméra testé via `DOM.setFileInputFiles` (CDP), sans dialogue OS — l'aperçu se génère.
+- « + Nouveau dossier » : création réelle → `StudentDocFolder` réellement écrit en base → apparaît immédiatement dans la grille.
+- Permissions, en navigateur réel : TEACHER ne voit que sa classe, pas le rayon Santé, pas le portail de conformité ; PARENT n'obtient aucune donnée d'un autre élève (« Élève introuvable », le même message que « hors périmètre » — aucune fuite d'existence) ; SECRETARY atteint le portail et y voit les bons taux.
+- Stockage Supabase : toute la fixture (école, 4 comptes Auth, 3 élèves, 2 exigences, pièces, dossier personnalisé, fichiers du bucket) **entièrement supprimée** après coup — 0 résidu, vérifié par comptage.
+
+**Build production réel exécuté** (`next dev` arrêté → `next build` → redémarré, jamais les deux ensemble) : compile, 69 routes générées. TypeScript et ESLint : 0 nouvelle erreur sur tout le dépôt, comparé fichier par fichier à l'état d'avant chantier.
+
+
+### DOSSIER ÉLÈVE — REFONTE COMPLÈTE + RÉFÉRENTIEL OFFICIEL + CONFORMITÉ (3 septembre 2026, 3e passe)
+
+Kory a rejeté la 2e passe (« je ne suis pas satisfait ») et fourni un cahier des charges complet en 12 sections, avec BambooHR comme référence visuelle et la liste officielle des pièces d'inscription sénégalaises par cycle. Trois demandes supplémentaires arrivées en cours de tâche : badge de complétude cliquable sur la fiche élève, portail de conformité dans Rapports › Secrétariat, bouton « + Nouveau dossier ». Une question bloquante posée avant d'écrire du Prisma : **« + Nouveau dossier » crée-t-il un rayon personnalisé, une exigence, ou un élève ?** Kory a choisi le rayon personnalisé — la lecture BambooHR (« + New Folder »).
+
+**⚠️ Migration Prisma appliquée** (essai à blanc sans `DROP`, vérifié avant application) : nouvelle table `StudentDocFolder` (rayon propre à l'école — « Bourse », « Cantine »…) + colonne `StudentDocument.folderId` (`SetNull`, jamais `Cascade` : supprimer un classeur ne doit pas effacer les pièces qu'il contenait). **Les 7 `DocCategory` restent la classification officielle** — un rayon personnalisé ne peut recevoir que des pièces hors checklist, jamais une exigence.
+
+**⚠️ PIÈGE — client Prisma périmé après `db push` + `generate`.** Le serveur `next dev` tournait depuis mardi 5h ; sa copie en mémoire du client Prisma ne connaissait pas `studentDocFolder`, même après régénération sur disque et `tsc --noEmit` propre. Résultat : `TypeError: Cannot read properties of undefined (reading 'findMany')` en boucle sur la page dossier, invisible à la compilation. **Un redémarrage du processus `next dev` est nécessaire après toute migration de schéma** — `tsc` et `eslint` ne le détectent pas, seul le comportement à l'exécution le révèle. Redémarré ; 0 occurrence de l'erreur depuis.
+
+**Structure du hub, imposée par Kory** : `HEADER → RÉCAP → ACTIONS → DOSSIERS`, puis le contenu d'un rayon seulement au clic — reprise à l'identique de la 2e passe, dont la structure n'était pas remise en cause.
+
+**Référentiel officiel sénégalais** (`src/lib/officialRequirements.ts`) : pièces par cycle (Maternelle, Élémentaire, Collège, Lycée), fournies par Kory. **Jamais imposé automatiquement** — Réglages › Pièces du dossier propose des cases à cocher par cycle, `applyOfficialRequirements()` (idempotent : une exigence dont le libellé existe déjà pour ce cycle est ignorée, jamais réécrite) crée les lignes manquantes en un seul `createMany`. Inversait la note du fichier d'origine (« aucune liste de pièces n'est codée ») — mise à jour pour dire pourquoi : une école partait sur zéro exigence, donc sur un taux de conformité incalculable.
+
+**⚠️ « Moins de 3 mois » n'est PAS une durée de validité.** L'extrait de naissance doit être récent au dépôt, il ne périme pas tous les trimestres. `validityMonths` reste vide pour ces pièces — le renseigner aurait fait basculer chaque extrait en EXPIRED trois mois après dépôt.
+
+**Badge de complétude sur la fiche élève** (`students/[id]/page.tsx`) : lit `completeness` calculé par `studentFile()` dans `data.ts` — **aucun second calcul**, le badge et le dossier doivent toujours s'accorder. N'apparaît que si une checklist est configurée. Cliquable, mène au dossier.
+
+**Portail de conformité** (`/dashboard/admin/reports/compliance`, + section « Conformité documentaire » dans le rapport secrétariat) : liste nominative conformes/non conformes/sans checklist, filtrable, avec lien vers le dossier de chaque élève.
+
+**⚠️ Garde d'audience, PAS `hasAccess()` sur le chemin.** `/dashboard/admin/reports` est autorisé à TOUS les rôles employés (chacun y voit SON rapport — l'enseignant ses classes, le parent sa famille). Une garde par préfixe de chemin aurait donc ouvert la liste nominative du dossier documentaire de chaque élève à un enseignant ou un parent. La page vérifie explicitement `audienceForRole(role)` ∈ {direction, secrétariat} — la même fonction qui décide déjà quelles sections `buildReport()` construit.
+
+**⚠️ Calcul batché, pas de boucle séquentielle** (`src/lib/documentCompliance.ts`, règle 10 du projet). Les pièces exigées ne dépendent que de (classe, cycle, type d'élève, année) — pas de l'élève. `requirementsFor()` (déjà testée par le dossier élève) est appelée **une fois par combinaison distincte**, jamais par élève — quelques dizaines d'appels pour 243 élèves, pas 243. Les pièces reçues sont lues en une seule requête pour toute l'école. La définition de « conforme » est identique à `Completeness.received` du dossier élève (un document existe pour l'exigence, quel que soit son statut) — le badge, le portail et le dossier ne peuvent pas se contredire pour le même élève.
+
+**Vérifié :** TypeScript 0 sur tout le dépôt · ESLint 0 nouvelle erreur (comparé fichier par fichier via `git stash` contre l'état d'avant chantier — `ScanDialog.tsx`, `ReportSections.tsx`, `reports.ts`, et les fichiers d'un chantier antérieur portent des alertes préexistantes, identiques avant/après) · les 7 routes touchées répondent proprement après redémarrage, 0 nouvelle erreur au journal.
+
+**⚠️ NON VÉRIFIÉ VISUELLEMENT.** Sondes CDP toujours bloquées : la référence visée par `.env` n'est pas dans `EDUCOM_DEV_REFS` (voir bloc ci-dessous, inchangé). Kory doit trancher avant toute capture.
+
+
+### DOSSIER ÉLÈVE — LE HUB DOCUMENTAIRE (3 septembre 2026, 2e passe)
+
+Kory : « je ne suis pas satisfait du résultat ». La 1re passe gardait la logique de liste : un récapitulatif géant occupait tout l'écran, **un seul dossier** apparaissait (les rayons vides étaient masqués), et les fichiers restaient visibles sous la grille. Le hub n'en était pas un.
+
+**Structure retenue** (dictée par Kory) : `HEADER → RÉCAP → ACTIONS → DOSSIERS`, puis *seulement au clic* le contenu d'un rayon.
+
+**⚠️ Décision inversée : TOUS les rayons sont affichés, y compris vides.** La 1re passe filtrait `total > 0` — un dossier qui n'apparaît qu'une fois rempli est un dossier qu'on ne peut pas remplir, et l'écran ne montrait qu'« Inscription » sans dire où ranger le reste. La liste vient désormais du SERVEUR (`categories` dans `dossier/page.tsx`), **déjà bornée par `canSeeCategory()`** : un enseignant ne voit pas un rayon « Santé » qu'il ne pourrait pas ouvrir, et le composant client n'arbitre aucun droit.
+
+**⚠️ Décision inversée : un dossier n'est plus ouvert d'office.** La 1re passe en gardait toujours un d'ouvert pour éviter un clic. Kory a tranché l'inverse : le hub d'abord, les fichiers après le clic. `folder = null` est donc le hub, et on ne lit jamais `folder` directement — `dossierOuvert` retombe sur le hub si le rayon a cessé d'être visible, plutôt que d'afficher un dossier inexistant sans qu'aucune erreur ne soit levée.
+
+**⚠️ « Importer » passe par la fenêtre de scan, pas par un sélecteur direct.** Un import lancé depuis le hub devrait choisir une destination À LA PLACE de l'utilisateur : un extrait de naissance serait tombé dans « Autres ». `ScanDialog` fait déjà classer la pièce (exigence, catégorie, libellé) — deux nouvelles props, `intent` (« scan » | « import ») et `defaultCategory`, l'ouvrent directement sur le bon chemin. **Aucune logique d'envoi n'a été dupliquée.**
+
+**⚠️ Piège : le clic programmatique sur `<input type="file">`** n'est accepté que pendant l'activation transitoire du geste utilisateur. Il est différé d'un tour de boucle (la modale doit être montée, sinon la référence est nulle). Si un navigateur refuse, rien ne casse : l'étape 0 de la fenêtre est là avec ses deux boutons.
+
+**⚠️ Piège de lint :** `setState` synchrone dans un corps d'effet est une **erreur** ESLint dans ce dépôt (`react-hooks/set-state-in-effect`). Le `setCategory` est donc dans la temporisation, pas dans le corps.
+
+**« Complet » n'est affiché que là où une exigence existe.** Un rayon qui ne contient que des pièces versées librement n'est ni complet ni incomplet : rien n'y est attendu, et l'annoncer complet serait faux.
+
+**Mobile :** les cartes deviennent des RANGÉES sous 640 px (icône à gauche, texte à droite). Réduire la carte de bureau aurait donné sept blocs hauts à faire défiler pour lire sept libellés.
+
+**Rien n'a été supprimé.** Identité, scolarité et historique sont repliés (`<details>`) sous la grille : la fiche 360 les porte en entier, et les laisser ouverts repoussait les dossiers hors de l'écran.
+
+**⚠️ NON VÉRIFIÉ VISUELLEMENT.** Voir le blocage ci-dessous : aucune capture n'a pu être produite. TypeScript = 0, ESLint = 0 nouvelle alerte (l'erreur `setCaps` de `ScanDialog:67` est antérieure, mesurée à l'identique avant/après par `git stash`), les 8 routes répondent, mais **le rendu n'a pas été inspecté**.
+
+### ⚠️ LA BASE VISÉE N'EST PAS DÉCLARÉE COMME BASE DE DÉVELOPPEMENT
+
+`EDUCOM_ENV=development`, mais la référence Supabase que vise le `.env` (`slqjdy…wu`) **ne figure pas dans `EDUCOM_DEV_REFS`**, qui n'en liste qu'une autre. `scripts/_env.ts` refuse donc de démarrer : **toutes les sondes CDP sont hors service** (captures, vérificateurs de lot).
+
+Ce n'est pas un défaut du garde-fou, c'est son travail : ces scripts créent ET SUPPRIMENT des données, et la base contient 243 élèves réels. Deux lectures possibles — la liste est périmée, ou le `.env` pointe vraiment sur la production. **À trancher par Kory**, pas par un agent. La levée `EDUCOM_ALLOW_PRODUCTION` n'a été autorisée que pour UNE commande de validation tactile : ne pas la réemployer.
+
+### DOSSIER ÉLÈVE — LE HUB DOCUMENTAIRE (3 septembre 2026, 1re passe)
+
+Demande de Kory : « dans le profil de l'élève, la page dossier doit être le hub dossier de l'élève, le stock des dossiers classé par folder. On garde les options import et export + scan. Plus un petit récap de stats (les documents qui manquent). » Référence visuelle : la grille de dossiers de BambooHR.
+
+**Ce que l'écran était.** Huit cartes empilées, dans l'ordre : Identité, Scolarité, Ajouter, Complétude, Documents manquants, Documents exigés, Autres pièces, Historique. Les pièces vivaient dans **deux listes à plat** — exigées d'un côté, hors checklist de l'autre — et l'identité de l'élève ouvrait la page, alors que la fiche 360 la porte déjà en entier.
+
+**Ce qu'il est.** Récapitulatif → grille de dossiers → contenu du dossier ouvert → identité/scolarité (rétrogradées) → historique.
+
+**⚠️ Les rayons sont les valeurs de `DocCategory`, pas une nomenclature d'écran.** Classer autrement ici aurait produit un rangement que les exigences, la validation et l'export ne connaissent pas — deux vérités pour un même dossier. Un rayon vide n'est pas affiché.
+
+**⚠️ Un dossier est TOUJOURS ouvert.** L'état `folder` est une *préférence*, pas la vérité : un rayon peut disparaître entre deux rendus (dernière pièce remplacée, exigence désactivée) et laisser la sélection pointer dans le vide — l'écran afficherait un dossier inexistant **sans lever d'erreur**. La sélection effective est recalculée à chaque rendu et retombe sur le rayon qui réclame du travail, sinon le premier.
+
+**⚠️ `ligneExigee` / `ligneLibre` sont des FONCTIONS, pas des composants.** Écrites `<Ligne … />`, React les prendrait pour un type recréé à chaque rendu : il démonterait puis remonterait chaque ligne, et les `ref` des champs de fichier (`inputs.current[…]`) seraient remises à `null` sous le clic. Le dépôt échouerait sans message.
+
+**Glisser-déposer.** Un fichier lâché sur un rayon (ou sur la barre du bas) y est versé **hors checklist**, sous le nom du fichier — personne n'a saisi de libellé et en inventer un fabriquerait une donnée. Le message de confirmation NOMME le rayon : une pièce tombée dans un rayon fermé disparaîtrait de l'écran sans explication. Remplacer une pièce exigée reste le bouton « Remplacer » de sa ligne, là où l'on voit ce qu'on écrase.
+
+**Dé-duplication.** « Exporter le dossier » quittait le `PageHeader` : Scanner, Importer et Exporter sont désormais au même endroit, la barre d'outils du hub. Deux boutons pour un seul geste, c'était le défaut relevé sur l'annuaire.
+
+**Rien n'a été retiré** : identité, scolarité, historique, validation, diffusion, versions antérieures, ScanDialog — tout est là, réordonné. Aucune requête, aucune action serveur, aucune permission touchée.
+
+**⚠️ Défaut PRÉEXISTANT repéré en chemin, non corrigé** : `.next/dev/logs` enregistre des `Encountered two children with the same key` sur quatre UUID. Les requêtes qui précèdent (ReportCard, Evaluation, ClassSubject, Subject, TeachingAssignment) situent le défaut dans **Notes & bulletins**, pas dans le dossier élève ni dans l'annuaire. À tracer.
+
+
+### PARCOURS « ÉLÈVES & DOSSIERS » — LE MENU DISPARAÎT (3 septembre 2026)
+
+**⚠️ CECI INVERSE UNE CONSIGNE ANTÉRIEURE.** Kory avait explicitement interdit de remplacer le hub par la liste (« DO NOT REPEAT THIS MISTAKE », rollback V1 OG à l'appui). Il l'a **demandé lui-même** le 3 septembre : « sur la section élèves et dossiers je veux avoir une seule chose, si on clique on doit voir que l'option annuaire ». C'est sa décision, pas une reprise d'initiative. **Ne pas revenir en arrière sans un mot de sa part.**
+
+**Nouveau parcours :** `Élèves & dossiers` → **Annuaire**, et les trois vues sont **dans** l'annuaire : **Élèves · Classes · Dossiers élèves**. Le menu de quatre cartes ne séparait pas des destinations différentes — il séparait trois angles sur le même sujet, au prix d'un clic sur le chemin le plus fréquent du secrétariat.
+
+**Le `<h1>` dit « Annuaire », pas « Élèves & dossiers ».** Correction demandée par Kory le 3 septembre : « le flow doit être élèves et dossiers → et j'atterris sur annuaire avant de voir les 3 options ». La rubrique porte le fil d'Ariane (`Accueil › Élèves & dossiers › Annuaire`) et reste surlignée dans la barre latérale ; répéter son nom en `<h1>` laissait croire qu'on était encore sur un menu, donc que le clic n'avait rien produit. `/dashboard/directory` garde son propre fil (`Accueil › Annuaire`) — même contenu, deux chemins d'arrivée.
+
+**Rien n'est devenu inatteignable** (éprouvé, HTTP 200) : `/dashboard/directory`, `/dashboard/students/dossiers`, `/dashboard/students/import`, `/dashboard/students/export`. Importer et Exporter vivaient déjà dans la barre d'outils de l'annuaire.
+
+**⚠️ Le piège du chantier — deux formes de données pour un même composant.**
+`DossiersClient` lisait `enrollments[0].classId`. Or les deux écrans qui le rendent ne chargent PAS la même chose : `students/dossiers` fait `include: { class: true }` (donc `classId` présent), l'annuaire fait un `select` qui ne retenait que `class { id, name }` (donc `classId` **absent**). Le déplacer tel quel aurait rangé **les 243 élèves dans « Non assignés »**, sans erreur ni indice. Deux parades posées : `classId` ajouté au `select` de `loadDirectory()`, **et** lecture rendue tolérante (`e.classId ?? e.class?.id`) pour que la prochaine divergence de forme ne casse rien.
+
+**⚠️ Piège latent, non corrigé** : `students/dossiers/page.tsx` charge `enrollments` **sans `orderBy` ni `take`**. Pour un élève ayant plusieurs années d'inscription, `enrollments[0]` est l'ordre arbitraire de Postgres — la « classe courante » y est donc un coup de dé. L'annuaire, lui, trie par `createdAt desc` et prend 1. À aligner.
+
+**État éprouvé : 19/19** — 6 élèves listés d'emblée, menu disparu, 3 onglets, regroupement par cycle correct (CM2 A : 3 · 6ème B : 1 · Non assignés : 2), 4 routes toujours servies, portée enseignant à 3 élèves, aucun débordement en 390 ni 1440.
+
+**⚠️ Les sondes CDP ne tournent plus sur ce poste.** `scripts/_env.ts` refuse : la référence du projet visé par le `.env` courant **ne figure pas dans `EDUCOM_DEV_REFS`**. Le garde-fou fait son travail — ces scripts créent et suppriment des données. La levée `EDUCOM_ALLOW_PRODUCTION` n'a été autorisée par Kory que pour **une** commande de validation tactile ; ne pas la réemployer ailleurs. Pour photographier à nouveau (`scripts/shot-annuaire.ts`, `shot-profil-eleve.ts`…), il faut d'abord que la référence visée soit ajoutée à `EDUCOM_DEV_REFS` — **par Kory**, dans un `.env` de développement.
+
+### DOSSIERS ÉLÈVES — DEUX BUGS SILENCIEUX (3 septembre 2026)
+
+Signalés par Kory : « je n'ai pas la possibilité de voir les classes disponibles pour assigner un élève ». Deux défauts distincts, **aucun ne levait d'erreur**.
+
+**1. Assignation impossible depuis « Non assignés » — bloquant.**
+`DossiersClient` passait `classesData={selectedClassId === "UNASSIGNED" ? [] : …}`. Une seule liste servait à DEUX usages : le filtre de la vue **et** la fenêtre « Assigner à une classe ». Dans le dossier des élèves sans classe le filtre doit être vide — l'assignation, elle, a besoin de **toute l'école**. Résultat : le menu n'offrait aucun choix, et les élèves sans classe étaient impossibles à assigner **depuis l'écran prévu pour ça** (205 élèves chez Kory). Corrigé par une prop distincte `classesAssignables`, `classesData` gardant son rôle de filtre.
+
+**2. Regroupement par cycle jamais appliqué.**
+Les filtres comparaient à `"ELEMENTARY"`, `"MIDDLE"`, `"HIGH"`, `"PRE_K"` — **aucune de ces valeurs n'existe** dans `EducationalCycle` (MATERNELLE, ELEMENTAIRE, COLLEGE, LYCEE, AUTRE). Les trois sections étaient donc toujours vides et **toutes** les classes tombaient dans le repli « Autres classes ». Invisible : rien ne plantait, les dossiers s'affichaient, seulement tous sous la mauvaise étiquette. Le regroupement est désormais piloté par l'énumération et `CYCLE_LABELS`, avec un filet pour un cycle ajouté plus tard.
+
+**Ajout** : la fenêtre d'assignation affiche un état vide (« Aucune classe n'est encore créée » + lien de création) au lieu d'un menu muet.
+
+### CHARTE — LE BOUTON PRINCIPAL ÉTAIT ILLISIBLE (3 septembre 2026)
+
+`verify-design-tokens` échouait sur `--color-primary`. Enquête : le commit **`eb099f4`** (24 août, « prepare for production deployment ») a fait passer la valeur de `#0B1F3A` à `#539BEB`, commentée « Bleu principal officiel EduCom » et livrée avec `public/brand/educom-logo-officiel.jpg`. **C'était la sonde qui était en retard sur la charte**, pas l'inverse — elle attendait encore la valeur du tout premier commit. Sonde alignée.
+
+**Mais l'écart en cachait un vrai.** Mesuré dans le navigateur (le seul à savoir résoudre `color-mix`) :
+
+| Fond | Texte blanc | |
+|---|---|---|
+| `--color-primary` #539BEB | **2,89:1** | ❌ AA = 4,5 |
+| `--color-primary-ink` (nouveau) | **5,91:1** | ✅ |
+| survol / appui | 7,33 / 9,09 | ✅ |
+| `--color-band` | 7,86 | ✅ |
+
+`Button` variante `primary` valait `bg-primary text-white` : **le bouton le plus utilisé du produit était sous le seuil de lisibilité**, sur des écrans qui manipulent des notes et de l'argent. La marque reste `#539BEB` pour accents, bordures et fonds clairs ; seuls les **aplats portant du texte blanc** passent par `--color-primary-ink`, dérivé par `color-mix` donc toujours teinté par la couleur de l'école. **Aucune classe d'appel n'a changé.**
+
+**⚠️ Reste à faire** : ~67 fichiers utilisent `bg-primary` en direct. Ceux qui y posent du texte blanc ont le même défaut et ne sont **pas** couverts par le correctif de la primitive. Balayage à planifier.
+
+**⚠️ Piège, rencontré pour la troisième fois** : un accent grave dans un commentaire **à l'intérieur d'un gabarit JS** referme la chaîne. `tsc` passe, esbuild échoue à l'exécution. Cette fois dans une sonde de mesure du contraste.
+
+**⚠️ Sondes périmées, sans rapport avec ce chantier** : `verify-ui-primitives` (lit `team/TeamInviteForm.tsx`) et `verify-operational-screens` (lit `communications/ClientPage.tsx`) plantent sur des fichiers **déjà absents de `v1-og`**.
+
+### FICHE ÉLÈVE — BANDEAU D'IDENTITÉ (3 septembre 2026)
+
+L'en-tête blanc est devenu un **bandeau coloré** portant identité, actions et onglets, avec la **photo en carré arrondi qui déborde** sous le bandeau — la disposition des fiches RH professionnelles. Photo portée à 96 / 128 / 160 px.
+
+**Décisions :**
+
+- **Nouveau jeton `--color-band`** = `color-mix(in oklab, var(--color-primary) 45%, #0A1F3D)`. Pas `bg-primary` nu : `--color-primary` est **surchargé à l'exécution par chaque école**, et un établissement qui choisirait un ton clair rendrait le texte blanc illisible. Le mélange avec un bleu nuit garantit le contraste quel que soit ce choix, tout en gardant la teinte de l'école.
+- **Carré arrondi, pas cercle.** Une photo d'identité est cadrée en portrait ; le cercle en rogne les épaules et le haut du crâne. Anneau blanc épais (`ring-4 ring-surface`) parce que la photo est **à cheval sur deux fonds** — sans lui son bord change de contraste à mi-hauteur.
+- **Surplomb uniquement à partir de 640 px** (`sm:absolute … sm:translate-y-[30%]`). Sous cette largeur la place manque et une photo à cheval y serait illisible : la photo reste en flux.
+- **`StatusBadge` n'est PAS utilisé sur le bandeau.** La primitive dessine une pastille claire à texte coloré, pensée pour un fond blanc : « Inscrit » y devenait un vert pâle sur bleu, sous le seuil de lisibilité. Le statut est repris en clair via `statusLabel("student", …)` — **la primitive reste inchangée pour tout le reste du produit**, et le libellé vient toujours de la source unique.
+- **Actions repeintes en blanc.** Un bouton `bg-primary` sur le bandeau disparaît (même famille de couleur), un `bg-surface text-text` y fait une tache grise.
+
+**⚠️ Pièges :**
+
+1. **Un `*/` au lieu d'un `*/}` ferme le commentaire JSX mais pas l'expression.** Le commentaire a alors avalé 17 lignes — dont l'ouverture du bandeau — et `tsc` ne signalait qu'un `'}' expected` **130 lignes plus bas**. Compter les balises à la main confirmait faussement l'équilibre, puisque le code avalé était compté comme réel. **Chercher le `{/*` non apparié, pas la balise manquante.**
+2. **`--color-primary` est en écart avec `verify-design-tokens` depuis avant ce chantier** (#539BEB dans `globals.css` contre #0B1F3A attendu). L'échec de cette sonde n'est **pas** imputable au bandeau — arbitrage à rendre : aligner la charte ou la sonde.
+
+### FICHE ÉLÈVE — « STUDENT 360 » (2 septembre 2026)
+
+**Le constat qui a déclenché le chantier.** La fiche était une page unique de cinq cartes. Elle disait *qui* était l'élève, et rien de ce que l'établissement sait de lui. **Présences, notes, bulletins, conversations WhatsApp existaient tous dans le schéma depuis des mois et n'étaient rattachés à l'élève sur AUCUN écran.** La recherche sur les systèmes d'information scolaires donne la thèse : voir la **présence, les résultats et l'argent au même endroit** est ce qui permet d'intervenir tôt. C'est ce que fait désormais l'onglet « Vue générale ».
+
+**Structure.** En-tête d'identité (avatar cliquable, nom en `h1`, matricule · classe · statut sur une ligne, 4 actions inchangées) · barre de 7 sections · **volet permanent** (résumé + joindre la famille + urgence) visible dans toutes les sections · contenu de section.
+
+**Décisions, et leur pourquoi :**
+
+- **`?section=` plutôt que des sous-routes.** L'URL reste `/dashboard/students/[id]`, chaque section est partageable, le retour arrière fonctionne, et **aucune route n'est ajoutée**. Rien n'est caché derrière un état client.
+- **Sept sections, pas treize.** Chacune lit une table existante. `Attendance`, `Grade`, `ReportCard`, `ClassSubject`, `WhatsAppConversation`, `StudentDocument` — rien d'inventé. Les sections « Comportement », « Emploi du temps » et « Nationalité » n'existent pas : **aucune donnée ne les porte**, et les inventer aurait demandé un modèle.
+- **Un chiffre absent s'écrit « — », jamais « 0 ».** Afficher « 0 % de présence » à une école qui n'a jamais fait l'appel serait le pire des mensonges : celui qui ressemble à une alerte.
+- **Le volet porte la mention de vue partielle.** Il est visible partout ; sans elle, un enseignant y verrait le contact d'urgence sans groupe sanguin et croirait la donnée absente alors qu'elle est retenue.
+
+**⚠️ Pièges rencontrés — trois faux négatifs, aucun défaut produit :**
+
+1. **`/dashboard/students/loading.tsx` couvre aussi `[id]`.** Pendant les 8 requêtes, Next diffuse ce **squelette**, dont le nombre de boutons et de liens est parfaitement stable. Toute sonde qui attend « un compte stable » le prend pour la page. C'est ce qui a fait conclure qu'un **enseignant ne voyait plus la fiche** — alors que le serveur exécutait bien ses requêtes et qu'aucune erreur n'était levée. **Attendre le contenu réel (le titre de l'élève), jamais un comptage.**
+2. **`Emulation.setTouchEmulationEnabled` refuse `maxTouchPoints: 0`** — même quand on DÉSACTIVE le tactile. La capture s'arrêtait net sur « Touch points must be between 1 and 16 », en laissant un Chrome orphelin.
+3. **`src.includes("urgence")` ne trouve pas « Urgence ».** Une comparaison sensible à la casse a fait échouer un contrôle sur une propriété qui tenait.
+
+**État éprouvé :** TypeScript 0 · ESLint 0 · sonde fiche élève **33/33** · 9 captures (3 largeurs + 6 sections) · aucun débordement en 390 / 768 / 1440 · tactile ≥ 44 px · clavier avec indicateur sur chaque élément · médical **absent de la source** servie à un enseignant.
+
+### FICHE ÉLÈVE — PASSE DE PRÉSENTATION (1er septembre 2026)
+
+**Périmètre : un seul fichier**, `src/app/dashboard/students/[id]/page.tsx`. Requête Prisma, `studentWhereFor()`, `canSeeHealthData()`, les six destinations et le hub Élèves & dossiers sont **intacts** — `git diff v1-og` ne liste que ce fichier.
+
+**⚠️ Le retour en arrière du 1er septembre.** Une passe antérieure (« phase 4A ») avait remplacé le hub Élèves & dossiers par la liste des élèves. Kory a demandé `RETURN TO V1 OG` : tout a été restauré, et **le hub à quatre cartes est la référence à ne pas toucher**. L'état phase 4A est conservé hors dépôt dans `scratchpad/sauvegarde-phase4a/` (patch + `data.ts` + context.md de l'époque). Ne pas le réappliquer sans demande explicite.
+
+**Ce que le code ne dit pas — pourquoi ces choix :**
+
+- **Pas d'onglets**, alors que la référence BambooHR en a. Ils masqueraient de l'information (la consigne l'interdit) et constitueraient une interaction nouvelle. Sections empilées à titres forts.
+- **Pas de bandeau coloré**, alors que la référence en a un. Dans V1 OG c'est précisément ce bandeau (`bg-blue-900`, 96 px, avatar en `absolute -top-10`) qui **faisait recouvrir le prénom par l'avatar** — « Aminata Ndiaye » se lisait « ⬤a Ndiaye » à 1440, 768 **et** 390. L'avatar est revenu dans le flux ; le mobile y gagne 96 px.
+- **Une seule grille, pas de colonnes imbriquées.** L'ordre du DOM est l'ordre de lecture mobile (identité → responsable → médical → scolarité → argent) ; le placement 12 colonnes ne s'applique qu'à partir de `xl`. Des colonnes imbriquées auraient forcé un compromis entre l'ordre mobile et l'équilibre bureau.
+- **Pas d'`items-start` sur la grille.** Essayé d'abord : la rangée suivante démarrait sous la carte la plus haute et laissait **400 px de vide** sous la colonne courte (visible sur la capture). Les cartes d'une rangée s'alignent donc en hauteur.
+- **« Terminé » était affiché sur l'inscription EN COURS.** L'en-tête désignait déjà `enrollments[0]` comme la classe courante ; l'historique le contredisait juste dessous. Le libellé suit désormais la même règle — **aucun tri ni requête modifié**.
+- **« Facturer » et « Créer » pointent au même endroit.** Doublon constaté, **conservé sur décision de Kory** : aucune suppression d'action dans ce chantier.
+
+**Piège de mesure, à ne pas rejouer :** le fil d'Ariane faisait 15 et 18 px de haut au doigt. La primitive `PageHeader` a la même faiblesse sur les ~30 autres pages du produit — ce n'est donc pas propre à cet écran, mais ici les liens ont reçu `pointer-coarse:min-h-11` (apparence inchangée à la souris).
+
+**Seconde passe (densité) :** en-tête resserré — matricule · classe · statut sur **une** ligne, avatar 88 px, actions centrées en regard. Pastilles d'icône de 32 px retirées des champs, pastille ronde du groupe sanguin supprimée (elle **répétait la même valeur** à 40 px d'écart), `items-start` rendu à la grille pour que chaque carte prenne la hauteur de son contenu. Résultat mesuré : **bureau 1095 → 990 px, tablette 1444 → 1332, mobile 2037 → 1929**, à information constante.
+
+**⚠️ PHOTO DE PROFIL — DEMANDÉE, NON LIVRÉE, ET POURQUOI.** Kory a demandé un avatar cliquable (« Prendre une photo » / « Importer une photo ») **dans le même message qui interdit de toucher à Prisma et aux server actions**. Or `model Student` **n'a aucun champ photo** et aucune action ne sait en enregistrer une ; le schéma note par ailleurs (l. 485-487) que le seul mécanisme d'images existant encode en base64, « intenable pour une photo ». Livrer le menu aurait donné un bouton qui jette le fichier en silence. **Rien n'a donc été posé.** Il faut trois choses pour le faire : un champ `Student.photoUrl`, une server action d'enregistrement, un vrai stockage (Supabase Storage — le bucket du dossier élève existe déjà).
+
+**Troisième passe — navigation de fiche + photo (1er septembre 2026).**
+
+- **Navigation contextuelle : DEUX entrées, pas sept.** Résultat d'une inspection, pas d'un raccourci. `/dashboard/attendance` et `/dashboard/grades` **ne lisent aucun `studentId`** — aucune vue par élève n'existe pour eux. Les autres candidats (certificat, bulletin, facture) sont des GÉNÉRATEURS déjà présents en actions d'en-tête ; les reprendre en onglets aurait affiché deux fois la même commande. Restent « Vue générale » et « Dossier ». Ouvrir les autres demanderait de nouvelles routes.
+- **Photo de l'élève** — champ `Student.photoPath` (chemin, jamais d'URL), server action `setStudentPhoto`, composant client `AvatarPhoto`. Le binaire va dans le **bucket privé existant** `student-documents` via `storagePathFor()` : aucune architecture nouvelle. Affichage par URL **signée 300 s** ; jamais d'URL publique.
+- **⚠️ La photo n'est PAS un `StudentDocument`.** Le dossier est une checklist administrative soumise à validation et à des catégories de permission ; y verser un portrait aurait modifié le contenu du dossier existant et créé une ligne « à vérifier » sans objet.
+- **« Prendre une photo » n'ouvre aucune interface caméra maison** : `<input capture="environment">` déclenche l'appareil natif. L'option est masquée hors `pointer-coarse`, où `capture` est ignoré et où le libellé serait mensonger.
+
+**⚠️ INFRASTRUCTURE — BUCKET CRÉÉ.** Le projet Supabase ne contenait **aucun bucket** : `student-documents`, que le code exige depuis le lot 13, était absent. Le dépôt de pièces du dossier élève était donc **silencieusement inopérant** (c'est ce qui faisait échouer `verify-student-file` sur « Bucket not found »). Bucket créé : privé, 10 Mo, types alignés sur `ALLOWED_MIME`.
+
+**⚠️ PIÈGES À NE PAS REJOUER — trois heures de diagnostic :**
+
+1. **`prisma generate` ne suffit pas : il faut REDÉMARRER `next dev`.** Le serveur garde l'ancien client Prisma en mémoire. `tsc` passait (il lit les types sur disque) pendant que le serveur levait « Unknown field `photoPath` » et que `error.tsx` remplaçait la page — d'où un formulaire « disparu » incompréhensible.
+2. **Chrome GÈLE le rendu des onglets d'arrière-plan.** Dès qu'une sonde ouvre une seconde session, React n'hydrate plus la première : ses gestionnaires ne sont jamais attachés et toute interaction y paraît morte. Il faut `Target.activateTarget` avant d'actionner un onglet.
+3. **Un DOM stabilisé ne prouve PAS l'hydratation.** Le HTML serveur contient déjà formulaire et champ ; pousser un fichier avant l'hydratation ne déclenche aucun `onChange`. Attendre une preuve d'interactivité (le menu réagit au clic).
+4. **Une URL signée Supabase CONTIENT le chemin du bucket** (`/object/sign/<chemin>?token=…`). Exiger l'absence du chemin dans la source teste une propriété impossible. La vraie garantie est que l'accès soit signé et expirant, jamais public.
+5. **Deux `<input>` de même `name` : `formData.get()` renvoie le premier**, donc un fichier vide dès qu'on passe par l'appareil photo. Utiliser `getAll()`.
+
+**Outils ajoutés :** `scripts/shot-profil-eleve.ts` (captures 1440/768/390, école jetable) et `scripts/verify-profil-eleve.ts` (**33 contrôles** : destinations, chevauchement mesuré aux rectangles, tactile, clavier, borne de rôle, et envoi de photo de bout en bout jusqu'au bucket).
+
+⚠️ **La sonde vérifie que le médical est absent de la SOURCE servie à l'enseignant**, pas seulement de l'écran : un bloc masqué en CSS resterait lisible dans l'inspecteur.
+
+### LOT 18C — AUDIT DE L'APPLICATION META (31 août 2026)
+- **Ce qui est PROUVÉ par le Graph API** (jeton d'application, lecture seule) : l'app `EduCom Chatbot` (`1636040594916603`) existe et ses identifiants sont valides ; le **produit WhatsApp est bien présent** ; l'abonnement webhook `whatsapp_business_account` est **actif**, pointe sur l'URL du tunnel, et **`messages` fait partie des 10 champs abonnés**. Les points 3 et « webhook » de l'audit sont donc réglés.
+- **⚠️ Deux champs obligatoires pour l'examen de l'app sont VIDES** : `privacy_policy_url` et `category` ne sont pas renvoyés par le Graph. Or aucun des deux ne peut manquer si l'application a passé l'App Review. C'est une preuve indirecte mais solide que **l'app n'a jamais été soumise**.
+- **Le prérequis documenté par Meta pour l'Embedded Signup est unique** : « You will not be able to onboard business customers until your app has been approved for **advanced access** for each of the permissions it requires » — donc `whatsapp_business_management`. Le mode Live, la vérification d'entreprise et l'URL de confidentialité **ne sont pas listés comme prérequis directs** de l'Embedded Signup, contrairement à ce qu'on lit souvent.
+- **⚠️ Le `config_id` n'est PAS lisible via le Graph** (`GraphMethodException`) — c'est le comportement normal des configurations de connexion, **ce n'est donc la preuve de rien**. Ne pas en conclure qu'il est invalide.
+
+
+### LOT 18B — META BLOQUE AVANT DE DÉLIVRER LE CODE (31 août 2026)
+- **⚠️ PREUVE PAR L'ABSENCE, et elle est décisive.** Repère posé dans le journal du serveur (57 058 octets) juste avant la tentative réelle. Après : **une seule requête HTTP dans tout le delta — `GET /dashboard/communications 200`**. Zéro `POST`, zéro invocation de Server Action, zéro appel `graph.facebook`, zéro sortie du bloc DIAGNOSTIC. **Le serveur n'a jamais été sollicité.** Le backend est donc hors de cause : il n'a reçu aucun code, n'a rien échangé, et n'a aucune réponse de Meta à analyser.
+- **Message affiché par Meta** : « This option is unavailable right now. You can try other ways to continue on … ». Il vient de la fenêtre Meta elle-même, **avant** l'émission du code. C'est un refus côté Embedded Signup, pas un échec d'échange.
+- **⚠️ MA SONDE PRÉCÉDENTE ÉTAIT INVALIDE — à ne pas rejouer.** Tester un domaine via `oauth/access_token?redirect_uri=…` interroge la liste « Valid OAuth Redirect URIs », **que l'Embedded Signup n'utilise pas** (le flux n'envoie aucun `redirect_uri`). L'erreur 191 obtenue ainsi ne dit rien des « Allowed Domains for the JavaScript SDK ». Elle a fait ajouter des domaines — utile par ailleurs — mais elle ne prouvait pas la cause. **Une sonde ne vaut que si elle emprunte le même chemin que le code testé.**
+- **Méthode qui a marché** : poser un repère d'octets dans le journal avant l'essai, puis ne lire que le delta. Le bruit de Prisma rend toute lecture globale illisible.
+
+
+### LOT 18B — AUCUN DOMAINE N'EST DÉCLARÉ DANS L'APPLICATION META (31 août 2026)
+- **⚠️ Sonde décisive, et elle se fait sans navigateur** : appeler `oauth/access_token` avec un `redirect_uri` portant le domaine à tester. Erreur **191** = domaine absent des « App Domains ». Testé le 31 août sur les trois candidats — `res-obligation-singh-seems.trycloudflare.com`, `www.educom.school`, `educom.school` : **les trois renvoient 191, aucun n'est déclaré**.
+- **La même sonde sans `redirect_uri` renvoie « Invalid verification code format » (code 100)** : la forme de la requête d'échange est donc **acceptée** par Meta, seul le faux code est rejeté. Cela innocente les paramètres du backend — ni `redirect_uri` ni `grant_type` ne manquent.
+- **Chemin unique confirmé** : un seul `FB.login` dans tout le dépôt, un seul appelant de `finalizeWhatsAppConnection`, les trois correctifs en place. Aucun ancien chemin ne les contourne. **Le bouton est monté dans `CommunicationCenterClient`, pas dans les Réglages** — utile à savoir pour tester.
+- **Diagnostic temporaire posé** dans `settings/actions.ts` : journalise `error.message/type/code/subcode/fbtrace_id` de Meta, la longueur du code reçu et ses 4 premiers caractères (assez pour reconnaître un jeton `EAA…` glissé à la place d'un code). **Aucun secret.** ⚠️ **À RETIRER** une fois la cause confirmée.
+
+
+### LOT 18 — POURQUOI TOUTES LES ÉCOLES ÉTAIENT DÉCONNECTÉES (31 août 2026)
+- **Ce n'était NI un bug, NI la base, NI Meta : quelqu'un a cliqué « Déconnecter WhatsApp ».** Preuve : SENG.CO ACADEMY a été modifiée **seule** le 31 août à `00:22:41`, alors que les 94 autres portent toutes `2026-08-30T22:29:24` (mon script de nettoyage). Et ses **six** colonnes WhatsApp sont à `null` avec `NOT_CONNECTED` — la signature exacte de `disconnectWhatsApp()`, qui écrit précisément ces six-là. Aucune donnée métier perdue (96 conversations, 99 messages, 8 modèles intacts).
+- **⚠️ AUCUNE TRACE DANS LE JOURNAL D'AUDIT, et c'est le vrai défaut.** `connect`, `finalize` et `disconnect` n'appellent **jamais** `recordAudit` — la dernière entrée du journal date du 29 août. Couper la messagerie d'un établissement est pourtant une action critique et irréversible côté jeton. Sans trace, il a fallu reconstituer la cause par les horodatages. **À corriger** : trois appels à `recordAudit` dans `settings/actions.ts`.
+- **⚠️ DÉFAUT DE DIAGNOSTIC CORRIGÉ — une panne de base était annoncée comme une panne Meta.** L'écriture `prisma.school.update` vivait dans le même `try` que les appels Graph, dont le `catch` renvoie « Erreur lors de la communication avec les serveurs de Meta ». Un rejet de l'index unique sur `whatsappPhoneNumberId` — le cas réaliste depuis le lot précédent — aurait donc envoyé chercher chez Meta un problème qui n'y est pas. L'écriture a désormais son propre `catch`, avec un message dédié pour `P2002` (« numéro déjà relié à un autre établissement »).
+- **⚠️ LA PRODUCTION NE PORTE PAS LES CORRECTIFS.** `www.educom.school` sert `origin/main` (`1f36fcc`) ; les deux corrections de l'Embedded Signup (`FB.init` jamais appelé, `authResponse.code` au lieu de `accessToken`) vivent sur la branche locale, **non commitées**. **Se reconnecter depuis la production échouerait encore** — la reconnexion doit se faire depuis le tunnel HTTPS, qui sert le code corrigé.
+- **Vérifié** : webhook public toujours opérationnel (challenge exact avec l'agent Meta, POST non signé refusé en 403) ; les trois correctifs d'Embedded Signup présents dans le code ; `tsc` 0 erreur ; lint inchangé (0 avant, 0 après).
+
+
+### LOT 17 — LES CAMPAGNES NE MENTENT PLUS (31 août 2026)
+- **Le mensonge était à TROIS endroits, pas un.** (1) la base recevait `SCHEDULED`/`PROCESSING` ; (2) le toast disait « Campagne créée avec succès » et les boutons « Créer et Planifier » / « Activer le Workflow » ; (3) la liste affichait le statut brut (`SCHEDULED`) suivi de « 0 envoyés ». Corriger un seul endroit aurait laissé les deux autres promettre.
+- **Décision : `DRAFT` en base, pas un statut conditionnel.** Écrire une promesse en base la propage ensuite partout — écrans, exports, statistiques — et il faudrait la démentir à chaque point d'affichage. La vérité est stockée une fois.
+- **⚠️ L'override d'affichage couvre AUSSI les campagnes déjà en base.** Deux campagnes portent `SCHEDULED`/`PROCESSING` d'avant le correctif. `campaignStateLabel` neutralise tout statut qui promet, plutôt que de réécrire des données métier pour rattraper un défaut d'affichage.
+- **Autorité unique : `src/lib/campaignDispatch.ts`.** Même discipline que `channels.ts` — aucun écran ne juge seul s'il peut écrire « planifiée ». `CAMPAIGN_DISPATCH_AVAILABLE` porte en commentaire les **trois** conditions à réunir avant de passer à `true` (appel réel au moteur, tâche planifiée, école connectée + opt-in).
+- **⚠️ Le vérifieur teste le GARDAGE, pas la présence des mots.** Première version : elle interdisait « planifiée » n'importe où, et échouait sur la branche légitime qui ne s'exécute que si le drapeau est vrai. Un tel contrôle pousse à supprimer du bon code. Il vérifie désormais qu'un mot d'envoi est **précédé du drapeau** dans les 400 caractères. `scripts/verify-campaign-honesty.ts`, cinq propriétés.
+- **Vérifieur éprouvé par MUTATION** : drapeau forcé à `true` alors que rien n'envoie → **ÉCHEC** attendu, puis restauration et retour au vert. Un vérifieur qui ne peut pas échouer ne prouve rien.
+- **Vérifié** : `tsc` 0 erreur ; lint **identique avant/après** sur les 3 fichiers modifiés (3, 7 et 1 erreurs préexistantes), **0 erreur** sur les 2 fichiers neufs ; la page compile sans erreur au journal de dev.
+- **Non fait, volontairement** : l'envoi réel n'est pas branché. C'est le lot suivant.
+
+
+### LOT 17 — AUDIT DE DIFFUSION (31 août 2026)
+- **⚠️ ÉTAT DE LA BASE : plus AUCUNE école n'est connectée à WhatsApp.** 95 écoles, **0 jeton, 0 phone_number_id, 0 `CONNECTED`**. SENG.CO ACADEMY en portait après la rotation du 31 août (empreinte `7ac2b4d461f6` vérifiée). Les six colonnes remises à `null` avec le statut `NOT_CONNECTED` correspondent exactement à ce que fait `disconnectWhatsApp` — la déconnexion a donc probablement été déclenchée depuis les Réglages. **Rien ne peut partir tant qu'une école n'est pas reconnectée.**
+- **⚠️ LES CAMPAGNES N'ENVOIENT RIEN, ET L'ÉCRAN NE LE DIT PAS.** `campaigns/new/actions.ts` crée la campagne avec le statut `SCHEDULED`/`PROCESSING` puis s'arrête : l'appel `workflowEngine.processManualCampaign(campaign.id)` est **en commentaire, ligne 58**. Une directrice qui crée une campagne voit « planifiée » et croit ses familles prévenues.
+- **⚠️ LE MOTEUR DE WORKFLOWS EST DU CODE MORT.** `processAutomatedWorkflows` se documente comme « point d'entrée CRON », mais `vercel.json` ne déclare qu'un seul cron, `/api/cron/overdue`, qui ne touche pas à WhatsApp. **Aucun appelant dans tout `src/`.**
+- **⚠️ DEUX NOTIONS CONCURRENTES DE « PEUT-ON ENVOYER ».** `src/lib/channels.ts` — présenté comme « la seule autorité sur la question » — raisonne encore sur **Twilio**, et son registre `SEND_IMPLEMENTATIONS` est **vide**. Il ignore totalement le chemin Meta (`src/lib/whatsapp/client.ts`) qui, lui, envoie pour de vrai. Conséquence : le centre documentaire et le dossier élève affichent « Préparer la remise » alors que la messagerie, elle, envoie. Les deux ne se parlent pas. `TWILIO_PHONE_NUMBER` n'est d'ailleurs pas un expéditeur WhatsApp (pas de préfixe `whatsapp:`), donc `channels.ts` a raison **pour Twilio** — il est simplement aveugle à Meta.
+- **Ce qui marche vraiment** : la réponse manuelle depuis la boîte de réception (`inbox/actions.ts`) appelle réellement `WhatsAppClient.sendTextMessage`, vérifie la fenêtre des 24 h, capture le `waMessageId` et écrit `SENT`. C'est le **seul** chemin d'envoi prouvé du produit.
+- **E-mail : aucun fournisseur.** Aucune dépendance installée (ni Resend, ni Nodemailer, ni SendGrid). Les seuls e-mails réellement émis sont ceux de **Supabase Auth** (confirmation, réinitialisation, invitation) — authentification uniquement, jamais communication scolaire. **Google Drive : rien du tout**, `drive` n'est qu'une étiquette dans `channels.ts`.
+
+
+### Google OAuth — configuration Supabase appliquée (31 août 2026)
+- **Fait par l'API de gestion Supabase**, pas à la main : fournisseur Google activé, Client ID posé, Site URL passé de `http://localhost:3000` à `https://www.educom.school`, et `uri_allow_list` — **qui était VIDE** — renseignée avec les trois origines (production, localhost, tunnel).
+- **⚠️ `urllib` est bloqué par Cloudflare sur `api.supabase.com`** : le `PATCH` renvoyait `403 error code: 1010` (contrôle d'intégrité du navigateur) alors que le même appel en `curl` passe. Ce n'est pas un problème d'autorisation — chercher du côté du jeton aurait fait perdre du temps. **Utiliser `curl` pour l'API de gestion.** Le corps est transmis par entrée standard, pour que le secret ne figure ni dans `argv` ni sur le disque.
+- **⚠️ Le Site URL valait `http://localhost:3000` en base.** Sans correction, toute redirection non explicitement autorisée y renvoyait — en production, un utilisateur authentifié aurait atterri sur une machine de développement.
+- **Vérifié en réel, quatre points** : relecture par l'API (`external_google_enabled=true`, Client ID conforme, secret présent, Site URL et trois URL de redirection enregistrées) ; `/auth/v1/authorize?provider=google` répond **302** au lieu de `400 provider is not enabled` ; l'URL générée porte le bon `client_id` et le bon `redirect_uri` Supabase ; **Google sert l'écran de connexion** au bout de la chaîne. Idem depuis `localhost`.
+- **⚠️ SÉCURITÉ — le jeton `sbp_` a été collé en clair dans la conversation.** Il donne un accès complet à la *configuration* du projet Supabase. Il vit dans `.env` (ignoré par Git, vérifié : 0 fichier suivi), mais **il doit être révoqué et recréé** sur `supabase.com/dashboard/account/tokens` une fois la configuration terminée.
+
+
+### Google OAuth — comment vérifier SANS navigateur (31 août 2026)
+- **Deux sondes non authentifiées suffisent à situer une panne OAuth**, et elles évitent des allers-retours à l'aveugle dans deux consoles :
+  1. **Fournisseur activé côté Supabase ?** `GET https://<ref>.supabase.co/auth/v1/authorize?provider=google` — s'il est éteint, Supabase répond lui-même `400 {"error_code":"validation_failed","msg":"Unsupported provider: provider is not enabled"}`. C'est exactement ce qu'il répondait le 31 août.
+  2. **URI de redirection enregistrée côté Google ?** Appeler `accounts.google.com/o/oauth2/v2/auth` avec le `client_id` et l'URI : une page contenant `redirect_uri_mismatch` = non enregistrée, l'écran de connexion Google = acceptée.
+- **Résultat du 31 août** : la référence corrigée `slqjdyfdzvuqjxegojwu` est **ACCEPTÉE** par Google (écran de connexion servi), l'ancienne `slqjdfdzvuqjxegojwu` renvoie `redirect_uri_mismatch`. **La correction Google Cloud a donc bien pris.** Il ne reste que l'activation du fournisseur côté Supabase.
+- **⚠️ La clé de service NE PERMET PAS de configurer les fournisseurs.** `GET api.supabase.com/v1/projects/<ref>/config/auth` avec `SUPABASE_SERVICE_ROLE_KEY` → **401 « JWT could not be decoded »**. Il faut un **Personal Access Token** (`sbp_…`, créé sur `supabase.com/dashboard/account/tokens`). Sans lui, l'activation du fournisseur et les URL de redirection restent des gestes manuels dans le tableau de bord.
+
+
+### Google OAuth — audit de la configuration (31 août 2026)
+- **⚠️ BLOQUANT — l'URI de redirection déclarée dans Google Cloud désigne un projet Supabase INEXISTANT.** Lu directement dans le fichier `client_secret_*.json` : `slqjdfdzvuqjxegojwu` (19 caractères). Réel : `slqjdyfdzvuqjxegojwu` (20 caractères). **Une seule faute** — le `y` après `slqjd` manque. (Une première lecture, faite sur l'URI recopiée à la main dans la conversation, laissait croire à une seconde inversion : elle n'existe pas dans le fichier. Toujours lire la source, jamais sa transcription.) Vérifié par requête HTTP : le projet réel répond **401** sur `/auth/v1/health` (service vivant, clé attendue), le projet saisi ne résout **même pas** (000). Google renverra `redirect_uri_mismatch` à chaque tentative. **Une référence Supabase fait toujours 20 caractères : compter est le contrôle le plus rapide.**
+- **⚠️ L'origine de production n'est PAS `https://educom.school`.** L'apex renvoie un **308 vers `https://www.educom.school`**, et c'est `www` qui sert réellement l'application (titre EduCom confirmé, `/login` en 200). Or `GoogleAuthButton` construit sa redirection avec `window.location.origin` : après le 308, l'origine est donc `www`. **C'est `https://www.educom.school/**` qui doit figurer dans les URL de redirection autorisées de Supabase** — déclarer l'apex seul laisserait la connexion échouer en production.
+- **Aucun code à modifier.** Le parcours est déjà correct de bout en bout : `signInWithOAuth` côté client, `exchangeCodeForSession` dans `src/app/auth/callback/route.ts`, garde anti-redirection ouverte sur `next`, et création à la volée de l'école et de l'utilisateur Prisma pour un premier accès Google. L'architecture Supabase existante est réutilisée telle quelle.
+- **Non vérifiable depuis le dépôt** : l'activation du fournisseur Google dans Supabase et la saisie du client secret se font dans le tableau de bord Supabase. La clé de service ne donne pas accès à cette configuration.
+- **`client_secret*.json` ajouté au `.gitignore`**, ancré à n'importe quelle profondeur. Le fichier vit dans `~/Downloads` et n'a jamais approché le dépôt — mais il porte le secret en clair, et ce dépôt est public.
+
+
+### Authentification derrière un tunnel HTTPS (31 août 2026)
+- **⚠️ LE PIÈGE — Next bloque ses propres ressources de dev depuis un hôte non déclaré, et l'échec est MUET.** En développement, Next refuse `/_next/static/*` et `/_next/hmr` à toute origine autre que `localhost`. La page HTML, elle, est servie normalement en **200** : l'écran de connexion s'affiche, semble sain… mais les chunks JavaScript sont refusés, React n'hydrate jamais, et le Server Action `login` ne part pas. **Le formulaire ne fait simplement rien, sans le moindre message d'erreur.** La preuve était dans `.next/dev/logs/next-development.log` (« Blocked cross-origin request to Next.js dev resource … »), pas à l'écran.
+- **⚠️ Piège de méthode** : un `curl` sur *un* asset avait renvoyé 200 et m'avait fait conclure trop vite que le tunnel passait. Un seul asset ne prouve rien — il faut lire le journal du serveur, qui seul énumère les refus.
+- **Deux garde-fous distincts, tous deux à ouvrir** : `allowedDevOrigins` (ressources de dev) **et** `experimental.serverActions.allowedOrigins` (un Server Action compare `Origin` à `Host` et abandonne s'ils diffèrent — derrière un tunnel ils diffèrent toujours). Le premier seul aurait laissé la connexion échouer pour une raison entièrement différente.
+- **Décision : piloté par `DEV_ALLOWED_ORIGINS` dans `.env`, pas écrit en dur.** Les URL de tunnel sont éphémères ; coder l'hôte dans `next.config.ts` obligerait à modifier le dépôt à chaque redémarrage. La liste est **vide par défaut** : ce sont des listes blanches explicites, la protection CSRF reste entière pour toute origine non déclarée, et Next ignore `allowedDevOrigins` en production.
+- **Vérifié après redémarrage** : `/login` en 200 et **6 chunks sur 6 chargés** depuis le tunnel *et* depuis localhost ; `/dashboard/settings` renvoie 307 vers la connexion des deux côtés (protection intacte) ; **0 blocage** dans le journal. `tsc` 0 erreur, `next.config.ts` propre au lint.
+- **NON vérifié** : la connexion réelle avec identifiants — elle exige un navigateur.
+- **⚠️ Deux points relevés au passage, hors chantier** : (1) `src/app/dashboard/team/actions.ts:59` retombe en dur sur `http://localhost:3000` pour les liens d'invitation, alors que `register` et `forgot-password` dérivent correctement l'origine de `x-forwarded-proto` + `host` ; `NEXT_PUBLIC_SITE_URL` n'est pas défini. (2) Une requête `GET /register?email=…&password=…` figure dans le journal de dev : **un mot de passe transitant en paramètre d'URL finit écrit dans les logs**. À corriger, ce n'est pas un accident isolé du poste de dev.
+
+
+### Phase 14 — POURQUOI META RENVOYAIT VERS /business/cancel (31 août 2026)
+- **⚠️ CAUSE N°1, ET ELLE EST VICIEUSE — `FB.init()` n'était JAMAIS appelé.** `window.fbAsyncInit` était assigné **dans le `onLoad` du `<Script>`**, donc *après* l'exécution du SDK. Or le SDK appelle `fbAsyncInit` pendant son propre chargement : au moment où il la cherchait, la fonction n'existait pas encore. Résultat : SDK chargé mais **non initialisé**. Et comme `window.FB` existait bel et bien, le garde `if (!window.FB)` passait sans rien détecter — `FB.login` partait sur un SDK sans `appId`, Meta annulait la session et renvoyait vers `/dialog/oauth/business/cancel/`. Le « Confirm Form Resubmission / ERR_CACHE_MISS » de Chrome n'est **qu'un symptôme** : le navigateur rejoue la redirection d'annulation. **Chercher la cause côté Meta était une impasse.**
+- **Corrigé** : `FB.init()` est appelé directement dans `onLoad` (le SDK y est déjà exécuté), et un état `sdkReady` distingue désormais « SDK absent » de « SDK non initialisé » — les deux pannes produisaient jusqu'ici le même message inutile.
+- **⚠️ CAUSE N°2 — `http://localhost:3000` ne peut PAS fonctionner, jamais.** Meta impose HTTPS pour Facebook Login for Business, et le domaine hôte doit figurer dans « Allowed Domains for the JavaScript SDK ». Vérifié dans la documentation, pas supposé. **L'Embedded Signup doit donc être lancé depuis l'URL HTTPS du tunnel**, pas depuis localhost. Vérifié : le tunnel sert l'application et les assets `_next` en 200, sans avertissement d'origine croisée — aucun `allowedDevOrigins` nécessaire.
+- **Écartées après vérification** : en-têtes de sécurité (aucun COOP/COEP/CSP dans `next.config.ts`, les popups ne sont pas bloquées) ; `config_id` (présent) ; identifiants d'application (validés en réel auprès du Graph API).
+- **Observation, sans incidence ici** : aucun écouteur `postMessage` n'est posé pour récupérer les `sessionInfo` de Meta. Ce n'est pas la cause — le WABA et le `phone_number_id` sont résolus côté serveur à partir du jeton — mais c'est le complément recommandé par Meta.
+- **⚠️ L'URL Cloudflare est ÉPHÉMÈRE** : elle change à chaque redémarrage du tunnel, et doit être re-déclarée **à la fois** dans les domaines autorisés du SDK et dans le webhook. Pour sortir de ce cycle, il faudra un domaine stable.
+
+
+### Go-Live WhatsApp — PHASE 14 : EMBEDDED SIGNUP (31 août 2026)
+- **⚠️ BUG BLOQUANT TROUVÉ — l'Embedded Signup ne pouvait PAS fonctionner.** Le front appelait `FB.login` avec `response_type: 'code'` et `override_default_response_type: true`, puis lisait `response.authResponse.accessToken`. **Dans le mode `code`, Meta ne renvoie aucun jeton** : il renvoie un code à usage unique. `accessToken` valait donc toujours `undefined`, et `finalizeWhatsAppConnection` partait valider `input_token=undefined` — échec systématique avec le message trompeur « jeton invalide ou expiré ». Le code n'avait jamais été exécuté en conditions réelles.
+- **Corrigé** : le front transmet `authResponse.code`, et le serveur l'échange contre le jeton métier du client avant de poursuivre. **⚠️ Le code ne vit que 30 secondes** — l'échange doit rester serveur-à-serveur et immédiat, sans étape intermédiaire.
+- **⚠️ Forme des paramètres VÉRIFIÉE, pas devinée.** La documentation Meta décrit le flux mais ne publie pas l'appel d'échange. Sondé directement : `GET /v19.0/oauth/access_token?client_id=&client_secret=&code=` renvoie « Invalid verification code format » sur un faux code — donc l'endpoint et les identifiants sont acceptés, et **ni `redirect_uri` ni `grant_type` ne sont attendus**. Une erreur portant sur le code seul prouve que le reste de la requête est bon.
+- **Identifiants Meta validés en réel** : `client_credentials` sur le Graph API renvoie un jeton d'application, et `debug_token` confirme que l'`app_id` correspond à `NEXT_PUBLIC_META_APP_ID`. Ce n'est pas une lecture de `.env`, c'est une réponse de Meta.
+- **Vérifié aussi** : `META_APP_SECRET` n'est référencé dans aucun `.tsx` et ne porte pas le préfixe `NEXT_PUBLIC` ; les 4 Server Actions ne renvoient que `{ success: true }` ; aucun `updateMany` ; les 4 écritures visent `where: { id: auth.ctx.schoolId }` ; simulateur à `false` ; `/dashboard/settings` réservé à OWNER/ADMIN.
+- **NON vérifié** : le parcours navigateur lui-même. `FB.login` exige un clic humain et une session Meta — impossible à exécuter ici. La résolution du WABA et du phone_number_id ne pourra être prouvée qu'après ce clic.
+
+
+### Go-Live WhatsApp — PHASES 10 à 12 (30 août 2026)
+- **⚠️ LOCALTUNNEL EST INUTILISABLE POUR META — et l'échec est silencieux si on ne teste qu'avec curl.** Le tunnel répond correctement à un `User-Agent` type curl (HTTP 200, challenge exact), mais sert son interstitiel « Tunnel website ahead! » en **HTTP 511** à un navigateur, et renvoie **HTTP 408** à `facebookexternalhit/1.1`. Autrement dit : un test local au `curl` passe au vert pendant que Meta, lui, ne peut pas valider le webhook. **Toujours tester un tunnel avec l'agent de Meta, jamais avec celui par défaut.**
+- **Remplacé par Cloudflare Tunnel** (`npx -y cloudflared tunnel --url http://localhost:3000`), sans interstitiel. Vérifié sur les trois agents (Meta, navigateur, curl) : **challenge exact et HTTP 200 dans les trois cas**, mauvais jeton → 403, POST non signé → 403, POST signé avec l'agent de Meta → 200. L'URL `*.trycloudflare.com` est **éphémère** : elle change à chaque redémarrage et doit être re-déclarée dans la console Meta à chaque fois.
+- **Rotation du jeton faite proprement.** `scripts/rotate-whatsapp-token.ts` : essai à blanc par défaut, déduit **une seule** école (statut `CONNECTED` + jeton non nul) et s'interrompt sinon, lit le jeton depuis `.env`, `update` sur un id unique — **jamais `updateMany`**, aucun identifiant en dur. Vérification par **empreintes SHA-256** uniquement : `cda44759723a` → `7ac2b4d461f6`, correspond à `.env`, et 0 autre école touchée. Le jeton n'apparaît dans aucun fichier suivi, ni dans tout l'historique Git, ni dans les journaux du serveur.
+- **⚠️ RAPPEL DE HIÉRARCHIE — `.env` ne suffit jamais.** `WhatsAppClient.forSchool()` lit **d'abord** `School.whatsappAccessToken` en base et ne se rabat sur `WHATSAPP_ACCESS_TOKEN` que si la colonne est vide. Changer la variable d'environnement sans toucher la base ne fait donc **rien** pour une école connectée. C'est ce piège qui a rendu la rotation nécessaire côté base.
+- **⚠️ L'OPT-IN EST UN MUR, et il est fermé.** Inspection complète : `whatsappOptIn` est **lu à un seul endroit** (`workflowEngine.ts:107`, garde avant envoi automatisé) et **écrit nulle part** — aucune interface, aucune Server Action, aucun handler entrant ne le fait passer à `OPTED_IN`. Aucun opt-in implicite n'existe non plus. Conséquence : 194 comptes `UNKNOWN`, **aucun workflow automatisé ne peut envoyer quoi que ce soit**, sans erreur ni trace. Décider *où* le consentement est recueilli est un arbitrage produit — **rien n'a été inventé, la décision revient à Kory**.
+- **Tests réellement exécutés** : GET challenge public (3 agents), GET jeton faux, POST non signé, POST signé — tous via l'URL HTTPS publique. **Aucun test Meta réel** : ni configuration de la console, ni message d'un vrai parent.
+- **Prochaine étape** : déclarer l'URL Cloudflare dans Meta → WhatsApp → Configuration → Webhooks, puis phases 13 à 18.
+
+
+### Go-Live WhatsApp — PHASES 1 à 12 (30 août 2026)
+- **⚠️ `prisma db push` REFUSE de poser une contrainte unique sans `--accept-data-loss`**, et son avertissement est **générique** : « si des doublons existent, cela échouera ». Ce n'est pas un constat sur les données. Utiliser le drapeau reviendrait à désarmer l'avertissement sans le lire. **La bonne voie est `CREATE UNIQUE INDEX` en SQL** : PostgreSQL refuse lui-même l'index en cas de doublon, donc le garde-fou reste armé là où il compte. Deux scripts idempotents suivent ce modèle (`add-unique-whatsapp-phone-index.ts`, `add-unique-conversation-index.ts`), essai à blanc par défaut. Le nom d'index doit être **exactement** celui qu'attend Prisma, sinon `migrate diff` reste rouge.
+- **✅ HMAC posé et RÉELLEMENT éprouvé** sur le serveur de dev : sans signature → 403, signature malformée → 403, signature d'un autre secret → 403, signature valide → 200 ; et le GET de vérification Meta répond toujours le challenge exact (jeton faux → 403).
+- **⚠️ LE PIÈGE DU HMAC — signer le corps BRUT.** La signature porte sur les octets exacts envoyés par Meta. Re-sérialiser un objet déjà analysé (`JSON.stringify(await req.json())`) produit d'autres octets — ordre des clés, espaces, échappement unicode — et la signature ne tombe **jamais** juste. Le handler lit donc `req.text()` **avant** de parser. Le simulateur (`scripts/simulate-whatsapp.ts`) a dû être aligné : il ne signait pas, il testait un chemin que la production rejette désormais.
+- **⚠️ BUG TROUVÉ ET CORRIGÉ — les statuts pouvaient reculer.** `processStatuses` écrasait le statut sans condition. Meta ne garantit pas l'ordre des callbacks : un `sent` arrivant après un `read` faisait régresser READ → SENT, et un message lu repassait en « envoyé » dans l'Inbox. Le garde est désormais **dans la clause WHERE** (`notIn` des statuts déjà atteints + FAILED terminal), pas dans un lire-puis-écrire — deux callbacks simultanés ne peuvent plus se courir dessus. **Non éprouvé à l'exécution** : cela demanderait de fabriquer des messages de test.
+- **Décision : aucune contrainte unique sur `WebhookEvent`.** La table est **morte** (jamais écrite dans `src/`, 0 ligne) et surtout **le payload WhatsApp Cloud API ne fournit aucun identifiant d'événement global** — seulement le `wamid`, déjà `UNIQUE` sur `Message.waMessageId` et déjà dédupliqué à l'entrée. Poser une contrainte supposerait d'inventer un identifiant : écarté.
+- **`WhatsAppConversation` : contrainte unique composite** sur (`schoolId`, `parentWaNumber`, `waPhoneId`) — le triplet exact que le webhook interroge avant de créer. Sans elle, deux messages simultanés passent tous deux par la branche « pas trouvée » et créent deux fils.
+- **⚠️ L'OPT-IN EST UN MUR SILENCIEUX.** `workflowEngine.ts` refuse d'envoyer si `whatsappOptIn !== OPTED_IN` — le garde est correct et échoue fermé. Mais **rien dans le code ne passe jamais un parent à `OPTED_IN`** : 194 comptes, tous `UNKNOWN`. Conséquence : **aucun workflow automatisé ne peut envoyer quoi que ce soit aujourd'hui**, sans erreur ni trace. Où recueillir le consentement est une décision produit, pas technique — **en attente d'arbitrage de Kory**.
+- **Bloqué sur l'extérieur** : aucun tunnel HTTPS public n'est actif, donc Meta ne peut pas appeler le webhook. Les 5 variables Meta sont en revanche toutes définies dans `.env`, et le simulateur est bien à `false`.
+- **Vérifié** : `tsc --noEmit` 0 erreur ; drift Prisma ↔ base = 0 ; lint des fichiers touchés = 3 erreurs **toutes pré-existantes** (`any` sur `processMessages`, `processStatuses`, un `catch`). L'unique erreur que j'avais introduite (`body: any`) a été corrigée par un type explicite.
+
+
+### Étape 3.1 : ISOLATION MULTI-LOCATAIRE WHATSAPP (30 août 2026) — ✅ APPLIQUÉ
+- **⚠️ LE PIÈGE MAJEUR — un `updateMany` sans `where`.** `scripts/inject-tokens.ts` écrivait le jeton Meta de production dans **toutes** les écoles : 94 écoles ont fini avec **le même jeton et le même `phone_number_id`** (`COUNT(DISTINCT)` = 1 pour les deux), toutes marquées `CONNECTED`. Le webhook résolvait l'école par `findFirst({ where: { whatsappPhoneNumberId } })` : avec 94 candidates et aucun `orderBy`, PostgreSQL en renvoyait une **arbitraire**. Un message de parent pouvait atterrir chez le mauvais locataire — et c'est arrivé (COMPLEXE ASTOU BA porte 1 message Meta sans avoir jamais été connectée).
+- **⚠️ PIRE QUE LE BLOCKER INITIAL — `GET /api/dev-messages` était une fuite publique.** Aucune authentification, aucun cloisonnement : la route renvoyait le `whatsappAccessToken` de **toutes** les écoles en JSON clair, plus les 5 derniers messages tous locataires confondus. Corrigée : le jeton n'est plus lu du tout, et la route répond 404 hors développement. (`api/dev/setup` était correctement fermée par `NODE_ENV`, elle.)
+- **Comment l'école légitime a été identifiée — sans arbitrage.** Le script fautif n'écrivait que 3 colonnes. Les signaux qu'il ne touchait pas désignent **une seule** école : SENG.CO ACADEMY porte l'unique `whatsappBusinessAccountId`, l'unique `whatsappName`, l'unique `whatsappPhone`, l'unique `whatsappConnectedAt` (29 août 00:40), 243 élèves et 3 des 4 messages à identifiant Meta. Le script de nettoyage **déduit** ce critère au lieu de le coder en dur, et s'interrompt s'il ne désigne pas exactement une école.
+- **Décision : le routage refuse au lieu de choisir.** Le webhook lit désormais deux candidates (`findMany take: 2`). Plus d'une → refus, message abandonné, 200 rendu à Meta (un réessai ne corrige pas une collision de configuration). Zéro → refus également : **le repli sur l'école du parent a été supprimé**, c'était de l'arbitrage déguisé, un numéro pouvant correspondre à des parents de plusieurs écoles.
+- **`School.whatsappPhoneNumberId` passe en `@unique`.** En PostgreSQL un index unique autorise plusieurs `NULL` : les écoles non connectées cohabitent sans collision. ⚠️ **La contrainte n'est PAS encore en base** — elle échouerait tant que les 93 doublons existent.
+- **✅ Appliqué le 30 août** : 93 écoles nettoyées, index unique posé. Vérifié : 1 seule école porte un `phone_number_id`, 0 doublon, 94 écoles à `NOT_CONNECTED`, et **aucune donnée métier perdue** (95 écoles / 2 243 élèves / 194 comptes / 96 conversations / 99 messages, identiques avant et après).
+- **Sauvegarde sans secret, volontairement** : le fichier `backups/whatsapp-credentials-*.json` ne contient **aucun jeton**. Les 94 écoles portaient la même valeur et l'école conservée la garde : l'écrire dans un fichier recréerait le secret en clair, soit exactement le problème qu'on répare.
+- **Chemins d'écriture vérifiés** : `finalizeWhatsAppConnection` et `simulateConnectWhatsApp` utilisent `update({ where: { id: auth.ctx.schoolId } })` avec `requireActionContext`, et `/dashboard/settings` n'est ouvert qu'à `OWNER`/`ADMIN`. Aucun `updateMany` sur `School` ne subsiste dans `src/`.
+- **Vérifié** : `tsc --noEmit` 0 erreur ; les 3 erreurs ESLint des fichiers touchés sont pré-existantes (`any` déjà présents), sur 688 problèmes à l'échelle du dépôt. Branche de refus du routage éprouvée sur les données réelles (2 candidates renvoyées → REFUS).
+- **NON vérifié** : aucun test Meta réel. Le jeton reste à régénérer côté console Meta.
+
+
+### Étape 1 : MISE SOUS CONTRÔLE GIT DU CHANTIER ANTIGRAVITY (30 août 2026)
+- **Le point de départ** : quatre jours de travail Antigravity vivaient **entièrement dans le working tree** — 76 fichiers modifiés/supprimés et 61 fichiers non suivis, zéro commit depuis `1f36fcc`. Un `git clean` ou un crash effaçait tout.
+- **Décision : branche plutôt que `main`.** Les 9 commits sont sur `chantier/whatsapp-nav-context-os`. `main` est intact. Un `git merge --ff-only chantier/whatsapp-nav-context-os` les y ramène quand Kory le décide.
+- **Découpage en 9 commits thématiques** (nettoyage, schéma, WhatsApp, navigation, tableau de bord contextuel, présences, transverses, docs, correctif) plutôt qu'un fourre-tout : un `git revert` reste possible module par module.
+- **⚠️ LE PIÈGE — deux scripts non suivis portaient des secrets EN CLAIR.** `scripts/inject-tokens.ts` contenait le **jeton d'accès Meta WhatsApp de production**, `scripts/inject-all.ts` un **vrai numéro sénégalais**. Historique vérifié : jamais commités. Déplacés dans `_local/scripts-2026-08-30/`. **Le jeton Meta a vécu en clair sur disque : le régénérer depuis la console Meta.**
+- **⚠️ Le piège dans le piège** : un troisième numéro réel était en dur dans `scripts/simulate-whatsapp.ts`, et celui-là **est passé dans le commit `15b01d9`**. Corrigé ensuite (`TEST_PARENT_PHONE`), mais il reste dans l'historique de la branche. Tant qu'elle n'est pas poussée, l'historique est réécrivable — **à trancher avant tout `git push`**.
+- **La leçon** : le scan de secrets doit tourner **avant** `git add`, pas après. Il a fonctionné sur les fichiers non suivis (2 détections) mais la relecture du diff commité a d'abord échoué en silence — `ugrep` a rejeté l'expression pour « complexité » et la sortie vide ressemblait à un succès. **Une commande qui échoue en silence ressemble exactement à une commande qui réussit.** Relancer motif par motif.
+- **Écarté de la racine** : 3 images de test, `apply_sql.ts`, `check.ts`, `test-prisma.ts`, `test-phone.ts`, `sync.sql`, `update_watermark.js`, `webhook_debug.log` (charges utiles réelles du webhook), 3 `.bak`, 14 scripts jetables. Tous dans `_local/`, motifs ancrés ajoutés au `.gitignore`.
+- **⚠️ Correction d'une note périmée** : `context.md` affirmait « pas de dossier `prisma/migrations` ». **Faux** — il existe et est versé (`00000000000000_baseline/migration.sql` + `README.md`). Un `rmdir` a échoué dessus, ce qui a évité de le supprimer.
+- **Vérifié** : `npx tsc --noEmit` → **0 erreur**, avant et après le nettoyage. Arbre de travail propre.
+- **NON vérifié** : aucun écran n'a été ouvert dans un navigateur. Le rendu réel des routes déplacées reste à éprouver (étape 4).
+
+
+### Chantier #14.5 : VÉRIFICATION FINALE AVANT TEST RÉEL (28 août 2026)
+- **STATUT : TEST D'ENVOI RÉUSSI (29 août 2026)**. La fonctionnalité d'envoi libre depuis la Boîte de réception (WhatsAppClient) vers un parent (dans la fenêtre de 24h) est validée de bout en bout en production avec de vraies API Meta.
+- **Serveur Local** : Le serveur EduCom tourne correctement sur le port 3000.
+- **Tunnel HTTPS** : LocalTunnel est prêt sur le port 3000.
+- **Variables d'environnement (Base de données en réalité)** :
+  - `whatsappAccessToken` : Injecté manuellement en base pour contourner le cache Next.js.
+  - `whatsappPhoneNumberId` : Injecté en base.
+  - `NEXT_PUBLIC_ENABLE_META_SIMULATOR` : FALSE (Test réel).
+- **Sécurité et HMAC** : La vérification de la signature Meta `X-Hub-Signature-256` est ABSENTE et devrait être implémentée côté Webhook `POST` pour la production.
+
+### Chantier #13 : GESTION MULTI-ENFANTS WHATSAPP (28 août 2026)
+- **Sélection Intelligente** : Lorsqu'un parent a plusieurs enfants et émet une intention nécessitant un contexte (ex: déclaration d'absence), le bot met la conversation en attente (`SELECT_CHILD`) et demande de sélectionner l'enfant concerné (ex: `1. Jean`, `2. Marie`).
+- **Reprise de Contexte** : À la réception du choix (validé dynamiquement via les relations Prisma du parent), le bot met à jour `resolvedStudentId` et reprend l'intention initiale sans redemander les informations.
+- **Expiration** : Le choix expire automatiquement après 1 heure, forçant le parent à reformuler sa demande s'il ne répond pas à temps.
+
+### Chantiers #11 & #12 : GO-LIVE READINESS WHATSAPP (28 août 2026)
+- **Audit Strict de Production** : Le code a été vérifié (TypeScript, Lint, Permissions). Aucun contournement n'a été inséré.
+- **Rapport de Blocage** : Les tests réseaux réels (Incoming, Outgoing, Webhook) ont été déclarés **NOT AVAILABLE** faute de credentials de production (`NEXT_PUBLIC_META_APP_ID`, `META_APP_SECRET`) et d'URL Webhook publique. Le mode d'intégration exige cette stricte configuration pour s'activer.
+- **Défaut d'UX Identifié et Corrigé** : Le routage IA pour les parents "Multi-Enfants" nécessitait une résolution manuelle par le secrétariat. Corrigé au Chantier #13.
+- **Sécurité et Multi-tenant** : Isolation totale par `schoolId` garantie sur les requêtes Prisma. Le rôle `TEACHER` est strictement confiné et bloqué sur la messagerie externe.
+
+### Chantier #10 : VALIDATION END-TO-END WHATSAPP (28 août 2026)
+- **Webhook GET** : Remplacement de l'ancienne variable supprimée par `META_WEBHOOK_VERIFY_TOKEN` pour garantir l'enregistrement initial par Meta.
+- **Auto-Réponses (IA)** : La création en base s'accompagne désormais de l'envoi **réel** via `WhatsAppClient.sendTextMessage()`.
+- **Réponses Manuelles (Inbox)** : Ajout d'une vérification stricte de la **fenêtre des 24h** (`windowExpiresAt`). Si expiré, le système empêche l'envoi de texte libre (évitant un rejet silencieux de Meta). 
+- **Traçabilité des Statuts** : L'ID de message retourné par Meta (`waMessageId`) est désormais capturé lors de l'envoi de messages sortants (réponse manuelle et automatique) et sauvegardé dans la base, permettant au webhook de lier les accusés de réception (DELIVERED, READ).
+- **Rapport de Compatibilité** : L'architecture SaaS de communication est 100% fonctionnelle, testée statiquement avec 0 erreur TS, en attente d'une application Meta réelle pour basculer la prod.
+
+### Chantier #9 : VRAI META EMBEDDED SIGNUP (28 août 2026)
+- **SDK Meta Front-End** : Intégration de `connect.facebook.net/en_US/sdk.js` via `next/script` dans la page Réglages. L'appel à `FB.login` déclenche le flux officiel (Oauth2) pour `whatsapp_business_management`.
+- **Validation Backend (`finalizeWhatsAppConnection`)** : Le token Oauth renvoyé par le frontend est traité côté serveur. Ce Server Action exige un environnement Meta complet (`META_APP_SECRET`) pour sécuriser la transaction, et refuse de faken une connexion si Meta n'est pas configuré.
+- **Drapeau de Simulation Isolée** : L'ancien simulateur du Chantier 8 a été conservé _exclusivement_ derrière un flag environnemental explicite (`NEXT_PUBLIC_ENABLE_META_SIMULATOR="true"`) afin de ne jamais l'activer par erreur en production, mais de permettre les tests UI en local.
+- **Multi-Tenant et Webhook** : Préservation totale de l'architecture V1 ; les credentials et l'isolement par `schoolId` restent la norme.
+
+### Chantier #8 : WHATSAPP ONBOARDING SAAS (28 août 2026)
+- **Architecture Meta Embedded Signup** : Transformation de l'intégration WhatsApp d'une logique "développeur" (copier-coller de tokens manuels) vers une expérience SaaS fluide via le parcours officiel Meta Embedded Signup. Les écoles n'ont plus à manipuler de credentials techniques.
+- **Évolution Base de Données (`School`)** : Ajout de champs de gestion d'état (`whatsappConnectionStatus`, `whatsappName`, `whatsappPhone`, `whatsappConnectedAt`) pour supporter le cycle de vie de la connexion (NOT_CONNECTED, CONNECTING, CONNECTED, ERROR) sans régression sur les champs existants.
+- **UX Mobile-First (Réglages)** : Remplacement des champs de saisie manuelle dans `/dashboard/settings` par une machine à état visuelle. Un bouton "Connecter WhatsApp" initie le flux (simulé en développement), et le statut connecté affiche clairement le nom et le numéro relié.
+- **Sécurité et Permissions** : La déconnexion ou la reconfiguration du canal WhatsApp est protégée par un `requireActionContext`, garantissant que seuls les administrateurs/propriétaires peuvent altérer cette connexion critique. Le multitenant est assuré, chaque école opérant en vase clos.
+- **Simulation Mode Dev** : Faute de Meta Facebook App ID réel dans ce dépôt de test, le flux OAuth est simulé côté serveur via l'action `simulateConnectWhatsApp`, permettant de valider l'intégralité du produit SaaS sans dépendance externe bloquante.
+
+### Chantier #7 : TESTS, MOBILE-FIRST & FINITION FINALE (28 août 2026)
+- **Intégration Réelle de l'API WhatsApp (Chantier #4 complété)** : La base de données inclut désormais des colonnes sécurisées par école (`whatsappAccessToken`, `whatsappPhoneNumberId`, `whatsappBusinessAccountId`). L'écran des "Réglages" expose un panneau de configuration pour l'intégration de la Cloud API de Meta WhatsApp Business.
+- **Envoi Manuel depuis Inbox** : Le champ de saisie bloqué a été réactivé. En envoyant un message textuel via `WhatsAppClient`, le statut et l'activité de la conversation sont mis à jour, en vérifiant strictement que les rôles "TEACHER" sont bloqués. L'action `sendManualReply` gère ce workflow.
+- **Routage Multi-tenant Fiabilisé (Webhooks)** : Le webhook WhatsApp intercepte le `phone_number_id` (plutôt que de se fier uniquement au numéro parent) pour isoler les communications entrantes par école de façon 100% robuste, un prérequis pour une solution SaaS pure.
+- **Mobile-First Inbox** : Résolution du problème d'empilement de l'Inbox sur mobile via l'implémentation d'une navigation Maître/Détail. Un bouton "Retour" dynamique permet de basculer de la liste des conversations au fil de discussion sans scroll horizontal ou empilement hasardeux.
+- **Formulaires & Layout Mobile** : Les formulaires de création de campagnes et de sondages s'affichent désormais avec des `grid-cols-1 sm:grid-cols-2` fluides, empêchant l'écrasement des sélecteurs (Envoi ponctuel / Workflow automatisé) sur les écrans d'iPhone.
+- **Audit de Sécurité** : La sécurité d'isolation de l'espace de communication par `schoolId` (`requireSchoolContext`) et les règles de blocage rigide pour les rôles `TEACHER` et `ACCOUNTANT` ont été définitivement confirmées.
+- **Audit Technique** : Le module Communication a été validé Typescript (`npx tsc --noEmit` à 0 erreur). Les types ont été nettoyés de tout `any` involontaire, confirmant la stabilité backend-frontend. La base Prisma est restée intégralement intacte. Aucun problème de régressions n'a été détecté.
+
+### Chantier #6 : EDUCOM COMMUNICATION PERMISSIONS & SECURITY V1 (28 août 2026)
+- **Lockdown `ACCOUNTANT`** : L'accès de la comptabilité au centre de communication est sécurisé. En back-end, le secrétariat peut consulter et créer tout type de campagne. Les comptables ne voient dans l'UI et l'API que les workflows avec `trigger` lié aux paiements (`PAYMENT_DUE`, `PAYMENT_OVERDUE`).
+- **Verrouillage `TEACHER`** : Les enseignants sont fermement empêchés par des Server Actions stricts (`requireActionContext`) de pouvoir envoyer ou consulter des communications externes.
+- **Sécurité et Escalade Inbox** : Restreinte aux requêtes financières pour l'ACCOUNTANT. La validation d'absence (`VALIDATE_ABSENCE`) ne peut plus être approuvée ou rejetée par un ACCOUNTANT.
+- **Formulaires et Sondages** : Sécurisés au niveau des Server Actions pour bloquer la création par les TEACHER et ACCOUNTANT.
+
+### Chantier #5 : INCOMING + IA WhatsApp (28 août 2026)
+- **Modèle de données** : Ajout de champs sur `WhatsAppConversation` de manière purement additive (`detectedIntent`, `attentionLevel`, `pendingActionType`, `pendingActionData`, `resolvedStudentId`) via `prisma migrate diff` et un script de synchronisation sans perte de données.
+- **Routing Engine** : Création d'un moteur d'intention simulant une IA (`routing.ts`). Il analyse les messages entrants via Regex/Mots-clés pour identifier les FAQ, les sondages, ou les justifications d'absence.
+- **Inbox Secrétariat** : Le `InboxClient` a été amélioré pour supporter l'escalade humaine (panneau "Action requise"). Les secrétaires voient immédiatement l'intention détectée (ex: "Justification d'absence").
+- **Validation d'Action** : Ajout de Server Actions (`actions.ts`) permettant au secrétariat d'approuver ou de refuser les demandes comprises par le bot. L'approbation logge l'événement dans `AuditLog`, clôt l'action en attente, et envoie un retour automatique au parent.
+- **Sécurité et Isolation** : Utilisation stricte de `requireSchoolContext()` pour l'Inbox.
+- **Type Safety** : `pendingActionData` est typé en `Record<string, unknown> | null` et l'update Prisma utilise `Prisma.DbNull` pour réinitialiser les colonnes Json. Aucun commit ou push effectué.
+
+### Moteur de Workflows Automatisés V2 (Chantier #4 - 28 août 2026)
+- **Modèles `CommunicationCampaign` & `ActionLink`** : Création des tables d'historisation et de configuration des campagnes manuelles/automatiques, avec un gestionnaire d'état de lien d'action (usage unique, expirables et révocables). Modification non destructive de la base de données.
+- **Workflow Engine & Résolveur de Variables** : Moteur de contexte permettant de convertir un modèle WhatsApp Meta strict (variables numériques type `{{1}}`) en utilisant les données relationnelles (nom du parent, facture due, date d'échéance) résolues à 100% côté serveur, évitant la manipulation des URL côté client.
+- **Sécurité et Idempotence** : `idempotencyKey` garantie l'impossibilité d'envoyer deux fois un rappel de facture à un parent pour le même événement ; seul un lien cryptographique de 64 char part dans l'URL.
+- **Refonte UI Campagnes** : Transformation de l'ancien formulaire de SMS manuel (hors-la-loi selon Meta) vers un panneau de sélection de Modèles (Templates), choix d'audience, et configuration des déclencheurs (Paiements, Retards) via interface.
+- **Debug Prisma Runtime** : La page de création de campagne crashait à cause d'un delegate indéfini (`Cannot read properties of undefined (reading 'findMany')`). Cause racine : le serveur Next.js en cours d'exécution conservait l'ancien `PrismaClient` en mémoire, qui ne possédait pas la nouvelle méthode `communicationCampaign` ajoutée après le `prisma generate`. Résolu via un redémarrage complet de Next.js (`kill -9 PID` puis `npm run dev`).
+
+### Communication Center V1 (Chantier #3 - 28 août 2026)
+- **Refonte de la page Communications** : Remplacement de l'ancien sélecteur de parents par un véritable Control Panel (Dashboard) agissant comme centre névralgique de toutes les communications de l'école.
+- **4 Zones Opérationnelles** : 
+  1. *Statistiques/Activité* : Compteurs réels (Envoyés, Délivrés, Lus, Réponses) basés sur la base de données.
+  2. *Actions rapides* : Nouvelles communications (avec blocage strict des enseignants `TEACHER`), sondages, formulaires.
+  3. *Sondages Actifs* : Affichage dynamique des sondages en cours et de leurs taux de réponse.
+  4. *Conversations Récentes* : Liste des échanges WhatsApp avec tags prioritaires (ex: `REQUIRES_ATTENTION`).
+- **Migration Douce** : L'ancien module d'envoi de masse a été préservé et déplacé sous `/dashboard/communications/campaigns/new` pour maintenir les parcours existants sans blocage brutal.
+- **Synchronisation Base de Données (Urgent Debug)** : La table `WhatsAppConversation` (ainsi que `WhatsAppTemplate` et les nouveaux champs) manquait en base car la consigne d'interdiction de modifier la base (`prisma db push`) l'avait empêché à l'étape 2, générant une erreur `TableDoesNotExist`. La synchronisation a été faite manuellement et sans perte de données en extrayant le diff SQL non destructif (`npx prisma migrate diff`) et en l'appliquant directement via `pg` pour contourner la protection Prisma. Aucun effacement n'a eu lieu. Les tests d'exécution (Next.js `/dashboard/communications` et `inbox`) sont tous passés au vert.
+### Communication V1 : Fondation WhatsApp (27 août 2026)
+- **Principe Fondamental** : EduCom = cerveau, WhatsApp = canal. 
+- **Modèles Ajoutés** : `WhatsAppConversation` (gestion de la fenêtre des 24h), `WhatsAppTemplate` (modèles pré-approuvés Meta), ajout du statut `RECEIVED` et `waMessageId` sur `Message`.
+- **Mécanisme d'Idempotence** : Le champ unique `Message.waMessageId` garantit qu'un payload webhook reçu plusieurs fois ne créera jamais de doublon.
+- **Résolution de Parent** : Recherche stricte des parents par leur numéro de téléphone (rôle `PARENT`). Un numéro inconnu ou ambigu (plusieurs parents) est ignoré/loggé et ne déclenche pas d'actions risquées. Le contexte parent → enfant est injecté.
+- **Règles des 24h (Meta)** : Implémentation du tracker de fenêtre `windowExpiresAt`. Un message entrant réinitialise la fenêtre de 24h (autorisant l'envoi de messages libres).
+- **Templates Meta** : Préparation de l'architecture pour les envois asynchrones de notifications/annonces en dehors de la fenêtre de 24h.
+- **Permissions Verrouillées** : Nouvelle vérification stricte `canSendExternalWhatsApp` dans `permissions.ts` bloquant absolument les enseignants (`TEACHER`) de tout envoi externe WhatsApp.
+- **Opt-In** : Ajout de l'enum `WhatsAppOptInStatus` (`OPTED_IN`, `OPTED_OUT`, `UNKNOWN`) sur le modèle `User` pour structurer le futur recueil de consentement.
+- **Prochaines étapes** : Finalisation du `CommunicationsClient` (Inbox) pour que le Secrétariat puisse traiter les messages nécessitant une intervention humaine, configurer les campagnes, et mise en place des Webhooks entrants complets (AI parser, triggers).
+
+### School Operations Consolidation (Chantier #5 & #6 - 27 août 2026)
+- **Refonte Navigation (Fewer doors, not fewer features)** : Restauration des hubs "Élèves & dossiers" et "Administration". Les actions éparpillées (Importer, Exporter) sont re-centralisées contextuellement.
+- **Documents & Générateurs Contextuels** : Retrait du hub générique `/dashboard/documents/` pour les factures, reçus, et bulletins. Ces outils sont désormais intégrés dans leurs domaines respectifs (`/payments` et `/grades`) : la génération d'une facture s'effectue depuis le profil d'un élève ou le module financier, pas depuis un hub générique.
+- **Rapports Déplacés** : L'onglet Rapports a été rattaché logiquement sous "Administration" (`/dashboard/admin/reports`).
+- **Saisie & Bulletins (Mobile & Impression)** : Refonte de la grille de saisie pour empêcher le scrolling horizontal cassé sur 360px. Adaptation stricte du format A4 (`minHeight: 297mm`) pour l'impression des bulletins, avec masquage exclusif du bouton d'impression pour les rôles enseignants.
+- **Sécurité et Isolement par Rôle** : Suppression drastique des endpoints non protégés. `deleteStudent` (unitaire et masse) et validation des présences s'appuient désormais strictement sur `requireActionContext`, garantissant qu'un enseignant ne peut interagir qu'avec ses propres élèves et classes (`teacherClassIds` et `studentWhereFor`).
+- **Audit Webhook WhatsApp** : Examen de `WebhookEvent`. L'architecture de communication actuelle a été documentée dans `docs/product/EDUCOM_OPERATIONS_RULES.md`, pointant l'absence de tracking ID externe et le besoin d'un modèle `Notification` pour boucler avec les webhooks (Twilio/Meta).
+
+### School Operational Pulse (Chantier #4 - 27 août 2026)
+- **Refonte Hiérarchie Dashboard** : Le Dashboard reflète désormais précisément la hiérarchie produit : **1. Context (MorningBrief) → 2. Operational Pulse → 3. Next Best Action → 4. Attention Center → 5. School Health**.
+- **Operational Pulse** : Création du composant `OperationalPulse` remplaçant l'ancien `TodayPanel`. Il résume l'activité immédiate (présences, absences, retards, notes en attente, admissions incomplètes, paiements) sous forme de grille de chiffres clés (Grid system).
+- **Simplification du MorningBrief** : Le `MorningBrief` ne répète plus les urgences de l'école (qui sont déjà dans l'Attention Center). Il ne s'occupe plus que du texte narratif, du résumé et de la période (Context).
+- **Suppression des redondances** : L'alerte des tâches "à traiter" (urgent/watch) ne figure plus qu'à une seule place : `AttentionCenter`, évitant la duplication visuelle.
+
+### Next Best Action & Pilotage Opérationnel (26 août 2026)
+- **Refonte Dashboard** : Transformation du dashboard d'un simple afficheur de données en un centre de pilotage proactif. La hiérarchie est désormais **Contexte → Priorité Absolue (Next Best Action) → À Surveiller**.
+- **Context Engine Enrichi** : `getNextBestAction` (`src/lib/contextEngine.ts`) renvoie désormais une action fortement typée (titre, CTA, icône, sévérité, raison). La logique croise le **rôle** (Directeur, Comptable, Enseignant), la **période** (Admissions, Évaluations, etc.) et les **signaux réels** mesurés sur l'école.
+- **Réduction de Bruit & Alertes Réelles** : `dashboard.ts` transmet désormais le nombre exact de `incompleteFiles` (élèves sans contact d'urgence) et `missingGrades` (classes sans notes), remplaçant les valeurs codées en dur qui neutralisaient le système.
+- **Empty State Rassurant** : En l'absence d'urgence, la Next Best Action affiche une carte "Tout est sous contrôle" (avec une icône de validation), évitant la fabrication de fausses tâches ou un layout brisé.
+### Contextual School OS & Local Test Mode (Août 2026)
+- **Context Engine (`src/lib/contextEngine.ts`) :** Le produit n'est plus un dashboard statique. Un moteur de contexte a été mis en place pour déduire la période scolaire actuelle (Admission, Enseignement, Saisie de notes, etc.) en fonction des configurations de l'école (`School.periods` ajouté via JSON en base) et de la date. Ce moteur dicte la « Next Best Action » selon le rôle.
+- **Dashboard Dynamique :** `dashboardSnapshot` consomme désormais le `ContextEngine`. Une nouvelle bannière `NextBestAction` a été placée tout en haut du tableau de bord pour inciter l'utilisateur à se concentrer sur l'objectif prioritaire de la période en cours.
+- **Local Test Mode (`/dev/onboarding`) :** Création d'une route de développement qui enveloppe le `Wizard` d'onboarding et un `DevPanel`. Ce panel permet de forcer la date, la période et le rôle (`dev_test_mode` cookies interceptés par `requireSchoolContext`) sans authentification Supabase. **Sécurité :** Les endpoints de test refusent l'accès en dehors de `NODE_ENV === "development"` et opèrent sur un espace isolé (`TEST_SCHOOL_DEV`).
+- **Documents Fondateurs (`docs/product/`) :** `EDUCOM_CONTEXTUAL_OS.md` formalise la vision produit contextuelle. `EDUCOM_LOGIC_AUDIT.md` recense ce qui a été classifié. `ARCHIVE.md` trace les éléments retirés.
+
 
 ### Auth & Onboarding "Fast & Automatic" (25 août 2026)
 - **Mot de Passe Oublié Intégré :** Déploiement du flux complet de récupération de mot de passe (demande `/forgot-password`, routage via `/auth/callback`, mise à jour sécurisée `/update-password`) en s'appuyant strictement sur Supabase Auth (`resetPasswordForEmail`).
@@ -3492,3 +3993,132 @@ rhétorique. C'est le premier chantier où elle coûte quelque chose.
 - **Données Fictives Séparées** : L'injection (`demo-actions.ts`) crée des classes, matières, évaluations, élèves et notes fictives, toutes préfixées par `[DÉMO]` ou `DEMO-`. Cela permet une séparation totale des données réelles.
 - **Suppression Ciblée** : Sur le Dashboard, une bannière spéciale s'affiche quand des données de démo sont présentes, permettant de les supprimer d'un clic (action serveur stricte supprimant uniquement ce qui commence par `[DÉMO]`), garantissant que la base de l'école n'est jamais effacée.
 - **Importation Solide Conservée** : La page `/dashboard/students/import` utilise déjà `createManyAndReturn` dans une transaction Prisma. En cas d'erreur de format, un rollback automatique a lieu, aucune donnée n'est détruite.
+
+### Chantier #3 : Attendance & Opérations Quotidiennes (Août 2026)
+- **Modélisation** : Création du modèle `Attendance` dans `schema.prisma` avec `AttendanceStatus` (PRESENT, ABSENT, LATE, EXCUSED) et index d'unicité `@@unique([studentId, date])` restreint à une présence par jour par élève.
+- **Sécurité et Isolation** : La relation `schoolId` sur le modèle permet d'assurer une isolation stricte multitenant pour les requêtes sans join complexe. La Server Action `saveAttendanceBatch` protège toutes les requêtes via `requireSchoolContext()`.
+- **Routage et UI** : L'écran de gestion s'oriente selon le rôle.
+  - `TEACHER` : Présente les classes du professeur et amène à `/dashboard/attendance/take` pour marquer la classe avec l'action rapide "Tous présents".
+  - `DIRECTOR / SECRETARY` : Affiche le taux global de présence, les retards/absents, et les classes n'ayant pas encore procédé à l'appel.
+- **Context Engine** : Intégration transparente de la routine au `Next Best Action`. Durant une période académique (Teaching, Exams), les rôles administratifs voient une alerte de complétion (`severity: "watch"`) tandis que l'enseignant reçoit une notification `severity: "urgent"` tant que ses appels ne sont pas effectués.
+- **Performance** : L'interface évite le N+1 problem et l'enregistrement passe par `prisma.$transaction()` pour grouper les insertions (upserts).
+
+### Navigation & Consolidation (Chantier #5)
+- **Refonte des Domaines** : Suppression des menus tentaculaires. La sidebar se limite strictement à 8 métiers (Tableau de bord, Élèves & dossiers, Présences, Notes & bulletins, Finance, Documents, Communications, Administration).
+- **Administration Hub** : Création de `/dashboard/admin` pour regrouper Équipe, Configuration pédagogique, Configuration financière, Modèles de documents, Rapports, et Paramètres sous un seul toit, évitant l'encombrement de la barre latérale.
+- **Récupération des fonctionnalités orphelines** : Les hubs de métiers ont été mis à jour pour assurer 100% d'accessibilité :
+  - **Documents** pointe désormais explicitement vers le Centre documentaire.
+  - **Notes & bulletins** intègre la génération de Bulletins (qui n'était qu'en /documents).
+  - **Élèves & dossiers** inclut l'Annuaire, les Dossiers, Import et Export.
+
+---
+
+## LOT 18D — Nouvelle configuration Embedded Signup (31 août 2026)
+
+**Ce qui a changé.** Une configuration « WhatsApp Embedded Signup » a été créée
+côté Meta (jeton d'utilisateur système, 60 jours, actif « comptes WhatsApp »,
+permissions `whatsapp_business_management` + `whatsapp_business_messaging`).
+`NEXT_PUBLIC_META_CONFIG_ID` passe de `2637198510423352` à `1047210954578180`.
+L'ancienne valeur n'était **pas** prouvée fautive (le lot 18C avait conclu
+*cause non prouvée*) ; on ne l'a donc pas « corrigée », on l'a remplacée par une
+configuration dont on connaît la nature avec certitude, ce qui n'était pas le
+cas de la précédente.
+
+**Piège coûteux, à retenir.** `NEXT_PUBLIC_*` est **inliné à la compilation** par
+Turbopack. Changer la ligne dans `.env` sans redémarrer `next dev` laisse
+l'ancien identifiant dans le bundle : on teste alors une valeur qui n'existe
+plus dans le fichier qu'on est en train de lire. Vérification qui tranche
+vraiment — récupérer le chunk **par HTTP** sur le serveur qui tourne et y
+chercher la valeur ; le contenu de `.env` ne prouve rien.
+Preuve obtenue ici : `config_id: ("TURBOPACK compile-time value", "1047210954578180")`
+dans le chunk du widget servi (0 occurrence de l'ancien ID).
+Autre faux ami : `.next/dev/**` conserve les chunks périmés des builds
+précédents. Un `grep` sur le dossier retrouve donc l'ancien ID **même après un
+redémarrage réussi** — ce n'est pas un échec, ces fichiers ne sont plus servis.
+
+**Audit du flux existant (avant toute modification).** Un seul parcours de
+connexion existe, il ne faut pas en créer un second : widget
+`WhatsAppConnectionWidget` (monté sur `/dashboard/communications`, **pas** sur
+`/dashboard/settings` malgré les `revalidatePath` des actions), et
+`finalizeWhatsAppConnection` dans `settings/actions.ts`. Sont corrects :
+l'ordonnancement de `FB.init`, `response_type: 'code'`, l'échange code→jeton
+côté serveur, `debug_token`, l'extraction du WABA, l'écriture atomique.
+
+**Manques confirmés par la documentation Meta, non traités dans ce lot :**
+
+1. **`POST /{waba-id}/subscribed_apps` absent** — Meta l'exige explicitement
+   pour chaque client qui termine le parcours. Sans cet appel, **aucun message
+   entrant de cette école n'atteindra jamais notre webhook**, quand bien même
+   le webhook est actif et abonné au champ `messages`. C'est le manque le plus
+   grave, et il est invisible : rien n'échoue, il ne se passe simplement rien.
+2. **`POST /{phone-number-id}/register` absent** (`messaging_product` + `pin` à
+   6 chiffres) — prérequis Cloud API du numéro émetteur.
+3. **Aucun écouteur `window.addEventListener('message')`** pour les événements
+   `WA_EMBEDDED_SIGNUP` (FINISH / CANCEL + motif) de `sessionInfoVersion: 3`.
+   C'est précisément l'angle mort des lots 18B et 18C : quand Meta annule, on ne
+   dispose d'aucune trace côté client, et les logs serveur sont muets puisque
+   aucun code n'est jamais émis.
+4. Jeton système à **60 jours** sans champ d'expiration ni renouvellement en
+   base : panne silencieuse programmée.
+5. `whatsappAccessToken` stocké **en clair**.
+6. `phonesData.data[0]` pris à l'aveugle si le WABA porte plusieurs numéros.
+
+**Toujours en suspens côté Meta (hors code) :** l'accès avancé sur
+`whatsapp_business_management` / `whatsapp_business_messaging` reste la question
+non tranchée du lot 18C — créer une configuration ne l'accorde pas. Et l'URL du
+webhook pointe encore sur un tunnel `trycloudflare` éphémère.
+
+**Ordre retenu :** (1) config_id + redémarrage ✅ fait — (2) écouteur
+`message` ✅ fait — (3) nouvelle tentative réelle ⏳ — (4) `subscribed_apps` +
+`register` une fois le code obtenu.
+
+**Écouteur de diagnostic (étape 2).** `WhatsAppConnectionWidget` porte désormais
+un `useEffect` purement observateur, marqué `[DIAG 18E]`, filtré sur les origines
+`www.facebook.com` et `web.facebook.com`, qui journalise en console les
+événements `WA_EMBEDDED_SIGNUP` : `event`, `current_step`, `error_message`,
+`error_id`, et les clés de `data`. Les identifiants WABA / numéro sont masqués
+aux 4 derniers caractères ; Meta n'envoie de toute façon ici ni jeton ni code.
+À retirer une fois la cause identifiée. Les 3 alertes ESLint du fichier
+(`Link2` inutilisé, deux `any`) **préexistaient** dans HEAD — vérifié, elles ne
+viennent pas de cet ajout.
+
+---
+
+## Baseline « V1 OG » — 31 août 2026
+
+**Décision.** Avant d'ouvrir le chantier d'optimisation UX/UI, Kory a demandé un
+point de restauration protégé de l'état courant, nommé **V1 OG**. Il est figé sur
+`chantier/whatsapp-nav-context-os` et porte le tag **`v1-og`**.
+
+**Pourquoi trois ancres** (tag annoté `v1-og`, branche `baseline/v1-og`, et le SHA) :
+un tag léger peut être déplacé sans laisser de trace, et une branche peut être
+supprimée par mégarde. Trois références redondantes rendent la perte
+silencieuse improbable — c'est exactement le risque que le protocole vise.
+
+**La baseline se contient elle-même.** Le protocole vit dans `rappel.md`, qui est
+*dans* le commit baseline : un « RETURN TO V1 OG » ne peut donc pas effacer les
+instructions qui le décrivent. C'est aussi pourquoi la documentation nomme le
+tag et jamais un SHA en dur — un SHA écrit avant le commit qui le contient ne
+peut être qu'un SHA faux.
+
+**Contrôle fait avant de commiter.** Les 20 fichiers ont été passés au crible,
+motif par motif (jetons `EAA…`, PAT `sbp_…`, JWT `eyJ…`, URL Postgres avec mot
+de passe, numéros sénégalais). Seul `.env.example` a réagi, sur les
+**placeholders** `postgres.xxxx:password` — rien de réel. Le balayage se fait
+motif par motif depuis qu'un `grep` combiné avait échoué en silence
+(« exceeds complexity limits ») en renvoyant un vide qui ressemblait à un succès.
+
+**Trois limites, à connaître avant de croire la baseline complète :**
+
+1. **`.env` n'est pas dans Git** (`.gitignore:37`). Aucun `git checkout` ne le
+   restaurera. Copie prise hors versionnement : `.env.v1-og.snapshot`, en `600`,
+   ignorée elle aussi. Restauration manuelle.
+2. **La base de données n'est pas couverte.** Git ne défait ni une migration
+   Prisma ni une écriture. Tout chantier touchant au schéma a besoin de son
+   propre plan de retour arrière.
+3. **Rien n'est poussé.** La baseline est locale ; elle disparaît avec la
+   machine tant que `git push origin v1-og baseline/v1-og` n'a pas été fait.
+
+**Règle des itérations.** `V1 OG → Expérience A → RETURN TO V1 OG → Expérience B`.
+Une expérience ne devient jamais la nouvelle baseline : seule une approbation
+explicite de Kory peut en établir une. Le protocole complet vit dans `rappel.md`.

@@ -43,6 +43,25 @@ export type ActionAuth =
  *   Si omis, seule l'authentification est vérifiée.
  */
 export async function requireActionContext(requiredPath?: string): Promise<ActionAuth> {
+  // Support Local Test Mode (Dev uniquement)
+  if (process.env.NODE_ENV === "development") {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const testSchoolId = cookieStore.get("dev_test_school_id")?.value;
+    const testUserId = cookieStore.get("dev_test_user_id")?.value;
+    
+    if (testSchoolId && testUserId) {
+      const dbUser = await prisma.user.findUnique({ where: { id: testUserId } });
+      if (dbUser && dbUser.schoolId === testSchoolId) {
+        const role = dbUser.role as RoleType;
+        if (requiredPath && !hasAccess(role, requiredPath)) {
+          return { ok: false, error: "Vous n'avez pas les droits nécessaires pour cette action (Dev Mode)." };
+        }
+        return { ok: true, ctx: { userId: dbUser.id, schoolId: testSchoolId, role } };
+      }
+    }
+  }
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Non autorisé — vous devez être connecté." };

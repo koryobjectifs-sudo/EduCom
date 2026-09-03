@@ -30,7 +30,7 @@ const PAYMENTS_PATH = "/dashboard/payments";
 
 function revalidateAll() {
   revalidatePath("/dashboard/settings/fees");
-  revalidatePath("/dashboard/reports");
+  revalidatePath("/dashboard/admin/reports");
   revalidatePath("/dashboard/payments");
 }
 
@@ -113,7 +113,7 @@ export async function activateSchedule(id: string) {
     kind: "fee.schedule.activated",
     title: "Nouvelle grille tarifaire officielle",
     body: `« ${target.label} » est désormais la grille officielle. Le forecast est recalculé à partir d'elle.`,
-    link: "/dashboard/reports",
+    link: "/dashboard/admin/reports",
   });
 
   revalidateAll();
@@ -220,7 +220,7 @@ export async function upsertFeeItem(input: {
       kind: "fee.updated",
       title: `Tarif modifié — ${feeKindLabel(item.kind)}`,
       body: `« ${item.label} » : ${describeAmountChange(before.amount, item.amount)}. Le forecast est recalculé.`,
-      link: "/dashboard/reports",
+      link: "/dashboard/admin/reports",
     });
   }
 
@@ -299,7 +299,7 @@ export async function upsertBatchFeeItems(scheduleId: string, inputs: {
       kind: "fee.updated",
       title: "Mise à jour tarifaire groupée",
       body: `${changedCount} tarif(s) modifié(s). Le forecast a été recalculé.`,
-      link: "/dashboard/reports",
+      link: "/dashboard/admin/reports",
     });
   }
 
@@ -478,7 +478,7 @@ export async function decideFeeChange(input: { id: string; accept: boolean; comm
     body: input.accept
       ? `« ${request.feeItem.label} » : ${describeAmountChange(amountBefore, request.proposedAmount)}. Le forecast est recalculé.`
       : `« ${request.feeItem.label} » reste à ${Math.round(amountBefore).toLocaleString("fr-FR")} FCFA. Motif : ${input.comment}`,
-    link: "/dashboard/reports",
+    link: "/dashboard/admin/reports",
   });
 
   revalidateAll();
@@ -499,6 +499,6 @@ export async function markNotificationRead(id: string) {
     data: { readAt: new Date() },
   });
   if (count === 0) return { error: "Notification introuvable." };
-  revalidatePath("/dashboard/reports");
+  revalidatePath("/dashboard/admin/reports");
   return { success: true };
 }

@@ -86,7 +86,7 @@ export default function NewSurveyPage() {
         setIsSubmitting(false);
         return;
       }
-      router.push("/communications/surveys");
+      router.push("/dashboard/communications/surveys");
       router.refresh();
     } catch (error) {
       console.error(error);

@@ -9,18 +9,11 @@ export default function WelcomePage() {
   const router = useRouter();
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-sunk px-5 py-10 sm:px-8">
-      <div className="w-full max-w-sm rounded-surface border border-rule bg-surface p-8 shadow-card text-center">
-        <Link href="/" className="mb-10 flex justify-center w-full">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/educom-logo-officiel.jpg"
-            alt="EduCom"
-            width={156}
-            height={28}
-            className="h-7 w-auto"
-          />
-        </Link>
+    <div className="flex min-h-[100dvh] flex-col items-center bg-sunk p-4 sm:p-6 overflow-y-auto">
+      <div className="w-full max-w-[380px] my-auto rounded-[20px] border border-rule/40 bg-surface p-6 sm:p-7 shadow-sm relative z-10 text-center">
+        <div className="mb-6 flex flex-col items-center justify-center relative">
+          <img src="/brand/educom-logo-officiel.jpg" alt="EduCom" className="h-6 w-auto object-contain" />
+        </div>
 
         <div className="flex justify-center mb-6">
           <div className="rounded-full bg-success/10 p-3 text-success">
@@ -28,11 +21,11 @@ export default function WelcomePage() {
           </div>
         </div>
 
-        <h1 className="text-role-page font-bold tracking-tight text-text">
+        <h1 className="text-[20px] font-bold tracking-tight text-text">
           Bienvenue sur EduCom
         </h1>
         
-        <p className="mt-4 text-role-body leading-relaxed text-text-soft">
+        <p className="mt-1.5 text-[13px] leading-relaxed text-text-soft">
           Votre compte est désormais actif et validé. Vous êtes connecté(e) en toute sécurité.
         </p>
 

@@ -1,7 +1,7 @@
 import {
-  LayoutDashboard, Users, School, ClipboardList, CreditCard,
-  FileText, MessageSquare, BarChart3, Briefcase, Settings,
-  type LucideIcon, FolderOpen, Package, GraduationCap,} from "lucide-react";
+  LayoutDashboard, Users, ClipboardList, CreditCard,
+  FileText, MessageSquare, Settings, BarChart3,
+  type LucideIcon, GraduationCap,} from "lucide-react";
 import { hasAccess, type RoleType } from "@/lib/permissions";
 
 /**
@@ -65,61 +65,38 @@ export type NavSection = {
  * rubriques sont toutes là ; deux remontent hors section (voir ci-dessous).
  */
 export const NAV_SECTIONS: NavSection[] = [
-  /**
-   * ═══ EN TÊTE, SANS TITRE : LES DEUX LECTURES TRANSVERSALES ═══
-   *
-   * ⚠️ **Le tableau de bord et les rapports n'appartiennent à aucun métier.**
-   * Les ranger sous « Administration » les aurait fermés visuellement à
-   * l'enseignant et au comptable, qui y ont pourtant droit et y ont leur propre
-   * lecture (`buildReport()` borne le contenu au rôle). Les laisser hors
-   * section dit ce qu'ils sont : deux points de vue sur tout le reste.
-   */
   {
     title: null,
     items: [
       { name: "Tableau de bord", href: "/dashboard", icon: LayoutDashboard, short: "Accueil" },
-      { name: "Rapports", href: "/dashboard/reports", icon: BarChart3 },
-    ],
-  },
-  {
-    title: "Enseignement",
-    items: [
-      { name: "Saisie des notes", href: "/dashboard/grades", icon: ClipboardList, short: "Notes" },
     ],
   },
   {
     title: "Secrétariat",
     items: [
-      { name: "Annuaire", href: "/dashboard/directory", icon: Users },
-      { name: "Documents", href: "/dashboard/documents", icon: FileText },
-      // Lot 15 — Centre documentaire regroupé avec le reste des documents
-      { name: "Centre documentaire", href: "/dashboard/documents/centre", icon: FolderOpen, short: "Centre" },
-      // Lot 16 — sous `/dashboard/students` : exporter, c'est lire un dossier.
-      // Aucun droit nouveau, et `PARENT`/`ACCOUNTANT` ne le voient pas.
-      { name: "Exports de dossiers", href: "/dashboard/students/export", icon: Package, short: "Exports" },
+      { name: "Élèves & dossiers", href: "/dashboard/students", icon: Users, short: "Élèves" },
+      { name: "Documents", href: "/dashboard/documents", icon: FileText, short: "Docs" },
       { name: "Communications", href: "/dashboard/communications", icon: MessageSquare, short: "Messages" },
+    ],
+  },
+  {
+    title: "Enseignement",
+    items: [
+      { name: "Présences", href: "/dashboard/attendance", icon: ClipboardList, short: "Présences" },
+      { name: "Notes & bulletins", href: "/dashboard/grades", icon: GraduationCap, short: "Notes" },
     ],
   },
   {
     title: "Finance",
     items: [
-      { name: "Paiements", href: "/dashboard/payments", icon: CreditCard },
+      { name: "Finance", href: "/dashboard/payments", icon: CreditCard, short: "Finance" },
     ],
   },
   {
     title: "Administration",
     items: [
-      { name: "Équipe", href: "/dashboard/team", icon: Briefcase },
-      /**
-       * ⚠️ Entrée DISTINCTE de « Paramètres », et non un sous-menu — pour la
-       * même raison que le centre documentaire au lot 15 : le secrétariat a
-       * `/dashboard/settings/pedagogie` mais **pas** `/dashboard/settings`, qui
-       * porte le nom, le logo et la signature de l'établissement. La rattacher
-       * aux réglages l'aurait rendue invisible à ceux qui tiennent le
-       * calendrier au quotidien.
-       */
-      { name: "Configuration pédagogique", href: "/dashboard/settings/pedagogie", icon: GraduationCap, short: "Pédagogie" },
-      { name: "Paramètres", href: "/dashboard/settings", icon: Settings },
+      { name: "Administration", href: "/dashboard/admin", icon: Settings, short: "Admin" },
+      { name: "Rapports", href: "/dashboard/admin/reports", icon: BarChart3, short: "Rapports" },
     ],
   },
 ];

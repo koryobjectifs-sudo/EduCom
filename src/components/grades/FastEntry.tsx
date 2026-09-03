@@ -246,16 +246,16 @@ export default function FastEntry({ ctx }: { ctx: EntryContext }) {
           </caption>
           <thead>
             <tr className="border-b border-rule bg-ground/70 text-left">
-              <th scope="col" className="px-5 py-2.5 text-role-meta font-semibold uppercase tracking-wider text-text-faint">
+              <th scope="col" className="px-3 sm:px-5 py-2.5 text-role-meta font-semibold uppercase tracking-wider text-text-faint">
                 Élève
               </th>
-              <th scope="col" className="w-[168px] px-3 py-2.5 text-role-meta font-semibold uppercase tracking-wider text-text-faint">
+              <th scope="col" className="w-[120px] sm:w-[168px] px-2 sm:px-3 py-2.5 text-role-meta font-semibold uppercase tracking-wider text-text-faint">
                 Note <span className="normal-case text-text-faint">/ {ctx.defaultMax}</span>
               </th>
-              <th scope="col" className="w-[92px] px-3 py-2.5 text-role-meta font-semibold uppercase tracking-wider text-text-faint">
+              <th scope="col" className="hidden sm:table-cell w-[92px] px-3 py-2.5 text-role-meta font-semibold uppercase tracking-wider text-text-faint">
                 Coef.
               </th>
-              <th scope="col" className="w-[132px] px-5 py-2.5 text-role-meta font-semibold uppercase tracking-wider text-text-faint">
+              <th scope="col" className="w-[40px] sm:w-[132px] px-2 sm:px-5 py-2.5 text-right sm:text-left text-role-meta font-semibold uppercase tracking-wider text-text-faint">
                 <span className="sr-only">État</span>
               </th>
             </tr>
@@ -267,14 +267,14 @@ export default function FastEntry({ ctx }: { ctx: EntryContext }) {
               const value = drafts[r.studentId] ?? "";
               return (
                 <tr key={r.studentId} className="transition-colors duration-150 hover:bg-sunk/40">
-                  <th scope="row" className="px-5 py-2 text-left font-normal">
+                  <th scope="row" className="px-3 sm:px-5 py-2 text-left font-normal truncate max-w-[120px] sm:max-w-none">
                     <span className="text-role-body font-medium text-text">
-                      {r.lastName} {r.firstName}
+                      {r.lastName} <span className="hidden sm:inline">{r.firstName}</span><span className="sm:hidden">{r.firstName.charAt(0)}.</span>
                     </span>
                   </th>
 
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-1.5">
+                  <td className="px-2 sm:px-3 py-2">
+                    <div className="flex items-center gap-1 sm:gap-1.5">
                       <input
                         ref={(el) => { inputs.current[i] = el; }}
                         type="text"
@@ -286,18 +286,18 @@ export default function FastEntry({ ctx }: { ctx: EntryContext }) {
                         onBlur={() => onBlur(r.studentId)}
                         onKeyDown={(e) => onKeyDown(e, i, r.studentId)}
                         onFocus={(e) => e.currentTarget.select()}
-                        className={`w-[76px] rounded-control border bg-surface px-2.5 py-1.5 text-role-body font-semibold tabular-nums text-text transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/40 ${
+                        className={`h-11 w-[64px] sm:w-[76px] rounded-control border bg-surface px-2 sm:px-2.5 py-2 text-base font-semibold tabular-nums text-text transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/40 ${
                           state === "error" ? "border-danger bg-danger/5" : "border-rule focus:border-primary/40"
                         }`}
                       />
-                      <span className="text-role-meta tabular-nums text-text-faint">/ {r.max}</span>
+                      <span className="text-[11px] sm:text-[13px] tabular-nums text-text-faint">/ {r.max}</span>
                     </div>
-                    {err && <p className="mt-1 text-role-meta font-medium text-danger">{err}</p>}
+                    {err && <p className="mt-1 text-[11px] sm:text-role-meta font-medium text-danger">{err}</p>}
                   </td>
 
-                  <td className="px-3 py-2 text-role-body tabular-nums text-text-soft">{r.coefficient}</td>
+                  <td className="hidden sm:table-cell px-3 py-2 text-role-body tabular-nums text-text-soft">{r.coefficient}</td>
 
-                  <td className="px-5 py-2">
+                  <td className="px-2 sm:px-5 py-2 text-right sm:text-left">
                     <StatusCell state={state} />
                   </td>
                 </tr>
@@ -437,25 +437,25 @@ function NextStep({ ctx, filled, total }: { ctx: EntryContext; filled: number; t
 function StatusCell({ state }: { state: RowState }) {
   if (state === "saving") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-role-meta text-text-faint">
-        <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
-        Enregistrement
+      <span className="inline-flex items-center gap-1.5 text-role-meta text-text-faint" title="Enregistrement">
+        <Loader2 aria-hidden="true" className="h-4 w-4 sm:h-3.5 sm:w-3.5 animate-spin" />
+        <span className="hidden sm:inline">Enregistrement</span>
       </span>
     );
   }
   if (state === "saved") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-role-meta font-medium text-success">
-        <Check aria-hidden="true" className="h-3.5 w-3.5" />
-        Enregistré
+      <span className="inline-flex items-center gap-1.5 text-role-meta font-medium text-success" title="Enregistré">
+        <Check aria-hidden="true" className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+        <span className="hidden sm:inline">Enregistré</span>
       </span>
     );
   }
   if (state === "error") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-role-meta font-medium text-danger">
-        <TriangleAlert aria-hidden="true" className="h-3.5 w-3.5" />
-        Non enregistré
+      <span className="inline-flex items-center gap-1.5 text-role-meta font-medium text-danger" title="Erreur">
+        <TriangleAlert aria-hidden="true" className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+        <span className="hidden sm:inline">Erreur</span>
       </span>
     );
   }

@@ -40,23 +40,16 @@ export default function UpdatePasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-sunk items-center justify-center px-5 py-10 sm:px-8">
-      <div className="w-full max-w-sm rounded-surface border border-rule bg-surface p-8 shadow-card">
-        <Link href="/" className="mb-10 inline-flex items-center gap-2.5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/educom-logo-officiel.jpg"
-            alt="EduCom"
-            width={156}
-            height={28}
-            className="h-7 w-auto"
-          />
-        </Link>
+    <div className="flex min-h-[100dvh] flex-col bg-sunk items-center p-4 sm:p-6 overflow-y-auto">
+      <div className="w-full max-w-[380px] my-auto rounded-[20px] border border-rule/40 bg-surface p-6 sm:p-7 shadow-sm relative z-10">
+        <div className="mb-6 flex flex-col items-center justify-center relative">
+          <img src="/brand/educom-logo-officiel.jpg" alt="EduCom" className="h-6 w-auto object-contain" />
+        </div>
 
         {success ? (
           <div>
-            <h1 className="text-role-page font-bold tracking-tight text-text">Mot de passe mis à jour</h1>
-            <p className="mt-2 text-role-body leading-relaxed text-text-soft">
+            <h1 className="text-[20px] font-bold tracking-tight text-text text-center">Mot de passe mis à jour</h1>
+            <p className="mt-1.5 text-[13px] text-text-soft text-center leading-relaxed">
               Votre mot de passe a bien été réinitialisé. Vous pouvez maintenant accéder à votre espace.
             </p>
             <div className="mt-8">
@@ -68,8 +61,8 @@ export default function UpdatePasswordPage() {
           </div>
         ) : (
           <>
-            <h1 className="text-role-page font-bold tracking-tight text-text">Nouveau mot de passe</h1>
-            <p className="mt-2 text-role-body leading-relaxed text-text-soft">
+            <h1 className="text-[20px] font-bold tracking-tight text-text text-center">Nouveau mot de passe</h1>
+            <p className="mt-1.5 text-[13px] text-text-soft text-center leading-relaxed">
               Veuillez saisir votre nouveau mot de passe pour finaliser la réinitialisation.
             </p>
 
