@@ -75,13 +75,21 @@ function useCapabilities() {
 }
 
 export function ScanDialog({
-  open, onClose, studentId, studentName, lines,
+  open, onClose, studentId, studentName, lines, intent = null, defaultCategory = "AUTRES",
 }: {
   open: boolean;
   onClose: () => void;
   studentId: string;
   studentName: string;
   lines: Line[];
+  /**
+   * Chemin choisi AVANT l'ouverture — le hub du dossier propose « Scanner » et
+   * « Importer » séparément, et refaire ce choix dans la fenêtre serait un clic
+   * pour rien. `null` laisse l'étape 0 poser la question.
+   */
+  intent?: "scan" | "import" | null;
+  /** Rayon d'où la fenêtre a été ouverte : pré-sélectionne la catégorie. */
+  defaultCategory?: string;
 }) {
   const caps = useCapabilities();
   const [pending, start] = useTransition();
@@ -95,7 +103,7 @@ export function ScanDialog({
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [requirementId, setRequirementId] = useState("");
-  const [category, setCategory] = useState("AUTRES");
+  const [category, setCategory] = useState(defaultCategory);
   const [label, setLabel] = useState("");
   const [accepted, setAccepted] = useState<Record<string, unknown> | null>(null);
   const [confirmReplace, setConfirmReplace] = useState(false);
@@ -111,11 +119,32 @@ export function ScanDialog({
   function reset() {
     pages.forEach((p) => URL.revokeObjectURL(p.url));
     setPages([]); setAsIs(null); setAnalysis(null); setAccepted(null);
-    setRequirementId(""); setCategory("AUTRES"); setLabel("");
+    setRequirementId(""); setCategory(defaultCategory); setLabel("");
     setConfirmReplace(false); setSaved(null); setStep(0); setZoom(null);
   }
 
   function close() { reset(); onClose(); }
+
+  /**
+   * Ouverture directe sur le chemin demandé.
+   *
+   * ⚠️ Le clic programmatique sur un `<input type="file">` n'est accepté que
+   * pendant l'activation transitoire déclenchée par le geste de l'utilisateur.
+   * Le report d'un tour de boucle laisse la modale se monter (sans quoi la
+   * référence est encore nulle) et reste dans cette fenêtre. Si un navigateur
+   * refuse quand même, **rien n'est cassé** : l'étape 0 est là, avec ses deux
+   * boutons.
+   */
+  useEffect(() => {
+    if (!open || !intent) return;
+    const t = setTimeout(() => {
+      // ⚠️ Dans la temporisation, pas dans le corps de l'effet : un `setState`
+      // synchrone y déclenche un rendu en cascade, que le lint refuse.
+      setCategory(defaultCategory);
+      (intent === "scan" ? cameraRef : importRef).current?.click();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [open, intent, defaultCategory]);
 
   const chosenLine = lines.find((l) => l.requirementId === requirementId) ?? null;
   const needsReplace = Boolean(chosenLine?.hasDocument);

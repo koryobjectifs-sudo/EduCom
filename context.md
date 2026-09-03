@@ -1,8 +1,243 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 31 août 2026 — Baseline protégée « V1 OG » figée (tag `v1-og`) avant le chantier UX/UI.
+> Dernière mise à jour : 3 septembre 2026 — audit final pré-mise en ligne : parcours navigateur réel de bout en bout (75 vérifications, 71 OK), 1 bug d'hydratation trouvé et corrigé, mis en ligne.
 
 ## 📌 Nouvelles Fonctionnalités & Logiques Implémentées (Août 2026)
+
+### AUDIT FINAL PRÉ-MISE EN LIGNE (3 septembre 2026) — parcours navigateur réel
+
+Kory a corrigé `EDUCOM_DEV_REFS` (mauvaise référence copiée : `vuvjt…` au lieu de `slqjdy…`, la base réellement visée par `.env`). Débloqué, j'ai construit `scripts/audit-e2e-final.ts` : école jetable, 4 comptes (OWNER/SECRETARY/TEACHER/PARENT), 3 élèves, parcours complet piloté en Chrome réel — Liste → Fiche → Photo → Dossier → Rayon → Import → Scan → Export — aux trois largeurs, plus permissions et clavier. **75 vérifications, 71 OK au premier passage propre.**
+
+**⚠️ Un vrai bug trouvé et corrigé : `<thead>` sans `<tr>`.** `ComplianceClient.tsx` (écrit dans la passe précédente) posait les `<DataTable.HeadCell>` directement dans `<DataTable.Head>` (= `<thead>`), sans les envelopper dans un `<tr>` — HTML invalide, qui déclenchait une erreur d'hydratation React (bascule silencieuse en rendu client). Le seul autre usage du même composant (`StudentListClient.tsx`) enveloppait déjà correctement dans un `<tr>` — la comparaison a suffi à trouver le bon motif. Corrigé, revérifié : 0 erreur console sur tout le parcours au second passage.
+
+**Trois faux positifs de la sonde elle-même, distingués de vrais bugs :**
+1. `document.querySelector("h2")` prenait le premier `<h2>` du DOM, pas forcément celui du rayon ouvert — la capture (`05-rayon-ouvert.png`) montrait le bon titre pendant que le test échouait. Sélecteur élargi (`querySelectorAll` + `.some()`).
+2. Test permissions TEACHER/PARENT via `fetch()` brut attendait un code HTTP 307/302 sur une redirection Next 16 App Router — **un `redirect()` de composant serveur ne produit pas systématiquement un 30x sur une requête `fetch()` sans les en-têtes RSC.** Vérifié en CDP réel (vrai navigateur) : TEACHER atterrit bien sur `/dashboard`, aucune fuite. Critère corrigé pour vérifier l'ABSENCE du contenu protégé plutôt qu'un code HTTP précis.
+
+**⚠️ Défaut réel, mais hors périmètre — confirmé SYSTÉMIQUE, pas une régression.** Cibles tactiles < 40px : `Owner`/`Site public` (TopNav), fil d'Ariane (`PageHeader`), `Button size="sm"` (32px, la taille standard du composant partagé sur 247+ boutons du produit). Vérifié en sondant `/dashboard/team`, `/dashboard/classes` et **le tableau de bord lui-même** — aucun de ces trois écrans n'a été touché cette session, et ils présentent exactement le même défaut. Le corriger aurait exigé un redesign du design system, explicitement hors du périmètre de cet audit (« ne fais aucun redesign »). Signalé à Kory, non corrigé.
+
+**Ce qui est prouvé réel, pas seulement statique :**
+- Photo : upload réel → `photoPath` réellement écrit en base → URL signée Supabase (jamais le chemin brut) → affichage.
+- Dossier : import réel d'une pièce dans un rayon → écriture réelle en `StudentDocument` → statut recalculé (badge de complétude passé de 0 % à 50 % entre les captures).
+- Scanner : chemin caméra testé via `DOM.setFileInputFiles` (CDP), sans dialogue OS — l'aperçu se génère.
+- « + Nouveau dossier » : création réelle → `StudentDocFolder` réellement écrit en base → apparaît immédiatement dans la grille.
+- Permissions, en navigateur réel : TEACHER ne voit que sa classe, pas le rayon Santé, pas le portail de conformité ; PARENT n'obtient aucune donnée d'un autre élève (« Élève introuvable », le même message que « hors périmètre » — aucune fuite d'existence) ; SECRETARY atteint le portail et y voit les bons taux.
+- Stockage Supabase : toute la fixture (école, 4 comptes Auth, 3 élèves, 2 exigences, pièces, dossier personnalisé, fichiers du bucket) **entièrement supprimée** après coup — 0 résidu, vérifié par comptage.
+
+**Build production réel exécuté** (`next dev` arrêté → `next build` → redémarré, jamais les deux ensemble) : compile, 69 routes générées. TypeScript et ESLint : 0 nouvelle erreur sur tout le dépôt, comparé fichier par fichier à l'état d'avant chantier.
+
+
+### DOSSIER ÉLÈVE — REFONTE COMPLÈTE + RÉFÉRENTIEL OFFICIEL + CONFORMITÉ (3 septembre 2026, 3e passe)
+
+Kory a rejeté la 2e passe (« je ne suis pas satisfait ») et fourni un cahier des charges complet en 12 sections, avec BambooHR comme référence visuelle et la liste officielle des pièces d'inscription sénégalaises par cycle. Trois demandes supplémentaires arrivées en cours de tâche : badge de complétude cliquable sur la fiche élève, portail de conformité dans Rapports › Secrétariat, bouton « + Nouveau dossier ». Une question bloquante posée avant d'écrire du Prisma : **« + Nouveau dossier » crée-t-il un rayon personnalisé, une exigence, ou un élève ?** Kory a choisi le rayon personnalisé — la lecture BambooHR (« + New Folder »).
+
+**⚠️ Migration Prisma appliquée** (essai à blanc sans `DROP`, vérifié avant application) : nouvelle table `StudentDocFolder` (rayon propre à l'école — « Bourse », « Cantine »…) + colonne `StudentDocument.folderId` (`SetNull`, jamais `Cascade` : supprimer un classeur ne doit pas effacer les pièces qu'il contenait). **Les 7 `DocCategory` restent la classification officielle** — un rayon personnalisé ne peut recevoir que des pièces hors checklist, jamais une exigence.
+
+**⚠️ PIÈGE — client Prisma périmé après `db push` + `generate`.** Le serveur `next dev` tournait depuis mardi 5h ; sa copie en mémoire du client Prisma ne connaissait pas `studentDocFolder`, même après régénération sur disque et `tsc --noEmit` propre. Résultat : `TypeError: Cannot read properties of undefined (reading 'findMany')` en boucle sur la page dossier, invisible à la compilation. **Un redémarrage du processus `next dev` est nécessaire après toute migration de schéma** — `tsc` et `eslint` ne le détectent pas, seul le comportement à l'exécution le révèle. Redémarré ; 0 occurrence de l'erreur depuis.
+
+**Structure du hub, imposée par Kory** : `HEADER → RÉCAP → ACTIONS → DOSSIERS`, puis le contenu d'un rayon seulement au clic — reprise à l'identique de la 2e passe, dont la structure n'était pas remise en cause.
+
+**Référentiel officiel sénégalais** (`src/lib/officialRequirements.ts`) : pièces par cycle (Maternelle, Élémentaire, Collège, Lycée), fournies par Kory. **Jamais imposé automatiquement** — Réglages › Pièces du dossier propose des cases à cocher par cycle, `applyOfficialRequirements()` (idempotent : une exigence dont le libellé existe déjà pour ce cycle est ignorée, jamais réécrite) crée les lignes manquantes en un seul `createMany`. Inversait la note du fichier d'origine (« aucune liste de pièces n'est codée ») — mise à jour pour dire pourquoi : une école partait sur zéro exigence, donc sur un taux de conformité incalculable.
+
+**⚠️ « Moins de 3 mois » n'est PAS une durée de validité.** L'extrait de naissance doit être récent au dépôt, il ne périme pas tous les trimestres. `validityMonths` reste vide pour ces pièces — le renseigner aurait fait basculer chaque extrait en EXPIRED trois mois après dépôt.
+
+**Badge de complétude sur la fiche élève** (`students/[id]/page.tsx`) : lit `completeness` calculé par `studentFile()` dans `data.ts` — **aucun second calcul**, le badge et le dossier doivent toujours s'accorder. N'apparaît que si une checklist est configurée. Cliquable, mène au dossier.
+
+**Portail de conformité** (`/dashboard/admin/reports/compliance`, + section « Conformité documentaire » dans le rapport secrétariat) : liste nominative conformes/non conformes/sans checklist, filtrable, avec lien vers le dossier de chaque élève.
+
+**⚠️ Garde d'audience, PAS `hasAccess()` sur le chemin.** `/dashboard/admin/reports` est autorisé à TOUS les rôles employés (chacun y voit SON rapport — l'enseignant ses classes, le parent sa famille). Une garde par préfixe de chemin aurait donc ouvert la liste nominative du dossier documentaire de chaque élève à un enseignant ou un parent. La page vérifie explicitement `audienceForRole(role)` ∈ {direction, secrétariat} — la même fonction qui décide déjà quelles sections `buildReport()` construit.
+
+**⚠️ Calcul batché, pas de boucle séquentielle** (`src/lib/documentCompliance.ts`, règle 10 du projet). Les pièces exigées ne dépendent que de (classe, cycle, type d'élève, année) — pas de l'élève. `requirementsFor()` (déjà testée par le dossier élève) est appelée **une fois par combinaison distincte**, jamais par élève — quelques dizaines d'appels pour 243 élèves, pas 243. Les pièces reçues sont lues en une seule requête pour toute l'école. La définition de « conforme » est identique à `Completeness.received` du dossier élève (un document existe pour l'exigence, quel que soit son statut) — le badge, le portail et le dossier ne peuvent pas se contredire pour le même élève.
+
+**Vérifié :** TypeScript 0 sur tout le dépôt · ESLint 0 nouvelle erreur (comparé fichier par fichier via `git stash` contre l'état d'avant chantier — `ScanDialog.tsx`, `ReportSections.tsx`, `reports.ts`, et les fichiers d'un chantier antérieur portent des alertes préexistantes, identiques avant/après) · les 7 routes touchées répondent proprement après redémarrage, 0 nouvelle erreur au journal.
+
+**⚠️ NON VÉRIFIÉ VISUELLEMENT.** Sondes CDP toujours bloquées : la référence visée par `.env` n'est pas dans `EDUCOM_DEV_REFS` (voir bloc ci-dessous, inchangé). Kory doit trancher avant toute capture.
+
+
+### DOSSIER ÉLÈVE — LE HUB DOCUMENTAIRE (3 septembre 2026, 2e passe)
+
+Kory : « je ne suis pas satisfait du résultat ». La 1re passe gardait la logique de liste : un récapitulatif géant occupait tout l'écran, **un seul dossier** apparaissait (les rayons vides étaient masqués), et les fichiers restaient visibles sous la grille. Le hub n'en était pas un.
+
+**Structure retenue** (dictée par Kory) : `HEADER → RÉCAP → ACTIONS → DOSSIERS`, puis *seulement au clic* le contenu d'un rayon.
+
+**⚠️ Décision inversée : TOUS les rayons sont affichés, y compris vides.** La 1re passe filtrait `total > 0` — un dossier qui n'apparaît qu'une fois rempli est un dossier qu'on ne peut pas remplir, et l'écran ne montrait qu'« Inscription » sans dire où ranger le reste. La liste vient désormais du SERVEUR (`categories` dans `dossier/page.tsx`), **déjà bornée par `canSeeCategory()`** : un enseignant ne voit pas un rayon « Santé » qu'il ne pourrait pas ouvrir, et le composant client n'arbitre aucun droit.
+
+**⚠️ Décision inversée : un dossier n'est plus ouvert d'office.** La 1re passe en gardait toujours un d'ouvert pour éviter un clic. Kory a tranché l'inverse : le hub d'abord, les fichiers après le clic. `folder = null` est donc le hub, et on ne lit jamais `folder` directement — `dossierOuvert` retombe sur le hub si le rayon a cessé d'être visible, plutôt que d'afficher un dossier inexistant sans qu'aucune erreur ne soit levée.
+
+**⚠️ « Importer » passe par la fenêtre de scan, pas par un sélecteur direct.** Un import lancé depuis le hub devrait choisir une destination À LA PLACE de l'utilisateur : un extrait de naissance serait tombé dans « Autres ». `ScanDialog` fait déjà classer la pièce (exigence, catégorie, libellé) — deux nouvelles props, `intent` (« scan » | « import ») et `defaultCategory`, l'ouvrent directement sur le bon chemin. **Aucune logique d'envoi n'a été dupliquée.**
+
+**⚠️ Piège : le clic programmatique sur `<input type="file">`** n'est accepté que pendant l'activation transitoire du geste utilisateur. Il est différé d'un tour de boucle (la modale doit être montée, sinon la référence est nulle). Si un navigateur refuse, rien ne casse : l'étape 0 de la fenêtre est là avec ses deux boutons.
+
+**⚠️ Piège de lint :** `setState` synchrone dans un corps d'effet est une **erreur** ESLint dans ce dépôt (`react-hooks/set-state-in-effect`). Le `setCategory` est donc dans la temporisation, pas dans le corps.
+
+**« Complet » n'est affiché que là où une exigence existe.** Un rayon qui ne contient que des pièces versées librement n'est ni complet ni incomplet : rien n'y est attendu, et l'annoncer complet serait faux.
+
+**Mobile :** les cartes deviennent des RANGÉES sous 640 px (icône à gauche, texte à droite). Réduire la carte de bureau aurait donné sept blocs hauts à faire défiler pour lire sept libellés.
+
+**Rien n'a été supprimé.** Identité, scolarité et historique sont repliés (`<details>`) sous la grille : la fiche 360 les porte en entier, et les laisser ouverts repoussait les dossiers hors de l'écran.
+
+**⚠️ NON VÉRIFIÉ VISUELLEMENT.** Voir le blocage ci-dessous : aucune capture n'a pu être produite. TypeScript = 0, ESLint = 0 nouvelle alerte (l'erreur `setCaps` de `ScanDialog:67` est antérieure, mesurée à l'identique avant/après par `git stash`), les 8 routes répondent, mais **le rendu n'a pas été inspecté**.
+
+### ⚠️ LA BASE VISÉE N'EST PAS DÉCLARÉE COMME BASE DE DÉVELOPPEMENT
+
+`EDUCOM_ENV=development`, mais la référence Supabase que vise le `.env` (`slqjdy…wu`) **ne figure pas dans `EDUCOM_DEV_REFS`**, qui n'en liste qu'une autre. `scripts/_env.ts` refuse donc de démarrer : **toutes les sondes CDP sont hors service** (captures, vérificateurs de lot).
+
+Ce n'est pas un défaut du garde-fou, c'est son travail : ces scripts créent ET SUPPRIMENT des données, et la base contient 243 élèves réels. Deux lectures possibles — la liste est périmée, ou le `.env` pointe vraiment sur la production. **À trancher par Kory**, pas par un agent. La levée `EDUCOM_ALLOW_PRODUCTION` n'a été autorisée que pour UNE commande de validation tactile : ne pas la réemployer.
+
+### DOSSIER ÉLÈVE — LE HUB DOCUMENTAIRE (3 septembre 2026, 1re passe)
+
+Demande de Kory : « dans le profil de l'élève, la page dossier doit être le hub dossier de l'élève, le stock des dossiers classé par folder. On garde les options import et export + scan. Plus un petit récap de stats (les documents qui manquent). » Référence visuelle : la grille de dossiers de BambooHR.
+
+**Ce que l'écran était.** Huit cartes empilées, dans l'ordre : Identité, Scolarité, Ajouter, Complétude, Documents manquants, Documents exigés, Autres pièces, Historique. Les pièces vivaient dans **deux listes à plat** — exigées d'un côté, hors checklist de l'autre — et l'identité de l'élève ouvrait la page, alors que la fiche 360 la porte déjà en entier.
+
+**Ce qu'il est.** Récapitulatif → grille de dossiers → contenu du dossier ouvert → identité/scolarité (rétrogradées) → historique.
+
+**⚠️ Les rayons sont les valeurs de `DocCategory`, pas une nomenclature d'écran.** Classer autrement ici aurait produit un rangement que les exigences, la validation et l'export ne connaissent pas — deux vérités pour un même dossier. Un rayon vide n'est pas affiché.
+
+**⚠️ Un dossier est TOUJOURS ouvert.** L'état `folder` est une *préférence*, pas la vérité : un rayon peut disparaître entre deux rendus (dernière pièce remplacée, exigence désactivée) et laisser la sélection pointer dans le vide — l'écran afficherait un dossier inexistant **sans lever d'erreur**. La sélection effective est recalculée à chaque rendu et retombe sur le rayon qui réclame du travail, sinon le premier.
+
+**⚠️ `ligneExigee` / `ligneLibre` sont des FONCTIONS, pas des composants.** Écrites `<Ligne … />`, React les prendrait pour un type recréé à chaque rendu : il démonterait puis remonterait chaque ligne, et les `ref` des champs de fichier (`inputs.current[…]`) seraient remises à `null` sous le clic. Le dépôt échouerait sans message.
+
+**Glisser-déposer.** Un fichier lâché sur un rayon (ou sur la barre du bas) y est versé **hors checklist**, sous le nom du fichier — personne n'a saisi de libellé et en inventer un fabriquerait une donnée. Le message de confirmation NOMME le rayon : une pièce tombée dans un rayon fermé disparaîtrait de l'écran sans explication. Remplacer une pièce exigée reste le bouton « Remplacer » de sa ligne, là où l'on voit ce qu'on écrase.
+
+**Dé-duplication.** « Exporter le dossier » quittait le `PageHeader` : Scanner, Importer et Exporter sont désormais au même endroit, la barre d'outils du hub. Deux boutons pour un seul geste, c'était le défaut relevé sur l'annuaire.
+
+**Rien n'a été retiré** : identité, scolarité, historique, validation, diffusion, versions antérieures, ScanDialog — tout est là, réordonné. Aucune requête, aucune action serveur, aucune permission touchée.
+
+**⚠️ Défaut PRÉEXISTANT repéré en chemin, non corrigé** : `.next/dev/logs` enregistre des `Encountered two children with the same key` sur quatre UUID. Les requêtes qui précèdent (ReportCard, Evaluation, ClassSubject, Subject, TeachingAssignment) situent le défaut dans **Notes & bulletins**, pas dans le dossier élève ni dans l'annuaire. À tracer.
+
+
+### PARCOURS « ÉLÈVES & DOSSIERS » — LE MENU DISPARAÎT (3 septembre 2026)
+
+**⚠️ CECI INVERSE UNE CONSIGNE ANTÉRIEURE.** Kory avait explicitement interdit de remplacer le hub par la liste (« DO NOT REPEAT THIS MISTAKE », rollback V1 OG à l'appui). Il l'a **demandé lui-même** le 3 septembre : « sur la section élèves et dossiers je veux avoir une seule chose, si on clique on doit voir que l'option annuaire ». C'est sa décision, pas une reprise d'initiative. **Ne pas revenir en arrière sans un mot de sa part.**
+
+**Nouveau parcours :** `Élèves & dossiers` → **Annuaire**, et les trois vues sont **dans** l'annuaire : **Élèves · Classes · Dossiers élèves**. Le menu de quatre cartes ne séparait pas des destinations différentes — il séparait trois angles sur le même sujet, au prix d'un clic sur le chemin le plus fréquent du secrétariat.
+
+**Le `<h1>` dit « Annuaire », pas « Élèves & dossiers ».** Correction demandée par Kory le 3 septembre : « le flow doit être élèves et dossiers → et j'atterris sur annuaire avant de voir les 3 options ». La rubrique porte le fil d'Ariane (`Accueil › Élèves & dossiers › Annuaire`) et reste surlignée dans la barre latérale ; répéter son nom en `<h1>` laissait croire qu'on était encore sur un menu, donc que le clic n'avait rien produit. `/dashboard/directory` garde son propre fil (`Accueil › Annuaire`) — même contenu, deux chemins d'arrivée.
+
+**Rien n'est devenu inatteignable** (éprouvé, HTTP 200) : `/dashboard/directory`, `/dashboard/students/dossiers`, `/dashboard/students/import`, `/dashboard/students/export`. Importer et Exporter vivaient déjà dans la barre d'outils de l'annuaire.
+
+**⚠️ Le piège du chantier — deux formes de données pour un même composant.**
+`DossiersClient` lisait `enrollments[0].classId`. Or les deux écrans qui le rendent ne chargent PAS la même chose : `students/dossiers` fait `include: { class: true }` (donc `classId` présent), l'annuaire fait un `select` qui ne retenait que `class { id, name }` (donc `classId` **absent**). Le déplacer tel quel aurait rangé **les 243 élèves dans « Non assignés »**, sans erreur ni indice. Deux parades posées : `classId` ajouté au `select` de `loadDirectory()`, **et** lecture rendue tolérante (`e.classId ?? e.class?.id`) pour que la prochaine divergence de forme ne casse rien.
+
+**⚠️ Piège latent, non corrigé** : `students/dossiers/page.tsx` charge `enrollments` **sans `orderBy` ni `take`**. Pour un élève ayant plusieurs années d'inscription, `enrollments[0]` est l'ordre arbitraire de Postgres — la « classe courante » y est donc un coup de dé. L'annuaire, lui, trie par `createdAt desc` et prend 1. À aligner.
+
+**État éprouvé : 19/19** — 6 élèves listés d'emblée, menu disparu, 3 onglets, regroupement par cycle correct (CM2 A : 3 · 6ème B : 1 · Non assignés : 2), 4 routes toujours servies, portée enseignant à 3 élèves, aucun débordement en 390 ni 1440.
+
+**⚠️ Les sondes CDP ne tournent plus sur ce poste.** `scripts/_env.ts` refuse : la référence du projet visé par le `.env` courant **ne figure pas dans `EDUCOM_DEV_REFS`**. Le garde-fou fait son travail — ces scripts créent et suppriment des données. La levée `EDUCOM_ALLOW_PRODUCTION` n'a été autorisée par Kory que pour **une** commande de validation tactile ; ne pas la réemployer ailleurs. Pour photographier à nouveau (`scripts/shot-annuaire.ts`, `shot-profil-eleve.ts`…), il faut d'abord que la référence visée soit ajoutée à `EDUCOM_DEV_REFS` — **par Kory**, dans un `.env` de développement.
+
+### DOSSIERS ÉLÈVES — DEUX BUGS SILENCIEUX (3 septembre 2026)
+
+Signalés par Kory : « je n'ai pas la possibilité de voir les classes disponibles pour assigner un élève ». Deux défauts distincts, **aucun ne levait d'erreur**.
+
+**1. Assignation impossible depuis « Non assignés » — bloquant.**
+`DossiersClient` passait `classesData={selectedClassId === "UNASSIGNED" ? [] : …}`. Une seule liste servait à DEUX usages : le filtre de la vue **et** la fenêtre « Assigner à une classe ». Dans le dossier des élèves sans classe le filtre doit être vide — l'assignation, elle, a besoin de **toute l'école**. Résultat : le menu n'offrait aucun choix, et les élèves sans classe étaient impossibles à assigner **depuis l'écran prévu pour ça** (205 élèves chez Kory). Corrigé par une prop distincte `classesAssignables`, `classesData` gardant son rôle de filtre.
+
+**2. Regroupement par cycle jamais appliqué.**
+Les filtres comparaient à `"ELEMENTARY"`, `"MIDDLE"`, `"HIGH"`, `"PRE_K"` — **aucune de ces valeurs n'existe** dans `EducationalCycle` (MATERNELLE, ELEMENTAIRE, COLLEGE, LYCEE, AUTRE). Les trois sections étaient donc toujours vides et **toutes** les classes tombaient dans le repli « Autres classes ». Invisible : rien ne plantait, les dossiers s'affichaient, seulement tous sous la mauvaise étiquette. Le regroupement est désormais piloté par l'énumération et `CYCLE_LABELS`, avec un filet pour un cycle ajouté plus tard.
+
+**Ajout** : la fenêtre d'assignation affiche un état vide (« Aucune classe n'est encore créée » + lien de création) au lieu d'un menu muet.
+
+### CHARTE — LE BOUTON PRINCIPAL ÉTAIT ILLISIBLE (3 septembre 2026)
+
+`verify-design-tokens` échouait sur `--color-primary`. Enquête : le commit **`eb099f4`** (24 août, « prepare for production deployment ») a fait passer la valeur de `#0B1F3A` à `#539BEB`, commentée « Bleu principal officiel EduCom » et livrée avec `public/brand/educom-logo-officiel.jpg`. **C'était la sonde qui était en retard sur la charte**, pas l'inverse — elle attendait encore la valeur du tout premier commit. Sonde alignée.
+
+**Mais l'écart en cachait un vrai.** Mesuré dans le navigateur (le seul à savoir résoudre `color-mix`) :
+
+| Fond | Texte blanc | |
+|---|---|---|
+| `--color-primary` #539BEB | **2,89:1** | ❌ AA = 4,5 |
+| `--color-primary-ink` (nouveau) | **5,91:1** | ✅ |
+| survol / appui | 7,33 / 9,09 | ✅ |
+| `--color-band` | 7,86 | ✅ |
+
+`Button` variante `primary` valait `bg-primary text-white` : **le bouton le plus utilisé du produit était sous le seuil de lisibilité**, sur des écrans qui manipulent des notes et de l'argent. La marque reste `#539BEB` pour accents, bordures et fonds clairs ; seuls les **aplats portant du texte blanc** passent par `--color-primary-ink`, dérivé par `color-mix` donc toujours teinté par la couleur de l'école. **Aucune classe d'appel n'a changé.**
+
+**⚠️ Reste à faire** : ~67 fichiers utilisent `bg-primary` en direct. Ceux qui y posent du texte blanc ont le même défaut et ne sont **pas** couverts par le correctif de la primitive. Balayage à planifier.
+
+**⚠️ Piège, rencontré pour la troisième fois** : un accent grave dans un commentaire **à l'intérieur d'un gabarit JS** referme la chaîne. `tsc` passe, esbuild échoue à l'exécution. Cette fois dans une sonde de mesure du contraste.
+
+**⚠️ Sondes périmées, sans rapport avec ce chantier** : `verify-ui-primitives` (lit `team/TeamInviteForm.tsx`) et `verify-operational-screens` (lit `communications/ClientPage.tsx`) plantent sur des fichiers **déjà absents de `v1-og`**.
+
+### FICHE ÉLÈVE — BANDEAU D'IDENTITÉ (3 septembre 2026)
+
+L'en-tête blanc est devenu un **bandeau coloré** portant identité, actions et onglets, avec la **photo en carré arrondi qui déborde** sous le bandeau — la disposition des fiches RH professionnelles. Photo portée à 96 / 128 / 160 px.
+
+**Décisions :**
+
+- **Nouveau jeton `--color-band`** = `color-mix(in oklab, var(--color-primary) 45%, #0A1F3D)`. Pas `bg-primary` nu : `--color-primary` est **surchargé à l'exécution par chaque école**, et un établissement qui choisirait un ton clair rendrait le texte blanc illisible. Le mélange avec un bleu nuit garantit le contraste quel que soit ce choix, tout en gardant la teinte de l'école.
+- **Carré arrondi, pas cercle.** Une photo d'identité est cadrée en portrait ; le cercle en rogne les épaules et le haut du crâne. Anneau blanc épais (`ring-4 ring-surface`) parce que la photo est **à cheval sur deux fonds** — sans lui son bord change de contraste à mi-hauteur.
+- **Surplomb uniquement à partir de 640 px** (`sm:absolute … sm:translate-y-[30%]`). Sous cette largeur la place manque et une photo à cheval y serait illisible : la photo reste en flux.
+- **`StatusBadge` n'est PAS utilisé sur le bandeau.** La primitive dessine une pastille claire à texte coloré, pensée pour un fond blanc : « Inscrit » y devenait un vert pâle sur bleu, sous le seuil de lisibilité. Le statut est repris en clair via `statusLabel("student", …)` — **la primitive reste inchangée pour tout le reste du produit**, et le libellé vient toujours de la source unique.
+- **Actions repeintes en blanc.** Un bouton `bg-primary` sur le bandeau disparaît (même famille de couleur), un `bg-surface text-text` y fait une tache grise.
+
+**⚠️ Pièges :**
+
+1. **Un `*/` au lieu d'un `*/}` ferme le commentaire JSX mais pas l'expression.** Le commentaire a alors avalé 17 lignes — dont l'ouverture du bandeau — et `tsc` ne signalait qu'un `'}' expected` **130 lignes plus bas**. Compter les balises à la main confirmait faussement l'équilibre, puisque le code avalé était compté comme réel. **Chercher le `{/*` non apparié, pas la balise manquante.**
+2. **`--color-primary` est en écart avec `verify-design-tokens` depuis avant ce chantier** (#539BEB dans `globals.css` contre #0B1F3A attendu). L'échec de cette sonde n'est **pas** imputable au bandeau — arbitrage à rendre : aligner la charte ou la sonde.
+
+### FICHE ÉLÈVE — « STUDENT 360 » (2 septembre 2026)
+
+**Le constat qui a déclenché le chantier.** La fiche était une page unique de cinq cartes. Elle disait *qui* était l'élève, et rien de ce que l'établissement sait de lui. **Présences, notes, bulletins, conversations WhatsApp existaient tous dans le schéma depuis des mois et n'étaient rattachés à l'élève sur AUCUN écran.** La recherche sur les systèmes d'information scolaires donne la thèse : voir la **présence, les résultats et l'argent au même endroit** est ce qui permet d'intervenir tôt. C'est ce que fait désormais l'onglet « Vue générale ».
+
+**Structure.** En-tête d'identité (avatar cliquable, nom en `h1`, matricule · classe · statut sur une ligne, 4 actions inchangées) · barre de 7 sections · **volet permanent** (résumé + joindre la famille + urgence) visible dans toutes les sections · contenu de section.
+
+**Décisions, et leur pourquoi :**
+
+- **`?section=` plutôt que des sous-routes.** L'URL reste `/dashboard/students/[id]`, chaque section est partageable, le retour arrière fonctionne, et **aucune route n'est ajoutée**. Rien n'est caché derrière un état client.
+- **Sept sections, pas treize.** Chacune lit une table existante. `Attendance`, `Grade`, `ReportCard`, `ClassSubject`, `WhatsAppConversation`, `StudentDocument` — rien d'inventé. Les sections « Comportement », « Emploi du temps » et « Nationalité » n'existent pas : **aucune donnée ne les porte**, et les inventer aurait demandé un modèle.
+- **Un chiffre absent s'écrit « — », jamais « 0 ».** Afficher « 0 % de présence » à une école qui n'a jamais fait l'appel serait le pire des mensonges : celui qui ressemble à une alerte.
+- **Le volet porte la mention de vue partielle.** Il est visible partout ; sans elle, un enseignant y verrait le contact d'urgence sans groupe sanguin et croirait la donnée absente alors qu'elle est retenue.
+
+**⚠️ Pièges rencontrés — trois faux négatifs, aucun défaut produit :**
+
+1. **`/dashboard/students/loading.tsx` couvre aussi `[id]`.** Pendant les 8 requêtes, Next diffuse ce **squelette**, dont le nombre de boutons et de liens est parfaitement stable. Toute sonde qui attend « un compte stable » le prend pour la page. C'est ce qui a fait conclure qu'un **enseignant ne voyait plus la fiche** — alors que le serveur exécutait bien ses requêtes et qu'aucune erreur n'était levée. **Attendre le contenu réel (le titre de l'élève), jamais un comptage.**
+2. **`Emulation.setTouchEmulationEnabled` refuse `maxTouchPoints: 0`** — même quand on DÉSACTIVE le tactile. La capture s'arrêtait net sur « Touch points must be between 1 and 16 », en laissant un Chrome orphelin.
+3. **`src.includes("urgence")` ne trouve pas « Urgence ».** Une comparaison sensible à la casse a fait échouer un contrôle sur une propriété qui tenait.
+
+**État éprouvé :** TypeScript 0 · ESLint 0 · sonde fiche élève **33/33** · 9 captures (3 largeurs + 6 sections) · aucun débordement en 390 / 768 / 1440 · tactile ≥ 44 px · clavier avec indicateur sur chaque élément · médical **absent de la source** servie à un enseignant.
+
+### FICHE ÉLÈVE — PASSE DE PRÉSENTATION (1er septembre 2026)
+
+**Périmètre : un seul fichier**, `src/app/dashboard/students/[id]/page.tsx`. Requête Prisma, `studentWhereFor()`, `canSeeHealthData()`, les six destinations et le hub Élèves & dossiers sont **intacts** — `git diff v1-og` ne liste que ce fichier.
+
+**⚠️ Le retour en arrière du 1er septembre.** Une passe antérieure (« phase 4A ») avait remplacé le hub Élèves & dossiers par la liste des élèves. Kory a demandé `RETURN TO V1 OG` : tout a été restauré, et **le hub à quatre cartes est la référence à ne pas toucher**. L'état phase 4A est conservé hors dépôt dans `scratchpad/sauvegarde-phase4a/` (patch + `data.ts` + context.md de l'époque). Ne pas le réappliquer sans demande explicite.
+
+**Ce que le code ne dit pas — pourquoi ces choix :**
+
+- **Pas d'onglets**, alors que la référence BambooHR en a. Ils masqueraient de l'information (la consigne l'interdit) et constitueraient une interaction nouvelle. Sections empilées à titres forts.
+- **Pas de bandeau coloré**, alors que la référence en a un. Dans V1 OG c'est précisément ce bandeau (`bg-blue-900`, 96 px, avatar en `absolute -top-10`) qui **faisait recouvrir le prénom par l'avatar** — « Aminata Ndiaye » se lisait « ⬤a Ndiaye » à 1440, 768 **et** 390. L'avatar est revenu dans le flux ; le mobile y gagne 96 px.
+- **Une seule grille, pas de colonnes imbriquées.** L'ordre du DOM est l'ordre de lecture mobile (identité → responsable → médical → scolarité → argent) ; le placement 12 colonnes ne s'applique qu'à partir de `xl`. Des colonnes imbriquées auraient forcé un compromis entre l'ordre mobile et l'équilibre bureau.
+- **Pas d'`items-start` sur la grille.** Essayé d'abord : la rangée suivante démarrait sous la carte la plus haute et laissait **400 px de vide** sous la colonne courte (visible sur la capture). Les cartes d'une rangée s'alignent donc en hauteur.
+- **« Terminé » était affiché sur l'inscription EN COURS.** L'en-tête désignait déjà `enrollments[0]` comme la classe courante ; l'historique le contredisait juste dessous. Le libellé suit désormais la même règle — **aucun tri ni requête modifié**.
+- **« Facturer » et « Créer » pointent au même endroit.** Doublon constaté, **conservé sur décision de Kory** : aucune suppression d'action dans ce chantier.
+
+**Piège de mesure, à ne pas rejouer :** le fil d'Ariane faisait 15 et 18 px de haut au doigt. La primitive `PageHeader` a la même faiblesse sur les ~30 autres pages du produit — ce n'est donc pas propre à cet écran, mais ici les liens ont reçu `pointer-coarse:min-h-11` (apparence inchangée à la souris).
+
+**Seconde passe (densité) :** en-tête resserré — matricule · classe · statut sur **une** ligne, avatar 88 px, actions centrées en regard. Pastilles d'icône de 32 px retirées des champs, pastille ronde du groupe sanguin supprimée (elle **répétait la même valeur** à 40 px d'écart), `items-start` rendu à la grille pour que chaque carte prenne la hauteur de son contenu. Résultat mesuré : **bureau 1095 → 990 px, tablette 1444 → 1332, mobile 2037 → 1929**, à information constante.
+
+**⚠️ PHOTO DE PROFIL — DEMANDÉE, NON LIVRÉE, ET POURQUOI.** Kory a demandé un avatar cliquable (« Prendre une photo » / « Importer une photo ») **dans le même message qui interdit de toucher à Prisma et aux server actions**. Or `model Student` **n'a aucun champ photo** et aucune action ne sait en enregistrer une ; le schéma note par ailleurs (l. 485-487) que le seul mécanisme d'images existant encode en base64, « intenable pour une photo ». Livrer le menu aurait donné un bouton qui jette le fichier en silence. **Rien n'a donc été posé.** Il faut trois choses pour le faire : un champ `Student.photoUrl`, une server action d'enregistrement, un vrai stockage (Supabase Storage — le bucket du dossier élève existe déjà).
+
+**Troisième passe — navigation de fiche + photo (1er septembre 2026).**
+
+- **Navigation contextuelle : DEUX entrées, pas sept.** Résultat d'une inspection, pas d'un raccourci. `/dashboard/attendance` et `/dashboard/grades` **ne lisent aucun `studentId`** — aucune vue par élève n'existe pour eux. Les autres candidats (certificat, bulletin, facture) sont des GÉNÉRATEURS déjà présents en actions d'en-tête ; les reprendre en onglets aurait affiché deux fois la même commande. Restent « Vue générale » et « Dossier ». Ouvrir les autres demanderait de nouvelles routes.
+- **Photo de l'élève** — champ `Student.photoPath` (chemin, jamais d'URL), server action `setStudentPhoto`, composant client `AvatarPhoto`. Le binaire va dans le **bucket privé existant** `student-documents` via `storagePathFor()` : aucune architecture nouvelle. Affichage par URL **signée 300 s** ; jamais d'URL publique.
+- **⚠️ La photo n'est PAS un `StudentDocument`.** Le dossier est une checklist administrative soumise à validation et à des catégories de permission ; y verser un portrait aurait modifié le contenu du dossier existant et créé une ligne « à vérifier » sans objet.
+- **« Prendre une photo » n'ouvre aucune interface caméra maison** : `<input capture="environment">` déclenche l'appareil natif. L'option est masquée hors `pointer-coarse`, où `capture` est ignoré et où le libellé serait mensonger.
+
+**⚠️ INFRASTRUCTURE — BUCKET CRÉÉ.** Le projet Supabase ne contenait **aucun bucket** : `student-documents`, que le code exige depuis le lot 13, était absent. Le dépôt de pièces du dossier élève était donc **silencieusement inopérant** (c'est ce qui faisait échouer `verify-student-file` sur « Bucket not found »). Bucket créé : privé, 10 Mo, types alignés sur `ALLOWED_MIME`.
+
+**⚠️ PIÈGES À NE PAS REJOUER — trois heures de diagnostic :**
+
+1. **`prisma generate` ne suffit pas : il faut REDÉMARRER `next dev`.** Le serveur garde l'ancien client Prisma en mémoire. `tsc` passait (il lit les types sur disque) pendant que le serveur levait « Unknown field `photoPath` » et que `error.tsx` remplaçait la page — d'où un formulaire « disparu » incompréhensible.
+2. **Chrome GÈLE le rendu des onglets d'arrière-plan.** Dès qu'une sonde ouvre une seconde session, React n'hydrate plus la première : ses gestionnaires ne sont jamais attachés et toute interaction y paraît morte. Il faut `Target.activateTarget` avant d'actionner un onglet.
+3. **Un DOM stabilisé ne prouve PAS l'hydratation.** Le HTML serveur contient déjà formulaire et champ ; pousser un fichier avant l'hydratation ne déclenche aucun `onChange`. Attendre une preuve d'interactivité (le menu réagit au clic).
+4. **Une URL signée Supabase CONTIENT le chemin du bucket** (`/object/sign/<chemin>?token=…`). Exiger l'absence du chemin dans la source teste une propriété impossible. La vraie garantie est que l'accès soit signé et expirant, jamais public.
+5. **Deux `<input>` de même `name` : `formData.get()` renvoie le premier**, donc un fichier vide dès qu'on passe par l'appareil photo. Utiliser `getAll()`.
+
+**Outils ajoutés :** `scripts/shot-profil-eleve.ts` (captures 1440/768/390, école jetable) et `scripts/verify-profil-eleve.ts` (**33 contrôles** : destinations, chevauchement mesuré aux rectangles, tactile, clavier, borne de rôle, et envoi de photo de bout en bout jusqu'au bucket).
+
+⚠️ **La sonde vérifie que le médical est absent de la SOURCE servie à l'enseignant**, pas seulement de l'écran : un bloc masqué en CSS resterait lisible dans l'inspecteur.
 
 ### LOT 18C — AUDIT DE L'APPLICATION META (31 août 2026)
 - **Ce qui est PROUVÉ par le Graph API** (jeton d'application, lecture seule) : l'app `EduCom Chatbot` (`1636040594916603`) existe et ses identifiants sont valides ; le **produit WhatsApp est bien présent** ; l'abonnement webhook `whatsapp_business_account` est **actif**, pointe sur l'URL du tunnel, et **`messages` fait partie des 10 champs abonnés**. Les points 3 et « webhook » de l'audit sont donc réglés.

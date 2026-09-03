@@ -115,8 +115,9 @@ model School {
   studentDocuments     StudentDocument[]
 
   /// Lot 15 — centre documentaire de l'établissement.
-  docFolders      DocumentFolder[]
-  schoolDocuments SchoolDocument[]
+  docFolders        DocumentFolder[]
+  studentDocFolders StudentDocFolder[]
+  schoolDocuments   SchoolDocument[]
 
   campaigns   CommunicationCampaign[]
   actionLinks ActionLink[]
@@ -255,7 +256,7 @@ enum StudentStatus {
 }
 
 model Student {
-  id               String        @id @default(uuid())
+  id               String    @id @default(uuid())
   firstName        String
   lastName         String
   matricule        String?
@@ -266,13 +267,25 @@ model Student {
   medicalNotes     String?
   emergencyContact String?
   emergencyPhone   String?
-  status           StudentStatus @default(PENDING)
-  schoolId         String
-  school           School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  parentId         String?
-  parent           User?         @relation(fields: [parentId], references: [id], onDelete: SetNull)
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+
+  /// Photo de l'élève — CHEMIN dans le bucket privé `student-documents`, jamais
+  /// une URL publique. Même discipline que `StudentDocument.storagePath` : le
+  /// binaire vit dans le bucket, la base ne porte qu'un chemin, et l'affichage
+  /// passe par une URL signée à durée courte.
+  ///
+  /// Volontairement PAS un `StudentDocument` : le dossier élève est une
+  /// checklist de pièces administratives soumise à validation et à des
+  /// catégories de permission. Une photo de trombinoscope n'est pas une pièce
+  /// du dossier, et l'y verser aurait modifié le contenu du dossier existant.
+  photoPath String?
+
+  status    StudentStatus @default(PENDING)
+  schoolId  String
+  school    School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  parentId  String?
+  parent    User?         @relation(fields: [parentId], references: [id], onDelete: SetNull)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   /// Lot 13 — type d'élève DÉCLARÉ, quand il n'est pas dérivable.
   /// NULL = dérivé des inscriptions (ancien si une inscription porte une année
@@ -1301,6 +1314,16 @@ model StudentDocument {
   requirementId String?
   requirement   DocumentRequirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
 
+  /// Rayon personnalisé, quand l'école en a créé. NULL = la pièce est rangée
+  /// par sa `category`, comme toutes les autres.
+  ///
+  /// ⚠️ `SetNull` et JAMAIS `Cascade` : supprimer un classeur ne doit pas
+  /// effacer les pièces qu'il contenait. `Enrollment.classId` et `Grade.classId`
+  /// sont en `Cascade` et effacent silencieusement — on ne reproduit pas ça sur
+  /// des extraits de naissance.
+  folderId String?
+  folder   StudentDocFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
   label    String
   category DocCategory @default(AUTRES)
 
@@ -1336,6 +1359,7 @@ model StudentDocument {
   @@index([schoolId, studentId])
   @@index([studentId, supersededAt])
   @@index([requirementId])
+  @@index([folderId])
 }
 
 /**
@@ -1393,6 +1417,38 @@ enum DocScopeKind {
 /// en dur : « Fournitures », « Manuels », « Uniformes » sont des dossiers que
 /// l'établissement crée, renomme ou supprime. Un dossier retiré ne détruit pas
 /// ses documents (`onDelete: SetNull`) — ils retombent à la racine.
+/// Rayon personnalisé du dossier élève — « Bourse », « Cantine », « Transport ».
+///
+/// ⚠️ Ne REMPLACE pas `DocCategory`. Les sept catégories restent la
+/// classification officielle : elles portent les exigences, les droits
+/// (`canSeeCategory`), la validation et l'export. Un rayon personnalisé est un
+/// classeur en plus, propre à l'école, qui ne peut contenir que des pièces
+/// versées hors checklist.
+///
+/// ⚠️ À ne pas confondre avec `DocumentFolder`, juste en dessous : celui-là
+/// range les documents de l'ÉTABLISSEMENT (`SchoolDocument`), pas ceux d'un
+/// élève. Deux tables parce que ce sont deux stocks sans rapport ; les fondre
+/// mélangerait le règlement intérieur et l'extrait de naissance d'un enfant.
+model StudentDocFolder {
+  id       String  @id @default(uuid())
+  name     String
+  /// Icône facultative (nom d'icône lucide), choisie par l'école.
+  icon     String?
+  position Int     @default(0)
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  documents StudentDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  /// Deux rayons du même nom dans une école ne sont pas deux rayons.
+  @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
 model DocumentFolder {
   id       String  @id @default(uuid())
   name     String

@@ -5,6 +5,7 @@ import { Folder, ArrowLeft, Users, School } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import StudentListClient from "../StudentListClient";
+import { CYCLE_LABELS } from "@/lib/schoolDocumentLabels";
 
 interface DossiersClientProps {
   studentsData: any[];
@@ -13,6 +14,20 @@ interface DossiersClientProps {
 
 export default function DossiersClient({ studentsData, classesData }: DossiersClientProps) {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+
+  /**
+   * Classe courante d'un élève, quelle que soit la FORME des données reçues.
+   *
+   * ⚠️ Les deux écrans qui rendent ce composant ne chargent pas la même chose :
+   * `students/dossiers` fait un `include: { class: true }` (donc `classId` est
+   * là), l'annuaire fait un `select` qui ne retient que `class { id, name }`
+   * (donc `classId` est ABSENT). Lire `classId` seul comptait alors les 243
+   * élèves comme non assignés, sans erreur ni indice.
+   */
+  const classeDe = (student: { enrollments?: { classId?: string | null; class?: { id?: string } | null }[] }): string | undefined => {
+    const e = student.enrollments?.[0];
+    return e?.classId ?? e?.class?.id ?? undefined;
+  };
 
   const statsByClass = useMemo(() => {
     const stats: Record<string, number> = {};
@@ -23,9 +38,9 @@ export default function DossiersClient({ studentsData, classesData }: DossiersCl
     });
 
     studentsData.forEach((student) => {
-      const activeEnrollment = student.enrollments?.[0];
-      if (activeEnrollment?.classId) {
-        stats[activeEnrollment.classId] = (stats[activeEnrollment.classId] || 0) + 1;
+      const classId = classeDe(student);
+      if (classId) {
+        stats[classId] = (stats[classId] || 0) + 1;
       } else {
         unassigned++;
       }
@@ -34,15 +49,31 @@ export default function DossiersClient({ studentsData, classesData }: DossiersCl
     return { stats, unassigned };
   }, [studentsData, classesData]);
 
-  // Group classes by cycle
-  const elementaire = classesData.filter((c) => c.cycle === "ELEMENTARY");
-  const secondaire = classesData.filter((c) => c.cycle === "MIDDLE" || c.cycle === "HIGH");
-  const maternelle = classesData.filter((c) => c.cycle === "PRE_K");
+  /* ⚠️ Regroupement piloté par l'ÉNUMÉRATION, plus par des chaînes écrites à la
+     main. Les filtres précédents comparaient à "ELEMENTARY", "MIDDLE", "HIGH" et
+     "PRE_K" — **aucune de ces valeurs n'existe** dans `EducationalCycle`
+     (MATERNELLE, ELEMENTAIRE, COLLEGE, LYCEE, AUTRE). Les trois sections étaient
+     donc toujours vides et TOUTES les classes tombaient dans le repli « Autres
+     classes ». Le défaut était invisible : rien ne plantait, les dossiers
+     s'affichaient, seulement tous sous la mauvaise étiquette.
+
+     Les libellés viennent de `CYCLE_LABELS`, déjà source unique du produit. */
+  const groupes = useMemo(() => {
+    const ordre = ["MATERNELLE", "ELEMENTAIRE", "COLLEGE", "LYCEE", "AUTRE"] as const;
+    const connus = new Set<string>(ordre);
+    const listes = ordre
+      .map((cycle) => ({ cle: cycle as string, titre: CYCLE_LABELS[cycle], classes: classesData.filter((c) => c.cycle === cycle) }))
+      .filter((g) => g.classes.length > 0);
+    // Filet : un cycle ajouté au schéma demain ne disparaît pas de l'écran.
+    const orphelines = classesData.filter((c) => !connus.has(c.cycle));
+    if (orphelines.length > 0) listes.push({ cle: "INCONNU", titre: "Autres classes", classes: orphelines });
+    return listes;
+  }, [classesData]);
 
   if (selectedClassId !== null) {
     const filteredStudents = selectedClassId === "UNASSIGNED" 
-      ? studentsData.filter(s => !s.enrollments?.[0]?.classId)
-      : studentsData.filter(s => s.enrollments?.[0]?.classId === selectedClassId);
+      ? studentsData.filter(s => !classeDe(s))
+      : studentsData.filter(s => classeDe(s) === selectedClassId);
 
     const className = selectedClassId === "UNASSIGNED" 
       ? "Élèves sans classe"
@@ -68,7 +99,14 @@ export default function DossiersClient({ studentsData, classesData }: DossiersCl
 
         <StudentListClient 
           students={filteredStudents} 
-          classesData={selectedClassId === "UNASSIGNED" ? [] : classesData.filter(c => c.id === selectedClassId)} 
+          classesData={selectedClassId === "UNASSIGNED" ? [] : classesData.filter(c => c.id === selectedClassId)}
+          /* ⚠️ Le filtre de la vue est borné au dossier ouvert, mais l'assignation
+             a besoin de TOUTES les classes de l'école. Les deux listes étaient
+             confondues : dans « Non assignés » la première vaut `[]`, et la
+             fenêtre « Assigner à une classe » n'offrait donc AUCUN choix —
+             les élèves sans classe étaient impossibles à assigner depuis cet
+             écran, qui est pourtant celui prévu pour ça. */
+          classesAssignables={classesData} 
         />
       </div>
     );
@@ -95,50 +133,16 @@ export default function DossiersClient({ studentsData, classesData }: DossiersCl
 
   return (
     <div className="space-y-10">
-      {maternelle.length > 0 && (
-        <section className="space-y-4">
+      {groupes.map((g) => (
+        <section key={g.cle} className="space-y-4">
           <h2 className="text-sm font-bold tracking-widest text-text-soft uppercase flex items-center gap-2">
-            <School className="h-4 w-4" /> Cycle Maternel
+            <School className="h-4 w-4" /> {g.titre}
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {maternelle.map(renderClassFolder)}
+            {g.classes.map(renderClassFolder)}
           </div>
         </section>
-      )}
-
-      {elementaire.length > 0 && (
-        <section className="space-y-4">
-          <h2 className="text-sm font-bold tracking-widest text-text-soft uppercase flex items-center gap-2">
-            <School className="h-4 w-4" /> Cycle Élémentaire
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {elementaire.map(renderClassFolder)}
-          </div>
-        </section>
-      )}
-
-      {secondaire.length > 0 && (
-        <section className="space-y-4">
-          <h2 className="text-sm font-bold tracking-widest text-text-soft uppercase flex items-center gap-2">
-            <School className="h-4 w-4" /> Cycle Secondaire
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {secondaire.map(renderClassFolder)}
-          </div>
-        </section>
-      )}
-
-      {/* Classes sans cycle explicite (au cas où) */}
-      {classesData.filter(c => !["PRE_K", "ELEMENTARY", "MIDDLE", "HIGH"].includes(c.cycle)).length > 0 && (
-        <section className="space-y-4">
-          <h2 className="text-sm font-bold tracking-widest text-text-soft uppercase flex items-center gap-2">
-            <School className="h-4 w-4" /> Autres Classes
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {classesData.filter(c => !["PRE_K", "ELEMENTARY", "MIDDLE", "HIGH"].includes(c.cycle)).map(renderClassFolder)}
-          </div>
-        </section>
-      )}
+      ))}
 
       {statsByClass.unassigned > 0 && (
         <section className="space-y-4 pt-4 border-t border-rule">

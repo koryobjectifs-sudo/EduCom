@@ -32,8 +32,13 @@ type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md" | "lg";
 
 const VARIANT: Record<Variant, string> = {
+  /* ⚠️ `bg-primary` PORTAIT du texte blanc à 2,89:1 — sous le seuil AA de
+     4,5:1, et même sous les 3:1 du grand texte. Le bouton le plus utilisé du
+     produit était illisible. `--color-primary-ink` est la même couleur de
+     marque assombrie juste ce qu'il faut : la teinte de l'école est conservée,
+     le texte redevient lisible, et AUCUNE classe d'appel ne change. */
   primary:
-    "bg-primary text-white border border-transparent hover:bg-primary-hover active:bg-primary-active shadow-card",
+    "bg-primary-ink text-white border border-transparent hover:bg-primary-ink-hover active:bg-primary-ink-active shadow-card",
   secondary:
     "bg-surface text-text border border-rule hover:bg-sunk active:bg-sunk shadow-card",
   ghost:

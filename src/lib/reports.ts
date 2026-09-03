@@ -8,6 +8,7 @@ import { periodFilter, previousPeriod } from "@/lib/period";
 import { financeSnapshot, collectedByMethod, invoiceScope, formatAmount } from "@/lib/finance";
 import { comparisonPeriod } from "@/lib/terms";
 import { forecast, moneyPicture, feeChangeRequests, unreadNotifications, activeSchedule, feeKindLabel } from "@/lib/fees";
+import { documentComplianceOverview } from "@/lib/documentCompliance";
 import { teacherClassIds } from "@/lib/studentScope";
 
 /**
@@ -487,7 +488,33 @@ async function secretariatSections(actor: ActorContext, period: Period): Promise
     unavailable: [NO_DOC_OWNER],
   };
 
-  const sections: ReportSection[] = [dossiers, documents];
+  // ⚠️ **Aucun calcul de conformité ici.** `documentComplianceOverview()` est
+  // la même fonction batchée que le portail détaillé (Rapports › Conformité
+  // documentaire) appelle — un seul chemin de calcul, pour que le chiffre
+  // affiché ici et la liste nominative du portail ne divergent jamais.
+  const compliance = await documentComplianceOverview(actor);
+  const conformite: ReportSection = {
+    id: "secr-compliance",
+    title: "Conformité documentaire",
+    description: "Élèves dont le dossier respecte la checklist en vigueur.",
+    metrics: [
+      // ⚠️ `MetricCard` n'a pas de format « pourcentage » : `count` affiche le
+      // nombre brut. Le signe % est donc porté par le LIBELLÉ, pas inventé un
+      // format supplémentaire pour une seule métrique.
+      metric(
+        "compliance-rate", "Taux de conformité (%)",
+        compliance.complianceRate ?? 0, "count", null,
+        compliance.complianceRate === null ? "Aucune checklist configurée pour l'instant." : undefined,
+      ),
+      metric("compliance-ok", "Élèves conformes", compliance.compliantCount, "count", null),
+      metric("compliance-ko", "Élèves non conformes", compliance.nonCompliantCount, "count", null),
+    ],
+    rows: [],
+    emptyLabel: "Aucune checklist documentaire configurée (Réglages › Pièces du dossier).",
+    unavailable: [],
+  };
+
+  const sections: ReportSection[] = [dossiers, documents, conformite];
 
   if (seesValidation) {
     const rcRows = await prisma.reportCard.findMany({

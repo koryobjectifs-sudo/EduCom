@@ -64,6 +64,32 @@
 
   --color-rule: #E2E8F0;  /* bordure, séparateur */
 
+  /* ─── Bandeau d'identité (fiche élève) ───────────────────────────────────
+     Fond porteur de texte BLANC. Il est teinté par la couleur de
+     l'établissement pour rester la sienne, mais mélangé à un bleu nuit
+     profond : `--color-primary` est surchargé à l'exécution par chaque école,
+     et une école qui choisirait un ton clair rendrait le texte blanc
+     illisible. Le mélange garantit le contraste quel que soit ce choix. */
+  --color-band: color-mix(in oklab, var(--color-primary) 45%, #0A1F3D);
+
+  /* ─── Aplat porteur de texte blanc ───────────────────────────────────────
+     ⚠️ `--color-primary` ne peut PAS servir de fond à du texte blanc : la
+     charte officielle #539BEB donne un contraste de **2,89:1**, sous le seuil
+     AA de 4,5:1 — et même sous les 3:1 du grand texte. Le bouton principal du
+     produit était donc illisible partout, sur des écrans qui manipulent des
+     notes et de l'argent.
+
+     La marque reste #539BEB pour les accents, bordures et fonds clairs ; seuls
+     les APLATS qui portent du texte blanc passent par ce jeton assombri. Le
+     mélange conserve la teinte de l'école, qui surcharge `--color-primary` à
+     l'exécution. */
+  --color-primary-ink:       color-mix(in oklab, var(--color-primary) 62%, #071A33);
+  /* Survol et appui ASSOMBRISSENT. Éclaircir un aplat foncé le ramènerait vers
+     la zone de contraste insuffisante que ce jeton existe précisément pour
+     éviter. */
+  --color-primary-ink-hover:  color-mix(in oklab, var(--color-primary-ink) 90%, black);
+  --color-primary-ink-active: color-mix(in oklab, var(--color-primary-ink) 80%, black);
+
   /* ─── États métier ───────────────────────────────────────────────────────
      Volontairement assombris par rapport aux valeurs vives d'origine
      (#10b981 / #f59e0b / #ef4444) : à ces niveaux le texte passe 4,5:1 sur
@@ -195,6 +221,10 @@
   --color-text-muted:     var(--color-text-muted);
 
   --color-rule:   var(--color-rule);
+  --color-band:   var(--color-band);
+  --color-primary-ink:        var(--color-primary-ink);
+  --color-primary-ink-hover:  var(--color-primary-ink-hover);
+  --color-primary-ink-active: var(--color-primary-ink-active);
   --color-border: var(--color-border);
 
   --color-success: var(--color-success);

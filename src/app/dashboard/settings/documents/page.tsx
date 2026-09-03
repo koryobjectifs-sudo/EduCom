@@ -15,9 +15,11 @@ const PATH = "/dashboard/settings";
  * ⚠️ Garde côté serveur : `/dashboard/settings` n'est listé par aucun rôle,
  * seuls OWNER et ADMIN l'atteignent via `"*"`.
  *
- * ⚠️ **Aucune liste par défaut n'est proposée.** L'écran vide dit qu'aucune
- * exigence n'est configurée ; il ne suggère pas de pièces, ce qui reviendrait à
- * imposer une norme que l'établissement n'a pas choisie.
+ * ⚠️ **Rien n'est imposé, mais une proposition existe.** Le référentiel
+ * officiel sénégalais (`src/lib/officialRequirements.ts`) peut être appliqué
+ * cycle par cycle depuis `RequirementsClient` — jamais automatiquement, jamais
+ * sans confirmation. Une école qui préfère partir de zéro peut toujours le
+ * faire : les cases ne sont pas cochées par défaut.
  */
 export default async function RequirementsPage() {
   const { user, schoolId } = await requireSchoolContext();
@@ -48,7 +50,7 @@ export default async function RequirementsPage() {
         <EmptyState
           icon={ClipboardList}
           title="Aucune exigence configurée"
-          description="Ajoutez les pièces que votre établissement demande. Vous pouvez les cibler par cycle, classe, année scolaire ou type d'élève."
+          description="Cochez un ou plusieurs cycles dans le référentiel officiel ci-dessous pour démarrer, ou ajoutez vos propres pièces."
         />
       )}
 

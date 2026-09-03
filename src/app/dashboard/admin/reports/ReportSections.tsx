@@ -1,4 +1,5 @@
-import { Info, TriangleAlert } from "lucide-react";
+import { Info, TriangleAlert, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -175,8 +176,28 @@ export function SectionBlock({ section, comparable }: { section: ReportSection; 
   
   const progressValue = showProgress ? Math.min((collectedMetric.value / expectedMetric.value) * 100, 100) : 0;
 
+  // ⚠️ Rattachement PAR ID, à l'identique de `showProgress` juste au-dessus :
+  // la section « Conformité documentaire » (construite dans `secretariatSections()`
+  // de `src/lib/reports.ts`) est la SEULE à devoir renvoyer vers le portail
+  // détaillé — un tableau nominatif, hors du cadre « métriques » de cet écran.
+  const isCompliance = section.id === "secr-compliance";
+
   return (
-    <Card title={section.title} description={section.description}>
+    <Card
+      title={section.title}
+      description={section.description}
+      actions={
+        isCompliance ? (
+          <Link
+            href="/dashboard/admin/reports/compliance"
+            className="inline-flex items-center gap-1.5 text-role-body font-semibold text-primary hover:underline pointer-coarse:min-h-11"
+          >
+            Voir le détail par élève
+            <ArrowRight aria-hidden="true" className="h-4 w-4" />
+          </Link>
+        ) : undefined
+      }
+    >
       {showProgress && (
         <div className="mb-8 rounded-surface border border-rule/50 bg-surface p-5 shadow-sm">
           <h3 className="mb-4 text-sm font-semibold tracking-wide text-text-soft">Progression globale (Objectif Mensuel)</h3>

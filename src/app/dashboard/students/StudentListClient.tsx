@@ -40,6 +40,16 @@ import { deleteStudent, deleteStudents, assignStudentToClass } from "./actions";
 interface StudentListClientProps {
   students: any[];
   classesData?: any[];
+  /**
+   * Classes proposées par la fenêtre « Assigner à une classe ».
+   *
+   * ⚠️ Distincte de `classesData`, qui alimente le FILTRE de la vue. Les deux
+   * étaient confondues : un écran qui borne son filtre au dossier ouvert
+   * (« Non assignés » → aucune classe) privait du même geste l'assignation de
+   * toute option, rendant l'action impossible là où elle est le plus utile.
+   * Par défaut, l'assignation reprend `classesData`.
+   */
+  classesAssignables?: { id: string; name: string }[];
   searchTerm?: string;
   onSearchChange?: (value: string) => void;
   hideSearchBar?: boolean;
@@ -48,6 +58,7 @@ interface StudentListClientProps {
 export default function StudentListClient({ 
   students, 
   classesData = [], 
+  classesAssignables,
   searchTerm: externalSearchTerm,
   onSearchChange,
   hideSearchBar 
@@ -77,6 +88,12 @@ export default function StudentListClient({
   const classes = useMemo(() => {
     return classesData.map(c => [c.id, c.name] as [string, string]).sort((a, b) => a[1].localeCompare(b[1], "fr"));
   }, [classesData]);
+
+  /** Classes offertes à l'assignation — toute l'école, pas seulement la vue. */
+  const classesPourAssigner = useMemo(() => {
+    const source = classesAssignables ?? classesData;
+    return source.map(c => [c.id, c.name] as [string, string]).sort((a, b) => a[1].localeCompare(b[1], "fr"));
+  }, [classesAssignables, classesData]);
 
   const filteredStudents = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -510,16 +527,28 @@ export default function StudentListClient({
           <p className="text-sm text-text-soft">
             Sélectionnez la classe dans laquelle vous souhaitez inscrire cet élève pour l'année en cours.
           </p>
-          <Select
-            label="Classe"
-            value={assignClassId}
-            onChange={(e) => setAssignClassId(e.target.value)}
-          >
-            <option value="" disabled>Choisir une classe...</option>
-            {classes.map(([id, name]) => (
-              <option key={id} value={id}>{name}</option>
-            ))}
-          </Select>
+          {/* Un menu vide ne dit pas POURQUOI il est vide. Sans classe créée,
+              l'écran renvoie vers l'endroit où en créer une plutôt que de
+              laisser l'utilisateur devant une liste muette. */}
+          {classesPourAssigner.length === 0 ? (
+            <div className="rounded-control border border-rule bg-sunk p-4 text-sm text-text-soft">
+              Aucune classe n&apos;est encore créée dans cet établissement.{" "}
+              <Link href="/dashboard/classes/new" className="font-medium text-primary hover:underline">
+                Créer une classe
+              </Link>
+            </div>
+          ) : (
+            <Select
+              label="Classe"
+              value={assignClassId}
+              onChange={(e) => setAssignClassId(e.target.value)}
+            >
+              <option value="" disabled>Choisir une classe...</option>
+              {classesPourAssigner.map(([id, name]) => (
+                <option key={id} value={id}>{name}</option>
+              ))}
+            </Select>
+          )}
         </div>
       </Modal>
     </div>

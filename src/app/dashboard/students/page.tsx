@@ -1,63 +1,58 @@
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Users, FileText, Upload, Package } from "lucide-react";
-import Link from "next/link";
-import { Card } from "@/components/ui/Card";
+import DirectoryClient from "../directory/DirectoryClient";
+import { loadDirectory, resumeAnnuaire } from "../directory/data";
 
-export default function StudentsHubPage() {
+/**
+ * Élèves & dossiers — **l'annuaire directement**.
+ *
+ * ═══ CE QUI A CHANGÉ, ET POURQUOI ═══
+ *
+ * Cet écran était un MENU de quatre cartes — Annuaire, Dossiers élèves,
+ * Importer, Exporter — sur une page vide aux trois quarts. La rubrique la plus
+ * consultée du produit n'affichait donc aucun élève et imposait un clic de
+ * détour sur le chemin le plus fréquent du secrétariat.
+ *
+ * Le parcours est maintenant : **Élèves & dossiers → Annuaire**, et les trois
+ * vues — Élèves, Classes, **Dossiers élèves** — sont DANS l'annuaire. Le menu
+ * ne séparait pas des destinations différentes : il séparait trois angles sur
+ * le même sujet.
+ *
+ * ⚠️ Le `<h1>` dit « Annuaire », pas « Élèves & dossiers ». Le fil d'Ariane
+ * porte la rubrique (`Accueil › Élèves & dossiers › Annuaire`) : l'utilisateur
+ * doit voir où il a atterri, et le titre de la rubrique est déjà surligné dans
+ * la barre latérale. Répéter « Élèves & dossiers » en `<h1>` laissait croire
+ * qu'on était resté sur un menu.
+ *
+ * ⚠️ **Rien n'est devenu inatteignable.** « Dossiers élèves » est un onglet de
+ * l'annuaire ; Importer et Exporter sont dans la barre d'outils de l'annuaire,
+ * où ils vivaient déjà. Les routes `/dashboard/directory`,
+ * `/dashboard/students/dossiers`, `/dashboard/students/import` et
+ * `/dashboard/students/export` **existent et fonctionnent toujours** : aucun
+ * lien, favori ou raccourci existant ne casse.
+ *
+ * ⚠️ **Aucune requête n'est écrite ici.** `loadDirectory()` est le chargement de
+ * l'annuaire, partagé avec `/dashboard/directory`, portée par rôle comprise.
+ */
+export default async function StudentsPage() {
+  const d = await loadDirectory();
+
   return (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-6 pb-10">
       <PageHeader
-        breadcrumb={[{ label: "Accueil", href: "/dashboard" }, { label: "Élèves & dossiers" }]}
-        title="Élèves & dossiers"
-        description="Gérez l'annuaire de l'établissement, consultez les dossiers individuels et importez ou exportez les données de vos élèves."
+        breadcrumb={[
+          { label: "Accueil", href: "/dashboard" },
+          { label: "Élèves & dossiers" },
+          { label: "Annuaire" },
+        ]}
+        title="Annuaire"
+        description={resumeAnnuaire(d)}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Link href="/dashboard/directory">
-          <Card className="p-4 flex items-center text-left hover:border-primary transition-colors cursor-pointer gap-4 group h-full shadow-sm hover:shadow-md">
-            <div className="h-10 w-10 shrink-0 rounded-control bg-sunk flex items-center justify-center group-hover:bg-primary/10 transition-colors border border-transparent group-hover:border-primary/20">
-              <Users className="h-5 w-5 text-text-soft group-hover:text-primary transition-colors" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="font-semibold text-text text-sm group-hover:text-primary transition-colors">Annuaire</h3>
-              <p className="text-xs text-text-faint mt-0.5 truncate">Vue d'ensemble des élèves</p>
-            </div>
-          </Card>
-        </Link>
-        <Link href="/dashboard/students/dossiers">
-          <Card className="p-4 flex items-center text-left hover:border-primary transition-colors cursor-pointer gap-4 group h-full shadow-sm hover:shadow-md">
-            <div className="h-10 w-10 shrink-0 rounded-control bg-sunk flex items-center justify-center group-hover:bg-primary/10 transition-colors border border-transparent group-hover:border-primary/20">
-              <FileText className="h-5 w-5 text-text-soft group-hover:text-primary transition-colors" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="font-semibold text-text text-sm group-hover:text-primary transition-colors">Dossiers élèves</h3>
-              <p className="text-xs text-text-faint mt-0.5 truncate">Gestion des dossiers individuels</p>
-            </div>
-          </Card>
-        </Link>
-        <Link href="/dashboard/students/import">
-          <Card className="p-4 flex items-center text-left hover:border-primary transition-colors cursor-pointer gap-4 group h-full shadow-sm hover:shadow-md">
-            <div className="h-10 w-10 shrink-0 rounded-control bg-sunk flex items-center justify-center group-hover:bg-primary/10 transition-colors border border-transparent group-hover:border-primary/20">
-              <Upload className="h-5 w-5 text-text-soft group-hover:text-primary transition-colors" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="font-semibold text-text text-sm group-hover:text-primary transition-colors">Importer</h3>
-              <p className="text-xs text-text-faint mt-0.5 truncate">Importer en masse (Excel/CSV)</p>
-            </div>
-          </Card>
-        </Link>
-        <Link href="/dashboard/students/export">
-          <Card className="p-4 flex items-center text-left hover:border-primary transition-colors cursor-pointer gap-4 group h-full shadow-sm hover:shadow-md">
-            <div className="h-10 w-10 shrink-0 rounded-control bg-sunk flex items-center justify-center group-hover:bg-primary/10 transition-colors border border-transparent group-hover:border-primary/20">
-              <Package className="h-5 w-5 text-text-soft group-hover:text-primary transition-colors" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="font-semibold text-text text-sm group-hover:text-primary transition-colors">Exporter</h3>
-              <p className="text-xs text-text-faint mt-0.5 truncate">Exporter la liste des élèves</p>
-            </div>
-          </Card>
-        </Link>
-      </div>
+      <DirectoryClient
+        studentsData={d.studentsData}
+        classesData={d.classes}
+        teachersData={d.teachers}
+      />
     </div>
   );
 }

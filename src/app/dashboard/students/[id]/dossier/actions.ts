@@ -106,6 +106,7 @@ export async function uploadStudentDocument(formData: FormData) {
   const category = (String(formData.get("category") ?? "AUTRES") || "AUTRES") as DocCategory;
   const file = formData.get("file");
   const source = String(formData.get("source") ?? "manuel");
+  const folderId = String(formData.get("folderId") ?? "") || null;
   const pages = Number(formData.get("pages") ?? 0) || 0;
   // Ce que l'analyse avait proposé, et ce que l'humain en a fait. Conservé tel
   // quel : c'est la preuve que la décision finale n'a pas été prise par la machine.
@@ -139,6 +140,17 @@ export async function uploadStudentDocument(formData: FormData) {
     if (!canSeeCategory(ctx, requirement.category)) {
       return { error: "Cette catégorie de pièce ne relève pas de votre périmètre." };
     }
+  }
+
+  // ⚠️ Le rayon doit appartenir à l'école : l'identifiant vient du navigateur et
+  // ne prouve rien. Sans ce contrôle, une pièce se rangerait dans le classeur
+  // d'un autre établissement — invisible ici, visible là-bas.
+  if (folderId) {
+    const f = await prisma.studentDocFolder.count({ where: { id: folderId, schoolId: ctx.schoolId } });
+    if (f === 0) return { error: "Dossier introuvable dans votre établissement." };
+    // Un rayon personnalisé ne reçoit que des pièces hors checklist : une
+    // exigence vise une catégorie, jamais un classeur.
+    if (requirementId) return { error: "Une pièce exigée se range dans sa catégorie, pas dans un dossier personnalisé." };
   }
 
   const check = checkFile(file.type, file.name, file.size);
@@ -197,6 +209,7 @@ export async function uploadStudentDocument(formData: FormData) {
           expiresAt,
           uploadedById: ctx.userId,
           schoolId: ctx.schoolId,
+          folderId,
           supersedesId: previous?.id ?? null,
         },
       }),
@@ -433,4 +446,64 @@ export async function confirmStudentDocumentDiffusion(input: {
   if ("error" in done) return { error: done.error };
 
   return { data: done };
+}
+
+/* ═════════════════════ rayons personnalisés ═════════════════════ */
+
+/**
+ * Crée un rayon propre à l'établissement — « Bourse », « Cantine », « Transport ».
+ *
+ * ⚠️ **Un rayon personnalisé ne remplace aucune catégorie.** Les sept
+ * `DocCategory` restent la classification officielle : elles portent les
+ * exigences, les droits (`canSeeCategory`), la validation et l'export. Un rayon
+ * est un classeur en plus, et il ne peut contenir que des pièces versées hors
+ * checklist — une exigence vise une catégorie, jamais un classeur.
+ *
+ * ⚠️ Le rayon appartient à l'ÉCOLE, pas à l'élève depuis lequel on l'a créé :
+ * un « Bourse » par enfant serait ingérable au bout de trois inscriptions.
+ * L'unicité `(schoolId, name)` est portée par le schéma ; elle est vérifiée ici
+ * aussi pour rendre un message lisible plutôt qu'une violation de contrainte.
+ */
+export async function createStudentDocFolder(name: string) {
+  const auth = await requireActionContext(READ_PATH);
+  if (!auth.ok) return { error: auth.error };
+  const { ctx } = auth;
+
+  const propre = name.trim().replace(/\s+/g, " ");
+  if (!propre) return { error: "Le nom du dossier est obligatoire." };
+  if (propre.length > 40) return { error: "Le nom du dossier ne doit pas dépasser 40 caractères." };
+
+  // ⚠️ Un rayon personnalisé qui reprend le nom d'une catégorie officielle
+  // produirait deux « Santé » côte à côte, dont un seul reçoit les exigences.
+  const officielles = ["identité", "identite", "inscription", "scolarité", "scolarite", "santé", "sante", "transfert", "examens", "autres"];
+  if (officielles.includes(propre.toLowerCase())) {
+    return { error: `« ${propre} » est déjà un dossier officiel. Choisissez un autre nom.` };
+  }
+
+  const existe = await prisma.studentDocFolder.findFirst({
+    where: { schoolId: ctx.schoolId, name: propre },
+    select: { id: true },
+  });
+  if (existe) return { error: `Le dossier « ${propre} » existe déjà.` };
+
+  const dernier = await prisma.studentDocFolder.findFirst({
+    where: { schoolId: ctx.schoolId },
+    orderBy: { position: "desc" },
+    select: { position: true },
+  });
+
+  const folder = await prisma.studentDocFolder.create({
+    data: { name: propre, schoolId: ctx.schoolId, position: (dernier?.position ?? -1) + 1 },
+    select: { id: true, name: true },
+  });
+
+  await recordAudit(ctx, {
+    action: "studentDocFolder.create",
+    entity: "studentDocFolder",
+    entityId: folder.id,
+    details: { label: folder.name },
+  });
+
+  revalidatePath("/dashboard/students", "layout");
+  return { data: folder };
 }

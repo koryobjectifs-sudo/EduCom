@@ -112,6 +112,9 @@ export type AuditEntity =
   // validation, rejet et téléchargement d'une pièce.
   | "studentDocument"
   | "documentRequirement"
+  // Rayons personnalisés du dossier élève (3 septembre 2026). Aucune table
+  // d'historique non plus : la création d'un classeur vit ici.
+  | "studentDocFolder"
   // ═══ Configuration pédagogique (22 août 2026) ═══
   //
   // AUCUNE table d'historique n'a été créée pour le calendrier scolaire, et
