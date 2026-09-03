@@ -85,6 +85,14 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
     "/dashboard/grades",
     "/dashboard/communications",
 
+    // ⚠️ BUG CORRIGÉ (3 septembre 2026). `/dashboard/attendance` a toute une
+    // branche dédiée à l'enseignant (choix de SA classe, appel) et la
+    // sidebar déclare l'entrée « Présences » sous « Enseignement » — mais
+    // ce chemin manquait ici. Résultat : l'écran renvoyait silencieusement
+    // vers l'accueil, et le lien n'apparaissait même pas dans son menu. La
+    // portée reste bornée à ses classes par le code de la page elle-même.
+    "/dashboard/attendance",
+
     // ═══ Lot 15 — centre documentaire ═══
     //
     // ⚠️ **Accordé explicitement, et à ce seul chemin.** `TEACHER` n'a PAS
@@ -139,6 +147,15 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
     "/dashboard/classes",
     "/dashboard/directory",
     "/dashboard/communications",
+
+    // ⚠️ BUG CORRIGÉ (3 septembre 2026), même défaut que pour `TEACHER`
+    // ci-dessus. `/dashboard/attendance` a une vue dédiée pour ce rôle —
+    // « Opérations Quotidiennes », avec le récapitulatif des classes en
+    // attente d'appel et le bouton de notification aux parents pour chaque
+    // absence — commentée dans le code même comme « DIRECTOR / SECRETARY
+    // View ». Ce chemin manquait : le secrétariat ne pouvait ni voir ni
+    // notifier une absence, alors que l'écran a été construit pour lui.
+    "/dashboard/attendance",
     "/dashboard/documents",
     "/dashboard/team",
 
