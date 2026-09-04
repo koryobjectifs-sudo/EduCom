@@ -183,6 +183,20 @@
      pas d'une ombre portée. Les ombres larges et sombres sont l'autre signature
      visuelle des maquettes générées. */
   --m-lift: 0 1px 2px rgb(11 31 58 / 0.04), 0 8px 24px -12px rgb(11 31 58 / 0.18);
+
+  /* ═══ Bannière du hero — refonte du 4 septembre 2026 ═══
+     Ajoutés, pas substitués : rien ci-dessus ne change de valeur. Le hero
+     quitte le papier pour un bandeau marine profond — la promesse « documents
+     officiels » rendue au pied de la lettre : marine et or sont les couleurs
+     d'un cachet, d'une signature, d'une reliure administrative, pas d'un
+     produit SaaS générique. Toujours lues dans `public/brand/` : le marine est
+     `--m-ink` ; l'or est nouveau, choisi pour rester lisible en texte sur
+     marine (contraste ≥ 4,5:1) sans virer au jaune criard. */
+  --m-gold:      #C79A44;  /* or de marque — traits, pastilles, accent hero */
+  --m-gold-soft: #E8CD8C;  /* même or, plus clair — texte sur marine */
+  --m-ink-deep:     #071322;  /* marine plus profond que --m-ink — fond de la bannière */
+  --m-ink-elevated: #132A4A;  /* une marche au-dessus du fond — cartes et pastilles sur la bannière */
+  --m-ink-line:     rgb(255 255 255 / 0.12);  /* filet sur fond marine */
 }
 
 /* Syntaxe de couleur relative : conserve teinte et chroma en relevant la
@@ -248,6 +262,13 @@
   --color-m-line:      var(--m-line);
   --color-m-line-soft: var(--m-line-soft);
   --shadow-m-lift: var(--m-lift);
+
+  /* Bannière du hero — voir la définition dans :root. */
+  --color-m-gold:         var(--m-gold);
+  --color-m-gold-soft:    var(--m-gold-soft);
+  --color-m-ink-deep:     var(--m-ink-deep);
+  --color-m-ink-elevated: var(--m-ink-elevated);
+  --color-m-ink-line:     var(--m-ink-line);
   --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
 
   /* Rayons — ajoutés, pas substitués */
@@ -330,6 +351,17 @@
   .m-surligne {
     text-decoration-line: underline;
     text-decoration-color: color-mix(in oklab, var(--m-accent) 34%, transparent);
+    text-decoration-thickness: 0.26em;
+    text-underline-offset: -0.06em;
+    text-decoration-skip-ink: none;
+  }
+
+  /* Même geste que `.m-surligne`, en or, pour le titre du hero sur fond marine
+     — le vert de marque n'y est pas assez lisible. Même technique, même
+     absence de dégradé : un trait plein, juste une autre couleur. */
+  .hero-surligne {
+    text-decoration-line: underline;
+    text-decoration-color: color-mix(in oklab, var(--m-gold) 55%, transparent);
     text-decoration-thickness: 0.26em;
     text-underline-offset: -0.06em;
     text-decoration-skip-ink: none;

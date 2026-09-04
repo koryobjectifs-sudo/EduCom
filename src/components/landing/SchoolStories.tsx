@@ -133,7 +133,7 @@ export default function SchoolStories() {
 
               <Link
                 href="/register"
-                className="mt-9 inline-flex h-12 items-center gap-2 rounded-control bg-m-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-m-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m-primary/40 focus-visible:ring-offset-2"
+                className="mt-9 inline-flex h-12 items-center gap-2 rounded-control bg-m-ink px-6 text-[15px] font-semibold text-white transition-colors hover:bg-m-ink-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m-ink/40 focus-visible:ring-offset-2"
               >
                 Rejoindre le pilote
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
@@ -146,7 +146,7 @@ export default function SchoolStories() {
               </h3>
               <dl className="mt-6 space-y-6">
                 {PILOTE.map((p) => (
-                  <div key={p.titre} className="border-l-2 border-m-accent pl-4">
+                  <div key={p.titre} className="border-l-2 border-m-gold pl-4">
                     <dt className="text-[15px] font-semibold text-m-ink">{p.titre}</dt>
                     <dd className="mt-1.5 text-[14px] leading-[1.7] text-m-ink-soft">
                       {p.detail}

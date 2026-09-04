@@ -15,13 +15,24 @@ import Link from "next/link";
  *
  * ⚠️ Le « E » dans un carré est remplacé par le logotype de marque en blanc,
  * qui existait depuis toujours dans `public/brand/`.
+ *
+ * ⚠️ Refonte du 4 septembre 2026 : même marine profond et même filigrane que
+ * le hero et l'appel à l'action final, filet supérieur or au lieu du filet
+ * neutre — la page a maintenant une seule signature de bas de section, pas
+ * trois traitements de marine différents.
  */
 export default function Footer() {
   const annee = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-m-line bg-m-ink text-white/70">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+    <footer className="relative overflow-hidden border-t border-m-gold/20 bg-m-ink-deep text-white/70">
+      <img
+        src="/brand/educom-symbole-blanc.svg"
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-16 -left-16 h-64 w-64 select-none opacity-[0.04]"
+      />
+      <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
             <Link href="/" aria-label="EduCom — accueil" className="inline-flex h-11 items-center">

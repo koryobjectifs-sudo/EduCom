@@ -23,6 +23,11 @@ import { Menu, X } from "lucide-react";
  * ⚠️ `bg-transparent` en haut de page puis `backdrop-blur-lg` au défilement :
  * la barre changeait de nature en cours de lecture, et le texte du hero passait
  * dessous. Elle reste maintenant sur le papier, et ne gagne qu'un filet.
+ *
+ * ⚠️ Refonte du 4 septembre 2026 : le bouton d'action passe du bleu produit
+ * (`--m-primary`, hérité de la charte tenant) au marine de marque (`--m-ink`),
+ * pour se raccorder à la bannière du hero et au filet du footer plutôt que de
+ * réintroduire une troisième couleur d'accent.
  */
 const LIENS = [
   { nom: "Le produit", href: "/#produit" },
@@ -54,7 +59,7 @@ export default function Navbar() {
   return (
     <header
       className={`sticky top-0 z-50 bg-m-paper/90 backdrop-blur-sm transition-shadow ${
-        defile ? "border-b border-m-line" : "border-b border-transparent"
+        defile ? "border-b border-m-line shadow-[0_1px_0_0_var(--m-line),0_8px_24px_-16px_rgb(11_31_58_/_0.22)]" : "border-b border-transparent"
       }`}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
@@ -94,7 +99,7 @@ export default function Navbar() {
           </Link>
           <Link
             href="/register"
-            className="inline-flex h-10 items-center rounded-control bg-m-primary px-5 text-[15px] font-semibold text-white transition-colors hover:bg-m-primary/90"
+            className="inline-flex h-10 items-center rounded-control bg-m-ink px-5 text-[15px] font-semibold text-white shadow-m-lift transition-colors hover:bg-m-ink-deep"
           >
             Créer mon école
           </Link>
@@ -128,7 +133,7 @@ export default function Navbar() {
               <Link
                 href="/register"
                 onClick={() => setOuvert(false)}
-                className="inline-flex h-12 items-center justify-center rounded-control bg-m-primary px-5 text-base font-semibold text-white"
+                className="inline-flex h-12 items-center justify-center rounded-control bg-m-ink px-5 text-base font-semibold text-white"
               >
                 Créer mon école
               </Link>

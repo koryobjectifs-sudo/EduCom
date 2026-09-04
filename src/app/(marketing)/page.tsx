@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import HeroSection from "@/components/landing/HeroSection";
 import TrustSection from "@/components/landing/TrustSection";
 import ProblemSection from "@/components/landing/ProblemSection";
+import ProductShowcase from "@/components/landing/ProductShowcase";
 import Features from "@/components/landing/Features";
 import HowItWorks from "@/components/landing/HowItWorks";
 import SchoolStories from "@/components/landing/SchoolStories";
@@ -27,8 +28,9 @@ export const metadata: Metadata = {
  * ═══ L'ORDRE DES SECTIONS EST UNE DÉCISION, PAS UNE HABITUDE ═══
  *
  * Hero (ce que c'est) → preuves (pourquoi s'y fier) → constat (est-ce mon
- * problème ?) → produit (qu'est-ce que j'obtiens) → déroulé (combien ça me
- * coûte en temps) → écoles (qui d'autre) → tarifs (combien en argent) → action.
+ * problème ?) → l'écran lui-même (à quoi ça ressemble, refonte du 4 sept.) →
+ * produit (qu'est-ce que j'obtiens) → déroulé (combien ça me coûte en temps)
+ * → écoles (qui d'autre) → tarifs (combien en argent) → action.
  *
  * Les preuves passent **avant** le constat, contrairement à l'usage. Une
  * directrice qui découvre un produit inconnu, édité par une équipe qu'elle ne
@@ -48,6 +50,7 @@ export default function Home() {
       <HeroSection />
       <TrustSection />
       <ProblemSection />
+      <ProductShowcase />
       <Features />
       <HowItWorks />
       <SchoolStories />

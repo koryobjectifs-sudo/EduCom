@@ -78,7 +78,7 @@ export default function HowItWorks() {
 
           {/* La troisième carte n'est pas une étape : c'est le résultat. Elle
               change de fond pour que l'œil le comprenne avant de lire. */}
-          <div className="rounded-[14px] bg-m-ink p-7 text-white sm:p-8">
+          <div className="rounded-[14px] bg-m-ink-deep p-7 text-white sm:p-8">
             <div className="flex items-baseline justify-between gap-4">
               <span
                 aria-hidden="true"
@@ -86,7 +86,7 @@ export default function HowItWorks() {
               >
                 03
               </span>
-              <span className="rounded-pill bg-m-accent px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-m-ink">
+              <span className="rounded-pill bg-m-gold px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-m-ink-deep">
                 Résultat
               </span>
             </div>
@@ -99,7 +99,7 @@ export default function HowItWorks() {
             </p>
             <Link
               href="/register"
-              className="mt-7 inline-flex h-11 items-center gap-2 rounded-control bg-white px-5 text-[14px] font-semibold text-m-ink transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-m-ink"
+              className="mt-7 inline-flex h-11 items-center gap-2 rounded-control bg-white px-5 text-[14px] font-semibold text-m-ink transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-m-ink-deep"
             >
               Commencer
               <ArrowRight aria-hidden="true" className="h-4 w-4" />

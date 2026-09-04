@@ -49,6 +49,23 @@ import { PRO_PRICE_EUR, formatFCFA, TRIAL_DAYS } from "@/lib/pricing";
  * 1 € = 655,957 F CFA — ce qui permet d'afficher les deux montants sans
  * dépendre d'un taux du jour ni d'un service externe. Les arrondis (13 100 et
  * 19 700) sont ceux fixés par Kory.
+ *
+ * ═══ REFONTE VISUELLE DU 4 SEPTEMBRE 2026 ═══
+ *
+ * Aucun montant, aucune fonctionnalité, aucun libellé n'a changé — seule la
+ * peinture. Deux choses corrigées :
+ *
+ * ⚠️ La carte « Pro » utilisait `--color-primary` (bleu #539BEB, la couleur du
+ * TENANT produit) au lieu des tokens `m-*` de la marque marketing — c'était la
+ * seule carte de toute la page publique à ne pas suivre le socle du lot 19.
+ * Elle passe au marine + or du hero, cohérent avec le reste de la refonte.
+ *
+ * ⚠️ La bordure conique tournante en boucle infinie était une pure décoration
+ * — exactement ce que le principe 4 de la constitution produit interdit
+ * (« no gimmicks, no decorative animation »). Retirée. L'inclinaison 3D
+ * (rotateX/rotateY) à l'entrée est ramenée au même ressort que
+ * `Features.tsx` : la page ne doit pas avoir une carte plus spectaculaire que
+ * ses voisines sans raison.
  */
 const FORMULES = [
   {
@@ -140,66 +157,46 @@ export default function Pricing({ sansEntete = false }: { sansEntete?: boolean }
               transition: { staggerChildren: 0.2 }
             }
           }}
-          className={`grid grid-cols-1 gap-6 md:grid-cols-3 lg:gap-8 ${sansEntete ? "" : "mt-14"} perspective-[1000px]`}
+          className={`grid grid-cols-1 gap-6 md:grid-cols-3 lg:gap-8 ${sansEntete ? "" : "mt-14"}`}
         >
-          {FORMULES.map((f, i) => {
+          {FORMULES.map((f) => {
             const isHighlighted = f.highlight;
             return (
               <motion.div
                 variants={{
-                  hidden: { opacity: 0, y: 80, scale: 0.8, rotateX: 20, rotateY: i === 0 ? -15 : i === 2 ? 15 : 0 },
-                  visible: { 
-                    opacity: 1, 
-                    y: 0, 
-                    scale: 1,
-                    rotateX: 0,
-                    rotateY: 0,
-                    transition: { type: "spring", stiffness: 80, damping: 20 }
-                  }
+                  hidden: { opacity: 0, y: 28 },
+                  visible: {
+                    opacity: 1,
+                    y: 0,
+                    transition: { type: "spring", stiffness: 120, damping: 18 },
+                  },
                 }}
-                whileHover={{ 
-                  y: -12, 
-                  scale: 1.03,
-                  rotateZ: i === 0 ? -1 : i === 2 ? 1 : 0,
-                  transition: { type: "spring", stiffness: 300, damping: 20 }
-                }}
+                whileHover={{ y: -6, transition: { type: "spring", stiffness: 300, damping: 22 } }}
                 key={f.id}
-                className={`relative flex flex-col rounded-[16px] overflow-hidden transition-shadow duration-300 ${
+                className={`relative flex flex-col rounded-[16px] transition-shadow duration-300 ${
                   isHighlighted
-                    ? "shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30"
-                    : "bg-white border border-slate-200 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-200/50"
+                    ? "bg-m-ink-deep shadow-m-lift ring-1 ring-inset ring-m-gold/30"
+                    : "border border-m-line bg-m-card hover:border-m-line hover:shadow-m-lift"
                 }`}
               >
-                {/* BORDURE TOURNANTE */}
-                {isHighlighted && (
-                  <motion.div 
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 6, ease: "linear" }}
-                    className="absolute -inset-[150%] z-0 bg-[conic-gradient(from_90deg_at_50%_50%,transparent_70%,#539BEB_100%)] opacity-80"
-                  />
-                )}
-
-                {/* CONTENU DE LA CARTE */}
-                <div className={`relative z-10 flex h-full flex-col overflow-hidden ${isHighlighted ? "m-[2px] rounded-[14px] bg-white" : "rounded-[16px]"}`}>
-
                 {/* TOP SECTION */}
-                <div className={`flex flex-col p-6 sm:p-7 ${isHighlighted ? "bg-gradient-to-br from-primary/[0.07] to-white" : "bg-white"}`}>
+                <div className="flex flex-col p-6 sm:p-7">
                   <div className="flex items-center gap-3">
                     <h3
                       className={`text-[15px] font-semibold ${
-                        isHighlighted ? "text-primary" : "text-slate-900"
+                        isHighlighted ? "text-m-gold-soft" : "text-m-ink"
                       }`}
                     >
                       {f.nom}
                     </h3>
                     {isHighlighted && (
-                      <span className="rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                      <span className="rounded-pill bg-m-gold px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-m-ink-deep">
                         Populaire
                       </span>
                     )}
                   </div>
 
-                  <p className="mt-4 text-[13px] leading-relaxed text-slate-600 min-h-[40px]">
+                  <p className={`mt-4 min-h-[40px] text-[13px] leading-relaxed ${isHighlighted ? "text-white/65" : "text-m-ink-soft"}`}>
                     {f.objectif}
                   </p>
 
@@ -207,18 +204,18 @@ export default function Pricing({ sansEntete = false }: { sansEntete?: boolean }
                     {/* ZONE DE PRIX */}
                     <div className="flex flex-col">
                       <div className="flex items-baseline gap-1">
-                        <p className="font-display text-[2.5rem] font-bold leading-none tracking-tight text-slate-900">
+                        <p className={`font-display text-[2.5rem] font-bold leading-none tracking-tight ${isHighlighted ? "text-white" : "text-m-ink"}`}>
                           {f.eur}
                         </p>
                         {f.periode && (
-                          <p className="text-[13px] font-medium text-slate-500">
+                          <p className={`text-[13px] font-medium ${isHighlighted ? "text-white/50" : "text-m-ink-faint"}`}>
                             /{f.periode.replace("par ", "")}
                           </p>
                         )}
                       </div>
                       <p
                         className={`mt-1 text-[13px] font-semibold tabular-nums ${
-                          isHighlighted ? "text-primary" : "text-slate-500"
+                          isHighlighted ? "text-m-gold-soft" : "text-m-ink-faint"
                         }`}
                       >
                         {f.cfa}
@@ -228,10 +225,10 @@ export default function Pricing({ sansEntete = false }: { sansEntete?: boolean }
                     {/* BOUTON D'ACTION */}
                     <Link
                       href="/register"
-                      className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                      className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-control text-[14px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                         isHighlighted
-                          ? "bg-slate-900 text-white hover:bg-slate-800 hover:shadow-lg focus-visible:ring-slate-900"
-                          : "bg-slate-900 text-white hover:bg-slate-800 hover:shadow-lg focus-visible:ring-slate-900"
+                          ? "bg-white text-m-ink hover:bg-white/90 focus-visible:ring-white/50 focus-visible:ring-offset-m-ink-deep"
+                          : "bg-m-ink text-white hover:bg-m-ink-deep focus-visible:ring-m-ink/40"
                       }`}
                     >
                       {f.cta}
@@ -240,21 +237,18 @@ export default function Pricing({ sansEntete = false }: { sansEntete?: boolean }
                 </div>
 
                 {/* BOTTOM SECTION - FEATURES */}
-                <div className={`flex-1 p-6 sm:p-7 border-t ${isHighlighted ? "bg-primary/[0.03] border-primary/10" : "bg-slate-50 border-slate-100"}`}>
+                <div className={`flex-1 rounded-b-[16px] border-t p-6 sm:p-7 ${isHighlighted ? "border-white/10 bg-white/[0.03]" : "border-m-line bg-m-paper"}`}>
                   <ul className="space-y-4">
                     {f.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-3 text-[13px] leading-relaxed text-slate-600">
+                      <li key={idx} className={`flex items-start gap-3 text-[13px] leading-relaxed ${isHighlighted ? "text-white/70" : "text-m-ink-soft"}`}>
                         <Check
                           aria-hidden="true"
-                          className={`mt-0.5 h-4 w-4 shrink-0 ${
-                            isHighlighted ? "text-primary" : "text-emerald-500"
-                          }`}
+                          className={`mt-0.5 h-4 w-4 shrink-0 ${isHighlighted ? "text-m-gold-soft" : "text-m-accent-deep"}`}
                         />
                         {feature}
                       </li>
                     ))}
                   </ul>
-                </div>
                 </div>
               </motion.div>
             );

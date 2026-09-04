@@ -29,13 +29,15 @@
 export default function HeroProduct() {
   return (
     <figure className="relative mx-auto w-full max-w-md lg:max-w-lg">
-      {/* Feuille du dessous — présente uniquement pour donner l'épaisseur. */}
+      {/* Feuille du dessous — présente uniquement pour donner l'épaisseur.
+          Bordure claire, pas `m-line` : ce ton chaud se lirait terne sur la
+          bannière marine du hero (chantier du 4 septembre 2026). */}
       <div
         aria-hidden="true"
-        className="absolute inset-x-6 bottom-5 top-9 hidden rounded-[14px] border border-m-line bg-m-card/70 sm:block sm:rotate-[2.2deg]"
+        className="absolute inset-x-6 bottom-5 top-9 hidden rounded-[14px] border border-white/15 bg-white/10 sm:block sm:rotate-[2.2deg]"
       />
 
-      <div className="relative overflow-hidden rounded-[14px] border border-m-line bg-m-card shadow-m-lift sm:-rotate-[0.9deg]">
+      <div className="relative overflow-hidden rounded-[14px] border border-white/10 bg-m-card shadow-[0_1px_2px_rgb(0_0_0/0.2),0_32px_64px_-24px_rgb(0_0_0/0.55)] sm:-rotate-[0.9deg]">
         <div className="flex items-center justify-between gap-3 border-b border-m-line-soft bg-m-paper px-4 py-2.5">
           <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-m-ink-faint">
             Certificat de scolarité
@@ -84,7 +86,7 @@ export default function HeroProduct() {
         </div>
       </div>
 
-      <figcaption className="relative mt-6 text-center text-[13px] leading-relaxed text-m-ink-faint sm:mt-12">
+      <figcaption className="relative mt-6 text-center text-[13px] leading-relaxed text-white/45 sm:mt-12">
         Édité en un clic depuis le dossier de l&apos;élève, à l&apos;en-tête de votre école.
       </figcaption>
     </figure>

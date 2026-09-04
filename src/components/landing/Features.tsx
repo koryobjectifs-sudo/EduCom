@@ -1,48 +1,52 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Users, FileSignature, GraduationCap, Wallet, FolderCheck, KeyRound } from "lucide-react";
+import {
+  Users, FileSignature, GraduationCap, Wallet, FolderCheck, KeyRound, ClipboardCheck,
+} from "lucide-react";
 
 /**
- * Le produit — chantier PLG, réécrit par l'addendum.
+ * Le produit — mis à jour le 4 septembre 2026, sur demande de Kory
+ * (« actualiser tout ce qui est EduCom avec toutes les features qu'on a déjà
+ * lancées »). Ce fichier avait le défaut inverse de celui que l'addendum PLG
+ * avait corrigé le 27 août : il ne mentait plus, mais il **sous-vendait** —
+ * trois choses qu'il présentait comme absentes existent maintenant, vérifiées
+ * en navigateur réel dans cette même session (`context.md`, 3 septembre) :
  *
- * ═══ CE QUI ÉTAIT AFFICHÉ, ET POURQUOI C'ÉTAIT INDÉFENDABLE ═══
+ * ⚠️ Les présences existent (`Attendance`, prise par classe, écran dédié) —
+ *    l'ancien texte disait explicitement l'inverse.
+ * ⚠️ L'import Excel/CSV des élèves existe (`students/import`, avec aperçu
+ *    avant import) — l'ancien texte disait explicitement l'inverse.
+ * ⚠️ Le dossier numérique a gagné un référentiel officiel sénégalais par
+ *    cycle et un portail de conformité pour toute l'école — l'ancien texte ne
+ *    décrivait que le dossier élève seul.
  *
- * Six cartes, dont **trois fausses ou invérifiables** :
+ * ═══ CE QUI RESTE VRAI, ET NE CHANGE PAS ═══
  *
- * ⚠️ « Suivi des présences » — aucune donnée de présence n'existe au schéma. Le
- *    lot 08 avait déjà dû retirer un `attendanceRate: 98` inventé du tableau de
- *    bord ; la page d'accueil continuait de vendre le module.
- * ⚠️ « Communication fluide — messagerie intégrée entre administration,
- *    enseignants, élèves et parents ». Le lot 17 a prouvé qu'**aucun canal ne
- *    peut émettre** : Twilio est en compte d'essai sans numéro, il n'existe
- *    aucun service d'e-mail (`rappel.md` §30 à §32). Promettre une messagerie
- *    vers les familles était la promesse la plus coûteuse de la page.
- * ⚠️ « Vos données sont cryptées, sauvegardées régulièrement et conformes aux
- *    normes RGPD ». Chiffrement au repos, sauvegardes et conformité sont
- *    **explicitement listés comme NON vérifiés** (`rappel.md` §42). Et le RGPD
- *    n'est pas le texte applicable au Sénégal : c'est la **Loi n°2008-12**
- *    (§41). Trois affirmations, trois problèmes distincts.
+ * ⚠️ L'envoi WhatsApp reste **prudent**, volontairement. Le canal existe et a
+ * été prouvé une fois en production avec de vraies API Meta (`context.md`,
+ * lot Communication), mais la connexion en libre-service d'une nouvelle école
+ * est aujourd'hui bloquée côté Meta (`rappel.md`, section WhatsApp/Meta) et
+ * aucune école n'est connectée en base au moment d'écrire ceci. On ne
+ * promet donc pas un canal universellement actif — seulement ce qui est vrai :
+ * disponible pour les écoles pilotes, en cours de généralisation. À resserrer
+ * dès que le blocage Meta est levé, pas avant.
+ * ⚠️ L'encaissement en ligne n'existe toujours pas. L'encart « ce qu'EduCom ne
+ * fait pas encore » reste — et reste le meilleur outil de confiance d'un
+ * produit jeune.
  *
- * ⚠️ S'y ajoutaient des pastilles pastel (`bg-blue-100`, `bg-amber-100`,
- * `bg-purple-100`…) hors de toute charte, et un `group-hover:scale-110
- * group-hover:-rotate-3` sur chaque icône.
- *
- * ═══ CE QUI LE REMPLACE ═══
- *
- * Six capacités **adossées à des écrans qui existent**, chacune vérifiable dans
- * `src/app/dashboard/`. Et surtout : un encart qui dit ce qu'EduCom **ne fait
- * pas encore**. C'est contre-intuitif sur une page de vente, et c'est le
- * meilleur outil de confiance dont dispose un produit jeune — la directrice qui
- * lit « pas d'encaissement en ligne » avant de s'inscrire ne se sentira pas
- * trompée le premier jour.
+ * ⚠️ Refonte visuelle du 4 septembre 2026 : les cartes utilisaient `slate-*`
+ * et `primary` (la couleur de tenant du PRODUIT, pas de la marque) au lieu des
+ * tokens `m-*` du reste de la page — et l'icône de chaque capacité, importée
+ * et présente dans `CAPACITES`, n'était jamais affichée. Corrigé : icône
+ * visible dans une pastille marine, palette entièrement `m-*`.
  */
 const CAPACITES = [
   {
     icon: Users,
     titre: "Élèves et classes",
     detail:
-      "Dossiers, inscriptions par année scolaire, répartition dans les classes et suivi individuel.",
+      "Dossiers, inscriptions par année scolaire, répartition dans les classes — un par un, ou en important votre liste depuis Excel ou CSV.",
   },
   {
     icon: FileSignature,
@@ -57,6 +61,12 @@ const CAPACITES = [
       "Évaluations par matière et par période, moyennes calculées, bulletins édités et archivés.",
   },
   {
+    icon: ClipboardCheck,
+    titre: "Présences",
+    detail:
+      "L'enseignant fait l'appel, classe par classe. Le secrétariat voit les absences du jour et peut notifier un parent en un clic.",
+  },
+  {
     icon: Wallet,
     titre: "Frais, factures et reçus",
     detail:
@@ -64,9 +74,9 @@ const CAPACITES = [
   },
   {
     icon: FolderCheck,
-    titre: "Dossier numérique de l'élève",
+    titre: "Dossier numérique et conformité",
     detail:
-      "Pièces obligatoires par cycle, pièces manquantes visibles d'un coup d'œil, dossier complet exportable.",
+      "Référentiel officiel des pièces exigées par cycle au Sénégal, dossier organisé par rayon, et un taux de conformité pour toute l'école — pas seulement élève par élève.",
   },
   {
     icon: KeyRound,
@@ -85,7 +95,7 @@ export default function Features() {
             Le produit
           </p>
           <h2 className="mt-5 font-display text-[2rem] font-bold leading-[1.15] tracking-[-0.015em] text-m-ink sm:text-[2.5rem]">
-            Six chantiers de l&apos;école, dans un seul espace.
+            Sept chantiers de l&apos;école, dans un seul espace.
           </h2>
           <p className="mt-6 text-[16px] leading-[1.7] text-m-ink-soft">
             Chacun est un écran que vous pouvez ouvrir dès la création de votre espace. Rien
@@ -122,13 +132,15 @@ export default function Features() {
                 y: -6, 
                 transition: { type: "spring", stiffness: 400, damping: 25 }
               }}
-              className="group relative flex flex-col rounded-[20px] bg-white p-7 border border-slate-200 shadow-sm transition-shadow hover:shadow-xl hover:border-primary/30"
+              className="group relative flex flex-col rounded-[16px] border border-m-line bg-m-card p-7 shadow-sm transition-[border-color,box-shadow] duration-300 hover:border-m-gold/40 hover:shadow-m-lift"
             >
-              <div className="mb-5 h-1.5 w-8 rounded-full bg-primary/80 transition-all duration-300 group-hover:w-12 group-hover:bg-primary" />
-              <h3 className="text-[17px] font-semibold leading-snug text-slate-900 group-hover:text-primary transition-colors">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-[12px] bg-m-ink text-m-gold-soft transition-colors duration-300 group-hover:bg-m-ink-deep">
+                <c.icon aria-hidden="true" className="h-5 w-5" />
+              </span>
+              <h3 className="mt-5 text-[17px] font-semibold leading-snug text-m-ink">
                 {c.titre}
               </h3>
-              <p className="mt-3 text-[14.5px] leading-[1.6] text-slate-600">{c.detail}</p>
+              <p className="mt-3 text-[14.5px] leading-[1.6] text-m-ink-soft">{c.detail}</p>
             </motion.div>
           ))}
         </motion.div>
@@ -146,10 +158,9 @@ export default function Features() {
           </p>
           <ul className="mt-6 grid grid-cols-1 gap-x-10 gap-y-3.5 sm:grid-cols-2">
             {[
-              "Pas de suivi des présences.",
               "Pas d'encaissement en ligne : les paiements sont enregistrés, pas prélevés.",
-              "Pas d'envoi automatique aux familles par SMS, WhatsApp ou e-mail.",
-              "Pas d'import de vos listes d'élèves depuis Excel.",
+              "Pas d'envoi groupé par SMS ou e-mail.",
+              "L'envoi WhatsApp aux familles est en cours de déploiement — disponible pour les écoles pilotes.",
             ].map((l) => (
               <li key={l} className="flex gap-3 text-[15px] leading-[1.6] text-m-ink-soft">
                 <span aria-hidden="true" className="mt-2.5 h-px w-3.5 shrink-0 bg-m-ink-faint" />
