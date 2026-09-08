@@ -18,3 +18,14 @@ export async function changeTestRole(newRole: string) {
 
   return { success: true };
 }
+
+export async function setSidebarCollapsed(collapsed: boolean) {
+  const { cookies } = await import("next/headers");
+  const cookieStore = await cookies();
+  cookieStore.set("educom_sidebar_collapsed", collapsed ? "true" : "false", {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+  return { success: true };
+}
