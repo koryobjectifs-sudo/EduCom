@@ -100,7 +100,7 @@
 
   /* ─── Rayons : trois valeurs, pas sept ───────────────────────────────────*/
   --radius-control: 6px;   /* champs, boutons, pastilles de petite taille */
-  --radius-surface: 12px;  /* cartes, modales, panneaux */
+  --radius-surface: 10px;  /* cartes, modales, panneaux */
   /* le troisième est `9999px`, exposé via --radius-pill ci-dessous */
   --radius-pill: 9999px;   /* pastilles d'état, avatars */
 
@@ -113,13 +113,26 @@
      est fixée explicitement pour que la règle soit lisible ici. */
   --spacing: 0.25rem;
 
-  /* ─── Typographie : six rôles, plancher à 12px ───────────────────────────*/
-  --text-role-page:    28px;  /* titre de page — un seul par écran */
-  --text-role-section: 18px;  /* titre de section */
-  --text-role-card:    15px;  /* titre de carte */
-  --text-role-body:    14px;  /* défaut : tableaux, formulaires, texte courant */
-  --text-role-label:   13px;  /* libellé de champ, en-tête de colonne */
-  --text-role-meta:    12px;  /* métadonnée — PLANCHER ABSOLU, rien en dessous */
+  /* ─── Typographie : échelle logicielle calibrée et dense ─────────────────*/
+  --text-role-page:    22px;  /* titre de page — un seul par écran */
+  --text-role-section: 16px;  /* titre de section */
+  --text-role-card:    14px;  /* titre de carte */
+  --text-role-body:    13px;  /* défaut : tableaux, formulaires, texte courant */
+  --text-role-label:   12px;  /* libellé de champ, en-tête de colonne */
+  --text-role-meta:    11px;  /* métadonnée et précision */
+
+  /* ─── Shell bi-étagé EduCom (Workspace & Rail) ───────────────────────────*/
+  --color-rail-bg:          #0E2541;  /* Navy standard EduCom */
+  --color-rail-hover:       #18365D;  /* Survol élément de rail */
+  --color-rail-active:      #1F4676;  /* Élément de rail actif */
+  --color-rail-text:        #94A3B8;  /* Texte/icône inactif */
+  --color-rail-text-active: #FFFFFF;  /* Texte/icône actif */
+  --color-rail-accent:      #9C0F15;  /* Accent liseré rouge EduCom */
+
+  --width-rail:              72px;
+  --width-sidebar-expanded: 200px;
+  --width-sidebar-collapsed: 52px;
+  --height-topbar:           48px;
 
   /* ─── Alias de compatibilité ─────────────────────────────────────────────
      Noms attendus par le code existant. Ils pointent vers les tokens de rôle
@@ -137,52 +150,104 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   SOCLE MARKETING — ADDENDUM PLG (19 août 2026)
+   SOCLE MARKETING — REFONTE « SYSTÈME » (4 septembre 2026, troisième version)
    ───────────────────────────────────────────────────────────────────────────
-   Une échelle DISTINCTE de celle du produit, et c'est délibéré.
+   Kory a explicitement rejeté les deux premières versions de ce socle
+   (« pas assez bonnes », consigne écrite : ne pas itérer dessus). La
+   précédente — marine + or, bannière de type cachet officiel — vit intacte
+   sur la branche `attempt-2/navy-gold-showcase`, jamais fusionnée.
 
-   POURQUOI NE PAS RÉUTILISER LES TOKENS APPLICATIFS. Le produit doit être
-   neutre : `--color-primary` est surchargé à l'exécution par la couleur de
-   CHAQUE école (`School.primaryColor`), et `--color-ground` est un gris froid
-   choisi pour que des tableaux de notes restent lisibles huit heures d'affilée.
-   Une page d'accueil a le problème inverse : elle doit avoir une voix, celle
-   d'EduCom, la même pour tout le monde. Brancher la landing sur des tokens
-   qu'une école peut repeindre en rose produirait une marque sans identité.
+   ═══ POURQUOI UNE TROISIÈME PALETTE, PAS UNE VARIANTE DE LA DEUXIÈME ═══
 
-   D'OÙ VIENNENT CES COULEURS. Elles ne sont pas inventées : le marine et le
-   vert sont lus dans les fichiers de marque existants
-   (`public/brand/educom-symbole.svg` — #0B1F3A et #1CA46B). Le vert n'était
-   utilisé NULLE PART dans l'interface ; c'est la moitié de l'identité qui
-   dormait dans un SVG.
+   Les deux premières tentaient la même métaphore : EduCom fabrique des
+   documents, donc la page devait ressembler à du papier (blanc chaud, lot
+   PLG) ou à un cachet officiel (marine + or, tentative 2). La référence
+   demandée cette fois — Veracross, BambooHR — ne vend pas des documents,
+   elle vend une INFRASTRUCTURE : « the product should feel like
+   infrastructure that schools can trust ». Un papier chaud ou un filet or
+   disent « imprimerie », pas « système ». D'où un pivot complet, pas un
+   nouveau nuancier sur la même idée.
 
-   LE PAPIER. `--m-paper` est un blanc CHAUD, pas le #F8FAFC bleuté de
-   l'application. EduCom fabrique des documents — certificats, bulletins, reçus.
-   Le fond de la page d'accueil est la matière de ce que le produit livre. C'est
-   aussi ce qui l'éloigne le plus sûrement du gris-bleu par défaut que porte
-   toute maquette générée.
+   ═══ D'OÙ VIENNENT CES COULEURS ═══
+
+   Une encre froide presque noire pour la structure — jamais un aplat
+   décoratif — UN bleu, celui d'EduCom (`--color-primary` du produit,
+   #539BEB, lu dans `public/brand/`, donc pas inventé), et un gris structuré
+   plutôt qu'un blanc chaud. Le vert de marque (#1CA46B) redevient un SIGNAL
+   rare — un point « à jour », un statut conforme — et non l'accent
+   principal : un accent et un signal de la même famille chromatique ne se
+   distingueraient plus l'un de l'autre.
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-  --m-ink:        #0B1F3A;  /* marine de marque — titres, aplats profonds */
-  --m-ink-soft:   #40506B;  /* texte courant sur papier */
-  --m-ink-faint:  #8492A8;  /* métadonnée, légende */
+  --m-ink:       #0B1220;  /* quasi-noir froid — titres, structure */
+  --m-ink-soft:  #46536A;  /* texte courant */
+  --m-ink-faint: #8B96A8;  /* métadonnée, légende */
 
-  --m-brand-primary: #539BEB; /* Bleu principal officiel EduCom */
-
-  --m-paper:      #FAF8F4;  /* fond éditorial chaud */
-  --m-paper-deep: #F2EEE6;  /* second fond, pour alterner sans changer de ton */
+  --m-paper:      #F5F7FA;  /* fond structuré et froid — pas un papier */
+  --m-paper-deep: #EBEEF3;
   --m-card:       #FFFFFF;
 
-  --m-accent:       #1CA46B;  /* vert de marque */
-  --m-accent-deep:  #0E6B45;  /* même vert, lisible en texte sur papier (4,5:1) */
-  --m-accent-wash:  #E8F5EE;  /* voile vert pour une pastille ou un fond de puce */
+  /* Le bleu réel d'EduCom, décliné pour la marque plutôt que pour un tenant :
+     une version portante de texte (`-deep`, AA sur `--m-paper`), une teinte
+     pleine pour les aplats et pastilles (`--m-accent`), et la couleur
+     officielle elle-même réservée aux aplats qui portent du texte blanc
+     (`-bright` — même raisonnement que `--color-primary-ink` du produit,
+     plus haut dans ce fichier : #539BEB donne 2,9:1 sur blanc, sous le seuil
+     AA — jamais de texte directement dessus). */
+  --m-accent:        #2C6CB8;
+  --m-accent-deep:   #154A85;  /* 6,1:1 sur --m-paper — texte, liens, icônes */
+  --m-accent-bright: #539BEB;  /* teinte officielle — aplats seulement */
+  --m-accent-wash:   #EAF2FC;
 
-  --m-line:      #E4DED2;  /* filet chaud, accordé au papier */
-  --m-line-soft: #EFEAE1;
+  /* Signal, pas accent : un point « à jour », un badge de conformité. S'il
+     portait aussi l'identité de marque, plus rien ne distinguerait « c'est
+     EduCom » de « c'est en règle ». */
+  --m-signal: #0E8F5B;
 
-  /* Un seul relief, très bas : la profondeur vient du contraste et de l'espace,
-     pas d'une ombre portée. Les ombres larges et sombres sont l'autre signature
-     visuelle des maquettes générées. */
-  --m-lift: 0 1px 2px rgb(11 31 58 / 0.04), 0 8px 24px -12px rgb(11 31 58 / 0.18);
+  /* Accent d'attention — refonte visuelle du 5 septembre 2026 (v6). Réservé
+     EXCLUSIVEMENT à ce qui demande une action (absence, facture en retard,
+     classe sans titulaire), jamais à la décoration ni à l'identité. Avant
+     cet ajout, « Le pilotage » était monochrome bleu : un effectif et une
+     alerte avaient le même poids visuel. Teinte chaude délibérément distincte
+     du bleu de marque ET du vert `--m-signal` (positif) — une troisième
+     famille de couleur, pas une nuance des deux autres. */
+  --m-alert:        #B4460F;
+  --m-alert-wash:   #FBEEE6;
+  /* Variante claire, pour les panneaux sombres (« Le pilotage ») — même
+     raisonnement que `--m-accent-bright` pour le bleu : 8,5:1 sur
+     `--m-ink-elevated`, calculé. */
+  --m-alert-bright: #F5A25A;
+
+  /* Rouge stratégique — refonte v7 (6 septembre 2026). Échantillonné
+     directement dans `educom-logo-officiel.jpg` (moyenne des pixels du
+     blason à forte saturation rouge, script ponctuel — pas une supposition) :
+     #9C0F15. Réservé à l'emphase (un mot dans un titre, un accent ponctuel) —
+     jamais un aplat de section entière, jamais l'identité d'un bouton
+     d'action courant (l'encre `--m-ink` garde ce rôle). 9,5:1 sur blanc,
+     calculé : utilisable aussi bien en texte qu'en aplat avec texte blanc. */
+  --m-red: #9C0F15;
+
+  /* Fond chaud — refonte v7. Kory : « trop noir, trop rigide, pas assez
+     vivant ». Une seule teinte crème, combinée en dégradé Tailwind (jamais un
+     `linear-gradient` littéral ici — le garde-fou de `verify-design-tokens.ts`
+     l'interdit dans ce fichier) avec le blanc et `--m-accent-wash` existant,
+     pour un lavis doux crème → blanc → bleu très pâle, réservé au hero et à
+     la section « Convergence ». Jamais en fond de page entière. */
+  --m-warm: #FBF1E7;
+
+  --m-line:      #E2E6ED;
+  --m-line-soft: #EDF0F4;
+
+  --m-lift: 0 1px 2px rgb(11 18 32 / 0.05), 0 10px 28px -14px rgb(11 18 32 / 0.20);
+
+  /* Registre sombre — réservé au diagramme du lot « Un système » et au
+     bandeau final ⁄ pied de page. Volontairement la MÊME encre que le texte
+     clair, assombrie, et non une seconde couleur : la page passe clair →
+     sombre → clair, mais reste une seule famille chromatique du début à la
+     fin, pas deux chartes qui alternent. */
+  --m-ink-deep:     #060A12;
+  --m-ink-elevated: #121A2A;
+  --m-ink-line:     rgb(255 255 255 / 0.10);
 }
 
 /* Syntaxe de couleur relative : conserve teinte et chroma en relevant la
@@ -233,22 +298,36 @@
   --color-error:   var(--color-error);
   --color-info:    var(--color-info);
 
-  /* Marketing — addendum PLG. Préfixe `m-` pour qu'on ne puisse pas les
-     confondre avec les tokens produit en lisant une classe. */
+  /* Marketing — refonte du 4 septembre 2026. Préfixe `m-` pour qu'on ne
+     puisse pas les confondre avec les tokens produit en lisant une classe. */
   --color-m-ink:        var(--m-ink);
   --color-m-ink-soft:   var(--m-ink-soft);
   --color-m-ink-faint:  var(--m-ink-faint);
-  --color-m-primary:    var(--m-brand-primary);
   --color-m-paper:      var(--m-paper);
   --color-m-paper-deep: var(--m-paper-deep);
   --color-m-card:       var(--m-card);
-  --color-m-accent:      var(--m-accent);
-  --color-m-accent-deep: var(--m-accent-deep);
-  --color-m-accent-wash: var(--m-accent-wash);
+  --color-m-accent:        var(--m-accent);
+  --color-m-accent-deep:   var(--m-accent-deep);
+  --color-m-accent-bright: var(--m-accent-bright);
+  --color-m-accent-wash:   var(--m-accent-wash);
+  --color-m-signal:    var(--m-signal);
+  --color-m-alert:        var(--m-alert);
+  --color-m-alert-wash:   var(--m-alert-wash);
+  --color-m-alert-bright: var(--m-alert-bright);
+  --color-m-red: var(--m-red);
+  --color-m-warm: var(--m-warm);
   --color-m-line:      var(--m-line);
   --color-m-line-soft: var(--m-line-soft);
   --shadow-m-lift: var(--m-lift);
-  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+
+  --color-m-ink-deep:     var(--m-ink-deep);
+  --color-m-ink-elevated: var(--m-ink-elevated);
+  --color-m-ink-line:     var(--m-ink-line);
+
+  /* Instrument Sans, pas Fraunces (tentative 2) : la métaphore n'est plus le
+     document romain, c'est le système logiciel — voir l'en-tête du socle
+     marketing ci-dessus. Chargée dans `(marketing)/layout.tsx`. */
+  --font-display: var(--font-instrument), "Inter", system-ui, sans-serif;
 
   /* Rayons — ajoutés, pas substitués */
   --radius-control: var(--radius-control);
