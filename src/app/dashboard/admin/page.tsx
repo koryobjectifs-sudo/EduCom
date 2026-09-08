@@ -2,9 +2,14 @@ import Link from "next/link";
 import { requireSchoolContext } from "@/lib/documentContext";
 import { Settings, Briefcase, GraduationCap, FileSignature, CircleDollarSign, BarChart3, ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { hasAccess, firstAllowedPath } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 
 export default async function AdminHubPage() {
-  await requireSchoolContext(); // Will protect the route via standard context check, although navigation filters it anyway.
+  const { user } = await requireSchoolContext();
+  if (!hasAccess(user.role, "/dashboard/admin")) {
+    redirect(firstAllowedPath(user.role));
+  }
 
   const adminSections = [
     {
