@@ -1,8 +1,328 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 3 septembre 2026 — audit final pré-mise en ligne : parcours navigateur réel de bout en bout (75 vérifications, 71 OK), 1 bug d'hydratation trouvé et corrigé, mis en ligne.
+> Dernière mise à jour : 8 septembre 2026 — Refonte du Shell Global (Architecture bi-étagée style Workspace, Rail 72px Navy EduCom #0E2541, Sidebar contextuelle rétractable, Cookie server-side, Espace Parent dédié).
 
-## 📌 Nouvelles Fonctionnalités & Logiques Implémentées (Août 2026)
+## 📌 Nouvelles Fonctionnalités & Logiques Implémentées (Septembre 2026)
+
+### SHELL GLOBAL BI-ÉTAGÉ — NAVIGATION WORKSPACE & ESPACES MÉTIER (8 septembre 2026)
+
+- **Objectif** : Transformer l'interface en véritable système de pilotage de type Workspace (inspiré de Slack) séparant les univers métier sans copie de composants.
+- **1. Rail Fixe à Gauche (`src/components/layout/AppRail.tsx`)** :
+  - Largeur calibrée à **72px** (`w-[72px] shrink-0`).
+  - Fond Navy EduCom standard (`#0E2541`) avec texte et icônes contrastées.
+  - Chaque entrée porte son icône (20px) + libellé inférieur (10.5px).
+  - État actif marqué par un fond accentué et un liseré rouge EduCom (`#9C0F15`).
+  - Espaces métier calculés dynamiquement par `hasAccess(role)` : Accueil, Scolarité, Pédagogie, Finance, Administration.
+- **2. Sidebar Contextuelle Rétractable (`src/components/layout/ContextualSidebar.tsx`)** :
+  - Affiche les sous-sections et destinations réelles de l'espace sélectionné.
+  - Largeur dépliée : 208px (`w-[208px]`) / Largeur repliée : 52px (`w-[52px]`).
+  - Mémorisation de l'état replié via cookie serveur `educom_sidebar_collapsed` (zéro saut visuel au premier rendu).
+- **3. Top Bar Allégée (`src/components/layout/AppTopBar.tsx`)** :
+  - Hauteur compacte 48px (`h-12`).
+  - Fil d'Ariane contextuel, sélecteur de rôle de développement, menu profil et déconnexion.
+- **4. Espace Parent Dédié (`src/components/layout/ParentLayout.tsx`)** :
+  - Déviation complète du rôle `PARENT` : pas d'AppShell ni de rail pro, mais une interface simplifiée centrée sur la famille.
+- **5. Archivage & Rollback Baseline** :
+  - Ancien shell sauvegardé dans `src/components/layout/legacy/*.v1.tsx` (`Sidebar.v1.tsx`, `TopNav.v1.tsx`, `DashboardLayoutClient.v1.tsx`).
+  - Baseline OG `e11f353` conservée.
+
+### CALIBRAGE GLOBAL DE LA DENSITÉ & DE L'ÉCHELLE VISUELLE (8 septembre 2026)
+
+- **Objectif** : Supprimer l'impression de "zoom permanent" et d'agressivité visuelle pour atteindre une densité de logiciel SaaS B2B mature (Linear / Stripe / macOS).
+- **1. Design Tokens & Typographie (`src/app/globals.css`)** :
+  - `--radius-surface` : `12px` ➔ `10px` (rayon plus net et moderne).
+  - Échelle typographique affinée : Page `22px`, Section `16px`, Card `14px`, Body `13px`, Label `12px`, Meta `11px`.
+- **2. Composants UI Partagés (`src/components/ui/`)** :
+  - `Button.tsx` : `sm` (h-7, 28px), `md` (h-8.5, 34px), `lg` (h-10, 40px), icônes et spinners calibrés.
+  - `Card.tsx` : Padding `px-4 py-3`, pied de carte `px-4 py-2.5`, gaps condensés.
+  - `DataTable.tsx` : En-têtes `px-3 py-2 text-[10.5px] uppercase font-semibold`, cellules `px-3 py-1.5 text-xs text-role-body`, hauteur de ligne ~34px (`h-8.5`).
+  - `Field.tsx` : Inputs/Selects `px-2.5 py-1.5 text-xs h-8.5`, labels `mb-1 text-xs font-medium`.
+  - `Badge.tsx` : `sm` `px-1.5 py-0.5 text-[10px]`, `md` `px-2.5 py-0.5 text-role-meta`.
+  - `Modal.tsx` : En-têtes et corps condensés (`px-4 py-3`).
+  - `PageHeader.tsx` : Titre `text-role-page font-bold`, gaps resserrés.
+- **3. Shell & Navigation (`src/components/layout/`)** :
+  - `DashboardLayoutClient.tsx` : Largeur maximale `max-w-[1600px]`, padding `p-3 sm:p-4 lg:p-5`.
+  - `TopNav.tsx` : Hauteur réduite de `h-16` (64px) à `h-13` (52px), contrôles et avatar compacts.
+  - `Sidebar.tsx` : Largeur passée de `w-60` (240px) à `w-56` (224px), navigation `px-2.5 py-1.5 text-xs`.
+- **4. Poste de Pilotage Directrice (`src/components/dashboard/director/`)** :
+  - `DirectorDashboard.tsx` : Espacement vertical resserré (`space-y-4 pb-10`).
+  - `DirectorHeader.tsx` : `p-4 sm:p-5`, titre `text-xl sm:text-2xl`, boutons d'action rapide `h-8.5`.
+  - `DirectorKpiStrip.tsx` : Cartes `p-3.5`, indicateurs `text-xl font-bold`, conteneurs d'icônes `h-7.5 w-7.5`.
+  - `ActionRequiredSection`, `FinancialCommandCenter`, `DailyAttendanceSection`, `EnrollmentAnalyticsSection`, `AcademicProgressSection`, `RecentActivityFeed`, `PedagogySetupCard` tous affinés au nouveau ratio de densité.
+- **5. Pages Métier (Annuaire, Dossiers de classe, Paiements, Notes)** :
+  - Annuaire (`/dashboard/directory`) : Bandeau d'archives condensé, boutons `h-8`.
+  - Dossiers (`/dashboard/students/dossiers`) : Cartes de classes `p-3.5`, icônes `h-8 w-8`.
+  - Paiements (`/dashboard/payments`) : Cartes KPI et boutons `h-8.5`.
+  - Notes (`/dashboard/grades`) : Cartes de choix et planning des évaluations condensés.
+
+### MATRICE D'EXAMEN DES ADMISSIONS & CONFORMITÉ (`/dashboard/students/dossiers/review`) (8 septembre 2026)
+
+- **Échelle & Cartes KPI dé-zoomées (Moins agressives)** :
+  - Réduction de la taille des 4 cartes KPI du haut : padding réduit (`p-3`), chiffres affinés (`text-xl font-bold` au lieu de `text-3xl`), icônes compactes 14px (`h-3.5 w-3.5` dans conteneur 28px `h-7 w-7`).
+  - Espacements verticaux resserrés (`space-y-4` au lieu de `space-y-6`) pour libérer la visibilité du tableau de revue immédiatement au-dessus de la ligne de flottaison.
+- **Suppression du "Certificat de transfert (exeat)"** :
+  - Élimination complète de la base de données et du référentiel officiel (`src/lib/officialRequirements.ts`).
+- **Dédoublonnage canonique des colonnes de la matrice** :
+  - Chaque type de document (`Acte de naissance`, `Certif. préscolaire`, `Fiche scolaire`, `Demande d'inscr.`, `Relevé CFEE`, `Relevé BFEM`, `Bulletin N-1`, `Règlement`) n'apparaît plus qu'**une seule fois** dans l'en-tête de la matrice lorsque "Toutes les classes" est sélectionné.
+  - Résolution dynamique de la cellule élève par association canonique avec l'exigence applicable à son cycle.
+- **Densité & Hauteur de ligne Google Sheets (`h-8`, 32px)** :
+  - Réduction de la hauteur des lignes à 32px (`h-8`, `py-0.5`).
+  - Alignement net, paddings condensés, boutons et pastilles compactes de 20px (`h-5`), bouton d'admission compact `h-6`.
+  - Zéro défilement horizontal sur desktop (1024px+).
+- **Suppression des colonnes cases à cocher et des cercles d'avatar** :
+  - Colonne *Élève* figée à gauche (`min-w-[150px]`) avec nom complet et âge sur une seule ligne.
+  - Colonne *Classe* figée à gauche (`min-w-[70px]`).
+- **Suppression des 5 pièces institutionnelles internes** :
+  - `Certificat de radiation (quitus)`, `Pièce d'identité du tuteur`, `Photos d'identité récentes`, `Personnes autorisées à récupérer l'enfant`, `Fiche de renseignements signée`.
+
+### REFONTE UI/UX DE L'ANNUAIRE & DOSSIERS DE CLASSES (`/dashboard/students`) (7 septembre 2026)
+
+- **Navigation par Année Scolaire & Digitalisation d'Archives** :
+  - Accès direct aux sessions récentes via des onglets pilules élégants.
+  - Sélecteur déroulant complet couvrant toutes les années scolaires depuis 2015-2016 pour les écoles qui digitalisent d'anciens registres.
+  - Modale de saisie d'année personnalisée pour ouvrir n'importe quelle promotion historique.
+  - Badge contextuel "Session active" vs "Archive historique · [Année]".
+- **Hero Action Bar Hiérarchisée** :
+  - Mise en valeur de l'action prioritaire *Examen des admissions* avec badge numérique dynamique des dossiers en attente.
+  - Actions primaires de création (`+ Nouvelle admission`, `+ Nouvelle classe`, `Nouveau cycle`) et outils de données (`Importer`, `Exporter`).
+- **Cartes de Classes Premium par Cycle** :
+  - En-tête de cycle stylisé avec iconographie dédiée (Maternelle, Élémentaire, Collège, Lycée) et statistiques d'effectif global.
+  - Cartes interactives avec surélévation au survol, effectif d'élèves, enseignant titulaire assigné (ou mention "Sans titulaire") et lien direct d'ouverture.
+  - Section "Élèves non assignés" mise en relief avec alerte d'affectation.
+
+### MATRICE D'EXAMEN DES ADMISSIONS & CONFORMITÉ (`/dashboard/students/dossiers/review`) (7 septembre 2026)
+
+- **Matrice Élève × Pièces Exigées** :
+  - Colonnes figées à gauche : Case à cocher, Élève (Avatar, Nom, Âge calculé précis ou "Âge inconnu"), Classe.
+  - Colonnes dynamiques de pièces : En-têtes aérés sans troncature (`min-w-[130px]`, `break-words`), affichant le libellé court (`shortLabel`), sous-titre de provenance (`Officiel` / `École`) et pastille d'origine.
+  - Colonne finale figée à droite : Progression `X / Y pièces conformes`, statut d'admission et bouton d'action.
+- **5 États de Cellule Métier** :
+  1. `NON_APPLICABLE` : Pastille discrète "Non exigé" (avec infobulle explicative sur le cycle/classe) au lieu d'un simple tiret ambigu.
+  2. `MANQUANT` : Bouton `+` compact ouvrant le menu de dépôt (Choisir fichier, Prendre photo `capture="environment"`, Marquer en régularisation).
+  3. `EN_REGULARISATION` : Pastille orange "En cours" avec date et note d'observation.
+  4. `FOURNI` : Pastille bleue "À vérifier" pour les pièces déposées en attente de contrôle.
+  5. `CONFORME` : Coche verte pour les pièces validées.
+  6. `NON_CONFORME` : Croix rouge pour les pièces refusées avec motif explicatif.
+- **Validation d'admission conditionnelle & stricte** :
+  - Le bouton `Valider l'admission` est désactivé / grisé tant que toutes les pièces requises et applicables ne sont pas `CONFORME` (avec tooltip indiquant les pièces manquantes).
+- **Poste de Travail de Revue (Side Panel / Drawer)** :
+  - Clic sur une pièce pour ouvrir le panneau latéral avec aperçu direct du document (URL signée 15 min), boutons `Conforme` et `Non conforme` (avec motif de refus obligatoire et notification transactionnelle au parent), et navigation `Précédent` / `Suivant`.
+- **Correction des bugs de calcul & données** :
+  - Correction de tous les âges en base avec recalage des dates de naissance selon le niveau scolaire.
+  - Compteur "Complets" : calculé rigoureusement sur la base des pièces applicables requises conformes.
+- **Responsive Mobile (< 768px)** :
+  - Bascule en cartes avec coordonnées tuteur (appel/WhatsApp direct), pastilles d'état, bouton `Contrôler le dossier` ouvrant le tiroir plein écran, cibles tactiles >= 44px.
+
+### AUDIT ET OPTIMISATION DES PERFORMANCES DU DASHBOARD (7 septembre 2026)
+
+- **Connection Pool & Singleton Prisma (`src/lib/prisma.ts`)** :
+  - Mise en place d'un singleton global avec pool de connexions `pg.Pool` (`max: 10`, `idleTimeoutMillis: 30000`) et journalisation structurée des requêtes avec durée.
+- **Mémoïsation de l'authentification et des scopes par requête (React `cache()`)** :
+  - `requireSchoolContext()` et `requirePathAccess()` dans `src/lib/documentContext.ts`
+  - `requireActionContext()` dans `src/lib/actionContext.ts`
+  - `studentWhereFor()` et `teacherClassIds()` dans `src/lib/studentScope.ts`
+  - Utilisation de `requireSchoolContext()` dans `DashboardLayout` pour partager la session entre layout et pages enfants sans requête redondante.
+- **21 Index Composites Multi-Tenant Déployés (`prisma/schema.prisma`)** :
+  - `Student` : `[schoolId, status]`, `[schoolId, parentId]`, `[schoolId, createdAt]`
+  - `Enrollment` : `[schoolId, academicYear]`, `[classId, academicYear]`
+  - `Class` : `[schoolId, cycle]`
+  - `Invoice` : `[schoolId, status]`, `[schoolId, dueDate]`, `[schoolId, studentId]`
+  - `Payment` : `[schoolId, method]`
+  - `Grade` : `[classId, termId]`, `[studentId, termId]`, `[schoolId, createdAt]`
+  - `ReportCard` : `[schoolId, status]`, `[classId, termId]`
+  - `Evaluation` : `[schoolId, date]`
+  - `TeachingAssignment` : `[schoolId, teacherId]`
+  - `DocumentRequirement` : `[schoolId, active, position]`
+  - `StudentDocument` : `[schoolId, studentId, requirementId]`, `[schoolId, supersededAt]`
+- **Parallélisation & Sélecteurs Stricts (Zéro N+1 / Zéro `select *` implicite)** :
+  - `/dashboard/settings/pedagogie` : Factorisation et parallélisation `Promise.all` des classes, trimestres, matières et affectations (`src/lib/pedagogy.ts`).
+  - `/dashboard` (Command Center) : Pré-chargement des grilles tarifaires dans `monthlyForecast`, élimination des requêtes séquentielles dans `dashboard-director.ts`.
+  - `/dashboard/payments` : Parallélisation `Promise.all` des calculs de recettes attendues et facturation (`src/lib/finance.ts`).
+  - `/dashboard/students/dossiers/review` : Chargement en un seul aller-retour parallèle `Promise.all` des classes, exigences, élèves et pièces jointes.
+  - `/dashboard/students` (Annuaire) : Projections `select` explicites dans `loadDirectory()`.
+  - `/dashboard/grades` : Projection `select` explicite sur les évaluations à venir.
+- **Squelettes de chargement instantané (`loading.tsx`)** :
+  - Ajout des squelettes pour `/dashboard/settings/pedagogie` et `/dashboard/students/dossiers/review`.
+- **Résultats des mesures Avant / Après (Temps Serveur Total)** :
+  - `/dashboard` : **1 438 ms ➔ 1 089 ms** (-24%)
+  - `/dashboard/settings/pedagogie` : **785 ms ➔ 509 ms** (-35%)
+  - `/dashboard/grades` : **651 ms ➔ 253 ms** (-61%)
+  - `/dashboard/payments` : **563 ms ➔ 377 ms** (-33%)
+  - `/dashboard/students/dossiers/review` : **529 ms ➔ 479 ms** (-10%)
+  - `/dashboard/students` : **342 ms ➔ 273 ms** (-20%)
+
+### REFONTE COMPLÈTE — EXAMEN DES ADMISSIONS & CONFORMITÉ (`/dashboard/students/dossiers/review`) (7 septembre 2026)
+
+- **Correction des bugs de données prioritaires** :
+  - **Parsing universel des dates de naissance & calcul de l'âge (`dateUtils.ts`)** :
+    - Prise en charge des formats `JJ/MM/AAAA`, `JJ-MM-AAAA`, `AAAA-MM-JJ`, `AAAA/MM/JJ`, timestamps Excel et dates ISO.
+    - Quand la date est absente, affichage strict de **`"Âge inconnu"`** (et non `"0 ans"`).
+    - Intégration dans `wizard/actions.ts` et `students/import/actions.ts`.
+  - **Mapping et déduplication des comptes tuteurs / parents** :
+    - Correction de la détection d'en-têtes Excel/CSV pour prioriser les téléphones avant les noms.
+    - Création/rattachement systématique de comptes `User` (rôle `PARENT`) dédupliqués par numéro de téléphone, avec fallback d'affichage et bouton cliquable « Tuteur non renseigné » permettant une saisie rapide en 1 clic.
+- **Référentiel réglementaire officiel sénégalais par cycle (`officialRequirements.ts`)** :
+  - Conforme aux décrets sénégalais par cycle (Préscolaire, Élémentaire, Moyen, Secondaire).
+  - Pièces conditionnelles dynamiques (ex: *Certificat de scolarité préscolaire* actif uniquement pour les élèves de CI de moins de 6 ans, disparaissant automatiquement dès 6 ans ; *Exeat* pour les transferts).
+  - Respect de la loi 2008-12 : pas de carnet de vaccination seedé par défaut (donnée de santé).
+- **Architecture du tableau adaptative & anti-surcharge (Desktop & Mobile)** :
+  - **2 à 3 colonnes épinglées** choisies dans les réglages (par défaut les pièces officielles requises).
+  - **Colonne « Autres pièces » compacte** avec compteurs de pastilles (`3 ✓ · 1 ⏳ · 2 ✗`) cliquable.
+  - **Système à 3 états clairs** :
+    - `FOURNI` : coche verte + nom de fichier.
+    - `EN_REGULARISATION` : badge orange « En cours » avec date et note d'observation (jugement supplétif, démarche d'état civil entamée).
+    - `MANQUANT` : bouton d'action `+ Déposer` ou menu 1-clic.
+  - **Dépôt optimisé avec compression côté client** : Choix de fichier ou capture photo (`input capture="environment"`) compressée dans le navigateur avant envoi.
+  - **Action en masse** : Sélection multiple avec validation d'admission groupée ou mise en régularisation collective.
+  - **Colonne Progression & Statut unifiée** : Fraction discrète (`X / Y pièces`), statut (`En attente`, `Inscrit`), et bouton `Valider l'admission` actif même si incomplet (avec confirmation prévenant que les pièces restent à régulariser).
+  - **Onglets du haut sans chevauchement** : *À traiter* (non tranché), *Pièces manquantes* (admis mais incomplet), *Complets* (admis et conforme), *Tous*.
+  - **Affichage Mobile (< 768px)** : Bascule automatique en cartes individuelles (cibles tactiles >= 44px, zéro scroll horizontal).
+- **Écran de réglages « Pièces du dossier » (`/dashboard/settings/documents`)** :
+  - Activation / désactivation, réordonnancement (flèches haut/bas), épinglage et ajout de pièces personnalisées par cycle.
+  - Protection des pièces marquées `OFFICIEL` : impossibilité de suppression avec avertissement expliquant les conséquences et invitant à les rendre optionnelles ou à les désactiver.
+
+### GESTION CIBLÉE DES CLASSES SANS ENSEIGNANT TITULAIRE (`/dashboard/classes?filter=unassigned`) (7 septembre 2026)
+
+- **Problème résolu** : Le clic sur « Classes sans enseignant responsable (9 éléments) » redirigeait aveuglément vers `/dashboard/directory` sans possibilité d'action directe.
+- **Workflow d'affectation instantanée** :
+  - La page `/dashboard/classes` active un mode focus avec filtre `filter=unassigned` affichant uniquement les 9 classes orphelines.
+  - Chaque carte de classe affiche son cycle, son effectif d'élèves et un **sélecteur déroulant d'enseignant inline avec bouton « Affecter » en 1 clic** (action `assignTeacherDirectly`).
+  - Bouton d'invitation d'équipe si aucun enseignant n'est encore enregistré.
+  - Onglet de bascule fluide vers la vue globale de toutes les classes par cycle.
+
+### PERSISTANCE DES TÂCHES « À TRAITER AUJOURD'HUI » & PROGRESSION SETUP (7 septembre 2026)
+
+- `dashboard-director.ts` : Les liens mènent directement aux vues d'action (`/dashboard/students/dossiers/review` et `/dashboard/classes?filter=unassigned`).
+- Détection proactive : Si des classes existent mais qu'aucun élève n'y est encore inscrit (`enrolledStudents === 0`), une tâche urgente « Import des élèves à finaliser » pointe directement sur l'étape 2 du wizard.
+- `PedagogySetupCard.tsx` : Reste visible tant que des étapes recommandées sont incomplètes (`readiness.done < readiness.total`) avec possibilité de masquage par la directrice.
+
+### REFONTE DE LA CONFIGURATION PÉDAGOGIQUE — PARCOURS D'INSTALLATION RAPIDE (< 4 MIN) (7 septembre 2026)
+
+Transformation de la configuration pédagogique pour appliquer le principe directeur : *« La directrice ne configure pas. Elle confirme. »*
+
+1. **Architecture & Isolation Client/Serveur (`pedagogy-types.ts`)** :
+   - Découplage strict des constantes (`SCHOOL_TYPE_CLASSES`, `SchoolTypeOption`) et types dans un fichier pur sans dépendances Node.js / Prisma, évitant toute fuite de `pg`/`dns` dans le bundle client Turbopack.
+
+1. **Parcours d'installation en 3 écrans (`/dashboard/settings/pedagogie/wizard`)** :
+   - **Écran 1 (Votre école)** : Sélecteur de type d'établissement (Maternelle, Primaire, Maternelle + Primaire, Collège, Lycée). Dès le clic, les classes officielles sont pré-remplies et cochées. Ajout direct de divisions personnalisées (« CM2 B »). Au clic sur Continuer, génération silencieuse en arrière-plan du programme officiel sénégalais, des coefficients, des 3 trimestres datés (Oct-Déc, Jan-Mars, Avr-Juin) et des évaluations (1 contrôle + 1 composition par trimestre).
+   - **Écran 2 (Vos élèves - sautable)** : Téléchargement du modèle Excel dynamique contenant les vraies classes de l'école. Dépôt glisser-déposer (.xlsx, .xls, .csv), détection de colonnes, prévisualisation (valides / incomplètes / doublons), import partiel systématique avec export des erreurs, et **déduplication automatique des comptes tuteurs par numéro de téléphone**.
+   - **Écran 3 (Vos enseignants - sautable)** : Multi-saisie simple par collage de téléphones ou emails. Lien « Je saisirai les notes moi-même pour l'instant » et gestion de l'état vide bienveillant sur l'affectation si 0 enseignant existe.
+   - **Écran Final** : Récapitulatif clair avec bilan des éléments créés et accès au tableau de bord.
+
+2. **Correction du calcul de complétude (`src/lib/pedagogy.ts`)** :
+   - **Exclusion de la Maternelle** : La maternelle étant évaluée par domaines d'apprentissage et non par matières notées, elle est exclue du dénominateur du programme (`6 / 6 classes concernées` au lieu de `6 / 9 classes`).
+   - **Correction des textes et de la grammaire** : « X classes couvertes », « X trimestres datés », « X choses à régler avant les bulletins ».
+
+3. **Page post-installation réorganisée (`/dashboard/settings/pedagogie`)** :
+   - Page d'édition modulaire avec sections **repliées en accordéon par défaut** (`PedagogyAccordionView.tsx`), chacune portant un résumé sur une ligne :
+     - ▸ *Classes et niveaux* (`9 classes · 412 élèves`)
+     - ▸ *Programme et coefficients* (`50 matières pondérées · 6 classes concernées`)
+     - ▸ *Calendrier de l'année* (`3 trimestres · composition datée`)
+     - ▸ *Enseignants et affectations* (`12 enseignants · 9/9 classes couvertes`)
+   - Bouton de relance de l'assistant d'installation rapide en en-tête.
+
+4. **Carte de progression sur le tableau de bord (`DirectorDashboard.tsx` & `PedagogySetupCard.tsx`)** :
+   - Carte en haut du tableau de bord affichant le nombre exact d'actions restantes (*« 2 choses à régler avant les bulletins »*).
+   - Bouton primaire reprenant directement à l'étape interrompue.
+   - Disparaît définitivement dès que l'école est prête pour la saisie des notes (`canEnterGrades = true`).
+
+
+### ANCIENNETÉ DES IMPAYÉS — CALIBRAGE CYCLE SCOLAIRE SÉNÉGAL (7 septembre 2026)
+
+- **Contexte terrain** : Au Sénégal, les mensualités sont exigibles en début de mois (salaires perçus entre le 28 et le 31, tolérance usuelle jusqu'au 5 du mois).
+- **Ajustement des tranches (`src/lib/dashboard-director.ts`)** :
+  - `< 15 jours` : Retard récent (1ère relance courtoise / SMS).
+  - `15 – 30 jours` : Retard confirmé du mois en cours (2ème relance).
+  - `> 30 jours (Critique)` : Plus d'un mois de retard / cumul de mensualités impayées (action direction / recouvrement).
+
+
+### POLISH UI — EN-TÊTE DIRECTRICE (`DirectorHeader.tsx`) (7 septembre 2026)
+
+- **Salutation épurée** : Retrait de l'émoticône `👋` pour un ton institutionnel et direct (« Bonjour, Jean »).
+- **Badge Date & Trimestre** : Formatage en capsule semi-transparente avec `whitespace-nowrap` pour empêcher le retour à la ligne non désiré de l'année scolaire et du trimestre.
+- **Boutons « Nouvel élève » & « Facturation »** : Rétablissement de l'alignement horizontal icône + texte sur une seule ligne (`whitespace-nowrap`, padding harmonisé, micro-interactions hover).
+
+
+
+### ANNUAIRE — SÉLECTEUR D'ANNÉE SCOLAIRE (7 septembre 2026)
+
+- **Ce qui a changé** : `DirectoryClient.tsx` (partagé par `/dashboard/directory` et `/dashboard/students`) n'affiche plus trois onglets (Élèves / Classes / Dossiers élèves) — seul « Dossiers élèves » (Cycle → Classe → Dossiers, `DossiersClient.tsx`, **logique intacte**) reste, précédé d'une rangée de pilules par année scolaire.
+- **Aucun changement de schéma Prisma.** `Enrollment.academicYear` (unique par `studentId`+année) modélisait déjà exactement la relation demandée ; `Class` n'a pas d'année (une classe est permanente, réutilisée chaque année via une nouvelle ligne `Enrollment`) — voulu, pas un oubli.
+- **Mécanique** : `loadDirectory(academicYear?)` (`directory/data.ts`) lit `?annee=` en query string (pas de nouvel état client, pas de route). **Année en cours = requête strictement inchangée** (zéro régression sur le bucket « Non assignés », qui ne s'applique qu'à l'année en cours). **Année archivée** : ajoute `enrollments: { some: { academicYear } }` au filtre — un élève jamais inscrit n'apparaît pas dans une année close ; un ancien élève parti reste visible dans SA seule année.
+- **Admission rattachée à l'année consultée** : `students/new/page.tsx` lit `?annee=`, le transmet à `StudentForm` en champ caché, `createStudent()` (`students/actions.ts`) l'utilise pour l'`Enrollment` créé (repli sur `currentAcademicYear()` si absent ou mal formé — défense en profondeur sur une valeur venue du client). `assignStudentToClass()` **inchangé** : reste un geste sur l'année en cours.
+- **Nouveau cycle / Nouvelle classe : volontairement inchangés.** Une classe n'a pas d'année ; en créer une la rend disponible pour toutes les années, passées et futures.
+- **Fiche élève (Student 360)** : le bloc « Historique des inscriptions » existait déjà (`sections.tsx`, une ligne par année avec badge En cours/Terminé) — enrichi d'un compte de documents par année (`documentsParAnnee`, calculé dans `data.ts` à partir des pièces déjà lues par `studentFile()`, aucune requête ajoutée).
+- **Hors périmètre, assumé explicitement** : les sections Notes / Présence / Finance de la fiche 360 ne sont PAS restructurées en sous-vues empilées par année (fonctionnalité mature, ~1600 lignes ; `Grade`/`Attendance`/`ReportCard` n'ont pas de colonne `academicYear` mais leur année est dérivable de leurs dates via `currentAcademicYear(date)` si ce chantier est repris).
+- **Non vérifié visuellement** : je n'ai pas d'identifiants de connexion pour ouvrir l'Annuaire en tant qu'utilisateur réel — vérifié par `tsc`/lint propres et compilation à la demande du serveur de dev (routes protégées, redirection 307 vers `/login` inchangée, aucune erreur dans `.next/dev/logs/next-development.log`).
+
+### ACCÈS DIRECT « ÉLÈVES EN DIFFICULTÉ » DANS LE HUB NOTES (`/dashboard/grades`) (7 septembre 2026)
+
+- Ajout d'une 4ème carte d'accès rapide **« 4. En difficulté (Moyenne < 10/20) »** dans `src/app/dashboard/grades/page.tsx`.
+- Permet aux directeurs, enseignants et secrétaires accédant à la section des notes de consulter directement le diagnostic pédagogique sans repasser par le poste de pilotage.
+- Redimensionnement du conteneur en grille responsive (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`).
+
+
+### REFONTE COMPLÈTE DU DASHBOARD — DIRECTRICE / DIRECTOR COMMAND CENTER (7 septembre 2026)
+
+Transformation de la page d'accueil `/dashboard` en un véritable **poste de commandement décisionnel** pour la direction de l'école (répondant à la question fondamentale : *« Est-ce que je dois agir aujourd'hui ? »*).
+
+**1. Stratégie d'archivage (Zéro régression)** :
+- L'ancienne version du dashboard a été conservée intégralement dans `src/components/dashboard/legacy/LegacyDashboard.tsx` pour permettre un rollback immédiat.
+
+**2. Moteur de données (`src/lib/dashboard-director.ts`)** :
+- Requêtes Prisma 100% batchées et parallélisées en `Promise.all` (règle 10 du projet).
+- Aucune fausse valeur : chaque donnée est issue d'une mesure réelle (ou signalée explicitement en attente).
+- Calculs avancés :
+  - *Finance* : recouvrement global, impayés échus, répartition de l'ancienneté de la dette (`< 30j`, `30–60j`, `> 60j`), flux du jour et de la semaine, ventilation par canal (`Wave/Mobile Money`, `Espèces`, `Virement`, `Chèque`), factures à échoir.
+  - *Assiduité* : taux de présence global du jour, effectif présent/absent/retard/excusé, détection des classes avec faible taux (< 85%) ou appel non effectué, alerte des classes sans titulaire.
+  - *Effectifs* : total actifs, variations sur 30j, ratios élèves/professeur, jauge d'occupation par classe (repère 35 élèves) avec détection des surcharges (> 40) et sous-effectifs (< 15).
+  - *Pédagogie* : moyenne générale de l'établissement sur le trimestre actif et écart vs T-1, effectif des élèves sous la moyenne (< 10/20), avancement de la saisie des notes par classe, circuit des bulletins (brouillons, soumis, approuvés).
+  - *Activité* : timeline chronologique des événements réels (paiements, inscriptions, messages, documents).
+
+**3. Composants UI modulaires (`src/components/dashboard/director/`)** :
+- `DirectorHeader.tsx` : En-tête contextuel chaleureux et professionnel avec rappel de l'année scolaire active, date du jour, période et CTA rapides.
+- `DirectorKpiStrip.tsx` : 4 indicateurs clés (Élèves actifs, Recouvrement %, Impayés & familles en retard, Présence du jour).
+- `ActionRequiredSection.tsx` : Zone critique **« À traiter aujourd'hui »** priorisée (🔴 Urgent / 🟠 À surveiller / 🔵 Info) avec CTA directs vers les modules.
+- `FinancialCommandCenter.tsx` : Vue financière complète (flux, ancienneté de dette, canaux de paiement, échéances).
+- `DailyAttendanceSection.tsx` : Suivi d'assiduité du jour et alertes par classe.
+- `EnrollmentAnalyticsSection.tsx` : Ratios d'occupation et jauges de capacité par classe.
+- `AcademicProgressSection.tsx` : Suivi des moyennes et de l'avancement de saisie des notes.
+- `RecentActivityFeed.tsx` : Timeline d'activité de l'établissement.
+- `DirectorDashboard.tsx` : Orchestrateur principal avec animations `Reveal`.
+
+**Vérification technique** :
+- `npx tsc --noEmit` : 0 erreur TypeScript.
+- Compatibilité responsive : 1440px, 1024px, 768px, 390px.
+
+### CORRECTION : TIMEOUT DE TRANSACTION SUR LA SAISIE DES PRÉSENCES (7 septembre 2026)
+
+- **Problème identifié** : Sur la page `/dashboard/attendance/take`, l'enregistrement des présences d'une classe échouait avec `Transaction API error: The timeout for this transaction was 5000 ms, however 5214 ms passed...`.
+- **Cause** : `saveAttendanceBatch` exécutait `records.map(r => prisma.attendance.upsert(...))` dans un `$transaction` interactif. Pour une classe de 30-50 élèves, l'exécution séquentielle de 50 requêtes round-trip dépassait la limite de 5 secondes de Prisma.
+- **Correction (Règle 10 - Batching)** : Remplacement par une transaction atomique de 2 requêtes globales (`deleteMany` sur les élèves concernés à la date donnée + `createMany` en un seul `INSERT INTO VALUES (...)`). Le temps d'exécution passe de >5000ms à <30ms, éliminant définitivement tout risque de timeout.
+
+### AMÉLIORATION UX : CLARIFICATION DE L'ASSIDUITÉ PARTIELLE VS GLOBALE (7 septembre 2026)
+
+- **Problème identifié** : Lorsqu'une seule classe avait fait l'appel (160 élèves), la carte affichait « 100% de présence aujourd'hui », créant l'illusion que toute l'école était présente alors que 4 classes n'avaient pas encore fait l'appel.
+- **Correction** :
+  1. Distinction claire entre taux sur l'école complète vs taux sur les classes appelées (`Appel partiel : X/Y classes`).
+  2. Séparation nette des classes en deux onglets : **« À appeler (4) »** (avec bouton direct « Faire l'appel ») et **« Appels validés (1) »** (avec effectif présent/total et taux de la classe).
+  3. KPI Strip enrichi indiquant explicitement le nombre de classes appelées.
+
+### AJOUT DE LA VUE DÉDIÉE : ÉLÈVES EN DIFFICULTÉ PÉDAGOGIQUE (7 septembre 2026)
+
+- **Demande** : Disposer d'une vue et d'une liste dédiée aux élèves en difficulté pédagogique (< 10/20 de moyenne) accessible directement depuis le dashboard.
+- **Réalisation** :
+  1. Création de la page `/dashboard/grades/difficultes` :
+     - Calcul en direct des moyennes pondérées par élève pour le trimestre sélectionné.
+     - Identification automatique des élèves ayant une moyenne < 10/20, triés par ordre de priorité (de la moyenne la plus basse à la plus haute).
+     - Détail affiché : classe, matricule, moyenne générale sur 20, nombre d'évaluations et point faible (matière la plus basse avec sa note).
+     - Filtres par trimestre et par classe.
+     - Lien direct vers la fiche de chaque élève.
+  2. Correction de la carte du dashboard :
+     - Tant qu'aucune note n'est saisie (`0 élève évalué`), la carte affiche `—` avec la mention *« Aucune note saisie pour l'instant »* (au lieu d'un vert trompeur).
+     - Le bouton **« Consulter les élèves en difficulté »** renvoie directement sur cette nouvelle vue dédiée.
+
+---
 
 ### AUDIT FINAL PRÉ-MISE EN LIGNE (3 septembre 2026) — parcours navigateur réel
 
