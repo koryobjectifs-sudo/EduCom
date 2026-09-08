@@ -1,141 +1,248 @@
 import {
-  LayoutDashboard, Users, ClipboardList, CreditCard,
-  FileText, MessageSquare, Settings, BarChart3,
-  type LucideIcon, GraduationCap,} from "lucide-react";
+  LayoutDashboard,
+  Users,
+  FolderKanban,
+  GraduationCap,
+  CreditCard,
+  Settings,
+  BarChart3,
+  ClipboardList,
+  FileText,
+  MessageSquare,
+  BookOpen,
+  UserCheck,
+  AlertTriangle,
+  Layers,
+  type LucideIcon,
+} from "lucide-react";
 import { hasAccess, type RoleType } from "@/lib/permissions";
 
-/**
- * Définition unique de la navigation du tableau de bord.
- *
- * Sidebar desktop et navigation mobile lisent cette même table : elles ne
- * peuvent plus diverger. C'était le cas avant — `BottomNav` déclarait ses
- * propres entrées, avec des chemins **sans le préfixe `/dashboard`**, donc
- * quatre liens sur cinq menaient à une 404 et le cinquième sortait de
- * l'application vers la vitrine.
- *
- * ⚠️ **Chaque rubrique a une icône DISTINCTE.** L'ancienne sidebar utilisait
- * `FileText` pour « Saisie des notes » ET « Documents » : sur un rail sans
- * libellés, les deux entrées étaient littéralement indiscernables. « Saisie des
- * notes » porte désormais `ClipboardList`.
- *
- * ⚠️ **Aucune couleur par rubrique.** L'ancienne version donnait à chaque entrée
- * sa propre teinte (bleu, ambre, rose, indigo, teal, violet, rose…) : neuf
- * couleurs ne codent rien, et si tout est accentué, rien ne l'est. La couleur
- * est réservée à l'élément actif, conformément au socle du lot 02.
- */
-
 export type NavItem = {
+  id: string;
   name: string;
   href: string;
   icon: LucideIcon;
-  /** Libellé court pour la navigation mobile, si le nom complet est trop long. */
   short?: string;
 };
 
 export type NavSection = {
-  /** Titre de groupe. `null` pour les entrées de premier niveau, sans en-tête. */
   title: string | null;
   items: NavItem[];
 };
 
+export type NavSpaceKey = "home" | "students" | "pedagogy" | "finance" | "admin";
+
+export type NavSpace = {
+  id: NavSpaceKey;
+  label: string;
+  icon: LucideIcon;
+  defaultHref: string;
+  matchPrefixes: string[];
+  sections: NavSection[];
+};
+
 /**
- * Regroupement par métier plutôt que par ordre d'arrivée.
+ * Définition exhaustive des 5 Espaces Métier d'EduCom.
  *
- * Dix entrées à plat forcent à lire la liste entière pour trouver la bonne.
- * Trois groupes nommés permettent de viser directement — la secrétaire sait que
- * les élèves sont dans « Scolarité », le comptable que les factures sont dans
- * « Gestion ».
- *
- * ═══ RÉORGANISATION PAR MÉTIER (22 août 2026) ═══
- *
- * Les groupes portaient des noms d'**objets** — Scolarité, Gestion,
- * Établissement — où « Gestion » finissait par tout absorber : paiements,
- * documents, exports et messages, cinq entrées sans rien de commun. Ils portent
- * désormais des noms de **métiers** : Enseignement · Secrétariat · Finance ·
- * Administration. On vise la rubrique par la personne qui s'en sert.
- *
- * ⚠️ **UN TITRE DE SECTION N'EST PAS UNE PERMISSION.** Il nomme le domaine, pas
- * un droit exclusif. Une directrice voit les quatre sections ; un enseignant
- * voit « Secrétariat » s'il a l'Annuaire et les Communications, et c'est
- * normal — il consulte ses élèves et écrit aux parents. Le filtrage reste
- * `hasAccess()`, entrée par entrée, et **rien n'a bougé de ce côté** : mêmes
- * chemins, mêmes droits, aucune rubrique retirée. Seul le rangement change.
- *
- * ⚠️ **Aucune entrée n'a été supprimée ni déplacée hors de portée.** Les dix
- * rubriques sont toutes là ; deux remontent hors section (voir ci-dessous).
+ * ⚠️ CHAQUE SOUS-DESTINATION EST UNE ROUTE RÉELLE ET EXISTANTE.
+ * Aucun lien mort ni sous-fonctionnalité inventée.
  */
-export const NAV_SECTIONS: NavSection[] = [
+export const NAV_SPACES: NavSpace[] = [
   {
-    title: null,
-    items: [
-      { name: "Tableau de bord", href: "/dashboard", icon: LayoutDashboard, short: "Accueil" },
+    id: "home",
+    label: "Accueil",
+    icon: LayoutDashboard,
+    defaultHref: "/dashboard",
+    matchPrefixes: ["/dashboard$"],
+    sections: [
+      {
+        title: "Pilotage",
+        items: [
+          { id: "overview", name: "Tableau de bord", href: "/dashboard", icon: LayoutDashboard, short: "Accueil" },
+        ],
+      },
     ],
   },
   {
-    title: "Secrétariat",
-    items: [
-      { name: "Élèves & dossiers", href: "/dashboard/students", icon: Users, short: "Élèves" },
-      { name: "Documents", href: "/dashboard/documents", icon: FileText, short: "Docs" },
-      { name: "Communications", href: "/dashboard/communications", icon: MessageSquare, short: "Messages" },
+    id: "students",
+    label: "Scolarité",
+    icon: Users,
+    defaultHref: "/dashboard/students",
+    matchPrefixes: [
+      "/dashboard/students",
+      "/dashboard/directory",
+      "/dashboard/documents",
+      "/dashboard/communications",
+    ],
+    sections: [
+      {
+        title: "Élèves & Dossiers",
+        items: [
+          { id: "directory", name: "Annuaire des classes", href: "/dashboard/directory", icon: BookOpen, short: "Annuaire" },
+          { id: "dossiers", name: "Dossiers de classe", href: "/dashboard/students/dossiers", icon: FolderKanban, short: "Dossiers" },
+          { id: "review", name: "Examen des admissions", href: "/dashboard/students/dossiers/review", icon: UserCheck, short: "Admissions" },
+          { id: "all-students", name: "Registre des élèves", href: "/dashboard/students", icon: Users, short: "Élèves" },
+        ],
+      },
+      {
+        title: "Secrétariat",
+        items: [
+          { id: "documents", name: "Centre documentaire", href: "/dashboard/documents", icon: FileText, short: "Docs" },
+          { id: "comms", name: "Communications", href: "/dashboard/communications", icon: MessageSquare, short: "Messages" },
+        ],
+      },
     ],
   },
   {
-    title: "Enseignement",
-    items: [
-      { name: "Présences", href: "/dashboard/attendance", icon: ClipboardList, short: "Présences" },
-      { name: "Notes & bulletins", href: "/dashboard/grades", icon: GraduationCap, short: "Notes" },
+    id: "pedagogy",
+    label: "Pédagogie",
+    icon: GraduationCap,
+    defaultHref: "/dashboard/grades",
+    matchPrefixes: [
+      "/dashboard/grades",
+      "/dashboard/attendance",
+      "/dashboard/classes",
+    ],
+    sections: [
+      {
+        title: "Enseignement",
+        items: [
+          { id: "grades", name: "Notes & bulletins", href: "/dashboard/grades", icon: GraduationCap, short: "Notes" },
+          { id: "attendance", name: "Présences & appel", href: "/dashboard/attendance", icon: ClipboardList, short: "Présences" },
+          { id: "classes", name: "Classes & niveaux", href: "/dashboard/classes", icon: Layers, short: "Classes" },
+        ],
+      },
+      {
+        title: "Suivi des acquis",
+        items: [
+          { id: "difficulties", name: "Élèves en difficulté", href: "/dashboard/grades/difficultes", icon: AlertTriangle, short: "Difficultés" },
+        ],
+      },
     ],
   },
   {
-    title: "Finance",
-    items: [
-      { name: "Finance", href: "/dashboard/payments", icon: CreditCard, short: "Finance" },
+    id: "finance",
+    label: "Finance",
+    icon: CreditCard,
+    defaultHref: "/dashboard/payments",
+    matchPrefixes: [
+      "/dashboard/payments",
+    ],
+    sections: [
+      {
+        title: "Gestion Financière",
+        items: [
+          { id: "payments", name: "Facturation & paiements", href: "/dashboard/payments", icon: CreditCard, short: "Paiements" },
+        ],
+      },
     ],
   },
   {
-    title: "Administration",
-    items: [
-      { name: "Administration", href: "/dashboard/admin", icon: Settings, short: "Admin" },
-      { name: "Rapports", href: "/dashboard/admin/reports", icon: BarChart3, short: "Rapports" },
+    id: "admin",
+    label: "Admin",
+    icon: Settings,
+    defaultHref: "/dashboard/admin",
+    matchPrefixes: [
+      "/dashboard/admin",
+      "/dashboard/team",
+      "/dashboard/settings",
+    ],
+    sections: [
+      {
+        title: "Établissement",
+        items: [
+          { id: "admin-home", name: "Vue d'ensemble admin", href: "/dashboard/admin", icon: Settings, short: "Admin" },
+          { id: "team", name: "Équipe & membres", href: "/dashboard/team", icon: Users, short: "Équipe" },
+          { id: "reports", name: "Rapports d'activité", href: "/dashboard/admin/reports", icon: BarChart3, short: "Rapports" },
+          { id: "settings", name: "Paramètres généraux", href: "/dashboard/settings", icon: Settings, short: "Paramètres" },
+          { id: "pedagogy-settings", name: "Config pédagogique", href: "/dashboard/settings/pedagogie", icon: BookOpen, short: "Config Pédag." },
+          { id: "doc-settings", name: "Pièces exigées", href: "/dashboard/settings/documents", icon: FileText, short: "Pièces" },
+        ],
+      },
     ],
   },
 ];
 
 /**
- * Sections filtrées par rôle, via `hasAccess()`.
- *
- * ⚠️ **Les rubriques interdites ne sont plus affichées grisées.** L'ancienne
- * sidebar les rendait avec un cadenas : elle annonçait donc à chaque rôle
- * l'existence de tout ce qu'il ne peut pas faire, ce qui encombre sans informer.
- * Une navigation ne montre que ce qui est atteignable — sinon elle contient des
- * liens morts par construction.
- *
- * Une section dont aucune entrée n'est autorisée disparaît entièrement, en-tête
- * compris : un titre de groupe vide n'informe de rien.
+ * Renvoie la liste des Espaces Métier autorisés pour ce rôle,
+ * avec leurs sous-sections filtrées par `hasAccess()`.
  */
-export function visibleSections(role: RoleType | string): NavSection[] {
-  return NAV_SECTIONS
-    .map((section) => ({
-      ...section,
-      items: section.items.filter((item) => hasAccess(role, item.href)),
-    }))
-    .filter((section) => section.items.length > 0);
+export function getVisibleSpaces(role: RoleType | string): NavSpace[] {
+  return NAV_SPACES.map((space) => {
+    const authorizedSections = space.sections
+      .map((sec) => ({
+        ...sec,
+        items: sec.items.filter((item) => hasAccess(role, item.href)),
+      }))
+      .filter((sec) => sec.items.length > 0);
+
+    // Si la route par défaut n'est pas autorisée, prendre la première route autorisée de l'espace
+    const firstAllowedHref = authorizedSections[0]?.items[0]?.href ?? space.defaultHref;
+
+    return {
+      ...space,
+      defaultHref: firstAllowedHref,
+      sections: authorizedSections,
+    };
+  }).filter((space) => space.sections.length > 0);
 }
 
-/** Toutes les entrées autorisées, à plat — pour la navigation mobile. */
-export function visibleItems(role: RoleType | string): NavItem[] {
-  return visibleSections(role).flatMap((s) => s.items);
+/**
+ * Détecte l'espace actif à partir de l'URL actuelle.
+ */
+export function getActiveSpaceId(pathname: string | null, spaces: NavSpace[]): NavSpaceKey {
+  if (!pathname || spaces.length === 0) return spaces[0]?.id ?? "home";
+
+  if (pathname === "/dashboard") {
+    const hasHome = spaces.find((s) => s.id === "home");
+    if (hasHome) return "home";
+  }
+
+  // 1. Chercher d'abord une correspondance exacte avec une sous-destination
+  for (const space of spaces) {
+    for (const section of space.sections) {
+      for (const item of section.items) {
+        if (isActive(item.href, pathname)) {
+          return space.id;
+        }
+      }
+    }
+  }
+
+  // 2. Chercher par préfixe de l'espace
+  for (const space of spaces) {
+    if (space.id !== "home") {
+      for (const prefix of space.matchPrefixes) {
+        if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
+          return space.id;
+        }
+      }
+    }
+  }
+
+  return spaces[0]?.id ?? "home";
 }
 
 /**
  * Vrai si l'entrée correspond au chemin courant.
- *
- * `/dashboard` demande une correspondance exacte : sans cela, l'accueil
- * resterait actif sur toutes les pages du tableau de bord, puisque toutes
- * commencent par `/dashboard`.
  */
 export function isActive(href: string, pathname: string | null): boolean {
   if (!pathname) return false;
   if (href === "/dashboard") return pathname === "/dashboard";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
+
+/**
+ * Toutes les entrées autorisées, à plat — pour le tiroir mobile unifié.
+ */
+export function visibleItems(role: RoleType | string): NavItem[] {
+  return getVisibleSpaces(role).flatMap((space) =>
+    space.sections.flatMap((sec) => sec.items)
+  );
+}
+
+// Rétrocompatibilité avec l'ancienne signature
+export function visibleSections(role: RoleType | string): NavSection[] {
+  return getVisibleSpaces(role).flatMap((s) => s.sections);
+}
+
