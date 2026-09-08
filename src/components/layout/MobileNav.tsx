@@ -2,56 +2,29 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { SidebarNav, SchoolIdentity } from "./Sidebar";
+import { getVisibleSpaces, isActive } from "@/lib/navigation";
 
-/**
- * Navigation mobile — tiroir latéral.
- *
- * ═══ CE QU'ELLE REMPLACE ═══
- *
- * `BottomNav` était **cassé**. Ses cinq liens pointaient vers `/`,
- * `/admissions`, `/students`, `/payments`, `/reports` — **sans le préfixe
- * `/dashboard`**. Résultat : quatre liens sur cinq menaient à une 404, et le
- * cinquième faisait sortir de l'application vers la vitrine. La navigation
- * mobile était donc inutilisable. Elle ignorait de surcroît les permissions, et
- * n'affichait le libellé que de l'entrée active (`opacity-0 h-0 w-0` pour les
- * autres) — les quatre autres onglets n'étaient que des icônes muettes.
- *
- * Le tiroir lit `visibleSections()`, exactement comme la sidebar desktop :
- * les deux navigations ne peuvent plus diverger, et aucune entrée interdite
- * n'apparaît.
- *
- * ═══ POURQUOI UN TIROIR ET NON UNE BARRE D'ONGLETS ═══
- *
- * Une barre inférieure ne tient que 4 à 5 destinations. EduCom en a jusqu'à dix
- * selon le rôle : il faudrait en cacher la moitié, ou les réduire à des icônes —
- * ce que faisait l'ancienne version, avec le résultat décrit plus haut. Un
- * tiroir affiche la liste complète, groupée et libellée, comme sur desktop.
- *
- * Accessibilité : `role="dialog"`, `aria-modal`, fermeture par `Escape`, focus
- * porté sur le panneau à l'ouverture et rendu au déclencheur à la fermeture,
- * défilement d'arrière-plan bloqué. Même contrat que la primitive `Modal` du
- * lot 04 — non réutilisée telle quelle car un tiroir latéral pleine hauteur n'a
- * ni la géométrie ni l'en-tête d'une boîte de dialogue centrée.
- */
+export interface MobileNavProps {
+  schoolName?: string;
+  schoolLogo?: string | null;
+  userRole?: string;
+}
+
 export default function MobileNav({
   schoolName = "EduCom",
   schoolLogo,
   userRole = "PARENT",
-}: {
-  schoolName?: string;
-  schoolLogo?: string | null;
-  userRole?: string;
-}) {
+}: MobileNavProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // Naviguer ferme le tiroir : sans cela il reste ouvert par-dessus la page
-  // qu'on vient de demander.
+  const spaces = getVisibleSpaces(userRole);
+
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
@@ -72,7 +45,6 @@ export default function MobileNav({
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
-      // Le focus revient au bouton d'ouverture, pas en haut du document.
       if (triggerRef.current?.isConnected) triggerRef.current.focus();
     };
   }, [open]);
@@ -85,40 +57,106 @@ export default function MobileNav({
         onClick={() => setOpen(true)}
         aria-label="Ouvrir la navigation"
         aria-expanded={open}
-        icon={<Menu aria-hidden="true" className="h-6 w-6 text-text" />}
-        className="lg:hidden h-12 w-12 flex items-center justify-center p-0"
+        icon={<Menu aria-hidden="true" className="h-5 w-5 text-text" />}
+        className="lg:hidden h-10 w-10 min-h-[44px] min-w-[44px] flex items-center justify-center p-0"
       />
 
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden print:hidden">
+          {/* Fond sombre */}
           <div
             aria-hidden="true"
-            onMouseDown={() => setOpen(false)}
-            className="absolute inset-0 bg-text/40"
+            onClick={() => setOpen(false)}
+            className="absolute inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
           />
 
+          {/* Tiroir */}
           <div
             ref={panelRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Navigation principale"
+            aria-label="Menu principal"
             tabIndex={-1}
-            className="relative flex h-full w-72 max-w-[85vw] flex-col border-r border-rule bg-surface shadow-overlay focus:outline-none"
+            className="relative flex h-full w-80 max-w-[85vw] flex-col border-inline-end border-rule bg-surface shadow-overlay focus:outline-none"
           >
-            <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-rule px-4">
-              <SchoolIdentity schoolName={schoolName} schoolLogo={schoolLogo} />
+            {/* Entête Établissement */}
+            <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-rule px-4 bg-ground">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {schoolLogo ? (
+                  <img
+                    src={schoolLogo}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-7 w-auto max-w-[60px] shrink-0 rounded-sm object-contain"
+                  />
+                ) : (
+                  <div
+                    aria-hidden="true"
+                    className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-control bg-primary text-xs font-bold text-white"
+                  >
+                    {schoolName.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="line-clamp-1 text-xs font-bold text-text leading-tight" title={schoolName}>
+                    {schoolName}
+                  </p>
+                  <p className="text-[10px] text-text-faint">EduCom Workspace</p>
+                </div>
+              </div>
+
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setOpen(false)}
                 aria-label="Fermer la navigation"
                 icon={<X aria-hidden="true" className="h-4 w-4" />}
-                className="shrink-0"
+                className="shrink-0 min-h-[44px] min-w-[44px]"
               />
             </div>
 
-            <div className="flex-1 overflow-y-auto px-3 py-4">
-              <SidebarNav userRole={userRole} />
+            {/* Corps du menu mobile : Espaces & Sous-destinations */}
+            <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+              {spaces.map((space) => {
+                const SpaceIcon = space.icon;
+                return (
+                  <div key={space.id} className="space-y-2">
+                    <div className="flex items-center gap-2 px-2 text-xs font-bold uppercase tracking-wider text-text-soft">
+                      <SpaceIcon aria-hidden="true" className="h-4 w-4 text-primary" />
+                      <span>{space.label}</span>
+                    </div>
+
+                    <div className="space-y-0.5 border-inline-start-2 border-rule/60 ms-2 ps-2">
+                      {space.sections.map((section) =>
+                        section.items.map((item) => {
+                          const ItemIcon = item.icon;
+                          const active = isActive(item.href, pathname);
+                          return (
+                            <Link
+                              key={item.id}
+                              href={item.href}
+                              onClick={() => setOpen(false)}
+                              aria-current={active ? "page" : undefined}
+                              className={[
+                                "flex items-center gap-3 rounded-control px-3 py-2.5 text-xs font-medium min-h-[44px] transition-colors",
+                                active
+                                  ? "bg-primary/10 text-primary font-semibold"
+                                  : "text-text-soft hover:bg-sunk hover:text-text",
+                              ].join(" ")}
+                            >
+                              <ItemIcon
+                                aria-hidden="true"
+                                className={`h-4 w-4 shrink-0 ${active ? "text-primary" : "text-text-faint"}`}
+                              />
+                              <span className="truncate">{item.name}</span>
+                            </Link>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

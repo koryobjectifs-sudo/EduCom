@@ -1,69 +1,77 @@
 "use client";
 
-import TopNav from "@/components/layout/TopNav";
-import Sidebar from "@/components/layout/Sidebar";
 import { usePathname, useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { hasAccess, firstAllowedPath, RoleType } from "@/lib/permissions";
+import { getVisibleSpaces } from "@/lib/navigation";
+import AppShell from "@/components/layout/AppShell";
+import ParentLayout from "@/components/layout/ParentLayout";
 
-export default function DashboardLayoutClient({
-  children,
-  schoolName,
-  schoolLogo,
-  userRole = "PARENT",
-  userName,
-}: {
+export interface DashboardLayoutClientProps {
   children: React.ReactNode;
   schoolName?: string;
   schoolLogo?: string | null;
   userRole?: string;
   userName?: string;
-}) {
+  initialCollapsed?: boolean;
+}
+
+export default function DashboardLayoutClient({
+  children,
+  schoolName = "EduCom",
+  schoolLogo,
+  userRole = "PARENT",
+  userName,
+  initialCollapsed = false,
+}: DashboardLayoutClientProps) {
   const pathname = usePathname();
   const router = useRouter();
 
+  const isParent = userRole === "PARENT";
+  const spaces = useMemo(() => getVisibleSpaces(userRole), [userRole]);
+
   useEffect(() => {
     if (pathname && !hasAccess(userRole as RoleType, pathname)) {
-      // ⚠️ Redirection vers le premier chemin RÉELLEMENT autorisé, pas vers
-      // `/dashboard` en dur. `PARENT` n'a pas accès à l'accueil : l'ancienne
-      // version le renvoyait donc vers une page qu'il ne pouvait pas voir non
-      // plus, et la redirection se relançait indéfiniment.
       router.push(firstAllowedPath(userRole as RoleType));
     }
   }, [pathname, userRole, router]);
 
-  // If unauthorized for the current path, don't render children to avoid flickers or data leaks,
-  // render null or a loading state while redirecting.
-  // We can just render children because useEffect will redirect quickly, but for security:
   const isAuthorized = pathname ? hasAccess(userRole as RoleType, pathname) : true;
 
-  return (
-    <div className="flex h-screen w-full overflow-hidden bg-ground print:bg-white print:h-auto print:overflow-visible">
-      {/* La sidebar gère elle-même sa visibilité (masquée sous lg) : l'envelopper
-          dans un conteneur `hidden md:flex` dupliquait la responsabilité et
-          faisait apparaître le rail en tablette sans que la largeur suive. */}
-      <Sidebar schoolName={schoolName} schoolLogo={schoolLogo} userRole={userRole} />
-      <div className="flex min-w-0 flex-1 flex-col print:overflow-visible">
-        <div className="print:hidden">
-          <TopNav schoolName={schoolName} schoolLogo={schoolLogo} userRole={userRole} userName={userName} />
-        </div>
-        <main className="flex-1 w-full overflow-y-auto relative print:overflow-visible print:m-0 print:p-0">
-          <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 print:max-w-none print:p-0 print:m-0">
-            {isAuthorized ? children : (
-              <div className="flex h-[50vh] flex-col items-center justify-center text-center">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-surface border border-rule bg-ground text-text-faint">
-                  <Lock aria-hidden="true" className="h-6 w-6" />
-                </div>
-                <h2 className="text-role-section font-semibold text-text">Accès restreint</h2>
-                <p className="mt-2 max-w-md text-role-body text-text-soft">
-                  Vous n'avez pas les droits nécessaires pour cette page. Redirection en cours…
-                </p>
-              </div>
-            )}
-          </div>
-        </main>
+  const content = isAuthorized ? children : (
+    <div className="flex h-[50vh] flex-col items-center justify-center text-center">
+      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-surface border border-rule bg-ground text-text-faint">
+        <Lock aria-hidden="true" className="h-5 w-5" />
       </div>
+      <h2 className="text-role-section font-semibold text-text">Accès restreint</h2>
+      <p className="mt-1.5 max-w-md text-role-body text-text-soft">
+        Vous n'avez pas les droits nécessaires pour cette page. Redirection en cours…
+      </p>
     </div>
   );
+
+  // Expérience dédiée pour les parents (application mobile-first simplifiée, sans shell pro)
+  if (isParent) {
+    return (
+      <ParentLayout schoolName={schoolName} schoolLogo={schoolLogo} userName={userName}>
+        {content}
+      </ParentLayout>
+    );
+  }
+
+  // Shell applicatif bi-étagé professionnel pour tous les rôles internes
+  return (
+    <AppShell
+      spaces={spaces}
+      initialCollapsed={initialCollapsed}
+      schoolName={schoolName}
+      schoolLogo={schoolLogo}
+      userRole={userRole}
+      userName={userName}
+    >
+      {content}
+    </AppShell>
+  );
 }
+
