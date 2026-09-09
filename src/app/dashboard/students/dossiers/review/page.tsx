@@ -89,6 +89,7 @@ export default async function DossierReviewPage({
         validityMonths: null,
         active: true,
         position: r.order || i + 1,
+        order: r.order || i + 1,
         schoolId,
         createdAt: new Date(),
         updatedAt: new Date(),

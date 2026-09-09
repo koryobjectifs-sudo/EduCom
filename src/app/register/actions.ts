@@ -68,15 +68,21 @@ function messageFr(code: string | undefined, brut: string): string {
 export async function register(formData: FormData): Promise<RegisterResult | void> {
   const email = (formData.get('email') as string ?? '').trim().toLowerCase()
   const password = formData.get('password') as string
+  const termsAccepted = formData.get('termsAccepted') === 'on' || formData.get('termsAccepted') === 'true'
 
   if (!email || !password) {
     return { error: 'Tous les champs sont requis.' }
+  }
+
+  if (!termsAccepted) {
+    return { error: "Veuillez accepter les conditions générales d'utilisation et la politique de confidentialité pour créer votre compte." }
   }
 
   // L'origine réelle de la requête : en développement `localhost:3000`, en
   // production le domaine servi. Écrire l'URL en dur ici enverrait les
   // utilisateurs du pilote vers la machine de développement.
   const entetes = await headers()
+  const clientIp = entetes.get('x-forwarded-for')?.split(',')[0]?.trim() || entetes.get('x-real-ip') || '127.0.0.1'
   const origine =
     process.env.NEXT_PUBLIC_SITE_URL ??
     `${entetes.get('x-forwarded-proto') ?? 'http'}://${entetes.get('host')}`
@@ -124,7 +130,21 @@ export async function register(formData: FormData): Promise<RegisterResult | voi
       // son école aussi. On ne recrée rien.
       if (existant?.schoolId) return
 
-      const school = await tx.school.create({ data: { name: "École en configuration", email } })
+      const school = await tx.school.create({
+        data: {
+          name: "École en configuration",
+          email,
+          schoolActivated: false,
+          setupProgress: {
+            classes: false,
+            curriculum: false,
+            calendar: false,
+            students: false,
+            teachers: false,
+            payments: false,
+          },
+        },
+      })
       await tx.user.create({
         data: {
           id: user!.id, // même identifiant que Supabase Auth : c'est la jointure
@@ -133,6 +153,10 @@ export async function register(formData: FormData): Promise<RegisterResult | voi
           lastName: "EduCom",
           role: 'ADMIN',
           schoolId: school.id,
+          emailVerified: Boolean(user!.email_confirmed_at),
+          termsAcceptedAt: new Date(),
+          termsVersion: "2026-09-v1",
+          termsIpAddress: clientIp,
         },
       })
     })

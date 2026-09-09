@@ -296,3 +296,80 @@ export async function disconnectWhatsApp() {
     return { error: "Failed to disconnect." };
   }
 }
+
+/**
+ * Récupère le modèle officiel de déclaration préalable CDP pré-rempli.
+ */
+export async function getCdpDeclarationDataAction() {
+  const auth = await requireActionContext("/dashboard/settings");
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId, userId } = auth.ctx;
+
+  const [school, user] = await Promise.all([
+    prisma.school.findUnique({
+      where: { id: schoolId },
+      select: {
+        name: true,
+        address: true,
+        phone: true,
+        email: true,
+        activeAcademicYear: true,
+        dataProcessingAcceptedAt: true,
+        waveTermsAcceptedAt: true,
+      },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { firstName: true, lastName: true },
+    }),
+  ]);
+
+  if (!school) return { error: "Établissement introuvable." };
+
+  const { generateCdpDeclarationDocument } = await import("@/lib/legal/cdpDeclaration");
+  const doc = generateCdpDeclarationDocument({
+    schoolName: school.name,
+    address: school.address,
+    phone: school.phone,
+    email: school.email,
+    directorName: user ? `${user.firstName} ${user.lastName}`.trim() : "Direction",
+    activeAcademicYear: school.activeAcademicYear,
+  });
+
+  return {
+    data: doc,
+    isDpaAccepted: Boolean(school.dataProcessingAcceptedAt),
+    dpaAcceptedAt: school.dataProcessingAcceptedAt?.toISOString() || null,
+    isWaveTermsAccepted: Boolean(school.waveTermsAcceptedAt),
+    waveTermsAcceptedAt: school.waveTermsAcceptedAt?.toISOString() || null,
+  };
+}
+
+/**
+ * Acceptation bloquante des conditions financières Wave au moment de la connexion.
+ */
+export async function acceptWaveTermsAction() {
+  const auth = await requireActionContext("/dashboard/settings");
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId, emailVerified } = auth.ctx;
+
+  if (!emailVerified) {
+    return { error: "Veuillez vérifier votre adresse e-mail avant de connecter Wave et d'activer les paiements." };
+  }
+
+  const { headers } = await import("next/headers");
+  const entetes = await headers();
+  const clientIp = entetes.get("x-forwarded-for")?.split(",")[0]?.trim() || entetes.get("x-real-ip") || "127.0.0.1";
+
+  await prisma.school.update({
+    where: { id: schoolId },
+    data: {
+      waveTermsAcceptedAt: new Date(),
+      waveTermsVersion: "2026-09-v1",
+      waveTermsIp: clientIp,
+    },
+  });
+
+  revalidatePath("/dashboard/settings");
+  return { success: true };
+}

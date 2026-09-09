@@ -31,6 +31,7 @@ export type ActionContext = {
   userId: string;
   schoolId: string;
   role: RoleType;
+  emailVerified: boolean;
   school?: { id: string; name: string; activeAcademicYear: string | null } | null;
 };
 
@@ -62,7 +63,16 @@ export const requireActionContext = cache(async function requireActionContext(re
         if (requiredPath && !hasAccess(role, requiredPath)) {
           return { ok: false, error: "Vous n'avez pas les droits nécessaires pour cette action (Dev Mode)." };
         }
-        return { ok: true, ctx: { userId: dbUser.id, schoolId: testSchoolId, role, school: dbUser.school } };
+        return {
+          ok: true,
+          ctx: {
+            userId: dbUser.id,
+            schoolId: testSchoolId,
+            role,
+            emailVerified: dbUser.emailVerified ?? false,
+            school: dbUser.school,
+          },
+        };
       }
     }
   }
@@ -77,6 +87,7 @@ export const requireActionContext = cache(async function requireActionContext(re
       id: true,
       schoolId: true,
       role: true,
+      emailVerified: true,
       school: { select: { id: true, name: true, activeAcademicYear: true } },
     },
   });
@@ -89,5 +100,14 @@ export const requireActionContext = cache(async function requireActionContext(re
     return { ok: false, error: "Vous n'avez pas les droits nécessaires pour cette action." };
   }
 
-  return { ok: true, ctx: { userId: dbUser.id, schoolId: dbUser.schoolId, role, school: dbUser.school } };
+  return {
+    ok: true,
+    ctx: {
+      userId: dbUser.id,
+      schoolId: dbUser.schoolId,
+      role,
+      emailVerified: dbUser.emailVerified ?? false,
+      school: dbUser.school,
+    },
+  };
 });

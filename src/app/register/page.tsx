@@ -194,15 +194,45 @@ export default function RegisterPage() {
               minLength={6}
             />
           </div>
-          <Button type="submit" size="lg" block loading={loading}>
+
+          <div className="pt-1">
+            <label className="flex items-start gap-2.5 cursor-pointer text-left group select-none">
+              <input
+                type="checkbox"
+                name="termsAccepted"
+                id="termsAccepted"
+                required
+                className="mt-0.5 h-4 w-4 rounded border-rule text-primary focus:ring-primary/20 accent-primary cursor-pointer"
+              />
+              <span className="text-[12px] leading-relaxed text-text-soft">
+                J&apos;accepte les{" "}
+                <Link
+                  href="/terms"
+                  target="_blank"
+                  className="font-semibold text-text underline hover:text-primary transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Conditions générales d&apos;utilisation
+                </Link>{" "}
+                et la{" "}
+                <Link
+                  href="/privacy"
+                  target="_blank"
+                  className="font-semibold text-text underline hover:text-primary transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Politique de confidentialité
+                </Link>
+                .
+              </span>
+            </label>
+          </div>
+
+          <Button type="submit" size="lg" block loading={loading} className="mt-2">
             Créer l&apos;espace de mon école
             {!loading && <ArrowRight aria-hidden="true" className="h-4 w-4" />}
           </Button>
         </form>
-
-        <p className="mt-4 text-[12px] text-center leading-relaxed text-text-faint">
-          En créant votre espace, vous acceptez nos conditions d&apos;utilisation.
-        </p>
 
         <p className="mt-6 text-center text-[13px] text-text-soft">
           Votre école est déjà sur EduCom ?{" "}

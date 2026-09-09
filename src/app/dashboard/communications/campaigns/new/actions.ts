@@ -18,6 +18,10 @@ export async function createCommunicationCampaign(data: {
   const { ctx } = auth;
   const { schoolId } = ctx;
 
+  if (!ctx.emailVerified) {
+    return { success: false, error: "Veuillez vérifier votre adresse e-mail avant d'envoyer des communications." };
+  }
+
   if (ctx.role === "TEACHER") {
     return { success: false, error: "Vous n'avez pas les droits pour créer une campagne externe." };
   }

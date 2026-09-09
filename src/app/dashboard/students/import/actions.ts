@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireActionContext } from "@/lib/actionContext";
@@ -27,6 +28,44 @@ export type ImportPreviewResult = {
   classesDetected: string[];
   duplicateNames: string[];
 };
+
+export async function getDpaStatusAction() {
+  const auth = await requireActionContext("/dashboard/students");
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId } = auth.ctx;
+
+  const school = await prisma.school.findUnique({
+    where: { id: schoolId },
+    select: { name: true, dataProcessingAcceptedAt: true },
+  });
+
+  return {
+    accepted: Boolean(school?.dataProcessingAcceptedAt),
+    acceptedAt: school?.dataProcessingAcceptedAt?.toISOString() ?? null,
+    schoolName: school?.name || "Votre établissement",
+  };
+}
+
+export async function acceptDpaAction() {
+  const auth = await requireActionContext("/dashboard/students");
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId } = auth.ctx;
+
+  const entetes = await headers();
+  const clientIp = entetes.get("x-forwarded-for")?.split(",")[0]?.trim() || entetes.get("x-real-ip") || "127.0.0.1";
+
+  await prisma.school.update({
+    where: { id: schoolId },
+    data: {
+      dataProcessingAcceptedAt: new Date(),
+      dataProcessingVersion: "2026-09-v1",
+      dataProcessingIp: clientIp,
+    },
+  });
+
+  revalidatePath("/dashboard/students/import");
+  return { success: true };
+}
 
 export async function previewImport(rows: ImportRow[]): Promise<{ data?: ImportPreviewResult; error?: string }> {
   const auth = await requireActionContext("/dashboard/students");
@@ -79,211 +118,308 @@ export async function previewImport(rows: ImportRow[]): Promise<{ data?: ImportP
 export async function importStudents(rows: ImportRow[], skipDuplicates: boolean = false) {
   const auth = await requireActionContext("/dashboard/students");
   if (!auth.ok) return { error: auth.error };
-  const { schoolId, userId, school } = auth.ctx;
+  const { schoolId, userId } = auth.ctx;
+
+  const schoolDb = await prisma.school.findUnique({
+    where: { id: schoolId },
+    select: { id: true, name: true, activeAcademicYear: true, dataProcessingAcceptedAt: true },
+  });
+
+  if (!schoolDb?.dataProcessingAcceptedAt) {
+    return {
+      error: "Conformité légale : vous devez valider la convention de traitement des données (CDP Sénégal) avant d'importer des élèves.",
+      needsDpa: true,
+    };
+  }
 
   if (!rows || rows.length === 0) {
     return { error: "Le fichier ne contient aucune donnée valide." };
   }
 
   try {
-    const year = currentAcademicYear(school);
+    const year = currentAcademicYear(schoolDb);
     let importedCount = 0;
     const classBreakdownMap = new Map<string, number>();
+    const partialErrors: { row: number; reason: string }[] = [];
 
-    let validRows = rows.filter(r => r.firstName && r.lastName);
-    
+    // Filter valid rows with first & last name
+    const validRows: (ImportRow & { originalIndex: number })[] = [];
+    rows.forEach((r, idx) => {
+      if (!r.firstName?.trim() || !r.lastName?.trim()) {
+        partialErrors.push({ row: idx + 1, reason: "Nom ou prénom manquant" });
+      } else {
+        validRows.push({ ...r, originalIndex: idx + 1 });
+      }
+    });
+
+    let processRows = validRows;
     if (skipDuplicates) {
       const existingStudents = await prisma.student.findMany({
         where: { schoolId },
-        select: { firstName: true, lastName: true }
+        select: { firstName: true, lastName: true },
       });
-      const existingSet = new Set(existingStudents.map(s => `${s.firstName.toLowerCase().trim()}|${s.lastName.toLowerCase().trim()}`));
-      validRows = validRows.filter(r => {
+      const existingSet = new Set(
+        existingStudents.map((s) => `${s.firstName.toLowerCase().trim()}|${s.lastName.toLowerCase().trim()}`)
+      );
+      processRows = validRows.filter((r) => {
         const key = `${r.firstName.toLowerCase().trim()}|${r.lastName.toLowerCase().trim()}`;
-        return !existingSet.has(key);
+        const isDup = existingSet.has(key);
+        if (isDup) partialErrors.push({ row: r.originalIndex, reason: "Doublon déjà inscrit (ignoré)" });
+        return !isDup;
       });
     }
 
-    if (validRows.length === 0) {
-      return { error: "Aucun élève valide (ou nouveau) n'a été trouvé dans le fichier." };
+    if (processRows.length === 0) {
+      return {
+        error: "Aucun nouvel élève valide à importer.",
+        partialErrors,
+      };
     }
 
-    await prisma.$transaction(async (tx) => {
-      // 1. Gérer les classes en masse
-      const uniqueClassNames = Array.from(new Set(validRows.map(r => r.className?.trim()).filter(Boolean))) as string[];
-      const allClassMap = new Map<string, string>();
+    let resultStudents: { id: string; firstName: string; lastName: string; className: string }[] = [];
 
-      if (uniqueClassNames.length > 0) {
-        const existingClasses = await tx.class.findMany({
-          where: { schoolId, name: { in: uniqueClassNames } }
+    await prisma.$transaction(
+      async (tx) => {
+        // 1. Gérer les classes
+        const uniqueClassNames = Array.from(
+          new Set(processRows.map((r) => r.className?.trim()).filter(Boolean))
+        ) as string[];
+        const allClassMap = new Map<string, string>();
+
+        if (uniqueClassNames.length > 0) {
+          const existingClasses = await tx.class.findMany({
+            where: { schoolId, name: { in: uniqueClassNames } },
+          });
+          const existingClassNames = new Set(existingClasses.map((c) => c.name));
+          existingClasses.forEach((c) => allClassMap.set(c.name, c.id));
+
+          const missingClassNames = uniqueClassNames.filter((name) => !existingClassNames.has(name));
+
+          if (missingClassNames.length > 0) {
+            const newClasses = await tx.class.createManyAndReturn({
+              data: missingClassNames.map((name) => ({
+                name,
+                schoolId,
+                cycle: "ELEMENTAIRE", // Default cycle
+              })),
+            });
+
+            newClasses.forEach((c) => allClassMap.set(c.name, c.id));
+
+            await tx.auditLog.createMany({
+              data: newClasses.map((c) => ({
+                action: "CREATED",
+                entity: "Class",
+                entityId: c.id,
+                userId,
+                schoolId,
+                details: JSON.stringify({ name: c.name, source: "bulk_import" }),
+              })),
+            });
+          }
+        }
+
+        // 2. Déduplication intelligente des tuteurs (téléphone + similarité de nom)
+        const existingParents = await tx.user.findMany({
+          where: { schoolId, role: "PARENT" },
+          select: { id: true, firstName: true, lastName: true, phone: true },
         });
-        const existingClassNames = new Set(existingClasses.map(c => c.name));
-        existingClasses.forEach(c => allClassMap.set(c.name, c.id));
 
-        const missingClassNames = uniqueClassNames.filter(name => !existingClassNames.has(name));
-        
-        if (missingClassNames.length > 0) {
-          const newClasses = await tx.class.createManyAndReturn({
-            data: missingClassNames.map(name => ({
-              name,
-              schoolId,
-              cycle: "AUTRE" // Default cycle
-            }))
-          });
-          
-          newClasses.forEach(c => allClassMap.set(c.name, c.id));
-          
-          await tx.auditLog.createMany({
-            data: newClasses.map(c => ({
-              action: "CREATED",
-              entity: "Class",
-              entityId: c.id,
-              userId,
-              schoolId,
-              details: JSON.stringify({ name: c.name, source: "bulk_import" })
-            }))
-          });
+        // Map phone -> list of existing parents
+        const phoneToParents = new Map<string, { id: string; firstName: string; lastName: string }[]>();
+        for (const p of existingParents) {
+          if (p.phone) {
+            const norm = p.phone.replace(/[^0-9]/g, "");
+            if (norm) {
+              const list = phoneToParents.get(norm) || [];
+              list.push({ id: p.id, firstName: p.firstName, lastName: p.lastName });
+              phoneToParents.set(norm, list);
+            }
+          }
         }
-      }
 
-      // 1.b Gérer les tuteurs / parents
-      const phoneToParentId = new Map<string, string>();
-      const existingParents = await tx.user.findMany({
-        where: { schoolId, role: "PARENT", phone: { not: null } },
-        select: { id: true, phone: true },
-      });
-      for (const p of existingParents) {
-        if (p.phone) {
-          const norm = p.phone.replace(/[^0-9]/g, "");
-          if (norm) phoneToParentId.set(norm, p.id);
-        }
-      }
+        const rowsWithParentInfo = processRows.filter((r) => r.emergencyPhone || r.emergencyContact);
+        const assignedParentIds = new Map<number, string>();
 
-      // Créer les nouveaux parents nécessaires
-      const rowsWithParentInfo = validRows.filter((r) => r.emergencyPhone || r.emergencyContact);
-      for (const r of rowsWithParentInfo) {
-        const rawPhone = (r.emergencyPhone || "").trim();
-        const normPhone = rawPhone.replace(/[^0-9]/g, "");
-        if (normPhone && !phoneToParentId.has(normPhone)) {
-          const names = (r.emergencyContact || "Parent").trim().split(" ");
+        for (const r of rowsWithParentInfo) {
+          const rawPhone = (r.emergencyPhone || "").trim();
+          const normPhone = rawPhone.replace(/[^0-9]/g, "");
+          const rawContact = (r.emergencyContact || "Parent").trim();
+          const names = rawContact.split(" ");
           const pFirst = names.length > 1 ? names.slice(0, -1).join(" ") : names[0] || "Tuteur";
           const pLast = names.length > 1 ? names[names.length - 1] : "Famille";
-          const placeholderEmail = `${rawPhone.replace(/\s+/g, "") || `parent_${Date.now()}_${Math.floor(Math.random() * 10000)}`}@parent.educom.local`;
 
-          const newParent = await tx.user.create({
-            data: {
-              firstName: pFirst,
-              lastName: pLast,
-              phone: rawPhone || null,
-              email: placeholderEmail,
-              role: "PARENT",
-              schoolId,
-            },
-            select: { id: true },
-          });
-          phoneToParentId.set(normPhone, newParent.id);
-        }
-      }
+          if (normPhone) {
+            const candidates = phoneToParents.get(normPhone) || [];
+            // Vérifier similarité de nom
+            const matchingCandidate = candidates.find(
+              (c) =>
+                c.lastName.toLowerCase().trim() === pLast.toLowerCase().trim() ||
+                c.firstName.toLowerCase().trim() === pFirst.toLowerCase().trim() ||
+                rawContact.toLowerCase().includes(c.lastName.toLowerCase())
+            );
 
-      // 2. Préparer les données des élèves
-      const studentsData = validRows.map((row) => {
-        const dateOfBirth = parseFlexibleDate(row.dateOfBirth);
-
-        const statusStr = row.status?.trim().toLowerCase() || "actif";
-        const mappedStatus =
-          statusStr === "inactif"
-            ? "INACTIVE"
-            : statusStr === "diplomé"
-            ? "GRADUATED"
-            : statusStr === "en attente"
-            ? "PENDING"
-            : "ENROLLED";
-
-        let parentId: string | null = null;
-        if (row.emergencyPhone) {
-          const norm = row.emergencyPhone.replace(/[^0-9]/g, "");
-          if (norm && phoneToParentId.has(norm)) {
-            parentId = phoneToParentId.get(norm)!;
+            if (matchingCandidate) {
+              // Fusion : même téléphone + nom concordant
+              assignedParentIds.set(r.originalIndex, matchingCandidate.id);
+            } else {
+              // Création d'un nouveau profil tuteur distinct
+              const placeholderEmail = `${normPhone}_${Date.now().toString(36)}_${Math.floor(Math.random() * 1000)}@parent.educom.local`;
+              const newParent = await tx.user.create({
+                data: {
+                  firstName: pFirst,
+                  lastName: pLast,
+                  phone: rawPhone,
+                  email: placeholderEmail,
+                  role: "PARENT",
+                  schoolId,
+                },
+                select: { id: true, firstName: true, lastName: true },
+              });
+              candidates.push(newParent);
+              phoneToParents.set(normPhone, candidates);
+              assignedParentIds.set(r.originalIndex, newParent.id);
+            }
+          } else if (rawContact) {
+            // Sans téléphone : création d'un tuteur distinct non fusionné
+            const placeholderEmail = `tuteur_${Date.now().toString(36)}_${Math.floor(Math.random() * 10000)}@parent.educom.local`;
+            const newParent = await tx.user.create({
+              data: {
+                firstName: pFirst,
+                lastName: pLast,
+                phone: null,
+                email: placeholderEmail,
+                role: "PARENT",
+                schoolId,
+              },
+              select: { id: true },
+            });
+            assignedParentIds.set(r.originalIndex, newParent.id);
           }
         }
 
-        return {
-          firstName: row.firstName.trim(),
-          lastName: row.lastName.trim(),
-          matricule: row.matricule?.trim() || null,
-          gender: row.gender?.trim() || null,
-          dateOfBirth,
-          emergencyContact: row.emergencyContact?.trim() || null,
-          emergencyPhone: row.emergencyPhone?.trim() || null,
-          parentId,
-          status: mappedStatus as "PENDING" | "ENROLLED" | "GRADUATED" | "INACTIVE",
-          schoolId,
-        };
-      });
+        // 3. Préparer les données des élèves
+        const studentsData = processRows.map((row) => {
+          const dateOfBirth = parseFlexibleDate(row.dateOfBirth);
+          const statusStr = row.status?.trim().toLowerCase() || "actif";
+          const mappedStatus =
+            statusStr === "inactif"
+              ? "INACTIVE"
+              : statusStr === "diplomé"
+              ? "GRADUATED"
+              : statusStr === "en attente"
+              ? "PENDING"
+              : "ENROLLED";
 
-      // 3. Créer les élèves en masse
-      const createdStudents = await tx.student.createManyAndReturn({
-        data: studentsData
-      });
+          const parentId = assignedParentIds.get(row.originalIndex) || null;
 
-      // 4. Lier les inscriptions et générer l'historique
-      const enrollmentsData: any[] = [];
-      const auditLogsData: any[] = [];
-
-      for (let i = 0; i < createdStudents.length; i++) {
-        const student = createdStudents[i];
-        const row = validRows[i];
-
-        auditLogsData.push({
-          action: "CREATED",
-          entity: "Student",
-          entityId: student.id,
-          userId,
-          schoolId,
-          details: JSON.stringify({ source: "bulk_import" })
+          return {
+            firstName: row.firstName.trim(),
+            lastName: row.lastName.trim(),
+            matricule: row.matricule?.trim() || null,
+            gender: row.gender?.trim() || null,
+            dateOfBirth,
+            emergencyContact: row.emergencyContact?.trim() || null,
+            emergencyPhone: row.emergencyPhone?.trim() || null,
+            parentId,
+            status: mappedStatus as "PENDING" | "ENROLLED" | "GRADUATED" | "INACTIVE",
+            schoolId,
+          };
         });
 
-        if (row.className) {
-          const className = row.className.trim();
-          const classId = allClassMap.get(className);
-          if (classId) {
-            enrollmentsData.push({
-              studentId: student.id,
-              classId,
-              academicYear: year,
-            });
-            // Update breakdown
-            const currentCount = classBreakdownMap.get(className) || 0;
-            classBreakdownMap.set(className, currentCount + 1);
+        // 4. Créer les élèves en masse
+        const createdStudents = await tx.student.createManyAndReturn({
+          data: studentsData,
+        });
+
+        // 5. Inscriptions et audits
+        const enrollmentsData: any[] = [];
+        const auditLogsData: any[] = [];
+
+        for (let i = 0; i < createdStudents.length; i++) {
+          const student = createdStudents[i];
+          const row = processRows[i];
+
+          auditLogsData.push({
+            action: "CREATED",
+            entity: "Student",
+            entityId: student.id,
+            userId,
+            schoolId,
+            details: JSON.stringify({ source: "bulk_import" }),
+          });
+
+          const className = row.className?.trim() || "Sans classe";
+          resultStudents.push({
+            id: student.id,
+            firstName: student.firstName,
+            lastName: student.lastName,
+            className,
+          });
+
+          if (row.className) {
+            const classId = allClassMap.get(row.className.trim());
+            if (classId) {
+              enrollmentsData.push({
+                studentId: student.id,
+                classId,
+                academicYear: year,
+              });
+              const currentCount = classBreakdownMap.get(row.className.trim()) || 0;
+              classBreakdownMap.set(row.className.trim(), currentCount + 1);
+            }
           }
         }
-      }
 
-      // 5. Insérer les inscriptions et historiques en masse
-      if (enrollmentsData.length > 0) {
-        await tx.enrollment.createMany({ data: enrollmentsData });
-      }
+        if (enrollmentsData.length > 0) {
+          await tx.enrollment.createMany({ data: enrollmentsData });
+        }
 
-      if (auditLogsData.length > 0) {
-        await tx.auditLog.createMany({ data: auditLogsData });
-      }
+        if (auditLogsData.length > 0) {
+          await tx.auditLog.createMany({ data: auditLogsData });
+        }
 
-      importedCount = createdStudents.length;
-    }, {
-      timeout: 30000,
-    });
+        // 6. Activer l'école et mettre à jour setupProgress
+        await tx.school.update({
+          where: { id: schoolId },
+          data: {
+            schoolActivated: true,
+            setupProgress: {
+              classes: true,
+              students: true,
+              curriculum: true,
+              calendar: true,
+            },
+          },
+        });
+
+        importedCount = createdStudents.length;
+      },
+      {
+        timeout: 30000,
+      }
+    );
 
     revalidatePath("/dashboard/students");
     revalidatePath("/dashboard/classes");
-    
-    // Sort breakdown by class name
+    revalidatePath("/dashboard");
+
     const classesSummary = Array.from(classBreakdownMap.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    return { success: true, count: importedCount, classesSummary };
+    return {
+      success: true,
+      count: importedCount,
+      classesSummary,
+      importedStudents: resultStudents,
+      firstStudent: resultStudents[0] || null,
+      partialErrors,
+    };
   } catch (error: any) {
     console.error("Erreur lors de l'import:", error);
-    return { error: "Une erreur est survenue lors de l'importation. Veuillez vérifier le format de votre fichier." };
+    return {
+      error: "Une erreur est survenue lors de l'importation. Veuillez vérifier le format de votre fichier.",
+    };
   }
 }

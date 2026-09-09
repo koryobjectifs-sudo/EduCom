@@ -21,11 +21,15 @@ export async function inviteTeamMember(formData: FormData) {
 
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { schoolId: true, role: true }
+    select: { schoolId: true, role: true, emailVerified: true }
   });
 
   if (!dbUser || (dbUser.role !== "OWNER" && dbUser.role !== "ADMIN")) {
     return { error: "Vous n'avez pas les droits pour inviter un membre." };
+  }
+
+  if (!dbUser.emailVerified) {
+    return { error: "Veuillez vérifier votre adresse e-mail avant d'inviter des membres dans votre équipe." };
   }
 
   // Check if user already exists

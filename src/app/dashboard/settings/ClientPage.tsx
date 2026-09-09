@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { updateSchoolSettings, updateActiveAcademicYear } from "./actions";
-import { Save, Building2, Phone, Mail, MapPin, Image as ImageIcon, ChevronRight, UploadCloud, Calendar, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Save, Building2, Phone, Mail, MapPin, Image as ImageIcon, ChevronRight, UploadCloud, Calendar, ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -21,6 +21,7 @@ export default function SettingsClient({
   const [selectedYear, setSelectedYear] = useState(activeYear);
   const [customYear, setCustomYear] = useState("");
   const [isCustomMode, setIsCustomMode] = useState(false);
+  const [cdpModalData, setCdpModalData] = useState<any>(null);
 
   // Pas de `schoolId` ici : l'action le résout depuis la session. Le laisser
   // transiter par le client en ferait une valeur falsifiable.
@@ -401,31 +402,118 @@ export default function SettingsClient({
         </p>
       </div>
 
-      {/* SECTION 3: Finances (Grille tarifaire) */}
+      {/* SECTION 4: Conformité Légale & CDP Sénégal (Loi n° 2008-12) */}
       <div>
-        <h2 className="text-sm font-medium text-text-secondary ml-4 mb-2 uppercase tracking-wider">Finances</h2>
-        <div className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden">
-          <div className="p-5 flex items-center justify-between hover:bg-secondary/30 transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-xl bg-[#fef08a]/40 flex items-center justify-center shadow-sm border border-[#fef08a]">
-                <span className="text-lg">💰</span>
+        <h2 className="text-sm font-medium text-text-secondary ml-4 mb-2 uppercase tracking-wider">
+          Conformité légale & Protection des Données (CDP)
+        </h2>
+        <div className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5" />
               </div>
-              <div>
-                <h3 className="text-base font-semibold text-text-primary">Grille tarifaire officielle</h3>
-                <p className="text-sm text-text-secondary mt-0.5">Définissez les frais de scolarité, inscriptions et autres montants par classe.</p>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-semibold text-text-primary">
+                    Modèle officiel de Déclaration Préalable CDP
+                  </h3>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                    Loi 2008-12
+                  </span>
+                </div>
+                <p className="text-xs text-text-secondary max-w-xl leading-relaxed">
+                  Document pré-rempli avec les informations officielles de {school.name} (finalités scolaires, catégories d&apos;élèves et de tuteurs, sous-traitance technique EduCom).
+                </p>
               </div>
             </div>
             <Button
               type="button"
               variant="secondary"
-              onClick={() => window.location.href = "/dashboard/settings/fees"}
+              onClick={async () => {
+                const { getCdpDeclarationDataAction } = await import("./actions");
+                const res = await getCdpDeclarationDataAction();
+                if (res && "data" in res) {
+                  setCdpModalData(res.data);
+                } else {
+                  toast.error("Impossible de générer le modèle CDP.");
+                }
+              }}
+              className="shrink-0"
             >
-              Gérer les tarifs <ChevronRight className="w-4 h-4 ml-1" />
+              Générer mon document CDP
+              <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
+          </div>
+
+          <div className="pt-4 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-text-secondary">
+            <div className="flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${school.dataProcessingAcceptedAt ? "bg-emerald-500" : "bg-amber-500"}`} />
+              <span>Convention sous-traitance DPA : <strong>{school.dataProcessingAcceptedAt ? "Acceptée" : "En attente du 1er import"}</strong></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${school.waveTermsAcceptedAt ? "bg-emerald-500" : "bg-slate-300"}`} />
+              <span>Conditions spécifiques Wave : <strong>{school.waveTermsAcceptedAt ? "Acceptées" : "Non connectée"}</strong></span>
+            </div>
           </div>
         </div>
       </div>
     </form>
+
+    {/* Modale Déclaration CDP */}
+    {cdpModalData && (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto backdrop-blur-xs">
+        <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-rule overflow-hidden animate-in fade-in zoom-in-95">
+          <div className="p-6 border-b border-rule flex items-center justify-between bg-sunk/30">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="h-6 w-6 text-primary" />
+              <div>
+                <h3 className="font-bold text-text text-base">{cdpModalData.title}</h3>
+                <p className="text-xs text-text-soft">Cadre juridique : {cdpModalData.referenceLaw}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setCdpModalData(null)}
+              className="p-2 rounded-full hover:bg-rule text-text-soft hover:text-text transition-colors"
+            >
+              <span className="sr-only">Fermer</span>
+              ×
+            </button>
+          </div>
+
+          <div className="p-6 overflow-y-auto space-y-6 text-xs text-text leading-relaxed">
+            <p className="text-text-soft bg-sunk p-3 rounded-xl border border-rule/50">
+              Ce document pré-rempli reprend l&apos;ensemble des informations requises par l&apos;article 18 de la loi n° 2008-12 pour votre déclaration de fichier auprès de la Commission de Protection des Données Personnelles (CDP).
+            </p>
+
+            {cdpModalData.sections.map((sec: any) => (
+              <div key={sec.number} className="space-y-2 border-b border-rule/40 pb-4">
+                <h4 className="font-bold text-primary uppercase text-[11px] tracking-wider">
+                  {sec.number}. {sec.title}
+                </h4>
+                <div className="space-y-1.5 pl-2">
+                  {sec.items.map((item: any, idx: number) => (
+                    <div key={idx} className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                      <span className="font-semibold text-text-soft w-48 shrink-0">{item.label} :</span>
+                      <span className="text-text font-medium">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="p-4 border-t border-rule bg-sunk/30 flex justify-between items-center">
+            <Button variant="ghost" size="sm" onClick={() => setCdpModalData(null)}>
+              Fermer
+            </Button>
+            <Button variant="primary" size="sm" onClick={() => window.print()}>
+              Imprimer / Enregistrer en PDF
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
 );
 }

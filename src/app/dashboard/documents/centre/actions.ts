@@ -298,6 +298,10 @@ export async function transitionSchoolDocument(input: { id: string; to: SchoolDo
   if (!doc || !(await canSeeDocument(ctx, input.id))) return { error: "Document introuvable dans votre établissement." };
   if (doc.supersededAt) return { error: "Cette version a été remplacée — agissez sur la version courante." };
 
+  if (input.to === "PUBLISHED" && !ctx.emailVerified) {
+    return { error: "Veuillez vérifier votre adresse e-mail avant de publier un document officiel." };
+  }
+
   const decision = await authorizeTransition(ctx, wf, {
     entityId: doc.id,
     from: doc.status as SchoolDocState,

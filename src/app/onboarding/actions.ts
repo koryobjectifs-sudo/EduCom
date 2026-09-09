@@ -9,17 +9,67 @@ import { LEVELS } from '@/lib/curriculum'
 import { OFFICIAL_REQUIREMENTS_BY_CYCLE } from '@/lib/officialRequirements'
 
 /**
+ * Vérifie si une école au nom similaire existe déjà (détection de doublon).
+ */
+export async function checkDuplicateSchoolAction(schoolName: string, address?: string) {
+  let currentSchoolId: string | undefined = undefined;
+  try {
+    const auth = await requireActionContext();
+    if (auth.ok) currentSchoolId = auth.ctx.schoolId;
+  } catch {
+    // Mode script ou hors session HTTP
+  }
+
+  const query = schoolName.trim().toLowerCase();
+  if (query.length < 3) return { duplicateFound: false };
+
+  // Mots génériques à ignorer pour la comparaison
+  const stopWords = new Set(["ecole", "école", "complexe", "scolaire", "groupe", "etablissement", "établissement", "cours", "institution", "de", "du", "la", "le", "les", "saint", "sainte"]);
+  const tokens = query.split(/[\s'-]+/).filter((t) => t.length > 2 && !stopWords.has(t));
+
+  const existingSchools = await prisma.school.findMany({
+    where: {
+      ...(currentSchoolId ? { id: { not: currentSchoolId } } : {}),
+      onboardingCompleted: true,
+    },
+    select: {
+      id: true,
+      name: true,
+      address: true,
+      phone: true,
+    },
+    take: 50,
+  });
+
+  for (const s of existingSchools) {
+    const sNameNorm = s.name.toLowerCase();
+    const sTokens = sNameNorm.split(/[\s'-]+/).filter((t) => t.length > 2 && !stopWords.has(t));
+    
+    // Correspondance exacte ou inclusion
+    const isSubstring = query.length > 4 && sNameNorm.includes(query);
+    const isReverseSubstring = sNameNorm.length > 4 && query.includes(sNameNorm);
+    
+    // Recouvrement des mots-clés significatifs
+    const commonTokens = tokens.filter((t) => sTokens.some((st) => st.includes(t) || t.includes(st)));
+    const hasStrongOverlap = tokens.length > 0 && commonTokens.length / tokens.length >= 0.5;
+
+    if (isSubstring || isReverseSubstring || hasStrongOverlap) {
+      return {
+        duplicateFound: true,
+        school: {
+          name: s.name,
+          city: s.address ? s.address.split(",").pop()?.trim() || s.address : "Sénégal",
+          phone: s.phone,
+        },
+      };
+    }
+  }
+
+  return { duplicateFound: false };
+}
+
+/**
  * Finalise la configuration d'un établissement.
- *
- * ⚠️ L'action recevait `schoolId` **depuis le client** sans authentifier
- * l'appelant : n'importe qui pouvait marquer une école tierce comme
- * « onboardée », réécrire son téléphone et son adresse, et lui injecter des
- * classes. Le `schoolId` vient désormais de la session et le paramètre a été
- * retiré de la signature.
- *
- * Aucun chemin n'est exigé en second argument : l'onboarding précède l'accès au
- * tableau de bord et concerne tout utilisateur authentifié rattaché à une
- * école. La seule garantie nécessaire est qu'il écrive dans *sa* propre école.
  */
 export async function completeOnboarding(data: any) {
   const auth = await requireActionContext()
@@ -27,7 +77,7 @@ export async function completeOnboarding(data: any) {
   const { schoolId, userId } = auth.ctx
 
   try {
-    // 1. Mettre à jour l'école avec le nom et les contacts
+    // 1. Mettre à jour l'école avec le nom, les contacts et les drapeaux d'état
     await prisma.school.update({
       where: { id: schoolId },
       data: {
@@ -35,6 +85,15 @@ export async function completeOnboarding(data: any) {
         phone: data.phone || null,
         email: data.email || null,
         address: data.address || null,
+        schoolActivated: true,
+        setupProgress: {
+          classes: true,
+          programme: true,
+          calendar: false,
+          students: false,
+          teachers: false,
+          payments: false,
+        },
         onboardingCompleted: true,
       }
     });

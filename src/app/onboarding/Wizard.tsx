@@ -7,7 +7,7 @@ import {
   ArrowRight, ArrowLeft, Check, GraduationCap, School, Building, Baby, UserPlus,
 } from "lucide-react";
 import { LEVELS, classesForLevels } from "@/lib/curriculum";
-import { completeOnboarding } from "./actions";
+import { completeOnboarding, checkDuplicateSchoolAction } from "./actions";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 
@@ -39,6 +39,7 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ classes: number } | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [duplicateInfo, setDuplicateInfo] = useState<{ name: string; city: string } | null>(null);
 
   const toggle = (id: string) =>
     setNiveaux((prev) => (prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id]));
@@ -167,11 +168,48 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
               <Input
                 label="Nom de l'établissement"
                 value={schoolName}
-                onChange={(e) => setSchoolName(e.target.value)}
+                onChange={(e) => {
+                  setSchoolName(e.target.value);
+                  if (e.target.value.trim().length >= 3) {
+                    checkDuplicateSchoolAction(e.target.value).then((res) => {
+                      if (res.duplicateFound && res.school) {
+                        setDuplicateInfo(res.school);
+                      } else {
+                        setDuplicateInfo(null);
+                      }
+                    }).catch(() => setDuplicateInfo(null));
+                  } else {
+                    setDuplicateInfo(null);
+                  }
+                }}
                 placeholder="Complexe scolaire Mariama Bâ"
                 autoFocus
               />
             </div>
+
+            {duplicateInfo && (
+              <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-left">
+                <div className="flex items-start gap-3">
+                  <span className="text-amber-600 text-lg">⚠️</span>
+                  <div className="text-[13px]">
+                    <p className="font-semibold text-amber-900 dark:text-amber-200">
+                      Une école nommée « {duplicateInfo.name} » existe déjà à {duplicateInfo.city}.
+                    </p>
+                    <p className="mt-1 text-amber-800 dark:text-amber-300/90 leading-relaxed">
+                      Est-ce la vôtre ? Si votre établissement utilise déjà EduCom, demandez à votre direction ou administrateur de vous envoyer une invitation plutôt que de créer un établissement vide en doublon.
+                    </p>
+                    <div className="mt-2.5">
+                      <a
+                        href="/invite"
+                        className="inline-flex items-center text-[12px] font-semibold text-primary hover:underline"
+                      >
+                        Rejoindre avec un lien d'invitation →
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="mt-6 flex justify-end pt-5 border-t border-rule/30">
               <Button size="lg" onClick={() => setStep(2)} disabled={!schoolName.trim()}>

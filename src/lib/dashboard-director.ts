@@ -215,6 +215,10 @@ export type DirectorDashboardSnapshot = {
   academic: AcademicData;
   recentActivity: ActivityTimelineItem[];
   readiness: ConfigurationReadiness | null;
+  schoolActivated: boolean;
+  setupProgress: any;
+  isDpaAccepted: boolean;
+  emailVerified: boolean;
 };
 
 const CYCLE_DISPLAY_LABELS: Record<string, string> = {
@@ -277,6 +281,7 @@ export async function getDirectorDashboardSnapshot(
 
   const [
     schoolRecord,
+    userRecord,
     activeFeeSchedule,
     terms,
     classesRaw,
@@ -290,7 +295,16 @@ export async function getDirectorDashboardSnapshot(
   ] = await Promise.all([
     prisma.school.findUnique({
       where: { id: schoolId },
-      select: { activeAcademicYear: true },
+      select: {
+        activeAcademicYear: true,
+        schoolActivated: true,
+        setupProgress: true,
+        dataProcessingAcceptedAt: true,
+      },
+    }),
+    prisma.user.findUnique({
+      where: { id: actor.userId },
+      select: { emailVerified: true },
     }),
     prisma.feeSchedule.findFirst({
       where: { schoolId, status: "ACTIVE" },
@@ -948,6 +962,10 @@ export async function getDirectorDashboardSnapshot(
     academic: null as any,
     recentActivity: [],
     readiness: scope.pedagogie ? readiness : null,
+    schoolActivated: schoolRecord?.schoolActivated ?? false,
+    setupProgress: schoolRecord?.setupProgress ?? null,
+    isDpaAccepted: Boolean(schoolRecord?.dataProcessingAcceptedAt),
+    emailVerified: userRecord?.emailVerified ?? true,
   };
 }
 

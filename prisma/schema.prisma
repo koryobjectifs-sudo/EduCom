@@ -81,6 +81,18 @@ model School {
   phone               String?
   email               String?
   onboardingCompleted Boolean  @default(false)
+  /// Activation formelle de l'école (remplace et étend onboardingCompleted).
+  schoolActivated     Boolean  @default(false)
+  /// Progression de l'installation initiale : { classes, programme, calendrier, eleves, enseignants, paiements }
+  setupProgress       Json?
+  /// Acceptation du DPA / Responsable de Traitement CDP (Loi 2008-12)
+  dataProcessingAcceptedAt DateTime?
+  dataProcessingVersion    String?
+  dataProcessingIp         String?
+  /// Conditions spécifiques aux paiements Wave
+  waveTermsAcceptedAt      DateTime?
+  waveTermsVersion         String?
+  waveTermsIp              String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -153,6 +165,12 @@ model User {
   role      Role     @default(PARENT)
   schoolId  String
   school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  /// Vérification de l'e-mail (différée au premier jour, obligatoire avant actions sensibles)
+  emailVerified Boolean  @default(false)
+  /// Acceptation horodatée et versionnée des CGU / Politique de confidentialité
+  termsAcceptedAt  DateTime?
+  termsVersion     String?
+  termsIpAddress   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1312,6 +1330,7 @@ model DocumentRequirement {
   /// disparaître les pièces déjà reçues au titre de celle-ci.
   active   Boolean @default(true)
   position Int     @default(0)
+  order    Int?    @default(0)
 
   schoolId String @default("")
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)

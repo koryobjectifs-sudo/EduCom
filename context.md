@@ -1,10 +1,27 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 9 septembre 2026 — **Chaîne d'Admissions & Espace Documentaire Parent Livrés (`v2-admissions-parents`)**
-> Lot livré : Matrice d'admissions multi-cycles (`/dashboard/students/dossiers/review`), onglets étanches SQL, pagination serveur 50 lignes, requête agrégée par page, poste de travail secrétaire (drawer d'inspection avec motif de refus obligatoire et URLs signées 15 min), espace documentaire parent (`/dashboard/students/[id]/dossier`), validation Magic Bytes serveur, rate limit 20 uploads/h, notifications in-app transactionnelles et isolation stricte (RLS / serveur / 0 accès enseignant).
+> Dernière mise à jour : 9 septembre 2026 — **Lot 2 : Conformité Légale (CDP Sénégal Loi 2008-12) & Parcours d'Inscription Livrés (`v3-conformite-onboarding`)**
+> Lot livré : Conformité légale en 3 moments étanches (CGU + Confidentialité non pré-cochée à l'inscription avec horodatage et IP, convention de sous-traitance DPA bloquante au 1er import, conditions spécifiques Wave), générateur officiel de Déclaration Préalable CDP téléchargeable dans les réglages, tableau de bord premier jour masquant les 0 KPIs pour afficher la carte de progression et le CTA d'import, parcours « Une classe d'abord » (3 voies : Fichier, Copier-coller, Saisie manuelle) avec déduplication intelligente des tuteurs et écran de fin personnalisé, vérification d'e-mail différée avec bandeau discret et garde-fous sur 4 actions sensibles, détection de doublons d'écoles à la saisie avec lien d'invitation `/invitation/[token]`.
 
-## 🏷️ Point de Sauvegarde & Rollback : `v2-admissions-parents`
+## 🏷️ Point de Sauvegarde & Rollback : `v3-conformite-onboarding`
 
+- **Nom de l'étiquette Git** : `v3-conformite-onboarding`
+- **Commande de Rollback / Restauration** : `git checkout v3-conformite-onboarding`
+- **Contenu du jalon** :
+  1. **Conformité Légale (Loi n° 2008-12 du 25 janvier 2008 CDP Sénégal)** :
+     - `/register` : Case à cocher obligatoire non pré-cochée « J'accepte les Conditions Générales d'Utilisation et la Politique de Confidentialité », validation serveur et persistance horodatée probante (`termsAcceptedAt`, `termsVersion`, `termsIpAddress`).
+     - Premier import d'élèves (`/dashboard/students/import`) : Modale bloquante unique établissant l'école comme Responsable de traitement et EduCom comme Sous-traitant (art. 18 loi 2008-12), persistance serveur `dataProcessingAcceptedAt`, `dataProcessingVersion`, `dataProcessingIp`.
+     - Connexion Wave (`/dashboard/settings`) : Acceptation bloquante des conditions financières spécifiques aux flux de paiement (`waveTermsAcceptedAt`, `waveTermsVersion`, `waveTermsIp`).
+     - Modèle de Déclaration Préalable CDP : Générateur officiel pré-rempli (`src/lib/legal/cdpDeclaration.ts`) téléchargeable et imprimable depuis `/dashboard/settings`.
+  2. **Parcours d'Inscription & Onboarding E2E** :
+     - Tableau de bord 1er jour : Masquage des 0 KPIs (0 élève, 0 FCFA, 0% présence) au profit de la carte de progression active et du CTA unique « Importer votre première classe ».
+     - Drapeaux d'état : Découplage `schoolActivated` (booléen d'activation) et `setupProgress` (progression classes, programme, calendrier, élèves, enseignants, paiements).
+     - Import « Une classe d'abord » : 3 voies à égalité (Fichier Excel/CSV, Copier-coller tabulaire, Saisie manuelle interactive), import partiel résilient avec tolérance aux erreurs, déduplication intelligente des tuteurs (même téléphone + nom concordant = fusion, téléphone identique + nom différent = distincts, sans téléphone = jamais fusionnés).
+     - Écran de succès personnalisé : Liste des vrais élèves importés avec liens d'accès direct « Voir la fiche de [1er élève] » et « Importer le reste de mon école ».
+     - Vérification d'e-mail différée : Navigation fluide vers `/onboarding` sans blocage d'activation immédiate, bandeau discret permanent, blocage strict restreint à 4 actions sensibles (inviter un enseignant, envoyer une campagne de communication, connecter Wave, publier un document officiel).
+     - Détection de doublons d'écoles : Vérification dynamique par similarité de nom + ville dans l'onboarding pour avertir les nouveaux utilisateurs et les rediriger vers les invitations `/invitation/[token]` sans créer de tenant vide.
+
+## 🏷️ Point de Sauvegarde Précédent : `v2-admissions-parents`
 - **Nom de l'étiquette Git** : `v2-admissions-parents`
 - **Commande de Rollback / Restauration** : `git checkout v2-admissions-parents`
 - **Contenu du jalon** :
