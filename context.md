@@ -1,6 +1,19 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 9 septembre 2026 — Chantier Performance & Résilience : Correction de la régression Suspense sur `/dashboard` (tolérance totale aux données absentes/nulles sur tous les blocs ; fallback systématique avec états vides ; chaîne de chargement sécurisée avec try/catch) ; Renforcement du smoke test (attente active de la résolution complète des frontières Suspense via `section[aria-busy="true"]`, vérification DOM post-streaming, preuve par l'échec validée) ; Ajout du scénario « École vierge / Base vide » (100% vert sur école sans aucune donnée).
+> Dernière mise à jour : 9 septembre 2026 — **Jalon de Référence Stable : `v1-shell-perf-stable`**
+> Lot livré : Shell 2 étages (Rail 72px + Sidebar contextuelle), fusion des routes, typographie Lato & densité calibrée, année scolaire active déclarative (`School.activeAcademicYear`), performance & découpage Suspense, pool Postgres `connection_limit=5`, squelettes `loading.tsx` généralisés, smoke test exhaustif 54 routes + scénario école vierge.
+
+## 🏷️ Point de Sauvegarde & Rollback : `v1-shell-perf-stable`
+
+- **Nom de l'étiquette Git** : `v1-shell-perf-stable`
+- **Commande de Rollback / Restauration** : `git checkout v1-shell-perf-stable`
+- **Contenu du jalon** :
+  1. **Shell 2 étages & Navigation** : AppRail fixe (72px) avec tuile Accueil + 5 espaces métier, ContextualSidebar repliable, sélecteur d'école et profil dans TopNav.
+  2. **Typographie & Densité** : Police Lato chargée localement, niveaux de zoom calibrés (90%, 100%, 115%).
+  3. **Année scolaire déclarative** : Colonne `School.activeAcademicYear`, écran de réglage de session, bandeau de transition et comparaison des effectifs.
+  4. **Performance Vercel (`fra1`) & Découpage Suspense** : Temps de réponse `/dashboard` = **262 ms** (vs 2 747 ms initialement), FCP/LCP < 1 s sur mobile Slow 4G Dakar, 100% des routes avec squelettes `loading.tsx`.
+  5. **Résilience & Smoke Test** : Tolérance totale aux données nulles/absentes, couverture des 54 routes applicatives, 17 publiques, 7 rôles, scénario « École vierge » et contrôle géométrique anti-chevauchement du rail.
+- **État des Migrations Prisma** : `npx prisma migrate status` $\to$ **4 migrations appliquées, schéma 100% à jour**.
 
 ## 📌 Chantier Performance & Résilience (Septembre 2026) — Mesures & Évolutions
 
