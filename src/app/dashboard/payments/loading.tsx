@@ -1,18 +1,38 @@
-import { SkeletonPageHeader, SkeletonTable } from "@/components/ui/Skeleton";
+import { SkeletonPageHeader, Skeleton } from "@/components/ui/Skeleton";
 
-/**
- * État de chargement de la liste. Le squelette reprend la forme du tableau réel
- * pour que la page ne saute pas à l'arrivée des données.
- *
- * Sans ce fichier, la route héritait du `loading.tsx` du segment `dashboard`,
- * dessiné pour la grille de widgets de l'accueil — un squelette de mauvaise
- * forme, qui promettait une mise en page que l'écran n'a pas.
- */
 export default function Loading() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-16 animate-in fade-in duration-200" aria-busy="true">
       <SkeletonPageHeader />
-      <SkeletonTable rows={8} columns={6} />
+
+      {/* Financial KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Skeleton className="h-28 rounded-2xl" />
+        <Skeleton className="h-28 rounded-2xl" />
+        <Skeleton className="h-28 rounded-2xl" />
+        <Skeleton className="h-28 rounded-2xl" />
+      </div>
+
+      {/* Navigation Tabs & Actions */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex gap-2">
+          <Skeleton className="h-10 w-28 rounded-xl" />
+          <Skeleton className="h-10 w-28 rounded-xl" />
+          <Skeleton className="h-10 w-28 rounded-xl" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-10 w-32 rounded-xl" />
+          <Skeleton className="h-10 w-36 rounded-xl" />
+        </div>
+      </div>
+
+      {/* Table Skeleton */}
+      <div className="rounded-2xl border border-rule/60 bg-surface p-4 space-y-3 shadow-card">
+        <Skeleton className="h-10 w-full rounded-lg" />
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Skeleton key={i} className="h-12 w-full rounded-lg" />
+        ))}
+      </div>
     </div>
   );
 }
