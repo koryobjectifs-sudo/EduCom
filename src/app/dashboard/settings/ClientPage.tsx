@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { updateSchoolSettings, updateActiveAcademicYear } from "./actions";
 import { Save, Building2, Phone, Mail, MapPin, Image as ImageIcon, ChevronRight, UploadCloud, Calendar, ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -187,6 +188,30 @@ export default function SettingsClient({
                 Basculer la session
               </Button>
             </div>
+          </div>
+
+          {/* Accès direct à la réinscription en masse */}
+          <div className="mt-5 pt-4 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-primary/5 -mx-6 -mb-6 p-5">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-xs">
+                <ArrowRight className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-text-primary">
+                  Préparer la rentrée scolaire (Réinscription en masse)
+                </h4>
+                <p className="text-xs text-text-secondary">
+                  Faites passer automatiquement vos effectifs de classe en classe pour la nouvelle session scolaire.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/settings/reinscription"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary-hover transition-colors shrink-0 shadow-xs"
+            >
+              Préparer la rentrée
+              <ChevronRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
       </div>

@@ -141,6 +141,10 @@ export default async function DossierReviewPage({
 
   for (const s of enrolledStudents) {
     const currentEnrollment = s.enrollments[0]?.class ?? null;
+    if (!currentEnrollment) {
+      // Un élève sans classe n'a aucun cycle : aucune pièce n'est applicable
+      continue;
+    }
     const kind = resolveStudentKind(s, year);
     const ageCalc = calculateAge(s.dateOfBirth);
     const age = ageCalc ? ageCalc.age : null;
@@ -152,9 +156,9 @@ export default async function DossierReviewPage({
       if (!req.required) continue;
 
       let applicable = true;
-      if (req.cycle && currentEnrollment?.cycle && req.cycle !== currentEnrollment.cycle) {
+      if (req.cycle && req.cycle !== currentEnrollment.cycle) {
         applicable = false;
-      } else if (req.classId && currentEnrollment?.id && req.classId !== currentEnrollment.id) {
+      } else if (req.classId && req.classId !== currentEnrollment.id) {
         applicable = false;
       } else if (req.studentKind && req.studentKind !== kind) {
         applicable = false;
@@ -324,10 +328,13 @@ export default async function DossierReviewPage({
       let applicable = true;
       let nonApplicableReason: string | null = null;
 
-      if (req.cycle && currentEnrollment?.cycle && req.cycle !== currentEnrollment.cycle) {
+      if (!currentEnrollment) {
+        applicable = false;
+        nonApplicableReason = "Affectez cet élève à une classe pour connaître les pièces exigées";
+      } else if (req.cycle && req.cycle !== currentEnrollment.cycle) {
         applicable = false;
         nonApplicableReason = `Non exigé en cycle ${currentEnrollment.cycle.toLowerCase()}`;
-      } else if (req.classId && currentEnrollment?.id && req.classId !== currentEnrollment.id) {
+      } else if (req.classId && req.classId !== currentEnrollment.id) {
         applicable = false;
         nonApplicableReason = `Spécifique à une autre classe`;
       } else if (req.studentKind && req.studentKind !== kind) {

@@ -131,7 +131,9 @@ export type AuditEntity =
   | "evaluation"
   // Application du programme type. Une seule ligne par application, avec le
   // détail de ce qui a été créé et de ce qui existait déjà.
-  | "curriculum";
+  | "curriculum"
+  // Réinscription en masse / Préparation de la rentrée
+  | "reinscription";
 
 /** Résultat de l'action. Répond au « avec quel résultat ? ». */
 export type AuditOutcome = "success" | "failure" | "denied";

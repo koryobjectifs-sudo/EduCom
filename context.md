@@ -1,9 +1,28 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 9 septembre 2026 — **Lot 2 : Conformité Légale (CDP Sénégal Loi 2008-12) & Parcours d'Inscription Livrés (`v3-conformite-onboarding`)**
-> Lot livré : Conformité légale en 3 moments étanches (CGU + Confidentialité non pré-cochée à l'inscription avec horodatage et IP, convention de sous-traitance DPA bloquante au 1er import, conditions spécifiques Wave), générateur officiel de Déclaration Préalable CDP téléchargeable dans les réglages, tableau de bord premier jour masquant les 0 KPIs pour afficher la carte de progression et le CTA d'import, parcours « Une classe d'abord » (3 voies : Fichier, Copier-coller, Saisie manuelle) avec déduplication intelligente des tuteurs et écran de fin personnalisé, vérification d'e-mail différée avec bandeau discret et garde-fous sur 4 actions sensibles, détection de doublons d'écoles à la saisie avec lien d'invitation `/invitation/[token]`.
+> Dernière mise à jour : 9 septembre 2026 — **Lot 3 : Réinscription en Masse & Préparation de la Rentrée Livrés (`v4-reinscription`)**
+> Lot livré : Correctifs Lot 1 (Élève sans classe avec état explicite « Affectez cet élève à une classe pour connaître les pièces exigées » sans fausser les compteurs d'onglets, correction cohérence aperçu document validé sans faux message de pièce manquante), module de réinscription en masse et promotion de niveau sénégalaise (`src/lib/reinscription.ts`), assistant en 4 étapes (`/dashboard/settings/reinscription`), exécution idempotente transactionnelle par lot avec `prisma.enrollment.createMany` pour 1000 élèves sans timeout, annulation sécurisée avec contrôle de notes/évaluations et journalisation `AuditLog`, accès depuis réglages et carte transition dashboard.
 
-## 🏷️ Point de Sauvegarde & Rollback : `v3-conformite-onboarding`
+## 🏷️ Point de Sauvegarde & Rollback : `v4-reinscription`
+
+- **Nom de l'étiquette Git** : `v4-reinscription`
+- **Commande de Rollback / Restauration** : `git checkout v4-reinscription`
+- **Contenu du jalon** :
+  1. **Correctifs hérités du Lot 1** :
+     - Élève sans classe : Mariama Ba ou tout élève sans inscription courante affiche explicitement l'état « Affectez cet élève à une classe pour connaître les pièces exigées » avec bouton d'affectation direct. Aucune pièce n'est exigée ni comptée, compteurs d'onglets intègres.
+     - Cohérence statut / aperçu : Fatou Ndiaye ou toute pièce validée affiche son statut officiel conforme avec son observation sans afficher de message erroné de pièce manquante.
+  2. **Lot 3 — Écran « Préparer la rentrée » (`/dashboard/settings/reinscription`)** :
+     - **Étape 1 (Années)** : Année source (actuelle) → Année cible (suivante) avec indicateurs d'effectifs en temps réel et rechargement dynamique.
+     - **Étape 2 (Promotion des classes)** : Détection et proposition automatique selon l'échelle sénégalaise (PS→MS, MS→GS, GS→CI, CI→CP, ..., CM2→Sortie, 6e→5e... 3e→Sortie, 2nde→1ère→Terminale→Sortie) avec création automatique des classes de destination manquantes.
+     - **Étape 3 (Revue des élèves)** : 1000 élèves cochés par défaut, modification rapide individuelle (redoublement, saut, sortie), tout cocher/tout décocher par classe, recherche et filtres instantanés, compteur en direct « X réinscrits · Y sortants ».
+     - **Étape 4 (Confirmation & Transaction)** : Récapitulatif clair par classe de destination, insertion par chunks de 250 avec `skipDuplicates: true` pour idempotence garantie, élève (`Student`) non dupliqué, historique préservé.
+     - **Sécurité de l'annulation** : Annulation possible tant qu'aucun bulletin ni note n'est rattaché à l'année cible.
+     - **Audit** : Journalisation systématique dans `AuditLog` (`action: execute_mass_reinscription`, `cancel_mass_reinscription`).
+  3. **Points d'accès** :
+     - Section « Session & Année scolaire active » dans `/dashboard/settings`.
+     - Carte de transition de rentrée sur le tableau de bord directeur (`DirectorDashboard.tsx`).
+
+## 🏷️ Point de Sauvegarde Précédent : `v3-conformite-onboarding`
 
 - **Nom de l'étiquette Git** : `v3-conformite-onboarding`
 - **Commande de Rollback / Restauration** : `git checkout v3-conformite-onboarding`

@@ -162,6 +162,32 @@ export default function DirectorDashboard({
             </Reveal>
           )}
 
+          {/* ── CARTE DE TRANSITION / PRÉPARATION DE LA RENTRÉE ── */}
+          <Reveal delay={0.05}>
+            <div className="rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold text-text">
+                    Préparer la rentrée ({currentAcademicYear} → Année suivante)
+                  </h3>
+                  <p className="text-[11.5px] text-text-soft">
+                    Basculez vos effectifs en 1 clic grâce à la réinscription en masse et à la promotion automatique de cycle.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/dashboard/settings/reinscription"
+                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-control bg-primary px-3 text-xs font-semibold text-white shadow-card transition-colors hover:bg-primary-hover shrink-0"
+              >
+                <span>Préparer la rentrée</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </Reveal>
+
           {/* ── 2. KPI STRIP (4 INDICATEURS ESSENTIELS) ── */}
           <Reveal delay={0.06}>
             <DirectorKpiStrip kpis={kpis} scope={scope} />

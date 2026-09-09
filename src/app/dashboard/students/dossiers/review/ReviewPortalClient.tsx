@@ -35,6 +35,8 @@ import {
   FileCheck,
   XCircle,
   Plus,
+  School,
+  ArrowRight,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Input, Select } from "@/components/ui/Field";
@@ -1749,212 +1751,251 @@ export default function ReviewPortalClient({
             </div>
 
             {/* Onglets des pièces applicables pour cet élève */}
-            <div className="flex overflow-x-auto gap-1.5 p-3 border-b border-slate-100 bg-white">
-              {drawerStudent.docs
-                .filter((d) => d.applicable)
-                .map((doc, idx) => {
-                  const isActive = doc.requirementId === activeDrawerDoc.requirementId;
-                  return (
-                    <button
-                      key={doc.requirementId}
-                      type="button"
-                      onClick={() => {
-                        setDrawerDocReqId(doc.requirementId);
-                        setShowRejectInput(false);
-                        setRejectReason("");
-                      }}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
-                        isActive
-                          ? "bg-slate-900 text-white shadow-2xs"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      <span>{idx + 1}. {doc.shortLabel}</span>
-                      {doc.status === "CONFORME" && <Check className="h-3 w-3 text-emerald-400" />}
-                      {doc.status === "FOURNI" && <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />}
-                      {doc.status === "EN_REGULARISATION" && <Hourglass className="h-3 w-3 text-amber-400" />}
-                      {doc.status === "NON_CONFORME" && <X className="h-3 w-3 text-rose-400" />}
-                    </button>
-                  );
-                })}
-            </div>
+            {drawerStudent.docs.filter((d) => d.applicable).length > 0 ? (
+              <div className="flex overflow-x-auto gap-1.5 p-3 border-b border-slate-100 bg-white">
+                {drawerStudent.docs
+                  .filter((d) => d.applicable)
+                  .map((doc, idx) => {
+                    const isActive = activeDrawerDoc && doc.requirementId === activeDrawerDoc.requirementId;
+                    return (
+                      <button
+                        key={doc.requirementId}
+                        type="button"
+                        onClick={() => {
+                          setDrawerDocReqId(doc.requirementId);
+                          setShowRejectInput(false);
+                          setRejectReason("");
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
+                          isActive
+                            ? "bg-slate-900 text-white shadow-2xs"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        }`}
+                      >
+                        <span>{idx + 1}. {doc.shortLabel}</span>
+                        {doc.status === "CONFORME" && <Check className="h-3 w-3 text-emerald-400" />}
+                        {doc.status === "FOURNI" && <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />}
+                        {doc.status === "EN_REGULARISATION" && <Hourglass className="h-3 w-3 text-amber-400" />}
+                        {doc.status === "NON_CONFORME" && <X className="h-3 w-3 text-rose-400" />}
+                      </button>
+                    );
+                  })}
+              </div>
+            ) : null}
 
             {/* Corps du panneau (Aperçu & Détails) */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
-              {/* Carte Info Pièce */}
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    {activeDrawerDoc.category} · {activeDrawerDoc.source === "OFFICIEL" ? "Réglementaire" : "Établissement"}
-                  </span>
-                  <span
-                    className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
-                      activeDrawerDoc.status === "CONFORME"
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : activeDrawerDoc.status === "FOURNI"
-                        ? "bg-sky-50 text-sky-700 border-sky-200"
-                        : activeDrawerDoc.status === "EN_REGULARISATION"
-                        ? "bg-amber-50 text-amber-800 border-amber-200"
-                        : activeDrawerDoc.status === "NON_CONFORME"
-                        ? "bg-rose-50 text-rose-700 border-rose-200"
-                        : "bg-slate-100 text-slate-600 border-slate-200"
-                    }`}
-                  >
-                    {activeDrawerDoc.status === "CONFORME"
-                      ? "Conforme"
-                      : activeDrawerDoc.status === "FOURNI"
-                      ? "À vérifier"
-                      : activeDrawerDoc.status === "EN_REGULARISATION"
-                      ? "En régularisation"
-                      : activeDrawerDoc.status === "NON_CONFORME"
-                      ? "Non conforme"
-                      : "Manquant"}
-                  </span>
+            {!activeDrawerDoc ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+                <div className="h-16 w-16 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600">
+                  <School className="h-8 w-8" />
                 </div>
-                <h3 className="text-sm font-bold text-slate-900">{activeDrawerDoc.label}</h3>
-
-                {activeDrawerDoc.note && (
-                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 mt-2">
-                    <p className="font-semibold">Observation :</p>
-                    <p className="mt-0.5">{activeDrawerDoc.note}</p>
-                  </div>
-                )}
+                <div className="max-w-xs space-y-1.5">
+                  <h3 className="text-sm font-bold text-slate-900">Élève non affecté à une classe</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Affectez cet élève à une classe pour connaître les pièces exigées pour son cycle scolaire.
+                  </p>
+                </div>
+                <Link
+                  href={`/dashboard/students/${drawerStudent.id}`}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors"
+                >
+                  <span>Affecter à une classe</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               </div>
-
-              {/* Zone d'aperçu du document */}
-              <div className="rounded-2xl border border-slate-200 bg-slate-100 min-h-[260px] flex flex-col items-center justify-center p-4 relative overflow-hidden">
-                {signedDocLoading ? (
-                  <div className="flex flex-col items-center gap-2 text-slate-500 text-xs">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    <span>Chargement du document...</span>
-                  </div>
-                ) : signedDocUrl ? (
-                  signedDocUrl.toLowerCase().includes(".pdf") ? (
-                    <iframe src={signedDocUrl} className="w-full h-80 rounded-xl border border-slate-200" />
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={signedDocUrl}
-                      alt={activeDrawerDoc.label}
-                      className="max-h-80 max-w-full rounded-xl object-contain shadow-sm"
-                    />
-                  )
-                ) : activeDrawerDoc.status === "EN_REGULARISATION" ? (
-                  <div className="text-center p-6 space-y-2">
-                    <Hourglass className="h-10 w-10 text-amber-600 mx-auto animate-spin-slow" />
-                    <p className="text-xs font-semibold text-slate-800">Démarche en cours auprès de l&apos;état civil</p>
-                    <p className="text-[11px] text-slate-500">Aucun fichier joint — justificatif en attente</p>
-                  </div>
-                ) : (
-                  <div className="text-center p-6 space-y-3">
-                    <FolderOpen className="h-10 w-10 text-slate-400 mx-auto" />
-                    <div>
-                      <p className="text-xs font-semibold text-slate-700">Aucun document déposé</p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Cette pièce est manquante au dossier de cet élève.
-                      </p>
+            ) : (
+              <>
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+                  {/* Carte Info Pièce */}
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                        {activeDrawerDoc.category} · {activeDrawerDoc.source === "OFFICIEL" ? "Réglementaire" : "Établissement"}
+                      </span>
+                      <span
+                        className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
+                          activeDrawerDoc.status === "CONFORME"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : activeDrawerDoc.status === "FOURNI"
+                            ? "bg-sky-50 text-sky-700 border-sky-200"
+                            : activeDrawerDoc.status === "EN_REGULARISATION"
+                            ? "bg-amber-50 text-amber-800 border-amber-200"
+                            : activeDrawerDoc.status === "NON_CONFORME"
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : "bg-slate-100 text-slate-600 border-slate-200"
+                        }`}
+                      >
+                        {activeDrawerDoc.status === "CONFORME"
+                          ? "Conforme"
+                          : activeDrawerDoc.status === "FOURNI"
+                          ? "À vérifier"
+                          : activeDrawerDoc.status === "EN_REGULARISATION"
+                          ? "En régularisation"
+                          : activeDrawerDoc.status === "NON_CONFORME"
+                          ? "Non conforme"
+                          : "Manquant"}
+                      </span>
                     </div>
-                  </div>
-                )}
-              </div>
+                    <h3 className="text-sm font-bold text-slate-900">{activeDrawerDoc.label}</h3>
 
-              {/* Saisie de motif de refus si activé */}
-              {showRejectInput && (
-                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 space-y-3 animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-rose-900 flex items-center gap-1.5">
-                      <AlertCircle className="h-4 w-4 text-rose-600" />
-                      <span>Motif du refus (obligatoire)</span>
-                    </label>
+                    {activeDrawerDoc.note && (
+                      <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 mt-2">
+                        <p className="font-semibold">Observation :</p>
+                        <p className="mt-0.5">{activeDrawerDoc.note}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Zone d'aperçu du document */}
+                  <div className="rounded-2xl border border-slate-200 bg-slate-100 min-h-[260px] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+                    {signedDocLoading ? (
+                      <div className="flex flex-col items-center gap-2 text-slate-500 text-xs">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <span>Chargement du document...</span>
+                      </div>
+                    ) : signedDocUrl ? (
+                      signedDocUrl.toLowerCase().includes(".pdf") ? (
+                        <iframe src={signedDocUrl} className="w-full h-80 rounded-xl border border-slate-200" />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={signedDocUrl}
+                          alt={activeDrawerDoc.label}
+                          className="max-h-80 max-w-full rounded-xl object-contain shadow-sm"
+                        />
+                      )
+                    ) : activeDrawerDoc.status === "EN_REGULARISATION" ? (
+                      <div className="text-center p-6 space-y-2">
+                        <Hourglass className="h-10 w-10 text-amber-600 mx-auto animate-spin-slow" />
+                        <p className="text-xs font-semibold text-slate-800">Démarche en cours auprès de l&apos;état civil</p>
+                        <p className="text-[11px] text-slate-500">Aucun fichier joint — justificatif en attente</p>
+                      </div>
+                    ) : activeDrawerDoc.status === "CONFORME" || activeDrawerDoc.status === "FOURNI" || activeDrawerDoc.status === "NON_CONFORME" ? (
+                      <div className="text-center p-6 space-y-2">
+                        <FileText className="h-10 w-10 text-emerald-600 mx-auto" />
+                        <p className="text-xs font-semibold text-slate-800">
+                          {activeDrawerDoc.fileName || "Fichier joint au dossier"}
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          {activeDrawerDoc.status === "CONFORME"
+                            ? "Document vérifié et validé conforme"
+                            : activeDrawerDoc.status === "NON_CONFORME"
+                            ? "Document contrôlé non conforme"
+                            : "Document déposé, prêt pour vérification"}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center p-6 space-y-3">
+                        <FolderOpen className="h-10 w-10 text-slate-400 mx-auto" />
+                        <div>
+                          <p className="text-xs font-semibold text-slate-700">Aucun document déposé</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Cette pièce est manquante au dossier de cet élève.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Saisie de motif de refus si activé */}
+                  {showRejectInput && (
+                    <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 space-y-3 animate-in fade-in duration-150">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-rose-900 flex items-center gap-1.5">
+                          <AlertCircle className="h-4 w-4 text-rose-600" />
+                          <span>Motif du refus (obligatoire)</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowRejectInput(false)}
+                          className="text-xs text-rose-700 hover:underline"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                      <textarea
+                        rows={2}
+                        placeholder="Ex. : Document illisible, extrait non certifié, date coupée..."
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        className="w-full p-2.5 text-xs rounded-xl border border-rose-300 bg-white text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-rose-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleDrawerReject}
+                        disabled={!rejectReason.trim() || processingId === activeDrawerDoc.requirementId}
+                        className="w-full min-h-[44px] rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-colors disabled:opacity-50"
+                      >
+                        Confirmer le refus & notifier
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pied du panneau : Contrôles de validation & Navigation */}
+                <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50 space-y-3">
+                  {/* Boutons d'action principaux */}
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={() => setShowRejectInput(false)}
-                      className="text-xs text-rose-700 hover:underline"
+                      onClick={handleDrawerValidate}
+                      disabled={processingId === activeDrawerDoc.requirementId}
+                      className="min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-2xs transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                     >
-                      Annuler
+                      <Check className="h-4 w-4" />
+                      <span>Conforme</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowRejectInput(true)}
+                      className="min-h-[44px] rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <X className="h-4 w-4" />
+                      <span>Non conforme</span>
                     </button>
                   </div>
-                  <textarea
-                    rows={2}
-                    placeholder="Ex. : Document illisible, extrait non certifié, date coupée..."
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                    className="w-full p-2.5 text-xs rounded-xl border border-rose-300 bg-white text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-rose-400"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleDrawerReject}
-                    disabled={!rejectReason.trim() || processingId === activeDrawerDoc.requirementId}
-                    className="w-full min-h-[44px] rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-colors disabled:opacity-50"
-                  >
-                    Confirmer le refus & notifier
-                  </button>
+
+                  {/* Remplacer le document & Navigation pièce précédente / suivante */}
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => drawerFileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-primary transition-colors py-2"
+                    >
+                      <UploadCloud className="h-4 w-4" />
+                      <span>Remplacer le document</span>
+                    </button>
+                    <input
+                      ref={drawerFileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/heic,application/pdf"
+                      onChange={handleDrawerFileUpload}
+                      className="hidden"
+                    />
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => advanceDrawerDoc(-1)}
+                        className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 min-h-[38px] min-w-[38px] flex items-center justify-center"
+                        title="Pièce précédente"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => advanceDrawerDoc(1)}
+                        className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 min-h-[38px] min-w-[38px] flex items-center justify-center"
+                        title="Pièce suivante"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-
-            {/* Pied du panneau : Contrôles de validation & Navigation */}
-            <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50 space-y-3">
-              {/* Boutons d'action principaux */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={handleDrawerValidate}
-                  disabled={processingId === activeDrawerDoc.requirementId}
-                  className="min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-2xs transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-                >
-                  <Check className="h-4 w-4" />
-                  <span>Conforme</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowRejectInput(true)}
-                  className="min-h-[44px] rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <X className="h-4 w-4" />
-                  <span>Non conforme</span>
-                </button>
-              </div>
-
-              {/* Remplacer le document & Navigation pièce précédente / suivante */}
-              <div className="flex items-center justify-between gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => drawerFileInputRef.current?.click()}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-primary transition-colors py-2"
-                >
-                  <UploadCloud className="h-4 w-4" />
-                  <span>Remplacer le document</span>
-                </button>
-                <input
-                  ref={drawerFileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/heic,application/pdf"
-                  onChange={handleDrawerFileUpload}
-                  className="hidden"
-                />
-
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => advanceDrawerDoc(-1)}
-                    className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 min-h-[38px] min-w-[38px] flex items-center justify-center"
-                    title="Pièce précédente"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => advanceDrawerDoc(1)}
-                    className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 min-h-[38px] min-w-[38px] flex items-center justify-center"
-                    title="Pièce suivante"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
       )}
