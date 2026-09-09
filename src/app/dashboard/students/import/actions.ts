@@ -59,7 +59,6 @@ export async function acceptDpaAction() {
     data: {
       dataProcessingAcceptedAt: new Date(),
       dataProcessingVersion: "2026-09-v1",
-      dataProcessingIp: clientIp,
     },
   });
 

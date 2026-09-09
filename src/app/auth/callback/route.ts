@@ -27,6 +27,15 @@ export async function GET(request: Request) {
   const demande = searchParams.get('next') ?? '/dashboard'
   const next = demande.startsWith('/') && !demande.startsWith('//') ? demande : '/dashboard'
 
+  const errorParam = searchParams.get('error')
+  const errorDescription = searchParams.get('error_description')
+
+  if (errorParam) {
+    console.error('OAuth callback error:', errorParam, errorDescription)
+    // Supabase a bloqué l'authentification (ex: e-mail déjà utilisé par un compte sans Google)
+    return NextResponse.redirect(`${origin}/login?erreur=connexion_refusee`)
+  }
+
   if (!code) {
     return NextResponse.redirect(`${origin}/login?erreur=lien_incomplet`)
   }

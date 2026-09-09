@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Lato } from "next/font/google";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { I18nProvider } from "@/lib/i18n/context";
+import { resolveLocale } from "@/lib/i18n";
 
 const lato = Lato({
   subsets: ["latin", "latin-ext"],
@@ -23,11 +25,19 @@ export default async function RootLayout({
 }>) {
   const cookieStore = await cookies();
   const density = cookieStore.get("educom_density")?.value || "normal";
+  const cookieLocale = cookieStore.get("educom_locale")?.value;
+  
+  const headersList = await headers();
+  const acceptLanguage = headersList.get("accept-language");
+
+  const locale = resolveLocale({ cookieLocale, acceptLanguage });
 
   return (
-    <html lang="fr" className={`h-full ${lato.variable}`} data-density={density}>
+    <html lang={locale} dir="ltr" className={`h-full ${lato.variable}`} data-density={density}>
       <body className={`${lato.className} h-full flex flex-col text-text bg-ground font-sans antialiased selection:bg-primary/20 selection:text-primary`}>
-        {children}
+        <I18nProvider locale={locale}>
+          {children}
+        </I18nProvider>
         <Toaster 
           position="bottom-right"
           toastOptions={{

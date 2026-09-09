@@ -32,6 +32,7 @@ import {
   getReinscriptionInitDataAction,
 } from "./actions";
 import { EXIT_DESTINATION, getNextAcademicYear } from "@/lib/reinscription";
+import { useTranslation } from "@/lib/i18n";
 
 interface ReinscriptionWizardClientProps {
   initialData: ReinscriptionInitData;
@@ -40,6 +41,7 @@ interface ReinscriptionWizardClientProps {
 export default function ReinscriptionWizardClient({
   initialData,
 }: ReinscriptionWizardClientProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [data, setData] = useState<ReinscriptionInitData>(initialData);
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -383,16 +385,16 @@ export default function ReinscriptionWizardClient({
               className="text-xs font-medium text-text-muted hover:text-text-primary transition-colors inline-flex items-center gap-1"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Réglages
+              {t("settings", "title")}
             </Link>
             <span className="text-text-muted">/</span>
-            <span className="text-xs font-semibold text-primary">Préparer la rentrée</span>
+            <span className="text-xs font-semibold text-primary">{t("reinscription", "title")}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text-primary mt-1">
-            Préparer la rentrée scolaire
+            {t("reinscription", "title")}
           </h1>
           <p className="text-sm text-text-secondary mt-0.5">
-            Réinscription en masse et promotion de niveau des effectifs d&apos;une année sur l&apos;autre.
+            {t("reinscription", "subtitle")}
           </p>
         </div>
 
@@ -412,7 +414,7 @@ export default function ReinscriptionWizardClient({
                 className="text-xs text-red-700 hover:text-red-800 hover:bg-red-100/50 h-7 px-2"
               >
                 <RotateCcw className="w-3.5 h-3.5 mr-1" />
-                Défaire
+                {t("reinscription", "cancelBtn")}
               </Button>
             )}
           </div>
@@ -423,10 +425,10 @@ export default function ReinscriptionWizardClient({
       <div className="bg-white rounded-2xl border border-border p-4 shadow-sm">
         <div className="grid grid-cols-4 gap-2 text-center text-xs">
           {[
-            { num: 1, label: "1. Années scolaires" },
-            { num: 2, label: "2. Promotion des classes" },
-            { num: 3, label: "3. Revue des élèves" },
-            { num: 4, label: "4. Confirmation" },
+            { num: 1, label: t("reinscription", "step1") },
+            { num: 2, label: t("reinscription", "step2") },
+            { num: 3, label: t("reinscription", "step3") },
+            { num: 4, label: t("reinscription", "step4") },
           ].map((s) => {
             const isActive = step === s.num;
             const isDone = step > s.num;
@@ -474,10 +476,10 @@ export default function ReinscriptionWizardClient({
               </div>
               <div className="space-y-1">
                 <h2 className="text-lg font-bold text-text-primary">
-                  Étape 1 — Sélectionner les années de transition
+                  {t("reinscription", "step1Title")}
                 </h2>
                 <p className="text-xs text-text-secondary leading-relaxed">
-                  Choisissez l&apos;année scolaire d&apos;origine contenant vos élèves actuels et l&apos;année scolaire de destination dans laquelle les nouvelles inscriptions seront créées.
+                  {t("reinscription", "step1Subtitle")}
                 </p>
               </div>
             </div>
@@ -487,10 +489,10 @@ export default function ReinscriptionWizardClient({
               <div className="rounded-2xl border border-border bg-secondary/20 p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-                    Année source (Origine)
+                    {t("reinscription", "sourceYearLabel")}
                   </span>
                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
-                    {data.students.length} élèves inscrits
+                    {t("students", "enrolledCount", { count: data.students.length })}
                   </span>
                 </div>
                 <select

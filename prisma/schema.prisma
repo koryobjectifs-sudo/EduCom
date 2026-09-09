@@ -88,11 +88,12 @@ model School {
   /// Acceptation du DPA / Responsable de Traitement CDP (Loi 2008-12)
   dataProcessingAcceptedAt DateTime?
   dataProcessingVersion    String?
-  dataProcessingIp         String?
   /// Conditions spécifiques aux paiements Wave
   waveTermsAcceptedAt      DateTime?
   waveTermsVersion         String?
   waveTermsIp              String?
+  /// Langue officielle d'édition des documents de l'école (ex. bulletins, certificats, reçus)
+  documentLocale      String  @default("fr")
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -170,7 +171,8 @@ model User {
   /// Acceptation horodatée et versionnée des CGU / Politique de confidentialité
   termsAcceptedAt  DateTime?
   termsVersion     String?
-  termsIpAddress   String?
+  /// Langue d'interface de l'utilisateur (fr, en, pt)
+  locale      String   @default("fr")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

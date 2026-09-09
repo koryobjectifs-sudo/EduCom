@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import { changeTestRole } from "@/app/dashboard/actions";
 import MobileNav from "./MobileNav";
 import { type NavSpace } from "@/lib/navigation";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 
 const ALL_TEST_ROLES = ["OWNER", "ADMIN", "SECRETARY", "ACCOUNTANT", "TEACHER", "ASSISTANT", "PARENT"];
 
@@ -162,6 +163,8 @@ export default function AppTopBar({
               )}
             </div>
           )}
+
+          <LanguageSwitcher compact />
 
           <Link
             href="/public"

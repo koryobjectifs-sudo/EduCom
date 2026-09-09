@@ -119,3 +119,18 @@ export function formatStudentAge(dob: Date | string | number | null | undefined)
   const res = calculateAge(dob);
   return res ? res.formatted : "Âge inconnu";
 }
+
+/**
+ * Formatage standard d'une date selon la locale (jj/mm/aaaa en fr/pt, mm/dd/yyyy en en).
+ */
+export function formatDate(date: Date | string | number | null | undefined, locale: string = "fr"): string {
+  const parsed = parseFlexibleDate(date);
+  if (!parsed) return "";
+  
+  const intlLocale = locale === "en" ? "en-US" : locale === "pt" ? "pt-PT" : "fr-FR";
+  return new Intl.DateTimeFormat(intlLocale, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  }).format(parsed);
+}

@@ -71,6 +71,10 @@ const MESSAGES_LIEN: Record<string, string> = {
     "Ce lien de confirmation est incomplet. Ouvrez-le directement depuis l'e-mail, sans le recopier.",
   espace_absent:
     "Votre compte existe, mais aucun établissement ne lui est rattaché. Écrivez-nous : nous terminons la configuration de votre espace.",
+  connexion_refusee:
+    "La connexion via ce service a été refusée, probablement car l'e-mail est déjà utilisé par un autre compte. Essayez de vous connecter avec votre mot de passe.",
+  oauth_error:
+    "Une erreur est survenue lors de la connexion via ce service extérieur. Veuillez réessayer ou utiliser votre adresse e-mail classique.",
 };
 
 /**

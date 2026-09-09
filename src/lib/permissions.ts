@@ -113,13 +113,18 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
     "/dashboard/admin/reports",
   ],
 
-  // Un parent accède à ses 5 modules dédiés (chacun filtré strictement par sa famille).
+  // ═══ LISTE BLANCHE STRICTE POUR LE RÔLE PARENT (Fail-Closed) ═══
+  // Un parent n'a accès qu'aux routes EXPLICITEMENT listées avec terminaison exacte ($).
+  // Toute nouvelle route créée sur /dashboard est INTERDITE par défaut aux parents.
   PARENT: [
-    "/dashboard/students",
-    "/dashboard/documents",
-    "/dashboard/grades",
-    "/dashboard/payments",
-    "/dashboard/settings",
+    "/dashboard/students$",
+    "/dashboard/students/[id]$",
+    "/dashboard/students/[id]/dossier$",
+    "/dashboard/documents$",
+    "/dashboard/documents/centre$",
+    "/dashboard/grades$",
+    "/dashboard/payments$",
+    "/dashboard/settings$",
   ],
 
   // Le comptable édite factures et reçus : ils vivent dans `/dashboard/documents`,
@@ -342,8 +347,11 @@ export function hasAccess(role: RoleType | string, path: string): boolean {
 
   return permissions.some((allowed) => {
     if (allowed.endsWith("$")) {
-      // Correspondance exacte : le chemin ne doit pas ouvrir ses descendants.
-      return path === allowed.slice(0, -1);
+      const rawPattern = allowed.slice(0, -1);
+      // Identifiant dynamique d'élève : exclut les mots-clés réservés d'administration
+      const idPattern = "(?!(?:new|import|export|dossiers|review|classes|batch-delete|tarifs|statement|receipt|invoice)$)[a-zA-Z0-9_-]+";
+      const regexStr = "^" + rawPattern.replace(/\[[a-zA-Z0-9_-]+\]/g, idPattern) + "$";
+      return new RegExp(regexStr).test(path);
     }
     return path === allowed || path.startsWith(`${allowed}/`);
   });

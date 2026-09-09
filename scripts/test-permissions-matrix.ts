@@ -244,6 +244,24 @@ async function main() {
     assert(hasAccess("PARENT", path), `PARENT a accès à sa destination ${path}`);
   }
 
+  console.log("\n── RÈGLE 7 : FAIL-CLOSED / LISTE BLANCHE — REJET PAR DÉFAUT DE TOUTE NOUVELLE ROUTE");
+  const HYPOTHETICAL_UNLISTED_ROUTES = [
+    "/dashboard/analytics",
+    "/dashboard/audit-logs",
+    "/dashboard/payments/export-all",
+    "/dashboard/payments/custom-gateway",
+    "/dashboard/settings/third-party-api",
+    "/dashboard/students/batch-delete",
+    "/dashboard/future-module-2027",
+  ];
+
+  for (const path of HYPOTHETICAL_UNLISTED_ROUTES) {
+    assert(
+      !hasAccess("PARENT", path),
+      `Route non listée "${path}" est STRICTEMENT REFUSÉE par défaut au rôle PARENT (fail-closed)`
+    );
+  }
+
   console.log(`\n🎉 TOUS LES ${testsPassed}/${testsTotal} TESTS DE LA MATRICE DE SÉCURITÉ SONT PASSÉS SANS ERREUR !`);
 }
 

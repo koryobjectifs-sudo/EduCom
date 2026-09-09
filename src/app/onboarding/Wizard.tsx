@@ -10,6 +10,8 @@ import { LEVELS, classesForLevels } from "@/lib/curriculum";
 import { completeOnboarding, checkDuplicateSchoolAction } from "./actions";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { useTranslation } from "@/lib/i18n";
 
 type WizardProps = { schoolName: string; userName: string };
 
@@ -41,6 +43,8 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
   const [erreur, setErreur] = useState<string | null>(null);
   const [duplicateInfo, setDuplicateInfo] = useState<{ name: string; city: string } | null>(null);
 
+  const { t } = useTranslation();
+
   const toggle = (id: string) =>
     setNiveaux((prev) => (prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id]));
 
@@ -60,7 +64,7 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
     
     if (!res.success) {
       setBusy(false);
-      setErreur(res.error ?? "La configuration n'a pas pu être enregistrée.");
+      setErreur(res.error ?? t("onboarding", "errorFallback"));
       return;
     }
 
@@ -83,21 +87,20 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
         </div>
 
         <h1 className="text-3xl font-bold tracking-tight text-text">
-          🎉 Félicitations !
+          {t("onboarding", "successTitle")}
         </h1>
 
-        <p className="mt-4 text-[15px] leading-relaxed text-text-soft max-w-md mx-auto">
-          <strong className="text-text font-semibold">{schoolName}</strong> est maintenant configurée dans EduCom. Votre établissement est prêt, commençons à lui donner vie.
+        <p className="mt-4 text-[15px] leading-relaxed text-text-soft max-w-md mx-auto" dangerouslySetInnerHTML={{ __html: t("onboarding", "successDesc", { schoolName: `<strong>${schoolName}</strong>` }) }}>
         </p>
 
         <div className="mt-10 pt-8 border-t border-rule/50">
           <div className="flex flex-col items-center justify-center gap-4">
             <Button size="lg" onClick={() => router.push("/dashboard/students/import")} className="w-full sm:w-auto text-base h-12 px-8">
               <UserPlus aria-hidden="true" className="mr-2 h-5 w-5" />
-              Importer mes élèves
+              {t("onboarding", "importBtn")}
             </Button>
             <p className="text-[12px] text-text-soft mb-2">
-              Commencez par importer votre fichier Excel ou CSV pour configurer votre école plus rapidement.
+              {t("onboarding", "importDesc")}
             </p>
             <Button size="lg" variant="ghost" onClick={async () => {
               setBusy(true);
@@ -105,10 +108,10 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
               await injectDemoData();
               router.push("/dashboard");
             }} className="w-full sm:w-auto text-text-soft hover:text-text mt-2" loading={busy}>
-              {busy ? "Génération en cours..." : "Voir avec des données de démonstration"}
+              {busy ? t("onboarding", "demoLoading") : t("onboarding", "demoBtn")}
             </Button>
             <Button size="lg" variant="ghost" onClick={() => router.push("/dashboard")} className="w-full sm:w-auto text-text-soft hover:text-text mt-2">
-              Accéder à mon école
+              {t("onboarding", "accessBtn")}
               <ArrowRight aria-hidden="true" className="ml-2 h-4 w-4" />
             </Button>
           </div>
@@ -135,7 +138,7 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
           ))}
         </div>
         <div className="text-[12px] font-semibold tracking-wider text-text-faint">
-          ÉTAPE {step} SUR 5
+          {t("onboarding", "stepXofY", { step, total: 5 })}
         </div>
       </div>
 
@@ -157,16 +160,19 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
         
         {step === 1 && (
           <div>
+            <div className="flex justify-end mb-3">
+              <LanguageSwitcher />
+            </div>
             <h1 className="text-[20px] font-bold tracking-tight text-text text-center">
-              Quel est le nom de votre établissement ?
+              {t("onboarding", "step1Title")}
             </h1>
             <p className="mt-1.5 text-[13px] leading-relaxed text-text-soft text-center">
-              Commençons par identifier votre école.
+              {t("onboarding", "step1Desc")}
             </p>
 
             <div className="mt-6">
               <Input
-                label="Nom de l'établissement"
+                label={t("onboarding", "schoolNameLabel")}
                 value={schoolName}
                 onChange={(e) => {
                   setSchoolName(e.target.value);
@@ -182,7 +188,7 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
                     setDuplicateInfo(null);
                   }
                 }}
-                placeholder="Complexe scolaire Mariama Bâ"
+                placeholder={t("onboarding", "schoolNamePlaceholder")}
                 autoFocus
               />
             </div>
@@ -193,17 +199,17 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
                   <span className="text-amber-600 text-lg">⚠️</span>
                   <div className="text-[13px]">
                     <p className="font-semibold text-amber-900 dark:text-amber-200">
-                      Une école nommée « {duplicateInfo.name} » existe déjà à {duplicateInfo.city}.
+                      {t("onboarding", "duplicateWarningTitle", { name: duplicateInfo.name, city: duplicateInfo.city })}
                     </p>
                     <p className="mt-1 text-amber-800 dark:text-amber-300/90 leading-relaxed">
-                      Est-ce la vôtre ? Si votre établissement utilise déjà EduCom, demandez à votre direction ou administrateur de vous envoyer une invitation plutôt que de créer un établissement vide en doublon.
+                      {t("onboarding", "duplicateWarningBody")}
                     </p>
                     <div className="mt-2.5">
                       <a
                         href="/invite"
                         className="inline-flex items-center text-[12px] font-semibold text-primary hover:underline"
                       >
-                        Rejoindre avec un lien d'invitation →
+                        {t("onboarding", "joinWithInvite")}
                       </a>
                     </div>
                   </div>
@@ -213,7 +219,7 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
 
             <div className="mt-6 flex justify-end pt-5 border-t border-rule/30">
               <Button size="lg" onClick={() => setStep(2)} disabled={!schoolName.trim()}>
-                Continuer
+                {t("common", "continue")}
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Button>
             </div>
@@ -223,18 +229,18 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
         {step === 2 && (
           <div>
             <h1 className="text-[20px] font-bold tracking-tight text-text text-center">
-              Où se trouve votre établissement ?
+              {t("onboarding", "step2Title")}
             </h1>
             <p className="mt-1.5 text-[13px] leading-relaxed text-text-soft text-center">
-              Indiquez l'adresse de votre école.
+              {t("onboarding", "step2Desc")}
             </p>
 
             <div className="mt-6">
               <Input
-                label="Adresse de l'établissement"
+                label={t("onboarding", "addressLabel")}
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="Quartier, ville"
+                placeholder={t("onboarding", "addressPlaceholder")}
                 autoFocus
               />
             </div>
@@ -242,10 +248,10 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
             <div className="mt-6 flex items-center justify-between pt-5 border-t border-rule/30">
               <Button size="lg" variant="ghost" onClick={() => setStep(1)}>
                 <ArrowLeft aria-hidden="true" className="h-4 w-4 mr-2" />
-                Retour
+                {t("common", "back")}
               </Button>
               <Button size="lg" onClick={() => setStep(3)} disabled={!address.trim()}>
-                Continuer
+                {t("common", "continue")}
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Button>
             </div>
@@ -255,26 +261,26 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
         {step === 3 && (
           <div>
             <h1 className="text-[20px] font-bold tracking-tight text-text text-center">
-              Comment peut-on contacter votre établissement ?
+              {t("onboarding", "step3Title")}
             </h1>
             <p className="mt-1.5 text-[13px] leading-relaxed text-text-soft text-center">
-              Ajoutez les coordonnées officielles de votre école.
+              {t("onboarding", "step3Desc")}
             </p>
 
             <div className="mt-6 space-y-4">
               <Input
-                label="Téléphone de l'établissement"
+                label={t("onboarding", "phoneLabel")}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+221 77 000 00 00"
+                placeholder={t("onboarding", "phonePlaceholder")}
                 inputMode="tel"
                 autoFocus
               />
               <Input
-                label="Adresse e-mail de l'établissement"
+                label={t("onboarding", "emailLabel")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="direction@ecole.sn"
+                placeholder={t("onboarding", "emailPlaceholder")}
                 type="email"
               />
             </div>
@@ -282,10 +288,10 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
             <div className="mt-6 flex items-center justify-between pt-5 border-t border-rule/30">
               <Button size="lg" variant="ghost" onClick={() => setStep(2)}>
                 <ArrowLeft aria-hidden="true" className="h-4 w-4 mr-2" />
-                Retour
+                {t("common", "back")}
               </Button>
               <Button size="lg" onClick={() => setStep(4)} disabled={!phone.trim() || !email.trim()}>
-                Continuer
+                {t("common", "continue")}
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Button>
             </div>
@@ -295,10 +301,10 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
         {step === 4 && (
           <div>
             <h1 className="text-[20px] font-bold tracking-tight text-text text-center">
-              Quels cycles votre établissement propose-t-il ?
+              {t("onboarding", "step4Title")}
             </h1>
             <p className="mt-1.5 text-[13px] leading-relaxed text-text-soft text-center">
-              Sélectionnez les cycles enseignés dans votre établissement.
+              {t("onboarding", "step4Desc")}
             </p>
 
             <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -338,10 +344,10 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
             <div className="mt-5 flex items-center justify-between pt-5 border-t border-rule/30">
               <Button size="lg" variant="ghost" onClick={() => setStep(3)}>
                 <ArrowLeft aria-hidden="true" className="h-4 w-4 mr-2" />
-                Retour
+                {t("common", "back")}
               </Button>
               <Button size="lg" onClick={() => setStep(5)} disabled={niveaux.length === 0}>
-                Continuer
+                {t("common", "continue")}
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Button>
             </div>
@@ -355,27 +361,26 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
             </div>
             
             <h1 className="text-[20px] font-bold tracking-tight text-text text-center">
-              Votre école est presque prête !
+              {t("onboarding", "step5Title")}
             </h1>
             <p className="mt-1.5 text-[13px] leading-relaxed text-text-soft text-center px-4">
-              Les informations essentielles de votre établissement sont maintenant configurées.
-              <br/>Il nous reste simplement à identifier la personne responsable.
+              {t("onboarding", "step5Desc")}
             </p>
 
             <div className="mt-6 space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
-                  label="Prénom"
+                  label={t("onboarding", "firstNameLabel")}
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="Jean"
+                  placeholder={t("onboarding", "firstNamePlaceholder")}
                   autoFocus
                 />
                 <Input
-                  label="Nom"
+                  label={t("onboarding", "lastNameLabel")}
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Dupont"
+                  placeholder={t("onboarding", "lastNamePlaceholder")}
                 />
               </div>
             </div>
@@ -383,10 +388,10 @@ export default function Wizard({ schoolName: initialSchoolName, userName: initia
             <div className="mt-6 flex items-center justify-between pt-5 border-t border-rule/30">
               <Button size="lg" variant="ghost" onClick={() => setStep(4)} disabled={busy}>
                 <ArrowLeft aria-hidden="true" className="h-4 w-4 mr-2" />
-                Retour
+                {t("common", "back")}
               </Button>
               <Button size="lg" onClick={finish} disabled={!firstName.trim() || !lastName.trim() || busy} loading={busy}>
-                Terminer
+                {t("onboarding", "finishBtn")}
                 {!busy && <ArrowRight aria-hidden="true" className="h-4 w-4" />}
               </Button>
             </div>

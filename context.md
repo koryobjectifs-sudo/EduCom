@@ -1,12 +1,33 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 9 septembre 2026 — **Sécurité Espace Parent, Éradication Données de Santé & Perfectionnements Réinscription (`v5-securite-parent`)**
+> Dernière mise à jour : 9 septembre 2026 — **Diagnostic Google Auth & Audit Onboarding (`v7-onboarding-fixes`)**
 > Lot livré :
-> 1. Éradication absolue et définitive de toute donnée de santé (loi 2008-12 CDP Sénégal), note explicite de tête dans `officialRequirements.ts`, nettoyage exhaustif des seeds, libellés et commentaires.
-> 2. Sécurisation intégrale de l'Espace Parent : refonte de `/dashboard/payments` en vue famille dédiée (`ParentPaymentsView.tsx`), solde par enfant, prochaine échéance et historique de versements avec reçus ; suppression de tout indicateur de pilotage d'école et boutons administratifs ; navigation famille desktop et mobile (barre inférieure sous 768px pour *Mes enfants*, *Dossiers*, *Notes*, *Paiements*, *Mon compte*) ; extension de la matrice de sécurité à 36 tests automatisés validés bloquant toutes les server actions administratives pour le rôle `PARENT`.
-> 3. Ajustements Lot 3 : Réinscription avec `upsert` (mise à jour effective des classes en cas de relance/correction), garde-fous d'annulation étendus (bulletins, notes, présences), statut automatique des élèves sortants hors fin de cycle (`INACTIVE` vs `GRADUATED`), confirmation de la restriction d'accès aux rôles `OWNER` et `ADMIN`.
+> 1. Diagnostic de l'échec silencieux du bouton Google OAuth (problème de configuration des Redirect URLs sur Supabase pour l'IP locale).
+> 2. Sécurisation anti-double-clic sur le formulaire d'inscription.
+> 3. Gestion propre des erreurs de redirection OAuth (e-mail existant, refus) avec affichage d'un message en français dans `/login`.
+> 4. Audit e2e du parcours d'inscription et d'onboarding : détection de doublons (école/tuteur), HTML5 validation, fermeture navigateur, espace vierge au premier jour, et gestion du back browser tous validés avec succès.
 
-## 🏷️ Point de Sauvegarde & Rollback : `v5-securite-parent`
+## 🏷️ Point de Sauvegarde & Rollback : `v7-onboarding-fixes`
+
+- **Nom de l'étiquette Git** : `v7-onboarding-fixes`
+- **Commande de Rollback / Restauration** : `git checkout v7-onboarding-fixes`
+- **Contenu du jalon** :
+  1. **Google OAuth** : Interception de `?error=` dans `src/app/auth/callback/route.ts` et redirection vers `/login?erreur=connexion_refusee` pour éviter les échecs silencieux et écrans vides.
+  2. **Inscription** : Renforcement anti-double-clic client (`if (loading) return`) + backend déjà robuste.
+  3. **Audit** : L'ensemble du tunnel (vérification email, création conditionnelle, et reprise d'onboarding) a été validé.
+  4. **Diagnostic config** : Les URLs exactes pour Google et Supabase ont été extraites.
+
+## 🏷️ Point de Sauvegarde Précédent : `v6-i18n-lot4`
+
+- **Nom de l'étiquette Git** : `v6-i18n-lot4`
+- **Commande de Rollback / Restauration** : `git checkout v6-i18n-lot4`
+- **Contenu du jalon** :
+  1. **Infrastructure i18n & Formatage** : `resolveLocale` avec fallback `Accept-Language`, formateurs monétaires centralisés (`formatAmount`), pluriels ICU, support CSS RTL via propriétés logiques (`margin-inline-start`, etc.).
+  2. **Dictionnaires & Sélecteurs** : Clés de traduction pour Espace Parent, Onboarding, Réinscription, et Composants Communs. Sélecteur de langue branché sur la persistance (cookie `educom_locale` + `prisma.user.update`).
+  3. **Composants Traduits** : L'entièreté de l'Onboarding, l'Espace Parent, la Réinscription.
+  4. **Validation** : 0 erreur TypeScript, 0 casse du layout.
+
+## 🏷️ Point de Sauvegarde Précédent : `v5-securite-parent`
 
 - **Nom de l'étiquette Git** : `v5-securite-parent`
 - **Commande de Rollback / Restauration** : `git checkout v5-securite-parent`

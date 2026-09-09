@@ -11,20 +11,15 @@ import {
   LogOut 
 } from "lucide-react";
 
+import { useTranslation } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+
 export interface ParentLayoutProps {
   schoolName?: string;
   schoolLogo?: string | null;
   userName?: string;
   children: React.ReactNode;
 }
-
-const PARENT_NAV_ITEMS = [
-  { href: "/dashboard/students", label: "Mes enfants", icon: Users },
-  { href: "/dashboard/documents", label: "Dossiers", icon: FileText },
-  { href: "/dashboard/grades", label: "Notes", icon: GraduationCap },
-  { href: "/dashboard/payments", label: "Paiements", icon: CreditCard },
-  { href: "/dashboard/settings", label: "Mon compte", icon: User },
-];
 
 export default function ParentLayout({
   schoolName = "EduCom",
@@ -33,12 +28,21 @@ export default function ParentLayout({
   children,
 }: ParentLayoutProps) {
   const pathname = usePathname();
-  const displayName = userName?.trim() || "Espace Parent";
+  const { t } = useTranslation();
+  const displayName = userName?.trim() || t("nav", "myAccount");
   const initials = displayName
     .split(/\s+/)
     .slice(0, 2)
-    .map((w) => w.charAt(0).toUpperCase())
+    .map((w: string) => w.charAt(0).toUpperCase())
     .join("");
+
+  const parentNavItems = [
+    { href: "/dashboard/students", label: t("nav", "myChildren"), icon: Users },
+    { href: "/dashboard/documents", label: t("nav", "myDossiers"), icon: FileText },
+    { href: "/dashboard/grades", label: t("nav", "myGrades"), icon: GraduationCap },
+    { href: "/dashboard/payments", label: t("nav", "myPayments"), icon: CreditCard },
+    { href: "/dashboard/settings", label: t("nav", "myAccount"), icon: User },
+  ];
 
   function isItemActive(href: string) {
     if (!pathname) return false;
@@ -71,7 +75,7 @@ export default function ParentLayout({
 
         {/* Navigation Desktop (≥ 768px) */}
         <nav aria-label="Navigation Espace Famille" className="hidden md:flex items-center gap-1">
-          {PARENT_NAV_ITEMS.map((item) => {
+          {parentNavItems.map((item) => {
             const active = isItemActive(item.href);
             const Icon = item.icon;
             return (
@@ -92,8 +96,10 @@ export default function ParentLayout({
           })}
         </nav>
 
-        {/* Profil & Déconnexion */}
+        {/* Profil & Sélecteur de langue & Déconnexion */}
         <div className="flex items-center gap-3">
+          <LanguageSwitcher compact />
+
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
               {initials || "P"}
@@ -104,7 +110,7 @@ export default function ParentLayout({
           <form action="/auth/signout" method="post">
             <button
               type="submit"
-              title="Se déconnecter"
+              title={t("common", "logout")}
               className="flex h-8 w-8 items-center justify-center rounded-control text-text-soft hover:bg-sunk hover:text-danger transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             >
               <LogOut aria-hidden="true" className="h-4 w-4" />
@@ -123,7 +129,7 @@ export default function ParentLayout({
         aria-label="Navigation mobile espace famille"
         className="fixed bottom-0 inset-x-0 z-40 flex h-16 items-center justify-around border-t border-rule bg-surface/95 backdrop-blur-md px-2 md:hidden shadow-lg safe-area-bottom"
       >
-        {PARENT_NAV_ITEMS.map((item) => {
+        {parentNavItems.map((item) => {
           const active = isItemActive(item.href);
           const Icon = item.icon;
           return (

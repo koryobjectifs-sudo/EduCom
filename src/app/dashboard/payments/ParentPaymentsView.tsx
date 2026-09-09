@@ -14,8 +14,8 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { formatAmount } from "@/lib/moneyFormat";
-
-const jour = (d: Date) => new Date(d).toLocaleDateString("fr-FR");
+import { formatDate } from "@/lib/dateUtils";
+import { useTranslation } from "@/lib/i18n";
 
 export interface ParentChildData {
   id: string;
@@ -62,13 +62,6 @@ export interface ParentPaymentsViewProps {
   totalPaidAllTime: number;
 }
 
-const METHOD_LABELS: Record<string, string> = {
-  CASH: "Espèces (Caisse école)",
-  MOBILE_MONEY: "Wave / Orange Money",
-  CHECK: "Chèque",
-  BANK_TRANSFER: "Virement bancaire",
-};
-
 export default function ParentPaymentsView({
   schoolName,
   childrenData,
@@ -78,10 +71,20 @@ export default function ParentPaymentsView({
   earliestNextDueAmount,
   totalPaidAllTime,
 }: ParentPaymentsViewProps) {
+  const { t, locale } = useTranslation();
   const [selectedChildId, setSelectedChildId] = useState<string>(
     childrenData.length > 0 ? childrenData[0].id : "all"
   );
   const [activeTab, setActiveTab] = useState<"invoices" | "history">("invoices");
+
+  const jour = (d: Date) => formatDate(d, locale);
+
+  const methodLabels: Record<string, string> = {
+    CASH: t("finance", "cash"),
+    MOBILE_MONEY: t("finance", "mobileMoney"),
+    CHECK: t("finance", "check"),
+    BANK_TRANSFER: t("finance", "bankTransfer"),
+  };
 
   const filteredChildren = selectedChildId === "all" 
     ? childrenData 
@@ -95,15 +98,15 @@ export default function ParentPaymentsView({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-rule pb-5">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text">
-            Paiements & Frais de scolarité
+            {t("parent", "title")}
           </h1>
           <p className="mt-1 text-sm text-text-soft">
-            Consultez le solde de vos enfants, vos prochaines échéances et vos reçus de paiement.
+            {t("parent", "subtitle")}
           </p>
         </div>
         <div className="inline-flex items-center gap-2 self-start rounded-full border border-emerald-200 bg-emerald-50/60 px-3 py-1 text-xs font-medium text-emerald-800">
           <ShieldCheck className="h-4 w-4 text-emerald-600" />
-          <span>Règlements sécurisés · {schoolName}</span>
+          <span>{schoolName}</span>
         </div>
       </div>
 
@@ -117,26 +120,25 @@ export default function ParentPaymentsView({
         }`}>
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wider text-text-faint">
-              Solde restant à régler
+              {t("parent", "remainingBalance")}
             </p>
             {isUpToDate ? (
               <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
-                <CheckCircle2 className="h-3 w-3" /> À jour
+                <CheckCircle2 className="h-3 w-3" /> {t("parent", "upToDateBadge")}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-                <Clock className="h-3 w-3" /> En cours
+                <Clock className="h-3 w-3" /> {t("parent", "inProgressBadge")}
               </span>
             )}
           </div>
           <p className="mt-2 text-2xl sm:text-3xl font-bold tabular-nums text-text">
             {formatAmount(totalRemainingBalance)}
-            <span className="ml-1 text-sm font-semibold text-text-faint">FCFA</span>
           </p>
           <p className="mt-1 text-xs text-text-soft">
             {isUpToDate 
-              ? "Toutes les factures échues sont soldées." 
-              : `Pour l'ensemble de vos ${childrenData.length} enfant(s)`}
+              ? t("parent", "allSettledNotice") 
+              : t("parent", "forAllChildrenCount", { count: childrenData.length })}
           </p>
         </div>
 
@@ -154,16 +156,16 @@ export default function ParentPaymentsView({
                 {jour(earliestNextDueDate)}
               </p>
               <p className="mt-1 text-xs font-medium text-text-soft">
-                Montant : <span className="font-semibold text-text">{formatAmount(earliestNextDueAmount)} FCFA</span>
+                Montant : <span className="font-semibold text-text">{formatAmount(earliestNextDueAmount)}</span>
               </p>
             </>
           ) : (
             <>
               <p className="mt-2 text-lg font-bold text-text-soft">
-                Aucune échéance
+                {t("parent", "noUpcomingDue")}
               </p>
               <p className="mt-1 text-xs text-text-faint">
-                Aucun paiement n'est attendu dans l'immédiat.
+                {t("parent", "noUpcomingDueNotice")}
               </p>
             </>
           )}
@@ -173,16 +175,15 @@ export default function ParentPaymentsView({
         <div className="rounded-xl border border-rule bg-surface p-4 sm:p-5 shadow-xs">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wider text-text-faint">
-              Total déjà réglé
+              {t("parent", "totalPaid")}
             </p>
             <Receipt className="h-4 w-4 text-text-faint" />
           </div>
           <p className="mt-2 text-2xl sm:text-3xl font-bold tabular-nums text-text">
             {formatAmount(totalPaidAllTime)}
-            <span className="ml-1 text-sm font-semibold text-text-faint">FCFA</span>
           </p>
           <p className="mt-1 text-xs text-text-soft">
-            {paymentHistory.length} versement(s) enregistré(s) avec reçu
+            {t("parent", "receiptsCountInfo", { count: paymentHistory.length })}
           </p>
         </div>
       </div>
@@ -192,7 +193,7 @@ export default function ParentPaymentsView({
         {/* Filtre enfant */}
         {childrenData.length > 1 && (
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            <span className="text-xs font-semibold text-text-faint uppercase mr-1">Élève :</span>
+            <span className="text-xs font-semibold text-text-faint uppercase mr-1">{t("parent", "filterStudent")}</span>
             <button
               onClick={() => setSelectedChildId("all")}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
@@ -201,7 +202,7 @@ export default function ParentPaymentsView({
                   : "bg-surface border border-rule text-text-soft hover:bg-sunk hover:text-text"
               }`}
             >
-              Tous ({childrenData.length})
+              {t("parent", "allStudentsBtn", { count: childrenData.length })}
             </button>
             {childrenData.map((c) => (
               <button
@@ -233,7 +234,7 @@ export default function ParentPaymentsView({
             }`}
           >
             <FileText className="h-3.5 w-3.5" />
-            <span>Factures & Échéancier</span>
+            <span>{t("parent", "invoicesTab")}</span>
           </button>
           <button
             onClick={() => setActiveTab("history")}
@@ -244,7 +245,7 @@ export default function ParentPaymentsView({
             }`}
           >
             <Receipt className="h-3.5 w-3.5" />
-            <span>Reçus & Versements ({paymentHistory.length})</span>
+            <span>{t("parent", "receiptsTab", { count: paymentHistory.length })}</span>
           </button>
         </div>
       </div>
@@ -265,7 +266,7 @@ export default function ParentPaymentsView({
                       {child.firstName} {child.lastName}
                     </h2>
                     <p className="text-xs text-text-soft">
-                      Classe : <span className="font-semibold text-text">{child.className || "Non assignée"}</span>
+                      {t("parent", "classLabel", { className: child.className || "Non assignée" })}
                     </p>
                   </div>
                 </div>
@@ -274,14 +275,14 @@ export default function ParentPaymentsView({
                   <div>
                     <span className="text-text-faint">Reste à régler :</span>{" "}
                     <span className={`font-bold tabular-nums ${child.remainingBalance > 0 ? "text-amber-700 font-semibold" : "text-emerald-700"}`}>
-                      {formatAmount(child.remainingBalance)} FCFA
+                      {formatAmount(child.remainingBalance)}
                     </span>
                   </div>
                   <Link
                     href={`/dashboard/students/${child.id}`}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                   >
-                    Voir profil <ChevronRight className="h-3.5 w-3.5" />
+                    {t("parent", "viewProfile")} <ChevronRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
               </div>
@@ -289,7 +290,7 @@ export default function ParentPaymentsView({
               {/* Liste des factures de cet enfant */}
               {child.invoices.length === 0 ? (
                 <div className="p-8 text-center text-xs text-text-soft">
-                  Aucune facture enregistrée pour {child.firstName}.
+                  {t("parent", "noInvoices", { name: child.firstName })}
                 </div>
               ) : (
                 <div className="divide-y divide-rule">
@@ -306,25 +307,25 @@ export default function ParentPaymentsView({
                             </h3>
                             {isPaid ? (
                               <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700">
-                                <CheckCircle2 className="h-3 w-3" /> Soldé
+                                <CheckCircle2 className="h-3 w-3" /> {t("parent", "invoiceStatusPaid")}
                               </span>
                             ) : isPartial ? (
                               <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10.5px] font-bold text-amber-700">
-                                <Clock className="h-3 w-3" /> Partiel ({formatAmount(invoice.paidAmount)} réglés)
+                                <Clock className="h-3 w-3" /> {t("parent", "invoiceStatusPartial", { amount: formatAmount(invoice.paidAmount) })}
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 border border-slate-200 px-2 py-0.5 text-[10.5px] font-bold text-slate-700">
-                                À régler
+                                {t("parent", "invoiceStatusPending")}
                               </span>
                             )}
                           </div>
 
                           <p className="text-xs text-text-soft flex items-center gap-2">
-                            <span>Échéance : <strong className="text-text">{jour(invoice.dueDate)}</strong></span>
+                            <span>{t("parent", "dueDateLabel", { date: jour(invoice.dueDate) })}</span>
                             {invoice.items.length > 0 && (
                               <>
                                 <span>·</span>
-                                <span>{invoice.items.length} détail(s)</span>
+                                <span>{t("parent", "itemsDetailCount", { count: invoice.items.length })}</span>
                               </>
                             )}
                           </p>
@@ -342,11 +343,11 @@ export default function ParentPaymentsView({
                         <div className="flex sm:flex-col items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-rule text-right">
                           <div>
                             <p className="text-sm sm:text-base font-bold tabular-nums text-text">
-                              {formatAmount(invoice.totalAmount)} FCFA
+                              {formatAmount(invoice.totalAmount)}
                             </p>
                             {!isPaid && (
                               <p className="text-xs font-semibold text-amber-700">
-                                Reste : {formatAmount(invoice.remainingAmount)} FCFA
+                                {t("parent", "remainingAmountLabel", { amount: formatAmount(invoice.remainingAmount) })}
                               </p>
                             )}
                           </div>
@@ -366,7 +367,7 @@ export default function ParentPaymentsView({
         <div className="rounded-xl border border-rule bg-surface shadow-xs overflow-hidden">
           <div className="border-b border-rule bg-sunk/40 px-5 py-3.5 flex items-center justify-between">
             <h2 className="text-sm font-bold text-text">
-              Historique des versements enregistrés
+              {t("parent", "historyTitle")}
             </h2>
             <span className="text-xs text-text-soft">
               {paymentHistory.length} reçu(s) disponible(s)
@@ -376,9 +377,9 @@ export default function ParentPaymentsView({
           {paymentHistory.length === 0 ? (
             <div className="p-12 text-center">
               <Receipt className="mx-auto h-8 w-8 text-text-faint mb-2" />
-              <p className="text-sm font-semibold text-text">Aucun versement enregistré pour l'instant</p>
+              <p className="text-sm font-semibold text-text">{t("parent", "noPaymentsYet")}</p>
               <p className="mt-1 text-xs text-text-soft">
-                Les versements validés par le secrétariat ou la comptabilité apparaîtront ici avec leur reçu.
+                {t("parent", "noPaymentsNotice")}
               </p>
             </div>
           ) : (
@@ -388,10 +389,10 @@ export default function ParentPaymentsView({
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-text">
-                        {formatAmount(payment.amount)} FCFA
+                        {formatAmount(payment.amount)}
                       </span>
                       <span className="inline-flex items-center rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-800">
-                        {METHOD_LABELS[payment.method] || payment.method}
+                        {methodLabels[payment.method] || payment.method}
                       </span>
                     </div>
 
@@ -407,7 +408,7 @@ export default function ParentPaymentsView({
                   <div className="flex items-center gap-2 self-start sm:self-center">
                     <span className="inline-flex items-center gap-1.5 rounded-lg border border-rule bg-white px-3 py-1.5 text-xs font-semibold text-text shadow-2xs">
                       <Receipt className="h-3.5 w-3.5 text-primary" />
-                      Reçu certifié
+                      {t("parent", "certifiedReceiptBadge")}
                     </span>
                   </div>
                 </div>
@@ -421,9 +422,9 @@ export default function ParentPaymentsView({
       <div className="rounded-xl border border-rule bg-sunk/30 p-4 text-xs text-text-soft flex items-start gap-3">
         <Building2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
         <div>
-          <p className="font-semibold text-text">Modalités de règlement de l'établissement</p>
+          <p className="font-semibold text-text">{t("parent", "schoolNoticeTitle")}</p>
           <p className="mt-0.5">
-            Pour tout paiement par Wave, Orange Money ou virement bancaire, veuillez contacter le secrétariat ou la comptabilité de l'école afin de confirmer la référence de transaction.
+            {t("parent", "schoolNoticeBody")}
           </p>
         </div>
       </div>

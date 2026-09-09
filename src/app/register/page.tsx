@@ -65,6 +65,7 @@ export default function RegisterPage() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setErreur("");
     setDejaInscrit(false);

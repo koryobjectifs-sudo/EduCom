@@ -156,7 +156,6 @@ export async function register(formData: FormData): Promise<RegisterResult | voi
           emailVerified: Boolean(user!.email_confirmed_at),
           termsAcceptedAt: new Date(),
           termsVersion: "2026-09-v1",
-          termsIpAddress: clientIp,
         },
       })
     })
