@@ -27,7 +27,7 @@ export default function ReportsError({
   }, [error]);
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-surface border border-dashed border-rule bg-ground px-4 py-16 text-center">
+    <div data-testid="error-boundary" className="flex flex-col items-center justify-center rounded-surface border border-dashed border-rule bg-ground px-4 py-16 text-center">
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-surface border border-rule bg-surface text-danger shadow-card">
         <TriangleAlert aria-hidden="true" className="h-6 w-6" />
       </div>

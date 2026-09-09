@@ -1,66 +1,31 @@
-import { Building2, ShieldCheck, Smartphone, Printer } from "lucide-react";
-
 /**
- * Bandeau de preuves — chantier PLG, restylé par l'addendum.
+ * Bandeau de confiance — refonte visuelle du 5 septembre 2026 (v6).
  *
- * ═══ CE QUI ÉTAIT AFFICHÉ ═══
- *
- * ⚠️ Quatre pastilles **en anglais** sur une page entièrement française :
- * « Mobile-first », « Secure », « French & English », « Africa-ready ». La
- * troisième était fausse — l'interface n'existe qu'en français. Les trois
- * autres étaient des étiquettes sans contenu : « Secure » n'engage à rien.
- *
- * ═══ CE QUI LES REMPLACE ═══
- *
- * Quatre affirmations **vraies, vérifiées et vérifiables**, chacune avec sa
- * conséquence concrète. Elles portent sur ce que les lots 13 à 17 et le
- * durcissement RLS ont réellement établi (`rappel.md` §36, §42).
- *
- * ⚠️ Rien sur le chiffrement au repos, les sauvegardes ou la disponibilité :
- * ces trois points ne sont **pas vérifiés** (`rappel.md` §42) et n'ont donc rien
- * à faire sur une page publique. C'est la ligne que la section ne franchit pas.
+ * Contenu inchangé (quatre affirmations vraies et vérifiables — voir
+ * l'historique git pour ce qui a été délibérément exclu, comme le chiffrement
+ * au repos, non vérifié). Ce qui change : plus d'icônes ni de colonnes — une
+ * seule ligne sobre, séparée par des points, cohérente avec la direction du
+ * plan validé (§02 : « réduit à une ligne de preuve sobre »).
  */
 const PREUVES = [
-  {
-    icon: Building2,
-    titre: "Chaque école est cloisonnée",
-    detail: "Aucune requête ne franchit la frontière d'un établissement.",
-  },
-  {
-    icon: ShieldCheck,
-    titre: "Les pièces des élèves restent privées",
-    detail: "Aucun document n'a d'adresse publique ; les liens expirent.",
-  },
-  {
-    icon: Smartphone,
-    titre: "Conçu pour un téléphone",
-    detail: "Les écrans sont mesurés sur 390 px, pas seulement adaptés.",
-  },
-  {
-    icon: Printer,
-    titre: "Des documents à imprimer",
-    detail: "Attestations et bulletins sortent à l'en-tête de votre école.",
-  },
+  "Chaque école est cloisonnée",
+  "Les pièces des élèves restent privées",
+  "Conçu pour un téléphone",
+  "Des documents à imprimer",
 ];
 
 export default function TrustSection() {
   return (
-    <section className="border-y border-m-line bg-m-paper-deep">
-      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
-          {PREUVES.map((p) => (
-            <div key={p.titre} className="flex gap-3.5">
-              <p.icon
-                aria-hidden="true"
-                className="mt-0.5 h-[18px] w-[18px] shrink-0 text-m-accent-deep"
-              />
-              <div className="min-w-0">
-                <p className="text-[14px] font-semibold leading-snug text-m-ink">{p.titre}</p>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-m-ink-soft">{p.detail}</p>
-              </div>
-            </div>
+    <section className="border-y border-m-line bg-m-card">
+      <div className="mx-auto max-w-6xl px-4 py-3.5 sm:px-6 lg:px-8">
+        <p className="flex flex-wrap justify-center gap-x-3 gap-y-1.5 text-center text-[13px] font-medium text-m-ink-soft">
+          {PREUVES.map((p, i) => (
+            <span key={p} className="flex items-center gap-3">
+              {i > 0 && <span aria-hidden="true" className="text-m-ink-faint">·</span>}
+              {p}
+            </span>
           ))}
-        </div>
+        </p>
       </div>
     </section>
   );

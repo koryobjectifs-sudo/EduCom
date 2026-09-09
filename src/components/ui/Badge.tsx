@@ -26,8 +26,8 @@ const VARIANT: Record<StatusVariant, { pill: string; dot: string }> = {
 };
 
 const SIZE = {
-  sm: "px-2 py-0.5 text-role-meta gap-1",
-  md: "px-3 py-1 text-role-meta gap-1.5",
+  sm: "px-1.5 py-0.5 text-role-meta gap-1",
+  md: "px-2.5 py-0.5 text-role-meta gap-1",
 } as const;
 
 export type BadgeProps = {

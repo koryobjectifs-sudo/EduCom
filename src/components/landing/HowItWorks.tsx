@@ -13,6 +13,12 @@ import { ArrowRight } from "lucide-react";
  * — celle qui décide une directrice ayant déjà trois cents élèves dans un
  * classeur — et elle était fausse.
  *
+ * ⚠️ Refonte du 4 septembre 2026 : contenu inchangé, seul le badge
+ * « Résultat » est corrigé — il utilisait `bg-m-accent` avec du texte
+ * `m-ink` par-dessus, une paire qui donnait 6,5:1 avec l'ancien vert de
+ * marque mais tombe à 3,5:1 avec le nouveau bleu, sous le seuil AA pour du
+ * texte de 11 px. Passé à `bg-m-accent-bright` (6,5:1, calculé).
+ *
  * ⚠️ Trois cercles de 96 px avec bordure blanche de 8 px, une pastille numérotée
  * en bleu vif hors charte, un trait de liaison en `absolute` cassé sous `md`, et
  * un fondu `framer-motion` par étape.
@@ -49,7 +55,7 @@ export default function HowItWorks() {
           <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-ink-faint">
             Le déroulé
           </p>
-          <h2 className="mt-5 font-display text-[2rem] font-bold leading-[1.15] tracking-[-0.015em] text-m-ink sm:text-[2.5rem]">
+          <h2 className="mt-5 font-display text-[2rem] font-semibold leading-[1.15] tracking-[-0.02em] text-m-ink sm:text-[2.5rem]">
             Du compte créé au premier document, en trois minutes.
           </h2>
         </div>
@@ -86,7 +92,7 @@ export default function HowItWorks() {
               >
                 03
               </span>
-              <span className="rounded-pill bg-m-accent px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-m-ink">
+              <span className="rounded-pill bg-m-accent-bright px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-m-ink">
                 Résultat
               </span>
             </div>

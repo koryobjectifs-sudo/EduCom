@@ -37,7 +37,7 @@ export default function DashboardError({
   }, [error]);
 
   return (
-    <div className="mx-auto max-w-xl py-12">
+    <div className="mx-auto max-w-xl py-12" data-testid="error-boundary">
       <Card>
         <div className="flex flex-col items-center px-2 py-6 text-center">
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-surface border border-danger/30 bg-danger/10 text-danger">

@@ -107,14 +107,24 @@ export default function AssignmentsPanel({
           </p>
         )}
 
-        {teachers.length === 0 && (
-          <p className="mb-4 rounded-control border border-rule bg-sunk px-3 py-2.5 text-role-meta leading-relaxed text-text-soft">
-            Aucun compte enseignant. Votre école fonctionne quand même — la direction saisit
-            toutes les notes. Invitez vos enseignants pour qu&apos;ils saisissent les leurs.
-          </p>
-        )}
-
-        {classes.length === 0 ? (
+        {teachers.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-8 text-center space-y-3">
+            <Users className="mx-auto h-8 w-8 text-slate-300" />
+            <h3 className="text-sm font-semibold text-slate-900">Aucun enseignant dans le système</h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto">
+              La direction peut saisir toutes les notes par défaut. Pour répartir les classes par enseignant ou par matière, commencez par inviter votre équipe.
+            </p>
+            <div className="pt-2">
+              <Link
+                href="/dashboard/team"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-primary-hover transition-colors"
+              >
+                <UserPlus className="h-4 w-4" />
+                <span>Inviter vos enseignants</span>
+              </Link>
+            </div>
+          </div>
+        ) : classes.length === 0 ? (
           <p className="rounded-control border border-dashed border-rule bg-sunk px-4 py-6 text-center text-role-body text-text-soft">
             Aucune classe à affecter pour l&apos;instant.
           </p>

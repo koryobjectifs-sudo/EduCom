@@ -1,73 +1,202 @@
-import type { DocCategory, EducationalCycle, StudentKind } from "../generated/prisma/client";
+import type { DocCategory, EducationalCycle, StudentKind, RequirementSource } from "../generated/prisma/client";
 
 /**
- * Référentiel officiel des pièces d'inscription — Sénégal, par cycle.
- *
- * ═══ POURQUOI CE FICHIER EXISTE ═══
- *
- * `settings/documents/actions.ts` portait la note inverse : « aucune liste de
- * pièces n'est codée, pré-remplir une liste sénégalaise serait inventer une
- * règle ». L'inquiétude était juste, la conclusion trop large — le résultat
- * était qu'une école ouvrait son premier dossier sur **zéro exigence**, donc
- * sur un écran qui ne dit rien et un taux de complétude impossible à calculer.
- *
- * Le compromis retenu : ce référentiel est une **proposition**, jamais une
- * règle. Rien n'est écrit en base tant que la direction ne l'applique pas
- * depuis Réglages › Pièces du dossier, et chaque ligne créée reste modifiable
- * ou désactivable comme n'importe quelle exigence saisie à la main. L'école
- * garde la main ; elle ne part simplement plus de rien.
- *
- * ⚠️ **« Moins de 3 mois » n'est PAS une durée de validité.** L'extrait de
- * naissance doit être récent *au dépôt* ; il ne périme pas tous les trimestres.
- * Le renseigner en `validityMonths` ferait basculer la pièce en EXPIRED trois
- * mois après son dépôt et réclamerait un nouvel extrait chaque trimestre, pour
- * chaque élève. La règle est donc portée par le LIBELLÉ, que la secrétaire lit
- * au moment de contrôler la pièce, et `validityMonths` reste vide.
- *
- * ⚠️ `studentKind: "TRANSFERT"` cible les pièces qui n'ont de sens que pour un
- * élève venu d'un autre établissement — radiation, dossier scolaire. Sans ce
- * ciblage, tout élève déjà présent l'an dernier apparaîtrait en dossier
- * incomplet pour une pièce qu'il n'a aucune raison de fournir.
+ * Référentiel réglementaire et officiel des pièces d'inscription — Sénégal, par cycle.
+ * 
+ * Contexte réglementaire sénégalais :
+ * - Inscription au CI : extrait ou bulletin de naissance. Si < 6 ans, certificat de scolarité préscolaire.
+ * - Entrée en 6e (décret n° 90-1463 du 28 décembre 1990) : demande d'inscription, acte d'état civil, fiche scolaire.
+ * - Inscription au CFEE : bulletin ou extrait de naissance, fiche scolaire ou certificat de scolarité.
+ * - Protection des données de santé (Loi 2008-12) : PAS de carnet de vaccination seedé par défaut.
  */
 
-export type OfficialRequirement = {
+export type OfficialRequirementDef = {
   label: string;
   category: DocCategory;
-  studentKind?: StudentKind;
+  source: RequirementSource;
+  required: boolean;
+  pinned: boolean;
+  conditional?: string | null;
+  studentKind?: StudentKind | null;
+  order: number;
 };
 
-export const OFFICIAL_REQUIREMENTS: Partial<Record<EducationalCycle, OfficialRequirement[]>> = {
+export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRequirementDef[]> = {
   MATERNELLE: [
-    { label: "Extrait de naissance (moins de 3 mois)", category: "IDENTITE" },
-    { label: "Carnet de vaccination à jour", category: "SANTE" },
-    { label: "Photos d'identité (2 à 4)", category: "IDENTITE" },
-    { label: "Fiche de renseignement parentale", category: "INSCRIPTION" },
+    {
+      label: "Extrait ou bulletin de naissance",
+      category: "IDENTITE",
+      source: "OFFICIEL",
+      required: true,
+      pinned: true,
+      order: 1,
+    },
+    {
+      label: "Règlement intérieur signé",
+      category: "INSCRIPTION",
+      source: "ETABLISSEMENT",
+      required: false,
+      pinned: false,
+      order: 2,
+    },
   ],
   ELEMENTAIRE: [
-    { label: "Extrait de naissance original (moins de 3 mois)", category: "IDENTITE" },
-    { label: "Dossier scolaire ou livret de notes de l'année précédente", category: "SCOLARITE", studentKind: "TRANSFERT" },
-    { label: "Certificat de radiation (quitus)", category: "TRANSFERT", studentKind: "TRANSFERT" },
-    { label: "Photos d'identité récentes", category: "IDENTITE" },
+    {
+      label: "Extrait ou bulletin de naissance",
+      category: "IDENTITE",
+      source: "OFFICIEL",
+      required: true,
+      pinned: true,
+      order: 1,
+    },
+    {
+      label: "Certificat de scolarité préscolaire",
+      category: "SCOLARITE",
+      source: "OFFICIEL",
+      required: true,
+      pinned: false,
+      conditional: "age < 6 in CI",
+      order: 2,
+    },
+    {
+      label: "Fiche scolaire / certificat de scolarité",
+      category: "SCOLARITE",
+      source: "OFFICIEL",
+      required: true,
+      pinned: true,
+      order: 3,
+    },
+    {
+      label: "Bulletin de l'année précédente",
+      category: "SCOLARITE",
+      source: "ETABLISSEMENT",
+      required: false,
+      pinned: false,
+      order: 4,
+    },
+    {
+      label: "Règlement intérieur signé",
+      category: "INSCRIPTION",
+      source: "ETABLISSEMENT",
+      required: false,
+      pinned: false,
+      order: 5,
+    },
   ],
   COLLEGE: [
-    { label: "Extrait ou bulletin de naissance", category: "IDENTITE" },
-    { label: "Bulletins de notes des deux semestres précédents", category: "SCOLARITE" },
-    { label: "Certificat de scolarité de l'école d'origine", category: "SCOLARITE", studentKind: "TRANSFERT" },
-    { label: "Certificat de radiation", category: "TRANSFERT", studentKind: "TRANSFERT" },
-    { label: "Photos d'identité", category: "IDENTITE" },
+    {
+      label: "Extrait ou bulletin de naissance",
+      category: "IDENTITE",
+      source: "OFFICIEL",
+      required: true,
+      pinned: true,
+      order: 1,
+    },
+    {
+      label: "Fiche scolaire / certificat de scolarité",
+      category: "SCOLARITE",
+      source: "OFFICIEL",
+      required: true,
+      pinned: true,
+      order: 2,
+    },
+    {
+      label: "Relevé de notes CFEE",
+      category: "EXAMENS",
+      source: "ETABLISSEMENT",
+      required: false,
+      pinned: false,
+      order: 3,
+    },
+    {
+      label: "Bulletin de l'année précédente",
+      category: "SCOLARITE",
+      source: "ETABLISSEMENT",
+      required: false,
+      pinned: false,
+      order: 4,
+    },
+    {
+      label: "Règlement intérieur signé",
+      category: "INSCRIPTION",
+      source: "ETABLISSEMENT",
+      required: false,
+      pinned: false,
+      order: 5,
+    },
   ],
   LYCEE: [
-    { label: "Extrait de naissance", category: "IDENTITE" },
-    { label: "Bulletins de notes des semestres précédents", category: "SCOLARITE" },
-    { label: "Attestation de réussite au BFEM (copie certifiée)", category: "EXAMENS" },
-    { label: "Fiche d'orientation (CAOSP)", category: "INSCRIPTION" },
-    { label: "Photos d'identité", category: "IDENTITE" },
-    { label: "Enveloppes timbrées", category: "AUTRES" },
+    {
+      label: "Extrait ou bulletin de naissance",
+      category: "IDENTITE",
+      source: "OFFICIEL",
+      required: true,
+      pinned: true,
+      order: 1,
+    },
+    {
+      label: "Fiche scolaire / certificat de scolarité",
+      category: "SCOLARITE",
+      source: "OFFICIEL",
+      required: true,
+      pinned: true,
+      order: 2,
+    },
+    {
+      label: "Demande d'inscription",
+      category: "INSCRIPTION",
+      source: "OFFICIEL",
+      required: true,
+      pinned: false,
+      order: 3,
+    },
+    {
+      label: "Relevé de notes BFEM",
+      category: "EXAMENS",
+      source: "ETABLISSEMENT",
+      required: false,
+      pinned: false,
+      order: 4,
+    },
+    {
+      label: "Bulletin de l'année précédente",
+      category: "SCOLARITE",
+      source: "ETABLISSEMENT",
+      required: false,
+      pinned: false,
+      order: 5,
+    },
+    {
+      label: "Règlement intérieur signé",
+      category: "INSCRIPTION",
+      source: "ETABLISSEMENT",
+      required: false,
+      pinned: false,
+      order: 6,
+    },
+  ],
+  AUTRE: [
+    {
+      label: "Extrait ou bulletin de naissance",
+      category: "IDENTITE",
+      source: "OFFICIEL",
+      required: true,
+      pinned: true,
+      order: 1,
+    },
+    {
+      label: "Règlement intérieur signé",
+      category: "INSCRIPTION",
+      source: "ETABLISSEMENT",
+      required: false,
+      pinned: false,
+      order: 2,
+    },
   ],
 };
 
-export const CYCLES_DU_REFERENTIEL = Object.keys(OFFICIAL_REQUIREMENTS) as EducationalCycle[];
+export const CYCLES_DU_REFERENTIEL: EducationalCycle[] = ["MATERNELLE", "ELEMENTAIRE", "COLLEGE", "LYCEE"];
 
-/** Nombre total de pièces proposées, tous cycles confondus. */
-export const NB_PIECES_OFFICIELLES = Object.values(OFFICIAL_REQUIREMENTS)
-  .reduce((n, l) => n + (l?.length ?? 0), 0);
+// Alias pour rétro-compatibilité
+export const OFFICIAL_REQUIREMENTS = OFFICIAL_REQUIREMENTS_BY_CYCLE;
+export type OfficialRequirement = OfficialRequirementDef;

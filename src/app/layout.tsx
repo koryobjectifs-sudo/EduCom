@@ -1,38 +1,37 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Lato } from "next/font/google";
+import { cookies } from "next/headers";
 import "./globals.css";
-import { Toaster } from 'sonner';
+import { Toaster } from "sonner";
 
-const inter = Inter({ subsets: ["latin"] });
+const lato = Lato({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "700", "900"],
+  display: "swap",
+  variable: "--font-lato",
+});
 
 export const metadata: Metadata = {
   title: "EduCom SaaS",
   description: "Plateforme de gestion pour les écoles",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const density = cookieStore.get("educom_density")?.value || "normal";
+
   return (
-    <html lang="fr" className="h-full bg-[#f8fafc]">
-      <body className={`${inter.className} h-full flex flex-col text-slate-900 selection:bg-blue-100 selection:text-blue-900`}>
+    <html lang="fr" className={`h-full ${lato.variable}`} data-density={density}>
+      <body className={`${lato.className} h-full flex flex-col text-text bg-ground font-sans antialiased selection:bg-primary/20 selection:text-primary`}>
         {children}
         <Toaster 
           position="bottom-right"
           toastOptions={{
-            className: 'bg-white/90 backdrop-blur-xl border border-border/50 text-text-primary shadow-lg rounded-2xl p-4 font-medium',
-            style: {
-              borderRadius: '24px',
-              padding: '16px 20px',
-            },
-            classNames: {
-              toast: 'group toast group-[.toaster]:bg-white group-[.toaster]:text-text-primary group-[.toaster]:border-border/50 group-[.toaster]:shadow-lg',
-              description: 'group-[.toast]:text-text-secondary',
-              actionButton: 'group-[.toast]:bg-primary group-[.toast]:text-white',
-              cancelButton: 'group-[.toast]:bg-secondary group-[.toast]:text-text-primary',
-            },
+            className: "bg-white/95 backdrop-blur-md border border-rule text-text shadow-overlay rounded-surface p-3.5 font-medium text-xs",
           }} 
         />
       </body>

@@ -26,8 +26,21 @@ export default function AppTopBar({
 }: AppTopBarProps) {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
+  const [density, setDensity] = useState<string>("normal");
   const menuRef = useRef<HTMLDivElement>(null);
   const roleMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Read initial density from document or cookie
+    const current = document.documentElement.getAttribute("data-density") || "normal";
+    setDensity(current);
+  }, []);
+
+  const handleSetDensity = (newDensity: string) => {
+    setDensity(newDensity);
+    document.documentElement.setAttribute("data-density", newDensity);
+    document.cookie = `educom_density=${newDensity}; path=/; max-age=31536000; SameSite=Lax`;
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -79,16 +92,18 @@ export default function AppTopBar({
           <span
             data-tronque-volontaire
             title={schoolName ?? "EduCom"}
-            className="truncate text-xs font-semibold text-text lg:hidden"
+            className="truncate text-xs font-semibold text-text md:hidden"
           >
             {schoolName ?? "EduCom"}
           </span>
 
-          <div className="hidden lg:flex items-center gap-2 text-xs">
-            {activeSpace && (
+          <div className="hidden md:flex items-center gap-2 text-xs">
+            {activeSpace ? (
               <span className="font-semibold text-text">
-                {activeSpace.label}
+                {activeSpace.fullLabel ?? activeSpace.label}
               </span>
+            ) : (
+              <span className="font-semibold text-text">Tableau de bord</span>
             )}
             <span className="text-text-faint">·</span>
             <span className="text-role-meta capitalize text-text-soft">
@@ -189,12 +204,44 @@ export default function AppTopBar({
             {profileMenuOpen && (
               <div
                 role="menu"
-                className="absolute right-0 top-full z-50 mt-1.5 w-52 overflow-hidden rounded-surface border border-rule bg-surface p-1 shadow-overlay"
+                className="absolute right-0 top-full z-50 mt-1.5 w-56 overflow-hidden rounded-surface border border-rule bg-surface p-1 shadow-overlay"
               >
                 <div className="border-b border-rule px-3 py-2">
                   <p className="truncate text-xs font-semibold text-text">{displayName}</p>
                   <p className="text-[10px] text-text-faint">{roleLabel}</p>
                 </div>
+
+                {/* Réglage de Densité / Zoom d'interface */}
+                <div className="border-b border-rule px-2 py-1.5">
+                  <p className="px-1 py-1 text-[10.5px] font-semibold uppercase tracking-wider text-text-faint">
+                    Affichage & Densité
+                  </p>
+                  <div className="grid grid-cols-3 gap-1">
+                    {[
+                      { id: "compact", label: "Compact", pct: "90%" },
+                      { id: "normal", label: "Normal", pct: "100%" },
+                      { id: "comfort", label: "Confort", pct: "115%" },
+                    ].map((d) => {
+                      const isActive = density === d.id;
+                      return (
+                        <button
+                          key={d.id}
+                          type="button"
+                          onClick={() => handleSetDensity(d.id)}
+                          className={`flex flex-col items-center justify-center rounded-control py-1 px-1.5 text-center transition-colors ${
+                            isActive
+                              ? "bg-primary/10 font-bold text-primary border border-primary/20"
+                              : "hover:bg-sunk text-text-soft"
+                          }`}
+                        >
+                          <span className="text-[11px] leading-tight">{d.label}</span>
+                          <span className="text-[9px] text-text-faint">{d.pct}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="p-1">
                   <form action="/auth/signout" method="post">
                     <button

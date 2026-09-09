@@ -24,16 +24,18 @@ export default async function ExportPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { user, schoolId } = await requireSchoolContext();
+  const { user, schoolId, school } = await requireSchoolContext();
   const role = user.role as RoleType;
-  if (!hasAccess(role, "/dashboard/students")) redirect(firstAllowedPath(role));
+  if (!hasAccess(role, "/dashboard/students/export")) {
+    redirect("/dashboard/students");
+  }
 
   const sp = await searchParams;
   const classId = typeof sp.class === "string" ? sp.class : null;
 
   const ctx = { userId: user.id, schoolId, role };
   const scope = await studentWhereFor(ctx);
-  const year = currentAcademicYear();
+  const year = currentAcademicYear(school);
 
   // Classes réellement accessibles : celles où l'acteur voit au moins un élève.
   const classes = await prisma.class.findMany({

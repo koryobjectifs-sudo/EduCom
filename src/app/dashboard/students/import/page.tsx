@@ -31,14 +31,14 @@ export default function ImportStudentsPage() {
 
   const normalizeHeaders = (header: string) => {
     const h = header.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    if (h.includes("matricule")) return "matricule";
+    if (h.includes("telephone") || h.includes("tel") || h.includes("mobile") || h.includes("cel") || h.includes("contact")) return "emergencyPhone";
+    if (h.includes("parent") || h.includes("tuteur") || h.includes("pere") || h.includes("mere") || h.includes("responsable")) return "emergencyContact";
+    if (h.includes("matricule") || h.includes("identifiant")) return "matricule";
+    if (h.includes("date") || h.includes("naissance") || h.includes("dob")) return "dateOfBirth";
+    if (h.includes("sexe") || h.includes("genre")) return "gender";
+    if (h.includes("classe") || h.includes("niveau") || h.includes("division")) return "className";
     if (h.includes("prenom")) return "firstName";
     if (h.includes("nom")) return "lastName";
-    if (h.includes("sexe") || h.includes("genre")) return "gender";
-    if (h.includes("date") || h.includes("naissance")) return "dateOfBirth";
-    if (h.includes("classe") || h.includes("niveau")) return "className";
-    if (h.includes("parent") || h.includes("tuteur")) return "emergencyContact";
-    if (h.includes("telephone") || h.includes("tel")) return "emergencyPhone";
     if (h.includes("statut")) return "status";
     return h;
   };
@@ -203,7 +203,7 @@ export default function ImportStudentsPage() {
         )}
 
         <div className="pt-8">
-          <Link href="/dashboard/directory" className="inline-flex h-12 items-center justify-center gap-2 rounded-control bg-primary px-8 text-role-body font-semibold text-white shadow-card transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2">
+          <Link href="/dashboard/students" className="inline-flex h-12 items-center justify-center gap-2 rounded-control bg-primary px-8 text-role-body font-semibold text-white shadow-card transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2">
             Voir mon école <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { requireActionContext } from '@/lib/actionContext'
 import { applyCurriculum } from '@/lib/pedagogy'
 import { LEVELS } from '@/lib/curriculum'
+import { OFFICIAL_REQUIREMENTS_BY_CYCLE } from '@/lib/officialRequirements'
 
 /**
  * Finalise la configuration d'un établissement.
@@ -63,6 +64,32 @@ export async function completeOnboarding(data: any) {
         skipDuplicates: true
       });
       classesCreated = res.count;
+
+      // 4. Seeder le référentiel des pièces exigées pour les cycles sélectionnés
+      const activeCycles = Array.from(new Set(classesToCreate.map((c) => c.cycle).filter(Boolean))) as any[];
+      const reqsToCreate = activeCycles.flatMap((cycle) => {
+        const reqs = (OFFICIAL_REQUIREMENTS_BY_CYCLE as any)[cycle] ?? [];
+        return reqs.map((r: any, i: number) => ({
+          label: r.label,
+          category: r.category,
+          cycle,
+          source: r.source,
+          required: r.required,
+          pinned: r.pinned,
+          conditional: r.conditional ?? null,
+          studentKind: r.studentKind ?? null,
+          validityMonths: null,
+          position: r.order || i + 1,
+          schoolId,
+        }));
+      });
+
+      if (reqsToCreate.length > 0) {
+        await prisma.documentRequirement.createMany({
+          data: reqsToCreate,
+          skipDuplicates: true,
+        });
+      }
     }
 
     return { success: true, classesCreated, programme: null };

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { hasAccess, RoleType } from "@/lib/permissions";
@@ -30,6 +31,7 @@ export type ActionContext = {
   userId: string;
   schoolId: string;
   role: RoleType;
+  school?: { id: string; name: string; activeAcademicYear: string | null } | null;
 };
 
 export type ActionAuth =
@@ -42,7 +44,7 @@ export type ActionAuth =
  * @param requiredPath Chemin dont l'accès est exigé (ex. `/dashboard/settings`).
  *   Si omis, seule l'authentification est vérifiée.
  */
-export async function requireActionContext(requiredPath?: string): Promise<ActionAuth> {
+export const requireActionContext = cache(async function requireActionContext(requiredPath?: string): Promise<ActionAuth> {
   // Support Local Test Mode (Dev uniquement)
   if (process.env.NODE_ENV === "development") {
     const { cookies } = await import("next/headers");
@@ -51,13 +53,16 @@ export async function requireActionContext(requiredPath?: string): Promise<Actio
     const testUserId = cookieStore.get("dev_test_user_id")?.value;
     
     if (testSchoolId && testUserId) {
-      const dbUser = await prisma.user.findUnique({ where: { id: testUserId } });
+      const dbUser = await prisma.user.findUnique({
+        where: { id: testUserId },
+        include: { school: { select: { id: true, name: true, activeAcademicYear: true } } },
+      });
       if (dbUser && dbUser.schoolId === testSchoolId) {
         const role = dbUser.role as RoleType;
         if (requiredPath && !hasAccess(role, requiredPath)) {
           return { ok: false, error: "Vous n'avez pas les droits nécessaires pour cette action (Dev Mode)." };
         }
-        return { ok: true, ctx: { userId: dbUser.id, schoolId: testSchoolId, role } };
+        return { ok: true, ctx: { userId: dbUser.id, schoolId: testSchoolId, role, school: dbUser.school } };
       }
     }
   }
@@ -68,7 +73,12 @@ export async function requireActionContext(requiredPath?: string): Promise<Actio
 
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { id: true, schoolId: true, role: true },
+    select: {
+      id: true,
+      schoolId: true,
+      role: true,
+      school: { select: { id: true, name: true, activeAcademicYear: true } },
+    },
   });
   if (!dbUser) return { ok: false, error: "Utilisateur introuvable." };
   if (!dbUser.schoolId) return { ok: false, error: "Aucun établissement rattaché à ce compte." };
@@ -79,5 +89,5 @@ export async function requireActionContext(requiredPath?: string): Promise<Actio
     return { ok: false, error: "Vous n'avez pas les droits nécessaires pour cette action." };
   }
 
-  return { ok: true, ctx: { userId: dbUser.id, schoolId: dbUser.schoolId, role } };
-}
+  return { ok: true, ctx: { userId: dbUser.id, schoolId: dbUser.schoolId, role, school: dbUser.school } };
+});

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireActionContext } from "@/lib/actionContext";
 import { currentAcademicYear } from "@/lib/studentFile";
+import { parseFlexibleDate } from "@/lib/dateUtils";
 
 export type ImportRow = {
   matricule?: string;
@@ -78,14 +79,14 @@ export async function previewImport(rows: ImportRow[]): Promise<{ data?: ImportP
 export async function importStudents(rows: ImportRow[], skipDuplicates: boolean = false) {
   const auth = await requireActionContext("/dashboard/students");
   if (!auth.ok) return { error: auth.error };
-  const { schoolId, userId } = auth.ctx;
+  const { schoolId, userId, school } = auth.ctx;
 
   if (!rows || rows.length === 0) {
     return { error: "Le fichier ne contient aucune donnée valide." };
   }
 
   try {
-    const year = currentAcademicYear();
+    const year = currentAcademicYear(school);
     let importedCount = 0;
     const classBreakdownMap = new Map<string, number>();
 
@@ -145,21 +146,66 @@ export async function importStudents(rows: ImportRow[], skipDuplicates: boolean 
         }
       }
 
-      // 2. Préparer les données des élèves
-      const studentsData = validRows.map(row => {
-        let dateOfBirth: Date | null = null;
-        if (row.dateOfBirth) {
-          const parsed = new Date(row.dateOfBirth);
-          if (!isNaN(parsed.getTime())) {
-            dateOfBirth = parsed;
-          }
+      // 1.b Gérer les tuteurs / parents
+      const phoneToParentId = new Map<string, string>();
+      const existingParents = await tx.user.findMany({
+        where: { schoolId, role: "PARENT", phone: { not: null } },
+        select: { id: true, phone: true },
+      });
+      for (const p of existingParents) {
+        if (p.phone) {
+          const norm = p.phone.replace(/[^0-9]/g, "");
+          if (norm) phoneToParentId.set(norm, p.id);
         }
+      }
+
+      // Créer les nouveaux parents nécessaires
+      const rowsWithParentInfo = validRows.filter((r) => r.emergencyPhone || r.emergencyContact);
+      for (const r of rowsWithParentInfo) {
+        const rawPhone = (r.emergencyPhone || "").trim();
+        const normPhone = rawPhone.replace(/[^0-9]/g, "");
+        if (normPhone && !phoneToParentId.has(normPhone)) {
+          const names = (r.emergencyContact || "Parent").trim().split(" ");
+          const pFirst = names.length > 1 ? names.slice(0, -1).join(" ") : names[0] || "Tuteur";
+          const pLast = names.length > 1 ? names[names.length - 1] : "Famille";
+          const placeholderEmail = `${rawPhone.replace(/\s+/g, "") || `parent_${Date.now()}_${Math.floor(Math.random() * 10000)}`}@parent.educom.local`;
+
+          const newParent = await tx.user.create({
+            data: {
+              firstName: pFirst,
+              lastName: pLast,
+              phone: rawPhone || null,
+              email: placeholderEmail,
+              role: "PARENT",
+              schoolId,
+            },
+            select: { id: true },
+          });
+          phoneToParentId.set(normPhone, newParent.id);
+        }
+      }
+
+      // 2. Préparer les données des élèves
+      const studentsData = validRows.map((row) => {
+        const dateOfBirth = parseFlexibleDate(row.dateOfBirth);
 
         const statusStr = row.status?.trim().toLowerCase() || "actif";
-        const mappedStatus = statusStr === "inactif" ? "INACTIVE" 
-          : statusStr === "diplomé" ? "GRADUATED" 
-          : statusStr === "en attente" ? "PENDING" 
-          : "ENROLLED";
+        const mappedStatus =
+          statusStr === "inactif"
+            ? "INACTIVE"
+            : statusStr === "diplomé"
+            ? "GRADUATED"
+            : statusStr === "en attente"
+            ? "PENDING"
+            : "ENROLLED";
+
+        let parentId: string | null = null;
+        if (row.emergencyPhone) {
+          const norm = row.emergencyPhone.replace(/[^0-9]/g, "");
+          if (norm && phoneToParentId.has(norm)) {
+            parentId = phoneToParentId.get(norm)!;
+          }
+        }
 
         return {
           firstName: row.firstName.trim(),
@@ -169,6 +215,7 @@ export async function importStudents(rows: ImportRow[], skipDuplicates: boolean 
           dateOfBirth,
           emergencyContact: row.emergencyContact?.trim() || null,
           emergencyPhone: row.emergencyPhone?.trim() || null,
+          parentId,
           status: mappedStatus as "PENDING" | "ENROLLED" | "GRADUATED" | "INACTIVE",
           schoolId,
         };

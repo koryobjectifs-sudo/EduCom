@@ -47,11 +47,11 @@ const VARIANT: Record<Variant, string> = {
     "bg-danger text-white border border-transparent hover:brightness-110 active:brightness-95 shadow-card",
 };
 
-/** Trois tailles. `iconOnly` passe en carré pour rester une cible de clic correcte. */
+/** Trois tailles affinées. `iconOnly` passe en carré pour rester une cible de clic correcte. */
 const SIZE: Record<Size, { base: string; icon: string }> = {
-  sm: { base: "h-8 px-3 gap-1.5 text-role-label", icon: "h-8 w-8" },
-  md: { base: "h-10 px-4 gap-2 text-role-body", icon: "h-10 w-10" },
-  lg: { base: "h-12 px-6 gap-2 text-role-body", icon: "h-12 w-12" },
+  sm: { base: "h-7 px-2.5 gap-1 text-role-meta", icon: "h-7 w-7" },
+  md: { base: "h-8.5 px-3 gap-1.5 text-role-label", icon: "h-8.5 w-8.5" },
+  lg: { base: "h-10 px-4 gap-2 text-role-body", icon: "h-10 w-10" },
 };
 
 type Common = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "className"> & {
@@ -105,7 +105,7 @@ export function Button(props: ButtonProps) {
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={[
-        "inline-flex items-center justify-center font-semibold rounded-control",
+        "inline-flex items-center justify-center font-medium rounded-control",
         "transition-colors focus-visible:outline-none focus-visible:ring-2",
         "focus-visible:ring-primary/50 focus-visible:ring-offset-2",
         "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
@@ -117,7 +117,7 @@ export function Button(props: ButtonProps) {
       {...rest}
     >
       {loading ? (
-        <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin shrink-0" />
+        <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin shrink-0" />
       ) : (
         icon
       )}

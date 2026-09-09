@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { requireSchoolContext } from "@/lib/documentContext";
 import { prisma } from "@/lib/prisma";
 import { sortClasses } from "@/lib/classOrder";
+import { currentAcademicYear } from "@/lib/studentFile";
 import { StudentForm } from "./form";
 
 /**
@@ -37,8 +38,18 @@ import { StudentForm } from "./form";
  * école* elle appartenait. Elle le fait maintenant, comme tous les autres
  * écrans du tableau de bord, via `requireSchoolContext()`.
  */
-export default async function NewStudentPage() {
-  const { schoolId } = await requireSchoolContext();
+export default async function NewStudentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ annee?: string }>;
+}) {
+  const { schoolId, school } = await requireSchoolContext();
+  const sp = await searchParams;
+  // ⚠️ `?annee=` vient de l'Annuaire (7 septembre 2026) : une admission lancée
+  // depuis une année archivée doit y rattacher l'inscription créée, pas à
+  // l'année en cours. Sans le paramètre (accès direct à cette page), on
+  // retombe sur l'année en cours — comportement d'avant ce chantier.
+  const academicYear = sp.annee ?? currentAcademicYear(school);
 
   // ⚠️ Le filtre `schoolId` n'est pas une optimisation : c'est la frontière.
   const classes = sortClasses(
@@ -71,7 +82,7 @@ export default async function NewStudentPage() {
           </Link>
         </div>
       ) : (
-        <StudentForm classes={classes} />
+        <StudentForm classes={classes} academicYear={academicYear} />
       )}
     </div>
   );

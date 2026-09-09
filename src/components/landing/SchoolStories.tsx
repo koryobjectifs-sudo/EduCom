@@ -36,6 +36,14 @@ import { ArrowRight, Quote } from "lucide-react";
  * ⚠️ Ne jamais « arrondir » une citation pour la rendre plus vendeuse. Une
  * phrase maladroite mais authentique convainc davantage qu'une phrase parfaite
  * — et elle est la seule qu'on puisse défendre si on la conteste.
+ *
+ * ⚠️ Refonte du 4 septembre 2026 : le texte de l'état « pilote » n'a pas
+ * bougé — il était déjà la version confiante, pas apologétique, que le brief
+ * demande pour cet état (§8 : « sophisticated 'built for modern schools'
+ * credibility », jamais de logo ni de client fabriqué). Le token
+ * `bg-m-primary` du bouton, en revanche, a disparu du socle marketing avec
+ * cette refonte — corrigé en `bg-m-ink`, la couleur d'action du reste de la
+ * page.
  */
 type Temoignage = {
   /** La citation, mot pour mot. Aucune retouche de fond. */
@@ -79,13 +87,13 @@ export default function SchoolStories() {
   const aDesTemoignages = TEMOIGNAGES.length > 0;
 
   return (
-    <section id="ecoles" className="scroll-mt-20 border-t border-m-line bg-m-card">
-      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+    <section id="ecoles" className="scroll-mt-20 bg-m-warm">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
         <div className="max-w-2xl">
           <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-ink-faint">
             Histoires d&apos;écoles
           </p>
-          <h2 className="mt-5 font-display text-[2rem] font-bold leading-[1.15] tracking-[-0.015em] text-m-ink sm:text-[2.5rem]">
+          <h2 className="mt-4 font-display text-[1.625rem] font-semibold leading-[1.2] tracking-[-0.02em] text-m-ink sm:text-[2.125rem]">
             {aDesTemoignages
               ? "Ce que les écoles en disent."
               : "Les premières écoles écrivent cette page."}
@@ -93,11 +101,11 @@ export default function SchoolStories() {
         </div>
 
         {aDesTemoignages ? (
-          <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {TEMOIGNAGES.map((t) => (
               <figure
                 key={`${t.nom}-${t.etablissement}`}
-                className="flex flex-col rounded-[14px] border border-m-line bg-m-paper p-7"
+                className="flex flex-col rounded-[14px] border border-m-line bg-m-card p-7"
               >
                 <Quote aria-hidden="true" className="h-5 w-5 shrink-0 text-m-accent-deep" />
                 <blockquote className="mt-4 flex-1 text-[15px] leading-[1.75] text-m-ink">
@@ -113,7 +121,7 @@ export default function SchoolStories() {
             ))}
           </div>
         ) : (
-          <div className="mt-12 grid grid-cols-1 gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-20">
+          <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
             <div>
               {/* ⚠️ Le paragraphe le plus inhabituel de la page. Il dit qu'il n'y
                   a pas encore de clients. C'est vrai, c'est vérifiable, et une
@@ -133,15 +141,15 @@ export default function SchoolStories() {
 
               <Link
                 href="/register"
-                className="mt-9 inline-flex h-12 items-center gap-2 rounded-control bg-m-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-m-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m-primary/40 focus-visible:ring-offset-2"
+                className="mt-9 inline-flex h-12 items-center gap-2 rounded-control bg-m-ink px-6 text-[15px] font-semibold text-white transition-colors hover:bg-m-ink/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m-ink/40 focus-visible:ring-offset-2"
               >
                 Rejoindre le pilote
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Link>
             </div>
 
-            <div className="rounded-[14px] border border-m-line bg-m-paper p-7 sm:p-9">
-              <h3 className="font-display text-[19px] font-bold text-m-ink">
+            <div className="rounded-[14px] border border-m-line bg-m-card p-7 sm:p-9">
+              <h3 className="font-display text-[19px] font-semibold text-m-ink">
                 Ce que vous obtenez en entrant tôt
               </h3>
               <dl className="mt-6 space-y-6">

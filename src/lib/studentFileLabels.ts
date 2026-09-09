@@ -27,7 +27,6 @@ export const DOC_CATEGORY_LABELS: Record<DocCategory, string> = {
   IDENTITE: "Identité",
   INSCRIPTION: "Inscription",
   SCOLARITE: "Scolarité",
-  SANTE: "Santé",
   TRANSFERT: "Transfert",
   EXAMENS: "Examens",
   AUTRES: "Autres",

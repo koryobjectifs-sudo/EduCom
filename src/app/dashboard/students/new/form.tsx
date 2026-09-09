@@ -12,7 +12,7 @@ type Class = {
   name: string;
 };
 
-export function StudentForm({ classes }: { classes: Class[] }) {
+export function StudentForm({ classes, academicYear }: { classes: Class[]; academicYear?: string }) {
   const [state, formAction, isPending] = useActionState<any, any>(
     async (prevState: any, formData: FormData) => {
       const res = await createStudent(formData);
@@ -39,12 +39,18 @@ export function StudentForm({ classes }: { classes: Class[] }) {
           </h1>
           <p className="mt-1 text-sm text-text-secondary">
             Inscrivez un nouvel élève et renseignez les informations du responsable légal.
+            {academicYear && (
+              <>
+                {" "}Inscription rattachée à l&apos;année <strong className="text-text-primary">{academicYear}</strong>.
+              </>
+            )}
           </p>
         </div>
       </div>
 
       <form action={formAction} className="space-y-8">
-        
+        {academicYear && <input type="hidden" name="academicYear" value={academicYear} />}
+
         {/* SECTION 1: L'ÉLÈVE */}
         <div className="rounded-3xl border border-border bg-white shadow-sm p-6 sm:p-8">
           <div className="flex items-center gap-3 mb-6">

@@ -27,7 +27,7 @@ export default function RootError({
   }, [error]);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-ground px-4 text-center">
+    <main data-testid="error-boundary" className="flex min-h-screen flex-col items-center justify-center bg-ground px-4 text-center">
       <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-surface border border-danger/30 bg-danger/10 text-danger">
         <TriangleAlert aria-hidden="true" className="h-6 w-6" />
       </div>

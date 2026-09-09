@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import type { ActorContext } from "@/lib/audit";
 import type { Prisma, DocCategory } from "../generated/prisma/client";
@@ -44,7 +45,7 @@ import type { Prisma, DocCategory } from "../generated/prisma/client";
  * est désormais l'unique endroit qui répond à « quelles classes sont les
  * siennes », pour les rapports (lot 12) comme pour le dossier (lot 13).
  */
-export async function teacherClassIds(actor: ActorContext): Promise<string[]> {
+export const teacherClassIds = cache(async function teacherClassIds(actor: ActorContext): Promise<string[]> {
   const [assigned, owned] = await Promise.all([
     prisma.teachingAssignment.findMany({
       where: { schoolId: actor.schoolId, teacherId: actor.userId },
@@ -56,7 +57,7 @@ export async function teacherClassIds(actor: ActorContext): Promise<string[]> {
     }),
   ]);
   return [...new Set([...assigned.map((a) => a.classId), ...owned.map((c) => c.id)])];
-}
+});
 
 /* ═════════════════ quelles lignes élève ═════════════════ */
 
@@ -79,7 +80,7 @@ export async function teacherClassIds(actor: ActorContext): Promise<string[]> {
  * l'accordera, la borne existe déjà ; sans elle, ouvrir le chemin ouvrirait
  * du même geste le dossier de tous les enfants de l'établissement.
  */
-export async function studentWhereFor(actor: ActorContext): Promise<Prisma.StudentWhereInput> {
+export const studentWhereFor = cache(async function studentWhereFor(actor: ActorContext): Promise<Prisma.StudentWhereInput> {
   const school = { schoolId: actor.schoolId };
 
   switch (actor.role) {
@@ -104,7 +105,8 @@ export async function studentWhereFor(actor: ActorContext): Promise<Prisma.Stude
       // règle n'est pas écrite ici.
       return { ...school, id: { in: [] } };
   }
-}
+});
+
 
 /**
  * Vrai si l'acteur a le droit de voir CET élève.
@@ -190,14 +192,8 @@ export function scopeNotice(actor: ActorContext): string | null {
 }
 
 /**
- * Vrai si l'acteur peut voir les données de santé de l'élève — groupe sanguin,
- * notes médicales.
- *
- * ⚠️ **Aucune règle nouvelle.** C'est exactement la règle documentaire ci-dessus,
- * appliquée aux colonnes de la fiche élève. Interdire la pièce de santé tout en
- * laissant le groupe sanguin et les notes médicales lisibles sur l'écran voisin
- * n'aurait rien protégé : ce sont les mêmes données, seul le contenant change.
+ * Vrai si l'acteur peut voir les données sensibles de l'élève (contact d'urgence).
  */
 export function canSeeHealthData(actor: ActorContext): boolean {
-  return canSeeCategory(actor, "SANTE");
+  return actor.role === "OWNER" || actor.role === "ADMIN" || actor.role === "SECRETARY";
 }

@@ -113,21 +113,10 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
     "/dashboard/admin/reports",
   ],
 
-  // Un parent ne voit que ce qui le concerne. Pas d'accès à l'accueil : le
-  // tableau de bord expose les finances de tout l'établissement.
+  // Un parent ne voit que ce qui le concerne. Pas d'accès à l'accueil ni aux rapports admin.
   PARENT: [
     "/dashboard/payments",
     "/dashboard/documents",
-
-    // Lot 12 — le parent voit un rapport strictement familial : ses enfants,
-    // SES factures (via `invoiceScope()`, qui couvre les deux chemins parent →
-    // facture), ses versements, ses messages.
-    //
-    // ⚠️ Aucun total d'établissement n'y entre : `familySections()` n'appelle
-    // pas `financeSnapshot()`, qui agrège toute l'école. C'est la seule raison
-    // pour laquelle cette entrée est sûre — la retirer du rapport familial
-    // rendrait cette permission dangereuse.
-    "/dashboard/admin/reports",
   ],
 
   // Le comptable édite factures et reçus : ils vivent dans `/dashboard/documents`,

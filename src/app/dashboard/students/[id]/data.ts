@@ -156,6 +156,25 @@ export async function loadStudent360(actor: ActorContext, id: string) {
     ? Math.floor((Date.now() - new Date(student.dateOfBirth).getTime()) / 31_557_600_000)
     : null;
 
+  /**
+   * Documents par année scolaire — 7 septembre 2026.
+   *
+   * ⚠️ Aucune requête ajoutée : `dossier` (= `studentFile()`) a déjà lu
+   * toutes les pièces de l'élève. On les recompte simplement par
+   * `academicYear`, pour enrichir « Historique des inscriptions »
+   * (`sections.tsx`) sans dupliquer la logique de `studentFile()`.
+   */
+  const documentsParAnnee: Record<string, number> = {};
+  if (dossier) {
+    for (const ligne of dossier.lines) {
+      const annee = ligne.document?.academicYear;
+      if (annee) documentsParAnnee[annee] = (documentsParAnnee[annee] ?? 0) + 1;
+    }
+    for (const piece of dossier.loose) {
+      if (piece.academicYear) documentsParAnnee[piece.academicYear] = (documentsParAnnee[piece.academicYear] ?? 0) + 1;
+    }
+  }
+
   return {
     student,
     age,
@@ -165,6 +184,7 @@ export async function loadStudent360(actor: ActorContext, id: string) {
     notes: { liste: notes, moyenne, parMatiere },
     bulletins,
     nbDocuments,
+    documentsParAnnee,
     conversations,
     finance: { duCumule, enRetard, factures: student.invoices },
     // `dossier` est `null` seulement si `studentWhereFor()` refuse l'élève —

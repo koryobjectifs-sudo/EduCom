@@ -105,6 +105,21 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: ENTETES_SECURITE }];
   },
+
+  async redirects() {
+    return [
+      {
+        source: "/dashboard/directory",
+        destination: "/dashboard/students",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/students/dossiers",
+        destination: "/dashboard/students?view=classes",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

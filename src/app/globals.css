@@ -113,13 +113,24 @@
      est fixée explicitement pour que la règle soit lisible ici. */
   --spacing: 0.25rem;
 
-  /* ─── Typographie : échelle logicielle calibrée et dense ─────────────────*/
-  --text-role-page:    22px;  /* titre de page — un seul par écran */
-  --text-role-section: 16px;  /* titre de section */
-  --text-role-card:    14px;  /* titre de carte */
-  --text-role-body:    13px;  /* défaut : tableaux, formulaires, texte courant */
-  --text-role-label:   12px;  /* libellé de champ, en-tête de colonne */
-  --text-role-meta:    11px;  /* métadonnée et précision */
+  /* ─── Typographie : échelle unifiée & Lato ────────────────────────────────*/
+  --font-sans: var(--font-lato), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  --text-page-title:    22px;   /* titre de page, poids 900, leading 1.1 */
+  --text-page-subtitle: 13.5px; /* ligne sous le titre, poids 400, text-soft */
+  --text-section-title: 16px;   /* titre de section dans la page, poids 700/900 */
+  --text-card-title:    14.5px; /* titre de carte, poids 700 */
+  --text-body:          14px;   /* texte courant (base >= 14px), poids 400 */
+  --text-label:         12px;   /* libellés, en-têtes de colonne */
+  --text-meta:          11px;   /* métadonnées et précisions */
+
+  /* Rétrocompatibilité tokens précédents */
+  --text-role-page:    var(--text-page-title);
+  --text-role-section: var(--text-section-title);
+  --text-role-card:    var(--text-card-title);
+  --text-role-body:    var(--text-body);
+  --text-role-label:   var(--text-label);
+  --text-role-meta:    var(--text-meta);
 
   /* ─── Shell bi-étagé EduCom (Workspace & Rail) ───────────────────────────*/
   --color-rail-bg:          #0E2541;  /* Navy standard EduCom */
@@ -130,7 +141,7 @@
   --color-rail-accent:      #9C0F15;  /* Accent liseré rouge EduCom */
 
   --width-rail:              72px;
-  --width-sidebar-expanded: 200px;
+  --width-sidebar-expanded: 208px;
   --width-sidebar-collapsed: 52px;
   --height-topbar:           48px;
 
@@ -525,6 +536,89 @@
     box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-primary) 40%, transparent);
     text-decoration: none;
   }
+}
+
+/* ─── Classes de typographie sémantique unifiée (Lato 400/700/900) ──────────*/
+.type-page-title {
+  font-size: var(--text-page-title);
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  color: var(--color-text);
+}
+
+.type-page-subtitle {
+  font-size: var(--text-page-subtitle);
+  line-height: 1.4;
+  font-weight: 400;
+  color: var(--color-text-soft);
+}
+
+.type-section-title {
+  font-size: var(--text-section-title);
+  line-height: 1.25;
+  font-weight: 900;
+  letter-spacing: -0.015em;
+  color: var(--color-text);
+}
+
+.type-card-title {
+  font-size: var(--text-card-title);
+  line-height: 1.3;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.type-body {
+  font-size: var(--text-body);
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--color-text);
+}
+
+.type-label {
+  font-size: var(--text-label);
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--color-text-soft);
+}
+
+.type-meta {
+  font-size: var(--text-meta);
+  line-height: 1.2;
+  font-weight: 500;
+  color: var(--color-text-faint);
+}
+
+/* ─── Niveaux de Zoom / Densité d'interface (90% / 100% / 115%, corps >= 13px) ──────*/
+html[data-density="compact"] {
+  --text-page-title:    20px;
+  --text-page-subtitle: 12.5px;
+  --text-section-title: 14.5px;
+  --text-card-title:    13px;
+  --text-body:          13px;
+  --text-label:         11px;
+  --text-meta:          10px;
+}
+
+html[data-density="normal"] {
+  --text-page-title:    22px;
+  --text-page-subtitle: 13.5px;
+  --text-section-title: 16px;
+  --text-card-title:    14.5px;
+  --text-body:          14px;
+  --text-label:         12px;
+  --text-meta:          11px;
+}
+
+html[data-density="comfort"] {
+  --text-page-title:    25px;
+  --text-page-subtitle: 15.5px;
+  --text-section-title: 18.5px;
+  --text-card-title:    16.5px;
+  --text-body:          16px;
+  --text-label:         14px;
+  --text-meta:          12.5px;
 }
 
 @media print {

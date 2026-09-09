@@ -341,90 +341,59 @@ export async function financeSnapshot(actor: ActorContext, period: Period): Prom
  * Basé sur la grille tarifaire active et les élèves inscrits.
  */
 export async function expectedMonthlyRevenue(actor: ActorContext) {
-  // Find active fee schedule
-  const schedule = await prisma.feeSchedule.findFirst({
-    where: { schoolId: actor.schoolId, status: "ACTIVE" },
-    include: { items: true }
-  });
-
-  if (!schedule) return { outstanding: 0, forecast: 0, details: [] };
-
-  // Find all active enrollments
-  const enrollments = await prisma.enrollment.findMany({
-    where: { class: { schoolId: actor.schoolId } },
-    include: { 
-      student: { select: { id: true, firstName: true, lastName: true } },
-      class: { select: { id: true, name: true, cycle: true } }
-    }
-  });
-
-  // Calculate payments already made this month
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-  const paymentsThisMonth = await prisma.payment.findMany({
-    where: {
-      schoolId: actor.schoolId,
-      createdAt: { gte: startOfMonth, lt: endOfMonth },
-      invoice: { studentId: { not: null } }
-    },
-    select: {
-      amount: true,
-      invoice: { select: { studentId: true } }
-    }
-  });
+  // Parallelize schedule, classes, and payments lookups (eliminates 1000 individual student joins)
+  const [schedule, classes, paymentsThisMonth] = await Promise.all([
+    prisma.feeSchedule.findFirst({
+      where: { schoolId: actor.schoolId, status: "ACTIVE" },
+      include: { items: true },
+    }),
+    prisma.class.findMany({
+      where: { schoolId: actor.schoolId },
+      select: {
+        id: true,
+        name: true,
+        cycle: true,
+        _count: { select: { enrollments: true } },
+      },
+    }),
+    prisma.payment.aggregate({
+      where: {
+        schoolId: actor.schoolId,
+        createdAt: { gte: startOfMonth, lt: endOfMonth },
+      },
+      _sum: { amount: true },
+    }),
+  ]);
 
-  const paidByStudent = new Map<string, number>();
-  for (const p of paymentsThisMonth) {
-    if (p.invoice?.studentId) {
-      const prev = paidByStudent.get(p.invoice.studentId) || 0;
-      paidByStudent.set(p.invoice.studentId, prev + p.amount);
-    }
-  }
+  if (!schedule) return { outstanding: 0, forecast: 0, details: [] };
 
-  let totalOutstanding = 0;
+  const collectedThisMonth = paymentsThisMonth._sum?.amount ?? 0;
   let totalForecast = 0;
-  const details = [];
 
-  for (const enr of enrollments) {
-    let studentExpected = 0;
+  for (const c of classes) {
+    const studentCount = c._count.enrollments;
+    if (studentCount === 0) continue;
 
-    // Resolve fees for this student (classId > cycle > school)
-    // Only mandatory fees with MONTHLY cadence are counted for the monthly forecast
     for (const item of schedule.items) {
       if (!item.mandatory || item.cadence !== "MONTHLY") continue;
-      
-      const appliesToClass = item.classId === enr.classId;
-      const appliesToCycle = !item.classId && item.cycle === enr.class.cycle;
+
+      const appliesToClass = item.classId === c.id;
+      const appliesToCycle = !item.classId && item.cycle === c.cycle;
       const appliesToSchool = !item.classId && !item.cycle;
 
       if (appliesToClass || appliesToCycle || appliesToSchool) {
-        studentExpected += item.amount;
+        totalForecast += item.amount * studentCount;
       }
-    }
-
-    if (studentExpected > 0) {
-      totalForecast += studentExpected;
-    }
-
-    const paid = paidByStudent.get(enr.student.id) || 0;
-    const remaining = Math.max(0, studentExpected - paid);
-
-    if (remaining > 0) {
-      totalOutstanding += remaining;
-      details.push({
-        studentId: enr.student.id,
-        firstName: enr.student.firstName,
-        lastName: enr.student.lastName,
-        classId: enr.class.id,
-        className: enr.class.name,
-        expected: remaining
-      });
     }
   }
 
-  return { outstanding: totalOutstanding, forecast: totalForecast, details };
+  const totalOutstanding = Math.max(0, totalForecast - collectedThisMonth);
+
+  return { outstanding: totalOutstanding, forecast: totalForecast, details: [] };
 }
 
 /* ═══════════════ vue d'ensemble de l'écran Paiements ═══════════════ */
@@ -468,84 +437,109 @@ export type InvoiceOverview = {
 
 /**
  * Tout ce dont l'écran Paiements a besoin, en une lecture bornée.
- *
- * ⚠️ **Les agrégats suivent la même restriction que la liste.** C'était le second
- * volet de la fuite : même avec une liste filtrée, les cartes « Total encaissé »
- * et « Reste à encaisser » auraient continué d'exposer la trésorerie de tout
- * l'établissement à chaque parent. Ici les totaux ne portent que sur les
- * factures que l'acteur a le droit de voir.
- *
- * ⚠️ Le retard est dérivé de `dueDate`, jamais du statut `OVERDUE` seul : ce
- * statut n'est écrit que par le balayage de `src/lib/overdue.ts`, qui peut ne
- * pas encore être passé. Une facture échue ce matin doit compter aujourd'hui.
  */
 export async function invoiceOverview(actor: ActorContext): Promise<InvoiceOverview & { expectedRevenue: number, expectedDetails: any[] }> {
   const scope = invoiceScope(actor);
-  const expected = await expectedMonthlyRevenue(actor);
+  const isParent = actor.role === "PARENT";
 
-  const invoices = await prisma.invoice.findMany({
-    where: scope,
-    select: {
-      id: true, title: true, totalAmount: true, status: true, dueDate: true,
-      student: { 
-        select: { 
-          firstName: true, 
-          lastName: true,
-          enrollments: { select: { class: { select: { id: true, name: true } } } }
-        } 
+  const [expected, invoiceStatusGroups, invoices, collectedSummary, overdueStats] = await Promise.all([
+    expectedMonthlyRevenue(actor),
+    prisma.invoice.groupBy({
+      by: ["status"],
+      where: scope,
+      _count: { id: true },
+    }),
+    prisma.invoice.findMany({
+      where: scope,
+      select: {
+        id: true,
+        title: true,
+        totalAmount: true,
+        status: true,
+        dueDate: true,
+        student: {
+          select: {
+            firstName: true,
+            lastName: true,
+            enrollments: { select: { class: { select: { id: true, name: true } } } },
+          },
+        },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+    isParent
+      ? Promise.resolve(null)
+      : prisma.payment.aggregate({
+          where: { schoolId: actor.schoolId },
+          _sum: { amount: true },
+          _count: { id: true },
+        }),
+    isParent
+      ? Promise.resolve([])
+      : prisma.$queryRaw<Array<{ overdue_amount: number; overdue_count: number }>>`
+          SELECT 
+            COALESCE(SUM("totalAmount"), 0)::int as overdue_amount,
+            COUNT(*)::int as overdue_count
+          FROM "Invoice"
+          WHERE "schoolId" = ${actor.schoolId} 
+            AND "status" IN ('PENDING', 'PARTIAL', 'OVERDUE')
+            AND "dueDate" < NOW()
+        `,
+  ]);
 
-  const ids = invoices.map((i) => i.id);
+  let collected = collectedSummary?._sum?.amount ?? 0;
+  let collectedCount = collectedSummary?._count?.id ?? 0;
+  let overdue = overdueStats[0]?.overdue_amount ?? 0;
+  let overdueCount = overdueStats[0]?.overdue_count ?? 0;
 
-  // Aucune facture visible ⇒ aucun encaissement visible. Sans ce court-circuit,
-  // `invoiceId: { in: [] }` serait passé à Prisma ; le résultat serait correct,
-  // mais autant ne pas interroger la base pour rien.
-  const byMethod = ids.length > 0 ? await collectedByMethod(actor, { invoiceIds: ids }) : [];
-  const collected = byMethod.reduce((s, m) => s + m.amount, 0);
-  const collectedCount = byMethod.reduce((s, m) => s + m.count, 0);
+  if (isParent) {
+    const ids = invoices.map((i) => i.id);
+    const byMethod = ids.length > 0 ? await collectedByMethod(actor, { invoiceIds: ids }) : [];
+    collected = byMethod.reduce((s, m) => s + m.amount, 0);
+    collectedCount = byMethod.reduce((s, m) => s + m.count, 0);
 
-  // Reste dû par facture — même méthode que `financeSnapshot`.
-  const paidByInvoice = new Map<string, number>();
-  if (ids.length > 0) {
-    const grouped = await prisma.payment.groupBy({
-      by: ["invoiceId"],
-      where: { schoolId: actor.schoolId, invoiceId: { in: ids } },
-      _sum: { amount: true },
-    });
-    for (const g of grouped) paidByInvoice.set(g.invoiceId, g._sum.amount ?? 0);
-  }
+    const paidByInvoice = new Map<string, number>();
+    if (ids.length > 0) {
+      const grouped = await prisma.payment.groupBy({
+        by: ["invoiceId"],
+        where: { schoolId: actor.schoolId, invoiceId: { in: ids } },
+        _sum: { amount: true },
+      });
+      for (const g of grouped) paidByInvoice.set(g.invoiceId, g._sum.amount ?? 0);
+    }
 
-  const now = new Date();
-  let outstanding = 0, overdue = 0, overdueCount = 0;
+    const now = new Date();
+    overdue = 0;
+    overdueCount = 0;
 
-  for (const inv of invoices) {
-    if (!UNSETTLED_INVOICE.includes(String(inv.status))) continue;
-    const due = Math.max(0, inv.totalAmount - (paidByInvoice.get(inv.id) ?? 0));
-    if (due === 0) continue;
-    outstanding += due;
-    if (inv.dueDate < now) {
-      overdue += due;
-      overdueCount += 1;
+    for (const inv of invoices) {
+      if (!UNSETTLED_INVOICE.includes(String(inv.status))) continue;
+      const due = Math.max(0, inv.totalAmount - (paidByInvoice.get(inv.id) ?? 0));
+      if (due === 0) continue;
+      if (inv.dueDate < now) {
+        overdue += due;
+        overdueCount += 1;
+      }
     }
   }
+
+  const paidCount = invoiceStatusGroups.find((i) => String(i.status) === "PAID")?._count.id ?? 0;
+  const pendingCount = invoiceStatusGroups.find((i) => String(i.status) === "PENDING")?._count.id ?? 0;
 
   return {
     invoices,
     collected,
     collectedCount,
-    // The outstanding amount is now based on the monthly expected revenue (already reduced by payments)
     outstanding: expected.outstanding,
     forecast: expected.forecast,
     expectedRevenue: expected.forecast,
     expectedDetails: expected.details,
     overdue,
     overdueCount,
-    paidCount: invoices.filter((i) => String(i.status) === "PAID").length,
-    pendingCount: invoices.filter((i) => String(i.status) === "PENDING").length,
-    restrictedToParent: actor.role === "PARENT",
+    paidCount,
+    pendingCount,
+    restrictedToParent: isParent,
   };
 }
 

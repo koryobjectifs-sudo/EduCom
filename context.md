@@ -1,8 +1,117 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 8 septembre 2026 — Refonte du Shell Global (Architecture bi-étagée style Workspace, Rail 72px Navy EduCom #0E2541, Sidebar contextuelle rétractable, Cookie server-side, Espace Parent dédié).
+> Dernière mise à jour : 9 septembre 2026 — Chantier Performance & Résilience : Correction de la régression Suspense sur `/dashboard` (tolérance totale aux données absentes/nulles sur tous les blocs ; fallback systématique avec états vides ; chaîne de chargement sécurisée avec try/catch) ; Renforcement du smoke test (attente active de la résolution complète des frontières Suspense via `section[aria-busy="true"]`, vérification DOM post-streaming, preuve par l'échec validée) ; Ajout du scénario « École vierge / Base vide » (100% vert sur école sans aucune donnée).
+
+## 📌 Chantier Performance & Résilience (Septembre 2026) — Mesures & Évolutions
+
+- **Établissement de référence mesuré** : `SAINT JEAN PAUL INSTITUT` (1 000 élèves réels en base, rôle OWNER).
+- **Résultats Avant / Après** :
+  - `/dashboard` (Avant) : 32 requêtes bloquantes séquentielles / 2 747 ms.
+  - `/dashboard` (Après Suspense + Consolidation SQL) :
+    - **Socle bloquant (First Paint)** : **13 requêtes réelles (11 promesses)** / **~1 000 ms**.
+    - **Suivi pédagogique (Suspense)** : 6 requêtes / 171 ms (chargé en parallèle, tolérant à null/vide).
+    - **Activité récente (Suspense)** : 7 requêtes / 358 ms (chargé en parallèle, tolérant à null/vide).
+  - `/dashboard/payments` : 13 requêtes / 1 659 ms $\to$ **11 req (50 lignes max paginées, agrégats SQL) / 433 ms total**.
+- **Résilience & Gestion des Écoles Vierges** :
+  - `AcademicProgressSection.tsx` et `RecentActivityFeed.tsx` acceptent désormais `null`/`undefined` sans jamais planter.
+  - Les fonctions de chargement `getAcademicDashboardData` et `getRecentActivityFeedData` sont encapsulées dans des `try/catch` retournant des structures par défaut (`emptyAcademicData`, `[]`).
+- **Smoke Test Renforcé & Preuve par l'échec** :
+  - Attente active de la résolution des frontières Suspense dans Chrome CDP avant inspection du DOM.
+  - Scénario « École vierge » intégré systématiquement (0 élève, 0 classe, 0 trimestre, 0 facture).
+- **Migration `isDemo` sur `Class`** :
+  - Migration officielle committée : `prisma/migrations/20260909044500_add_class_is_demo/migration.sql`.
+  - Supprime définitivement l'astuce du zero-width space `\u200B` en base de données et dans le code applicatif.
+- **Double filtre multi-tenant strict sur Enrollment** :
+  - La jointure d'occupation des classes filtre systématiquement `WHERE "classId" IN (SELECT id FROM "Class" WHERE "schoolId" = ${schoolId})` et s'appuie sur l'index composite `@@index([classId, academicYear])`.
+- **Pool Postgres & Arbitrage `connection_limit=5`** :
+  - Validé pour le plan Supabase Pro (capacité 2 000 clients pooler transactionnel port 6543 vs 200 en plan Free).
+  - Documenté dans `docs/latency-senegal-infra.md`.
 
 ## 📌 Nouvelles Fonctionnalités & Logiques Implémentées (Septembre 2026)
+
+### SOURCE UNIQUE DE VÉRITÉ POUR L'ANNÉE SCOLAIRE ACTIVE & REGISTRE ÉLÈVES (9 septembre 2026)
+
+- **1. Source Unique Déclarée (`School.activeAcademicYear` & `academicYear.ts`)** :
+  - L'année scolaire active ne dépend plus jamais d'un calcul de date système `new Date()` (qui basculait brutalement au 1er septembre avant la rentrée réelle fixée en octobre).
+  - L'année active est une donnée déclarée par l'école, stockée dans la colonne `School.activeAcademicYear`.
+  - La fonction `currentAcademicYear(school)` lit `school.activeAcademicYear` en priorité absolue. La date système ne sert que de suggestion par défaut à la création d'un établissement.
+  - Tous les modules (Bandeau de direction, Registre des élèves, Classes & cycles, Facturation/Paiements, Notes/Bulletins, Attestations & documents) sont rattachés à cette source unique.
+- **2. Écran de Réglage de Session (`/dashboard/settings` & `SettingsClient.tsx`)** :
+  - Section dédiée « Session & Année scolaire active » dans les paramètres de l'école.
+  - Affichage de l'année active avec badge de session en cours, sélecteur des sessions existantes et création libre d'une nouvelle session (ex: `2027-2028`).
+  - Texte explicatif sur les conséquences : aucune donnée n'est supprimée, l'historique reste intact et consultable à tout moment.
+  - Server action sécurisée `updateActiveAcademicYear(newYear)` protégée par `requireActionContext("/dashboard/settings")`.
+- **3. Correction du Comptage du Registre (`src/app/dashboard/students/data.ts`)** :
+  - Correction du filtre SQL : la sélection d'une année filtre désormais systématiquement `enrollments: { some: { academicYear: annee } }` au lieu de ramener toute la table `Student` sans filtre d'inscription.
+  - Comptage groupé par année (`countsByYear`) pour permettre la comparaison d'effectifs d'une session à l'autre.
+- **4. Bandeau Informatif de Transition & Affichage Systématique de l'Année** :
+  - Bandeau informatif en tête du registre des élèves (`StudentsUnifiedClient.tsx`) et sur la carte « Effectif Actif » du tableau de bord (`DirectorKpiStrip.tsx`) lorsque l'effectif actif est inférieur à l'année précédente (ex : *« 4 élèves inscrits pour 2026-2027. 1 000 élèves étaient inscrits en 2025-2026. [Voir les effectifs 2025-2026] »*).
+  - Partout ailleurs où un effectif est affiché (cycles, classes, kpis), l'année apparaît systématiquement à côté du chiffre.
+- **5. Migration SQL & Client Prisma Déployés** :
+  - Migration officielle committée : `prisma/migrations/20260909033000_add_school_active_academic_year/migration.sql`.
+  - Appliquée avec succès via `npx prisma migrate deploy` et client régénéré (`npx prisma generate`).
+- **6. Renforcement du Smoke Test (`scripts/smoke-test-all-routes.ts`)** :
+  - Détection active des frontières d'erreurs (`[data-testid="error-boundary"]`) et des marqueurs d'erreurs textuels (`Invalid prisma`, `Cette page n'a pas pu s'afficher`, `Unknown field`...).
+  - Test validé sur échec intentionnel (7 erreurs levées) puis sur succès total (54 routes, 17 publiques, 7 rôles).
+- **7. Densité d'Interface Validée** :
+  - Niveaux de zoom calibrés à 90% (Compact), 100% (Normal) et 115% (Confort) avec corps $\ge 13\text{px}$ en mode compact.
+
+### HIÉRARCHIE CYCLES → CLASSES, TYPOGRAPHIE LATO, ÉCHELLE UNIFIÉE & SHELL (8 septembre 2026)
+
+- **1. Hiérarchie Cycles → Classes (`/dashboard/classes` & `ClassListClient.tsx`)** :
+  - **Niveau 1 (Vue d'ensemble)** : Affichage exclusif des cartes de cycles de l'établissement (Maternelle, Élémentaire, etc.) avec nombre de classes, effectif cumulé et statut des titulaires.
+  - **Niveau 2 (Vue cycle)** : Clic sur un cycle navigue vers `/dashboard/classes?cycle=MATERNELLE` (piloté par `searchParams`), avec bouton retour « ← Tous les cycles » et grille des classes du cycle sélectionné.
+  - **Filtre transversal sans titulaire** : `?filter=unassigned` fonctionne sur tous les cycles confondus.
+  - **Résolution Bug a) Incohérence 1004 vs 1000** : Filtrage strict des inscriptions sur l'année académique active `currentAcademicYear()` (`2025-2026`) dans `prisma.class.findMany` (4 élèves avaient une double inscription anticipée pour 2026-2027).
+  - **Résolution Bug b) Troncature & badge « 0 élève »** : Mise en page robuste avec conteneur `flex items-center justify-between min-w-0 gap-2.5`, titre `truncate min-w-0` et badge `shrink-0 whitespace-nowrap`.
+  - **Vocabulaire** : Harmonisation sur « TITULAIRE » partout.
+- **2. Typographie Lato & Échelle Typographique Unifiée (`layout.tsx` & `globals.css`)** :
+  - Police Google Fonts `Lato` chargée via `next/font/google` (`subsets: ["latin", "latin-ext"]`, `weights: ["400", "700", "900"]`, `display: "swap"`).
+  - Titres de page en poids 900 (black) avec interlignage serré (1.1).
+  - Échelle de tokens unifiée : `--text-page-title` (22px, 900), `--text-page-subtitle` (13.5px, 400), `--text-section-title` (16px, 700), `--text-card-title` (14.5px, 700), `--text-body` (14px, 400 $\ge$ 14px), `--text-label` (12px, 600), `--text-meta` (11px, 500).
+  - Densité actuelle des grilles et cartes préservée.
+- **3. Ajustements Shell & Tuile Tableau de Bord (`AppRail.tsx`, `ContextualSidebar.tsx`, `AppTopBar.tsx`)** :
+  - **Alignement des filets** : TopBar (`h-12`, 48px) et Sidebar contextuelle (`h-12`, 48px) alignées exactement en Y avec filet continue `border-rule`.
+  - **Tuile Tableau de bord** : Rétablie en 1ère position dans le rail (icône `LayoutDashboard`, active sur `/dashboard`, liseré rouge `#9C0F15`, séparateur horizontal).
+  - **Logo d'école neutre** : Logo non cliquable, sans anneau de surbrillance.
+  - **Hauteur des tuiles du rail** : Réduite à ~46px (`py-1`, libellé 11.5px, cible $\ge$ 44px). Les 6 tuiles occupent ~360px $\ll$ 768px (aucun défilement).
+  - **Sélecteur de Zoom / Densité** : Intégré dans le menu profil (Compact 95%, Normal 100%, Confort 105%), persisté par cookie serveur `educom_density` et attribut `data-density`. Corps $\ge$ 13px même en compact.
+
+### FUSION ANNUAIRE / REGISTRE DES ÉLÈVES — PHASE 2 (8 septembre 2026)
+
+- **1. Hub Unifié (`src/app/dashboard/students/page.tsx` & `StudentsUnifiedClient.tsx`)** :
+  - La page `/dashboard/students` rassemble la **Liste globale** des élèves et la vue **Par classe** (dossiers de classes par cycle).
+  - L'état de vue est piloté à 100 % par les `searchParams` (`?view=list` ou défaut, `?view=classes`, `?classId=...`) : bookmarkable, partageable, historique et bouton retour du navigateur fonctionnels.
+- **2. Périmètre par Rôle Côté Serveur (`src/app/dashboard/students/data.ts`)** :
+  - `loadStudentsData()` filtre les élèves (`studentWhereFor`) et les classes (`teacherClassIds`) côté serveur.
+  - Un enseignant (`TEACHER`) ne voit STRICTEMENT que ses classes assignées ou dont il est titulaire, et uniquement ses élèves. Il ne voit jamais les autres classes de l'école.
+- **3. Redirections 308 Permanentes (`next.config.ts`)** :
+  - `/dashboard/directory` ➔ `/dashboard/students` (308)
+  - `/dashboard/students/dossiers` ➔ `/dashboard/students?view=classes` (308)
+- **4. Nettoyage & Remplacement des Liens Internes** :
+  - Remplacement de tous les liens internes (`/dashboard/directory` ➔ `/dashboard/students` ou `/dashboard/classes`).
+  - Suppression sécurisée de `src/app/dashboard/directory` et `src/app/dashboard/students/dossiers/page.tsx`.
+  - La page `src/app/dashboard/students/dossiers/review/page.tsx` (Examen des admissions) reste intacte et autonome.
+
+### ARCHITECTURE 5 ESPACES MÉTIER & WORKSPACE PLEIN ÉCRAN SUR /dashboard (8 septembre 2026)
+
+- **1. 5 Espaces Métier dans le Rail (`src/lib/navigation.ts`)** :
+  - **Scolarité** (`students`, 14 routes) : Registre des élèves, Annuaire des classes, Dossiers de classe, Examen des admissions, Classes & niveaux.
+  - **Documents** (`documents`, 15 routes) : Centre documentaire, Modèles & gabarits, Attestations, Emplois du temps, Validation, Communications, Campagnes SMS/Email, Sondages & avis. Libellé court dans le rail : **"Documents"** (72px), infobulle : **"Documents & Communication"**.
+  - **Pédagogie** (`pedagogy`, 8 routes) : Notes & bulletins, Présences & appel, Suivi des élèves en difficulté.
+  - **Finance** (`finance`, 9 routes) : Facturation, encaissements, reçus, dépenses, grilles tarifaires.
+  - **Admin** (`admin`, 9 routes) : Vue d'ensemble, Équipe, Rapports d'activité, Paramètres généraux, Config pédagogique, Pièces exigées.
+- **2. Épure sur `/dashboard` (Point A)** :
+  - La tuile "Accueil" est retirée du rail. Le logo de l'établissement tout en haut du rail sert de bouton d'accès au Tableau de bord (`/dashboard`), avec indicateur visuel actif quand on s'y trouve.
+  - Sur `/dashboard`, aucun espace métier n'est actif dans le rail et la sidebar contextuelle est masquée (`activeSpace = null`). Le workspace de pilotage occupe 100% de la largeur disponible.
+- **3. Breakpoint Responsive Unifié 768px (Point 4)** :
+  - Breakpoints passés de `lg:` (1024px) à `md:` (768px) sur `AppRail`, `ContextualSidebar`, `SidebarResizeHandle`, `AppTopBar` et `MobileNav`.
+  - Tablette (768px+) : Rail fixe (72px) + Sidebar rétractable (52px–320px).
+  - Mobile (<768px, ex: 390px) : Tiroir mobile plein écran unifié.
+- **4. Zéro Doublons DocumentRequirement** :
+  - Requête brute exécutée sur la base : 0 groupe en doublon sur `(schoolId, cycle, label)`. Risque théorique nul.
+  - 0 URL modifiée (0 redirection requise).
+  - Permissions de rôles conservées à 100% à l'identique.
 
 ### SHELL GLOBAL BI-ÉTAGÉ — NAVIGATION WORKSPACE & ESPACES MÉTIER (8 septembre 2026)
 

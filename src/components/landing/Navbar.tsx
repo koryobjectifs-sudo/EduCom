@@ -2,48 +2,48 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ChevronDown } from "lucide-react";
 
 /**
- * Barre de navigation publique — addendum PLG.
+ * Barre de navigation — refonte v7 (6 septembre 2026).
  *
- * ═══ CE QUI ÉTAIT AFFICHÉ ═══
+ * ═══ CE QUI CHANGE ═══
  *
- * ⚠️ **Un « E » blanc dans un carré bleu**, dessiné en HTML, en guise de logo —
- * alors que `public/brand/` contient dix-neuf fichiers de marque finis, dont un
- * logotype horizontal complet. Le seul endroit où la marque devait être
- * irréprochable affichait un substitut.
+ * Nav qui se transforme au scroll : bandeau plein-largeur en haut → pilule
+ * flottante compacte, insérée avec une marge et ombrée, après ~80px de
+ * défilement. Comportement observé en réel sur slack.com via Playwright
+ * (plan validé, §Navigation) — pas une supposition. Un menu déroulant
+ * simple apparaît sous « Produit » au survol/focus : 4 ancres réelles avec
+ * une ligne de description chacune. Volontairement PAS un mega-menu
+ * multi-colonnes — EduCom a un seul produit, un mega-menu enterprise
+ * habillerait une fausse complexité (scope explicitement écarté dans le
+ * plan).
  *
- * ⚠️ Quatre liens vers des ancres (`/#features`, `/#solutions`,
- * `/#how-it-works`, `/#pricing`) dont **deux n'existaient sur aucune page** :
- * `#solutions` n'était l'identifiant d'aucune section de l'accueil. Cliquer ne
- * faisait rien — le défaut le plus démoralisant d'une page d'accueil, parce
- * qu'il ne produit aucun message d'erreur.
+ * ═══ CE QUI NE CHANGE PAS ═══
  *
- * ⚠️ `bg-transparent` en haut de page puis `backdrop-blur-lg` au défilement :
- * la barre changeait de nature en cours de lecture, et le texte du hero passait
- * dessous. Elle reste maintenant sur le papier, et ne gagne qu'un filet.
+ * Le logotype réel, les seules ancres qui existent réellement sur la page,
+ * les cibles tactiles ≥ 44px trouvées par la sonde de validation lors d'un
+ * chantier précédent.
  */
-const LIENS = [
-  { nom: "Le produit", href: "/#produit" },
-  { nom: "Déroulé", href: "/#deroule" },
-  { nom: "Écoles", href: "/#ecoles" },
-  { nom: "Tarifs", href: "/#tarifs" },
+const PRODUIT_LIENS = [
+  { nom: "Le système", href: "/#systeme", description: "Facturation, notes, présences, admission — en direct." },
+  { nom: "Le produit", href: "/#produit", description: "L'écran réel, pas une maquette." },
+  { nom: "Les rôles", href: "/#roles", description: "Chacun ne voit que ce qui le concerne." },
+  { nom: "Le pilotage", href: "/#pilotage", description: "Ce que le directeur voit, sans le demander." },
 ];
 
 export default function Navbar() {
   const [defile, setDefile] = useState(false);
   const [ouvert, setOuvert] = useState(false);
+  const [menuProduit, setMenuProduit] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setDefile(window.scrollY > 8);
+    const onScroll = () => setDefile(window.scrollY > 80);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Le tiroir ouvert fige le fond : sans cela, la page continue de défiler
-  // derrière le menu et on ne sait plus où l'on est en le refermant.
   useEffect(() => {
     document.body.style.overflow = ouvert ? "hidden" : "";
     return () => {
@@ -52,97 +52,118 @@ export default function Navbar() {
   }, [ouvert]);
 
   return (
-    <header
-      className={`sticky top-0 z-50 bg-m-paper/90 backdrop-blur-sm transition-shadow ${
-        defile ? "border-b border-m-line" : "border-b border-transparent"
-      }`}
-    >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        {/* ⚠️ La zone cliquable épousait la hauteur de l'image (28 px) : sous
-            les 40 px nécessaires au doigt, alors que c'est le lien de retour
-            à l'accueil, celui qu'on cherche quand on s'est perdu. */}
-        <Link href="/" className="flex h-11 shrink-0 items-center" aria-label="EduCom — accueil">
-          {/* Le vrai logotype, pas une lettre dans un carré. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/educom-logo-officiel.jpg"
-            alt="EduCom"
-            width={156}
-            height={28}
-            className="h-7 w-auto"
-          />
-        </Link>
+    <div className="sticky top-0 z-50 flex justify-center px-0 pt-0 transition-[padding] duration-300" style={{ paddingTop: defile ? 12 : 0 }}>
+      <header
+        className={`w-full bg-m-paper/95 backdrop-blur-sm transition-[max-width,border-radius,box-shadow,border-color] duration-300 ${
+          defile
+            ? "max-w-4xl rounded-full border border-m-line shadow-[0_8px_28px_-14px_rgb(11_18_32_/_0.35)]"
+            : "max-w-full rounded-none border-b border-transparent"
+        }`}
+      >
+        <div className={`mx-auto flex h-14 items-center justify-between gap-4 px-4 transition-[max-width] duration-300 sm:px-6 lg:px-8 ${defile ? "max-w-4xl" : "max-w-6xl"}`}>
+          <Link href="/" className="flex h-11 shrink-0 items-center" aria-label="EduCom — accueil">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/educom-logo-officiel.jpg" alt="EduCom" width={156} height={28} className="h-7 w-auto" />
+          </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
-          {LIENS.map((l) => (
-            <Link
-              key={l.nom}
-              href={l.href}
-              className="text-[15px] font-medium text-m-ink-soft transition-colors hover:text-m-ink"
+          <nav className="hidden items-center gap-1 md:flex">
+            <div
+              className="relative"
+              onMouseEnter={() => setMenuProduit(true)}
+              onMouseLeave={() => setMenuProduit(false)}
             >
-              {l.nom}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="hidden items-center gap-2 md:flex">
-          <Link
-            href="/login"
-            className="inline-flex h-10 items-center rounded-control px-4 text-[15px] font-medium text-m-ink-soft transition-colors hover:bg-m-paper-deep hover:text-m-ink"
-          >
-            Se connecter
-          </Link>
-          <Link
-            href="/register"
-            className="inline-flex h-10 items-center rounded-control bg-m-primary px-5 text-[15px] font-semibold text-white transition-colors hover:bg-m-primary/90"
-          >
-            Créer mon école
-          </Link>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setOuvert((v) => !v)}
-          aria-expanded={ouvert}
-          aria-label={ouvert ? "Fermer le menu" : "Ouvrir le menu"}
-          className="-mr-2 inline-flex h-11 w-11 items-center justify-center rounded-control text-m-ink transition-colors hover:bg-m-paper-deep md:hidden"
-        >
-          {ouvert ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
-        </button>
-      </div>
-
-      {ouvert && (
-        <div className="border-t border-m-line bg-m-paper md:hidden">
-          <nav className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
-            {LIENS.map((l) => (
-              <Link
-                key={l.nom}
-                href={l.href}
-                onClick={() => setOuvert(false)}
-                className="flex min-h-12 items-center border-b border-m-line-soft text-base font-medium text-m-ink"
+              <button
+                type="button"
+                onClick={() => setMenuProduit(true)}
+                aria-expanded={menuProduit}
+                className="flex h-11 items-center gap-1 px-3 text-[15px] font-medium text-m-ink-soft transition-colors hover:text-m-ink"
               >
-                {l.nom}
-              </Link>
-            ))}
-            <div className="mt-4 flex flex-col gap-2 pb-2">
-              <Link
-                href="/register"
-                onClick={() => setOuvert(false)}
-                className="inline-flex h-12 items-center justify-center rounded-control bg-m-primary px-5 text-base font-semibold text-white"
-              >
-                Créer mon école
-              </Link>
-              <Link
-                href="/login"
-                onClick={() => setOuvert(false)}
-                className="inline-flex h-12 items-center justify-center rounded-control border border-m-line bg-m-card px-5 text-base font-medium text-m-ink"
-              >
-                Se connecter
-              </Link>
+                Produit
+                <ChevronDown aria-hidden="true" className={`h-3.5 w-3.5 transition-transform ${menuProduit ? "rotate-180" : ""}`} />
+              </button>
+
+              {menuProduit && (
+                <div className="absolute left-1/2 top-full w-[340px] -translate-x-1/2 pt-3">
+                  <div className="overflow-hidden rounded-[14px] border border-m-line bg-m-card p-2 shadow-m-lift">
+                    {PRODUIT_LIENS.map((l) => (
+                      <Link
+                        key={l.nom}
+                        href={l.href}
+                        onClick={() => setMenuProduit(false)}
+                        className="block rounded-[10px] px-3.5 py-2.5 transition-colors hover:bg-m-paper"
+                      >
+                        <p className="text-[14px] font-semibold text-m-ink">{l.nom}</p>
+                        <p className="mt-0.5 text-[12.5px] leading-snug text-m-ink-faint">{l.description}</p>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
+            <Link href="/#tarifs" className="flex h-11 items-center px-3 text-[15px] font-medium text-m-ink-soft transition-colors hover:text-m-ink">
+              Tarifs
+            </Link>
           </nav>
+
+          <div className="hidden items-center gap-2 md:flex">
+            <Link
+              href="/login"
+              className="inline-flex h-10 items-center rounded-control px-4 text-[15px] font-medium text-m-ink-soft transition-colors hover:bg-m-paper-deep hover:text-m-ink"
+            >
+              Se connecter
+            </Link>
+            <Link
+              href="/register"
+              className="inline-flex h-10 items-center rounded-control bg-m-ink px-5 text-[15px] font-semibold text-white transition-colors hover:bg-m-ink/85"
+            >
+              Commencer gratuitement
+            </Link>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setOuvert((v) => !v)}
+            aria-expanded={ouvert}
+            aria-label={ouvert ? "Fermer le menu" : "Ouvrir le menu"}
+            className="-mr-2 inline-flex h-11 w-11 items-center justify-center rounded-control text-m-ink transition-colors hover:bg-m-paper-deep md:hidden"
+          >
+            {ouvert ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
+          </button>
         </div>
-      )}
-    </header>
+
+        {ouvert && (
+          <div className="border-t border-m-line bg-m-paper md:hidden">
+            <nav className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
+              {[...PRODUIT_LIENS, { nom: "Tarifs", href: "/#tarifs", description: "" }].map((l) => (
+                <Link
+                  key={l.nom}
+                  href={l.href}
+                  onClick={() => setOuvert(false)}
+                  className="flex min-h-12 items-center border-b border-m-line-soft text-base font-medium text-m-ink"
+                >
+                  {l.nom}
+                </Link>
+              ))}
+              <div className="mt-4 flex flex-col gap-2 pb-2">
+                <Link
+                  href="/register"
+                  onClick={() => setOuvert(false)}
+                  className="inline-flex h-12 items-center justify-center rounded-control bg-m-ink px-5 text-base font-semibold text-white"
+                >
+                  Commencer gratuitement
+                </Link>
+                <Link
+                  href="/login"
+                  onClick={() => setOuvert(false)}
+                  className="inline-flex h-12 items-center justify-center rounded-control border border-m-line bg-m-card px-5 text-base font-medium text-m-ink"
+                >
+                  Se connecter
+                </Link>
+              </div>
+            </nav>
+          </div>
+        )}
+      </header>
+    </div>
   );
 }

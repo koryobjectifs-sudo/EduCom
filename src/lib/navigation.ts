@@ -1,27 +1,26 @@
-import {
-  LayoutDashboard,
-  Users,
-  FolderKanban,
-  GraduationCap,
-  CreditCard,
-  Settings,
-  BarChart3,
-  ClipboardList,
-  FileText,
-  MessageSquare,
-  BookOpen,
-  UserCheck,
-  AlertTriangle,
-  Layers,
-  type LucideIcon,
-} from "lucide-react";
 import { hasAccess, type RoleType } from "@/lib/permissions";
+
+export type NavIconName =
+  | "LayoutDashboard"
+  | "Users"
+  | "FolderKanban"
+  | "GraduationCap"
+  | "CreditCard"
+  | "Settings"
+  | "BarChart3"
+  | "ClipboardList"
+  | "FileText"
+  | "MessageSquare"
+  | "BookOpen"
+  | "UserCheck"
+  | "AlertTriangle"
+  | "Layers";
 
 export type NavItem = {
   id: string;
   name: string;
   href: string;
-  icon: LucideIcon;
+  icon: NavIconName;
   short?: string;
 };
 
@@ -30,12 +29,13 @@ export type NavSection = {
   items: NavItem[];
 };
 
-export type NavSpaceKey = "home" | "students" | "pedagogy" | "finance" | "admin";
+export type NavSpaceKey = "students" | "documents" | "pedagogy" | "finance" | "admin";
 
 export type NavSpace = {
   id: NavSpaceKey;
   label: string;
-  icon: LucideIcon;
+  fullLabel?: string;
+  icon: NavIconName;
   defaultHref: string;
   matchPrefixes: string[];
   sections: NavSection[];
@@ -49,46 +49,53 @@ export type NavSpace = {
  */
 export const NAV_SPACES: NavSpace[] = [
   {
-    id: "home",
-    label: "Accueil",
-    icon: LayoutDashboard,
-    defaultHref: "/dashboard",
-    matchPrefixes: ["/dashboard$"],
-    sections: [
-      {
-        title: "Pilotage",
-        items: [
-          { id: "overview", name: "Tableau de bord", href: "/dashboard", icon: LayoutDashboard, short: "Accueil" },
-        ],
-      },
-    ],
-  },
-  {
     id: "students",
     label: "Scolarité",
-    icon: Users,
+    icon: "Users",
     defaultHref: "/dashboard/students",
     matchPrefixes: [
       "/dashboard/students",
       "/dashboard/directory",
-      "/dashboard/documents",
-      "/dashboard/communications",
+      "/dashboard/classes",
     ],
     sections: [
       {
         title: "Élèves & Dossiers",
         items: [
-          { id: "directory", name: "Annuaire des classes", href: "/dashboard/directory", icon: BookOpen, short: "Annuaire" },
-          { id: "dossiers", name: "Dossiers de classe", href: "/dashboard/students/dossiers", icon: FolderKanban, short: "Dossiers" },
-          { id: "review", name: "Examen des admissions", href: "/dashboard/students/dossiers/review", icon: UserCheck, short: "Admissions" },
-          { id: "all-students", name: "Registre des élèves", href: "/dashboard/students", icon: Users, short: "Élèves" },
+          { id: "all-students", name: "Registre des élèves", href: "/dashboard/students", icon: "Users", short: "Élèves" },
+          { id: "by-classes", name: "Par classe", href: "/dashboard/students?view=classes", icon: "FolderKanban", short: "Classes" },
+          { id: "review", name: "Examen des admissions", href: "/dashboard/students/dossiers/review", icon: "UserCheck", short: "Admissions" },
         ],
       },
       {
-        title: "Secrétariat",
+        title: "Structure & Classes",
         items: [
-          { id: "documents", name: "Centre documentaire", href: "/dashboard/documents", icon: FileText, short: "Docs" },
-          { id: "comms", name: "Communications", href: "/dashboard/communications", icon: MessageSquare, short: "Messages" },
+          { id: "classes", name: "Classes & niveaux", href: "/dashboard/classes", icon: "Layers", short: "Classes" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "documents",
+    label: "Documents",
+    fullLabel: "Documents & Communication",
+    icon: "FileText",
+    defaultHref: "/dashboard/documents",
+    matchPrefixes: [
+      "/dashboard/documents",
+      "/dashboard/communications",
+    ],
+    sections: [
+      {
+        title: "Gestion Documentaire",
+        items: [
+          { id: "documents", name: "Centre documentaire", href: "/dashboard/documents", icon: "FileText", short: "Documents" },
+        ],
+      },
+      {
+        title: "Échanges & Messages",
+        items: [
+          { id: "comms", name: "Communications", href: "/dashboard/communications", icon: "MessageSquare", short: "Messages" },
         ],
       },
     ],
@@ -96,26 +103,24 @@ export const NAV_SPACES: NavSpace[] = [
   {
     id: "pedagogy",
     label: "Pédagogie",
-    icon: GraduationCap,
+    icon: "GraduationCap",
     defaultHref: "/dashboard/grades",
     matchPrefixes: [
       "/dashboard/grades",
       "/dashboard/attendance",
-      "/dashboard/classes",
     ],
     sections: [
       {
         title: "Enseignement",
         items: [
-          { id: "grades", name: "Notes & bulletins", href: "/dashboard/grades", icon: GraduationCap, short: "Notes" },
-          { id: "attendance", name: "Présences & appel", href: "/dashboard/attendance", icon: ClipboardList, short: "Présences" },
-          { id: "classes", name: "Classes & niveaux", href: "/dashboard/classes", icon: Layers, short: "Classes" },
+          { id: "grades", name: "Notes & bulletins", href: "/dashboard/grades", icon: "GraduationCap", short: "Notes" },
+          { id: "attendance", name: "Présences & appel", href: "/dashboard/attendance", icon: "ClipboardList", short: "Présences" },
         ],
       },
       {
         title: "Suivi des acquis",
         items: [
-          { id: "difficulties", name: "Élèves en difficulté", href: "/dashboard/grades/difficultes", icon: AlertTriangle, short: "Difficultés" },
+          { id: "difficulties", name: "Élèves en difficulté", href: "/dashboard/grades/difficultes", icon: "AlertTriangle", short: "Difficultés" },
         ],
       },
     ],
@@ -123,7 +128,7 @@ export const NAV_SPACES: NavSpace[] = [
   {
     id: "finance",
     label: "Finance",
-    icon: CreditCard,
+    icon: "CreditCard",
     defaultHref: "/dashboard/payments",
     matchPrefixes: [
       "/dashboard/payments",
@@ -132,7 +137,7 @@ export const NAV_SPACES: NavSpace[] = [
       {
         title: "Gestion Financière",
         items: [
-          { id: "payments", name: "Facturation & paiements", href: "/dashboard/payments", icon: CreditCard, short: "Paiements" },
+          { id: "payments", name: "Facturation & paiements", href: "/dashboard/payments", icon: "CreditCard", short: "Paiements" },
         ],
       },
     ],
@@ -140,7 +145,7 @@ export const NAV_SPACES: NavSpace[] = [
   {
     id: "admin",
     label: "Admin",
-    icon: Settings,
+    icon: "Settings",
     defaultHref: "/dashboard/admin",
     matchPrefixes: [
       "/dashboard/admin",
@@ -151,12 +156,12 @@ export const NAV_SPACES: NavSpace[] = [
       {
         title: "Établissement",
         items: [
-          { id: "admin-home", name: "Vue d'ensemble admin", href: "/dashboard/admin", icon: Settings, short: "Admin" },
-          { id: "team", name: "Équipe & membres", href: "/dashboard/team", icon: Users, short: "Équipe" },
-          { id: "reports", name: "Rapports d'activité", href: "/dashboard/admin/reports", icon: BarChart3, short: "Rapports" },
-          { id: "settings", name: "Paramètres généraux", href: "/dashboard/settings", icon: Settings, short: "Paramètres" },
-          { id: "pedagogy-settings", name: "Config pédagogique", href: "/dashboard/settings/pedagogie", icon: BookOpen, short: "Config Pédag." },
-          { id: "doc-settings", name: "Pièces exigées", href: "/dashboard/settings/documents", icon: FileText, short: "Pièces" },
+          { id: "admin-home", name: "Vue d'ensemble admin", href: "/dashboard/admin", icon: "Settings", short: "Admin" },
+          { id: "team", name: "Équipe & membres", href: "/dashboard/team", icon: "Users", short: "Équipe" },
+          { id: "reports", name: "Rapports d'activité", href: "/dashboard/admin/reports", icon: "BarChart3", short: "Rapports" },
+          { id: "settings", name: "Paramètres généraux", href: "/dashboard/settings", icon: "Settings", short: "Paramètres" },
+          { id: "pedagogy-settings", name: "Config pédagogique", href: "/dashboard/settings/pedagogie", icon: "BookOpen", short: "Config Pédag." },
+          { id: "doc-settings", name: "Pièces exigées", href: "/dashboard/settings/documents", icon: "FileText", short: "Pièces" },
         ],
       },
     ],
@@ -176,7 +181,6 @@ export function getVisibleSpaces(role: RoleType | string): NavSpace[] {
       }))
       .filter((sec) => sec.items.length > 0);
 
-    // Si la route par défaut n'est pas autorisée, prendre la première route autorisée de l'espace
     const firstAllowedHref = authorizedSections[0]?.items[0]?.href ?? space.defaultHref;
 
     return {
@@ -189,16 +193,17 @@ export function getVisibleSpaces(role: RoleType | string): NavSpace[] {
 
 /**
  * Détecte l'espace actif à partir de l'URL actuelle.
+ * Retourne `null` quand on est sur `/dashboard` (aucun espace actif).
  */
-export function getActiveSpaceId(pathname: string | null, spaces: NavSpace[]): NavSpaceKey {
-  if (!pathname || spaces.length === 0) return spaces[0]?.id ?? "home";
+export function getActiveSpaceId(pathname: string | null, spaces: NavSpace[]): NavSpaceKey | null {
+  if (!pathname || spaces.length === 0) return null;
 
+  // Sur l'accueil général (/dashboard), aucun espace métier n'est actif
   if (pathname === "/dashboard") {
-    const hasHome = spaces.find((s) => s.id === "home");
-    if (hasHome) return "home";
+    return null;
   }
 
-  // 1. Chercher d'abord une correspondance exacte avec une sous-destination
+  // 1. Chercher d'abord une correspondance avec une sous-destination dans les sections de chaque espace
   for (const space of spaces) {
     for (const section of space.sections) {
       for (const item of section.items) {
@@ -211,16 +216,14 @@ export function getActiveSpaceId(pathname: string | null, spaces: NavSpace[]): N
 
   // 2. Chercher par préfixe de l'espace
   for (const space of spaces) {
-    if (space.id !== "home") {
-      for (const prefix of space.matchPrefixes) {
-        if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
-          return space.id;
-        }
+    for (const prefix of space.matchPrefixes) {
+      if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
+        return space.id;
       }
     }
   }
 
-  return spaces[0]?.id ?? "home";
+  return null;
 }
 
 /**
@@ -229,7 +232,8 @@ export function getActiveSpaceId(pathname: string | null, spaces: NavSpace[]): N
 export function isActive(href: string, pathname: string | null): boolean {
   if (!pathname) return false;
   if (href === "/dashboard") return pathname === "/dashboard";
-  return pathname === href || pathname.startsWith(`${href}/`);
+  const hrefPath = href.split("?")[0];
+  return pathname === hrefPath || pathname.startsWith(`${hrefPath}/`);
 }
 
 /**
@@ -245,4 +249,3 @@ export function visibleItems(role: RoleType | string): NavItem[] {
 export function visibleSections(role: RoleType | string): NavSection[] {
   return getVisibleSpaces(role).flatMap((s) => s.sections);
 }
-

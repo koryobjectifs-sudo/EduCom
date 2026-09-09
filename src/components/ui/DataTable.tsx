@@ -84,7 +84,7 @@ function HeadCell({
   ...rest
 }: HeadCellProps) {
   const base = [
-    "px-4 py-3 text-role-meta font-semibold uppercase tracking-wide text-text-faint",
+    "px-3 py-2 text-[10.5px] font-semibold uppercase tracking-wider text-text-faint",
     numeric ? "text-right" : "text-left",
     "whitespace-nowrap",
     className,
@@ -132,7 +132,7 @@ function Row({
   ...rest
 }: React.HTMLAttributes<HTMLTableRowElement> & { children: ReactNode }) {
   return (
-    <tr className={`hover:bg-sunk/60 transition-colors ${className}`} {...rest}>
+    <tr className={`hover:bg-sunk/60 transition-colors h-8.5 ${className}`} {...rest}>
       {children}
     </tr>
   );
@@ -149,7 +149,7 @@ function Cell({ children, numeric = false, className = "", ...rest }: CellProps)
   return (
     <td
       className={[
-        "px-4 py-3 align-middle text-text",
+        "px-3 py-1.5 align-middle text-text text-role-body",
         numeric ? "text-right tabular-nums" : "",
         className,
       ].join(" ")}
@@ -164,7 +164,7 @@ function Cell({ children, numeric = false, className = "", ...rest }: CellProps)
 function EmptyRow({ colSpan, children }: { colSpan: number; children: ReactNode }) {
   return (
     <tr>
-      <td colSpan={colSpan} className="px-4 py-10 text-center text-role-body text-text-soft">
+      <td colSpan={colSpan} className="px-3 py-8 text-center text-role-body text-text-soft">
         {children}
       </td>
     </tr>
@@ -174,7 +174,7 @@ function EmptyRow({ colSpan, children }: { colSpan: number; children: ReactNode 
 /** Pied de tableau : pagination, totaux. Hors du `<table>` pour rester simple. */
 function Footer({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`flex flex-wrap items-center justify-between gap-3 border-t border-rule px-4 py-3 text-role-meta text-text-soft ${className}`}>
+    <div className={`flex flex-wrap items-center justify-between gap-2.5 border-t border-rule px-3 py-2 text-role-meta text-text-soft ${className}`}>
       {children}
     </div>
   );

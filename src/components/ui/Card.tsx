@@ -38,7 +38,7 @@ export type CardProps = {
   /** Classe appliquée au corps uniquement. */
   bodyClassName?: string;
   onClick?: () => void;
-  onKeyDown?: (e: any) => void;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
   role?: string;
   tabIndex?: number;
 };
@@ -75,20 +75,20 @@ export function Card({
         colonne de lettres.
       */}
       {hasHeader && (
-        <div className="flex flex-col gap-2 border-b border-rule px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="flex flex-col gap-1.5 border-b border-rule px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="min-w-0">
-            {title && <h2 className="text-role-card font-semibold text-text">{title}</h2>}
-            {description && <p className="mt-0.5 text-role-meta text-text-soft">{description}</p>}
+            {title && <h2 className="text-role-card font-semibold text-text leading-tight">{title}</h2>}
+            {description && <p className="mt-0.5 text-role-meta text-text-soft leading-tight">{description}</p>}
           </div>
           {actions && <div className="flex flex-wrap items-center gap-2 sm:shrink-0">{actions}</div>}
         </div>
       )}
 
       {children && (
-        <div className={`${flush ? "" : "px-5 py-4"} ${bodyClassName}`}>{children}</div>
+        <div className={`${flush ? "" : "px-4 py-3"} ${bodyClassName}`}>{children}</div>
       )}
 
-      {footer && <div className="border-t border-rule px-5 py-3">{footer}</div>}
+      {footer && <div className="border-t border-rule px-4 py-2.5">{footer}</div>}
     </div>
   );
 }

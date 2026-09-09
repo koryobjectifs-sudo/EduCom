@@ -42,6 +42,16 @@ export async function createStudent(formData: FormData) {
 
   const existingParentId = formData.get("existingParentId") as string;
 
+  // ⚠️ 7 septembre 2026 — Annuaire par année scolaire. Le champ vient d'un
+  // champ caché posé par le formulaire, jamais saisi librement, mais on ne
+  // fait pas confiance à une valeur transmise par le client sans forme
+  // attendue : hors motif « AAAA-AAAA », on retombe sur l'année en cours,
+  // le comportement d'avant ce chantier.
+  const academicYearRaw = formData.get("academicYear") as string | null;
+  const academicYear = academicYearRaw && /^\d{4}-\d{4}$/.test(academicYearRaw)
+    ? academicYearRaw
+    : currentAcademicYear(auth.ctx.school);
+
   const submittedData = {
     firstName, lastName, dateOfBirth, classId, parentFirstName, parentLastName, parentPhone, parentEmail,
     address, bloodGroup, medicalNotes, emergencyContact, emergencyPhone
@@ -142,7 +152,7 @@ export async function createStudent(formData: FormData) {
       data: {
         studentId: student.id,
         classId: classId,
-        academicYear: currentAcademicYear(),
+        academicYear,
       }
     });
 
@@ -181,7 +191,6 @@ export async function deleteStudent(id: string) {
       },
     });
     revalidatePath("/dashboard/students");
-    revalidatePath("/dashboard/directory");
     return { success: true };
   } catch (error) {
     console.error("Erreur lors de la suppression de l'élève:", error);
@@ -206,38 +215,52 @@ export async function deleteStudents(ids: string[]) {
       },
     });
     revalidatePath("/dashboard/students");
-    revalidatePath("/dashboard/directory");
     return { success: true, count: result.count };
-  } catch (error) {
-    console.error("Erreur lors de la suppression massive:", error);
-    return { error: "Erreur lors de la suppression des élèves." };
+  } catch (error: any) {
+    console.error("Bulk delete students error:", error);
+    return { error: error.message || "Impossible de supprimer les élèves." };
   }
 }
 
 export async function assignStudentToClass(studentId: string, classId: string) {
   const auth = await requireActionContext("/dashboard/students");
   if (!auth.ok) return { error: auth.error };
+  const { schoolId, school } = auth.ctx;
 
   try {
-    const student = await prisma.student.findFirst({
-      where: { id: studentId, schoolId: auth.ctx.schoolId }
+    const currentYear = currentAcademicYear(school);
+
+    // Vérifier que la classe appartient bien à l'école
+    const klass = await prisma.class.findFirst({
+      where: { id: classId, schoolId },
     });
-    if (!student) return { error: "Élève introuvable." };
 
-    const cls = await prisma.class.findFirst({
-      where: { id: classId, schoolId: auth.ctx.schoolId }
-    });
-    if (!cls) return { error: "Classe introuvable." };
+    if (!klass) {
+      return { error: "Classe introuvable dans votre établissement." };
+    }
 
-    const academicYear = currentAcademicYear();
-
-    await prisma.enrollment.create({
-      data: {
+    // Créer ou mettre à jour l'inscription active pour l'année courante
+    const existingEnrollment = await prisma.enrollment.findFirst({
+      where: {
         studentId,
-        classId,
-        academicYear,
-      }
+        academicYear: currentYear,
+      },
     });
+
+    if (existingEnrollment) {
+      await prisma.enrollment.update({
+        where: { id: existingEnrollment.id },
+        data: { classId },
+      });
+    } else {
+      await prisma.enrollment.create({
+        data: {
+          studentId,
+          classId,
+          academicYear: currentYear,
+        },
+      });
+    }
 
     revalidatePath("/dashboard/students");
     return { success: true };

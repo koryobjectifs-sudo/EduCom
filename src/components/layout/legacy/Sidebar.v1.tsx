@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { RoleType } from "@/lib/permissions";
 import { visibleSections, isActive, type NavItem } from "@/lib/navigation";
+import { getNavIcon } from "../nav-icons";
 
 /**
  * Navigation persistante du tableau de bord.
@@ -37,7 +38,7 @@ import { visibleSections, isActive, type NavItem } from "@/lib/navigation";
  */
 
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {
-  const Icon = item.icon;
+  const Icon = getNavIcon(item.icon);
   return (
     <Link
       href={item.href}

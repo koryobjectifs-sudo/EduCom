@@ -101,38 +101,27 @@ export default function TopNav({
   const roleLabel = userRole.charAt(0) + userRole.slice(1).toLowerCase();
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center border-b border-rule bg-surface print:hidden">
-      <div className="flex w-full items-center justify-between gap-3 px-4 sm:px-6">
+    <header className="sticky top-0 z-30 flex h-13 shrink-0 items-center border-b border-rule bg-surface print:hidden">
+      <div className="flex w-full items-center justify-between gap-3 px-3 sm:px-4 lg:px-5">
         {/* Gauche : tiroir mobile + contexte */}
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
           <MobileNav schoolName={schoolName} schoolLogo={schoolLogo} userRole={userRole} />
 
-          {/* Sous lg, la sidebar est masquée : le nom de l'école doit rester
-              visible ici, sinon l'utilisateur perd son repère d'établissement.
-
-              ⚠️ `data-tronque-volontaire` — cette barre fait 64 px de haut et
-              partage sa ligne avec le tiroir et le menu du compte : un nom long
-              NE PEUT PAS y tenir en entier, et le passer sur deux lignes
-              casserait la hauteur du bandeau. La troncature est donc assumée,
-              et elle n'est pas une perte : le nom complet s'affiche en entier
-              dans le tiroir, à un geste d'ici (`SchoolIdentity`). Le marqueur
-              dit cela aux sondes — il ne doit JAMAIS être posé sur un texte
-              dont la valeur complète n'est lisible nulle part. */}
           <span
             data-tronque-volontaire
             title={schoolName ?? "EduCom"}
-            className="truncate text-role-card font-semibold text-text lg:hidden"
+            className="truncate text-xs font-semibold text-text lg:hidden"
           >
             {schoolName ?? "EduCom"}
           </span>
 
-          <span className="hidden text-role-body capitalize text-text-soft lg:inline">
+          <span className="hidden text-role-meta capitalize text-text-soft lg:inline">
             {today}
           </span>
         </div>
 
         {/* Droite : actions réelles */}
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5">
           {process.env.NODE_ENV !== "production" && (
             <div className="relative" ref={roleMenuRef}>
               <button
@@ -141,16 +130,16 @@ export default function TopNav({
                 aria-expanded={roleMenuOpen}
                 aria-haspopup="menu"
                 title="Changer de rôle (développement)"
-                className="inline-flex h-9 items-center gap-1.5 rounded-control border border-warning/30 bg-warning/10 px-2.5 text-role-label font-medium text-warning transition-colors hover:bg-warning/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="inline-flex h-7.5 items-center gap-1.5 rounded-control border border-warning/30 bg-warning/10 px-2 text-role-meta font-medium text-warning transition-colors hover:bg-warning/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
-                <Shield aria-hidden="true" className="h-4 w-4" />
+                <Shield aria-hidden="true" className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">{roleLabel}</span>
-                <ChevronDown aria-hidden="true" className={`h-3.5 w-3.5 transition-transform ${roleMenuOpen ? "rotate-180" : ""}`} />
+                <ChevronDown aria-hidden="true" className={`h-3 w-3 transition-transform ${roleMenuOpen ? "rotate-180" : ""}`} />
               </button>
 
               {roleMenuOpen && (
-                <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-surface border border-rule bg-surface p-1 shadow-overlay">
-                  <p className="px-3 py-2 text-role-meta font-semibold uppercase tracking-wider text-text-faint">
+                <div role="menu" className="absolute right-0 top-full z-50 mt-1.5 w-48 overflow-hidden rounded-surface border border-rule bg-surface p-1 shadow-overlay">
+                  <p className="px-2.5 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-text-faint">
                     Tester en tant que
                   </p>
                   {ALL_TEST_ROLES.map((r) => (
@@ -164,7 +153,7 @@ export default function TopNav({
                         if (res.success) window.location.reload();
                         else alert("Erreur de changement de rôle : " + res.error);
                       }}
-                      className={`flex w-full items-center rounded-control px-3 py-2 text-role-body font-medium transition-colors ${
+                      className={`flex w-full items-center rounded-control px-2.5 py-1.5 text-xs font-medium transition-colors ${
                         userRole === r
                           ? "bg-warning/10 text-warning"
                           : "text-text-soft hover:bg-sunk hover:text-text"
@@ -181,13 +170,13 @@ export default function TopNav({
           <Link
             href="/"
             title="Site public"
-            className="inline-flex h-9 items-center gap-2 rounded-control px-2.5 text-role-label font-medium text-text-soft transition-colors hover:bg-sunk hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="inline-flex h-7.5 items-center gap-1.5 rounded-control px-2 text-role-meta font-medium text-text-soft transition-colors hover:bg-sunk hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
-            <Globe aria-hidden="true" className="h-4 w-4" />
+            <Globe aria-hidden="true" className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Site public</span>
           </Link>
 
-          <div aria-hidden="true" className="hidden h-6 w-px bg-rule sm:block" />
+          <div aria-hidden="true" className="hidden h-4 w-px bg-rule sm:block" />
 
           <div className="relative" ref={menuRef}>
             <button
@@ -196,26 +185,26 @@ export default function TopNav({
               aria-expanded={profileMenuOpen}
               aria-haspopup="menu"
               aria-label={`Compte de ${displayName}`}
-              className="flex items-center gap-2.5 rounded-control py-1 pl-1 pr-1.5 transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 sm:pr-2.5"
+              className="flex items-center gap-2 rounded-control py-0.5 pl-0.5 pr-1 transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 sm:pr-2"
             >
               <span
                 aria-hidden="true"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-primary/10 text-role-label font-semibold text-primary"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-pill bg-primary/10 text-xs font-semibold text-primary"
               >
                 {initials || "?"}
               </span>
               <span className="hidden flex-col items-start leading-tight sm:flex">
-                <span className="text-role-label font-semibold text-text">{displayName}</span>
-                <span className="text-role-meta text-text-faint">{roleLabel}</span>
+                <span className="text-xs font-semibold text-text">{displayName}</span>
+                <span className="text-[10.5px] text-text-faint">{roleLabel}</span>
               </span>
-              <ChevronDown aria-hidden="true" className={`hidden h-3.5 w-3.5 text-text-faint transition-transform sm:block ${profileMenuOpen ? "rotate-180" : ""}`} />
+              <ChevronDown aria-hidden="true" className={`hidden h-3 w-3 text-text-faint transition-transform sm:block ${profileMenuOpen ? "rotate-180" : ""}`} />
             </button>
 
             {profileMenuOpen && (
-              <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-surface border border-rule bg-surface p-1 shadow-overlay">
-                <div className="px-3 py-2">
-                  <p className="truncate text-role-label font-semibold text-text">{displayName}</p>
-                  <p className="text-role-meta text-text-faint">{roleLabel}</p>
+              <div role="menu" className="absolute right-0 top-full z-50 mt-1.5 w-52 overflow-hidden rounded-surface border border-rule bg-surface p-1 shadow-overlay">
+                <div className="px-2.5 py-1.5">
+                  <p className="truncate text-xs font-semibold text-text">{displayName}</p>
+                  <p className="text-[10.5px] text-text-faint">{roleLabel}</p>
                 </div>
                 <div aria-hidden="true" className="mx-2 my-1 h-px bg-rule" />
                 <button
@@ -225,9 +214,9 @@ export default function TopNav({
                     const { logout } = await import("@/app/login/actions");
                     await logout();
                   }}
-                  className="flex w-full items-center gap-2 rounded-control px-3 py-2 text-role-body font-medium text-danger transition-colors hover:bg-danger/10"
+                  className="flex w-full items-center gap-2 rounded-control px-2.5 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10"
                 >
-                  <LogOut aria-hidden="true" className="h-4 w-4" />
+                  <LogOut aria-hidden="true" className="h-3.5 w-3.5" />
                   Déconnexion
                 </button>
               </div>

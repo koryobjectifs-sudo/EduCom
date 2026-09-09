@@ -57,6 +57,37 @@ export async function updateSchoolSettings(data: {
 }
 
 /**
+ * Définit l'année scolaire active de l'établissement.
+ *
+ * RÈGLE FONDAMENTALE : L'année active est une donnée déclarée par l'école,
+ * lue comme source unique de vérité par tous les modules.
+ */
+export async function updateActiveAcademicYear(newYear: string) {
+  const auth = await requireActionContext("/dashboard/settings");
+  if (!auth.ok) return { error: auth.error };
+
+  const trimmedYear = newYear?.trim();
+  if (!trimmedYear || !/^\d{4}-\d{4}$/.test(trimmedYear)) {
+    return { error: "Format d'année scolaire invalide. Exemple attendu : 2026-2027." };
+  }
+
+  try {
+    await prisma.school.update({
+      where: { id: auth.ctx.schoolId },
+      data: {
+        activeAcademicYear: trimmedYear,
+      },
+    });
+
+    revalidatePath("/dashboard", "layout");
+    return { success: true, activeAcademicYear: trimmedYear };
+  } catch (error) {
+    console.error("Failed to update active academic year:", error);
+    return { error: "Échec de la mise à jour de l'année scolaire active." };
+  }
+}
+
+/**
  * Dev/Mock implementation of connecting Meta WhatsApp
  * In production, this would validate the Oauth token from Meta and fetch credentials.
  */

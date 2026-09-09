@@ -80,7 +80,6 @@ const ICONE_RAYON: Record<string, typeof Folder> = {
   IDENTITE: IdCard,
   INSCRIPTION: ClipboardList,
   SCOLARITE: GraduationCap,
-  SANTE: HeartPulse,
   EXAMENS: Award,
   TRANSFERT: ArrowLeftRight,
   AUTRES: Folder,

@@ -1,75 +1,82 @@
+"use client";
+
+import { useState } from "react";
 import { ROLE_LABELS, type RoleType } from "@/lib/permissions";
+import { visibleItems } from "@/lib/navigation";
 
 /**
- * À qui EduCom s'adresse — addendum PLG. Remplace `ChaosToControl`,
- * `ParentExperience` et `CommunicationSection` sur `/solutions`.
+ * « La bonne vue, pour chacun » — refonte visuelle du 5 septembre 2026 (v6).
  *
- * ═══ CE QUE CES TROIS COMPOSANTS AFFIRMAIENT, ET QUI EST FAUX ═══
+ * La mécanique ne change pas depuis le 4 septembre : les rôles sont LUS dans
+ * `src/lib/permissions.ts`, et `visibleItems()` — la même fonction qui
+ * construit la sidebar réelle du produit — calcule les rubriques
+ * EFFECTIVEMENT visibles. Impossible de laisser dériver du vrai produit sans
+ * faire échouer la compilation.
  *
- * ⚠️ `CommunicationSection` : « **Envoyez sur WhatsApp, SMS et portail parent en
- *    un clic** » et « Sachez exactement quel parent a lu quelle annonce ». Le
- *    lot 17 a établi qu'**aucun canal ne peut émettre** — compte Twilio d'essai
- *    sans numéro, zéro message émis depuis la création, aucun service d'e-mail
- *    (`rappel.md` §30 à §32). Il n'existe évidemment aucun accusé de lecture.
- * ⚠️ `ParentExperience` : « Bulletins, **absences**, paiements et messages » et
- *    « **alertes instantanées** ». Aucune donnée de présence au schéma, aucune
- *    notification sortante.
+ * ⚠️ Ce qui change avec la v6 : six cartes identiques deviennent un
+ * sélecteur de rôle — un panneau, un rôle à la fois, en détail. Composant
+ * client pour l'état de sélection ; le calcul lui-même reste synchrone et
+ * pur, aucun appel réseau.
  *
- * ═══ CE QUI LES REMPLACE, ET POURQUOI C'EST PLUS SOLIDE ═══
- *
- * La liste ci-dessous **n'est pas rédigée** : elle est lue dans
- * `src/lib/permissions.ts`, le module qui gouverne réellement ce que chaque rôle
- * voit dans le produit. Une page marketing branchée sur la matrice de droits ne
- * peut pas dériver : si un rôle change de périmètre, la page change avec lui, et
- * si un rôle est inventé ici, la compilation le refuse.
- *
- * ⚠️ Ne jamais remplacer cet import par une liste recopiée « pour pouvoir
- * mieux formuler ». La formulation approximative est le prix de l'exactitude
- * garantie, et c'est un bon prix.
+ * ⚠️ Refonte v7 (6 septembre 2026) : le rail vertical de boutons rectangulaires
+ * devient un contrôle segmenté en pilule, horizontal, centré — le même
+ * langage visuel que le panneau produit de `ConnectedSystem` et le menu de
+ * `Navbar`. Direction « INTERACTION » du rythme validé : le beat doit se
+ * reconnaître au geste (choisir une pilule), pas à une nouvelle mise en page.
  */
-
-/** L'ordre d'affichage : de la direction vers la famille. */
-const ORDRE: RoleType[] = [
-  "OWNER",
-  "ADMIN",
-  "SECRETARY",
-  "TEACHER",
-  "ACCOUNTANT",
-  "ASSISTANT",
-  "PARENT",
-];
+const ORDRE: RoleType[] = ["OWNER", "SECRETARY", "TEACHER", "ACCOUNTANT", "ASSISTANT", "PARENT"];
 
 export default function RolesSection() {
+  const [role, setRole] = useState<RoleType>("OWNER");
+  const rubriques = visibleItems(role);
+
   return (
-    <section className="bg-m-card">
-      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
+    <section id="roles" className="scroll-mt-20 bg-m-card">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
         <div className="max-w-2xl">
           <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-ink-faint">
             Les rôles
           </p>
-          <h2 className="mt-5 font-display text-[2rem] font-bold leading-[1.15] tracking-[-0.015em] text-m-ink sm:text-[2.5rem]">
+          <h2 className="mt-4 font-display text-[1.625rem] font-semibold leading-[1.2] tracking-[-0.02em] text-m-ink sm:text-[2.125rem]">
             Chacun ne voit que ce qui le concerne.
           </h2>
-          <p className="mt-6 text-[16px] leading-[1.7] text-m-ink-soft">
-            Sept rôles, définis dans le produit et non sur cette page. Un enseignant ne voit
-            pas les impayés ; un comptable ne saisit pas les notes ; un parent ne voit que
-            ses propres enfants.
+          <p className="mt-4 text-[15px] leading-[1.65] text-m-ink-soft">
+            Sept rôles, définis dans le produit et non sur cette page. Choisissez-en un : ce qui
+            s&apos;affiche est calculé par le même moteur de permissions que le tableau de bord.
           </p>
         </div>
 
-        <dl className="mt-14 grid grid-cols-1 gap-x-12 sm:grid-cols-2">
+        <div className="mt-8 flex flex-wrap justify-center gap-2 rounded-pill bg-m-paper p-1.5 sm:mx-auto sm:w-fit">
           {ORDRE.map((r) => (
-            <div key={r} className="border-b border-m-line py-6">
-              <dt className="text-[17px] font-semibold text-m-ink">{ROLE_LABELS[r].label}</dt>
-              <dd className="mt-2 text-[15px] leading-[1.7] text-m-ink-soft">
-                {ROLE_LABELS[r].description}
-              </dd>
-            </div>
+            <button
+              key={r}
+              type="button"
+              onClick={() => setRole(r)}
+              aria-pressed={role === r}
+              className={`shrink-0 rounded-pill px-4 py-2.5 text-[14px] font-semibold transition-colors ${
+                role === r ? "bg-m-ink text-white shadow-m-lift" : "text-m-ink-soft hover:text-m-ink"
+              }`}
+            >
+              {ROLE_LABELS[r].label}
+            </button>
           ))}
-        </dl>
+        </div>
 
-        {/* ⚠️ La phrase que le marketing supprime toujours en premier. */}
-        <p className="mt-10 max-w-3xl text-[15px] leading-[1.7] text-m-ink-soft">
+        <div className="mx-auto mt-6 max-w-2xl rounded-[16px] border border-m-line bg-m-paper p-6 text-center sm:p-8">
+          <p className="text-[16px] leading-[1.65] text-m-ink-soft">{ROLE_LABELS[role].description}</p>
+          <div className="mt-5 flex flex-wrap justify-center gap-2 border-t border-m-line pt-5">
+            {rubriques.map((item) => (
+              <span
+                key={item.href}
+                className="rounded-pill bg-m-card px-3.5 py-1.5 text-[13.5px] font-medium text-m-ink ring-1 ring-inset ring-m-line"
+              >
+                {item.short ?? item.name}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <p className="mt-10 max-w-3xl text-[14px] leading-[1.65] text-m-ink-soft">
           Le cloisonnement n&apos;est pas seulement un affichage : il est appliqué à chaque
           requête, et vérifié rôle par rôle par des contrôles automatiques avant chaque
           livraison. Un compte de parent qui demanderait le dossier d&apos;un autre enfant

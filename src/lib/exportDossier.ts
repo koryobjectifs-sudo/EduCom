@@ -54,9 +54,8 @@ export const EXPORT_FOLDERS: Record<DocCategory, string> = {
   INSCRIPTION: "02-Inscription",
   SCOLARITE: "03-Scolarité",
   TRANSFERT: "04-Transfert",
-  SANTE: "05-Santé",
-  EXAMENS: "06-Examens",
-  AUTRES: "07-Autres",
+  EXAMENS: "05-Examens",
+  AUTRES: "06-Autres",
 };
 
 /** Nom de fichier lisible : le libellé métier, jamais l'identifiant technique. */

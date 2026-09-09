@@ -252,20 +252,26 @@ export async function forecast(actor: ActorContext): Promise<Forecast | null> {
 /**
  * Montant attendu chaque mois (somme des frais mensuels pour tous les élèves inscrits).
  */
-export async function monthlyForecast(actor: ActorContext): Promise<number> {
-  const schedule = await activeSchedule(actor);
+export async function monthlyForecast(
+  actor: ActorContext,
+  preloaded?: { schedule?: any; classes?: { id: string; cycle: any; _count: { enrollments: number } }[] }
+): Promise<number> {
+  const schedule = preloaded?.schedule !== undefined ? preloaded.schedule : await activeSchedule(actor);
   if (!schedule) return 0;
 
-  const classes = await prisma.class.findMany({
-    where: { schoolId: actor.schoolId },
-    select: { id: true, cycle: true, _count: { select: { enrollments: true } } },
-  });
+  const classes =
+    preloaded?.classes !== undefined
+      ? preloaded.classes
+      : await prisma.class.findMany({
+          where: { schoolId: actor.schoolId },
+          select: { id: true, cycle: true, _count: { select: { enrollments: true } } },
+        });
 
   let total = 0;
   for (const c of classes) {
     const students = c._count.enrollments;
     if (students === 0) continue;
-    const fees = resolveFeesForClass(schedule.items, c.id, c.cycle);
+    const fees = resolveFeesForClass(schedule.items || [], c.id, c.cycle);
     const perStudentMonthly = fees.reduce((s, f) => s + monthlyAmount(f), 0);
     total += perStudentMonthly * students;
   }

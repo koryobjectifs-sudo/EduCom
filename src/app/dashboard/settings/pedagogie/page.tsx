@@ -14,36 +14,13 @@ import { Card } from "@/components/ui/Card";
 import ProgrammePanel from "./ProgrammePanel";
 import CalendarPanel from "./CalendarPanel";
 import AssignmentsPanel from "./AssignmentsPanel";
+import PedagogyAccordionView from "./PedagogyAccordionView";
 
 export const metadata = {
   title: "Configuration pédagogique | EduCom",
   description: "Programme, coefficients, trimestres, évaluations et affectations",
 };
 
-/**
- * **La configuration pédagogique de l'établissement.**
- *
- * ═══ POURQUOI CET ÉCRAN, ALORS QUE LA CONFIGURATION EXISTAIT DÉJÀ ═══
- *
- * Elle existait — éparpillée. Les trimestres et les matières dans un onglet
- * caché de `/dashboard/grades/bulletin`, les affectations dans la fiche d'une
- * classe, les coefficients nulle part, les dates d'évaluation nulle part non
- * plus. Aucune surface ne répondait à la seule question qui compte pour une
- * directrice : **« mon école est-elle prête à produire des bulletins ? »**
- *
- * ⚠️ **Ce n'est pas un système parallèle.** Chaque action de cet écran est celle
- * qui existait déjà : `setTermDates`, `addSubjectToClass`, `createAssignment`,
- * `deleteEvaluation`… importées, jamais réécrites. Ce qui est nouveau, ce sont
- * les trois choses qui n'existaient nulle part : le coefficient, la date d'une
- * évaluation, et la mesure de l'état de configuration.
- *
- * ═══ GARDE ═══
- *
- * `hasAccess()`, seule source de vérité. Direction ET secrétariat — c'est le
- * secrétariat qui tient le calendrier au quotidien. Le chemin est plus précis
- * que `/dashboard/settings`, qui reste réservé à la direction : autoriser le
- * pédagogique n'ouvre pas le nom, le logo ni la signature de l'établissement.
- */
 export default async function PedagogiePage() {
   const { schoolId, user } = await requireSchoolContext();
   const role = user.role as RoleType;
@@ -52,10 +29,50 @@ export default async function PedagogiePage() {
 
   const actor = { schoolId, userId: user.id, role };
 
-  const [readiness, programme, calendar, subjects, teachers, titulaires, assignments, notices] = await Promise.all([
-    configurationReadiness(actor),
-    programmeByClass(actor),
-    schoolCalendar(actor),
+  // 1. Requêtes parallélisées et unifiées en une seule passe
+  const [
+    rawClasses,
+    termRows,
+    subjects,
+    teachers,
+    assignments,
+    gradeCountsRaw,
+    notices,
+  ] = await Promise.all([
+    prisma.class.findMany({
+      where: { schoolId },
+      select: {
+        id: true,
+        name: true,
+        cycle: true,
+        teacherId: true,
+        teacher: { select: { id: true, firstName: true, lastName: true } },
+        _count: { select: { enrollments: true } },
+        subjects: {
+          select: {
+            subjectId: true,
+            coefficient: true,
+            subject: { select: { name: true, parent: { select: { name: true } } } },
+          },
+        },
+      },
+      orderBy: { name: "asc" },
+    }),
+    prisma.term.findMany({
+      where: { schoolId },
+      select: {
+        id: true,
+        name: true,
+        startDate: true,
+        endDate: true,
+        createdAt: true,
+        evaluations: {
+          select: { id: true, name: true, type: true, date: true },
+          orderBy: [{ date: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
     prisma.subject.findMany({
       where: { schoolId },
       select: { id: true, name: true, parentId: true },
@@ -66,27 +83,58 @@ export default async function PedagogiePage() {
       select: { id: true, firstName: true, lastName: true, role: true },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     }),
-    prisma.class.findMany({
-      where: { schoolId, teacherId: { not: null } },
-      select: { id: true, teacher: { select: { id: true, firstName: true, lastName: true } } },
-    }),
     prisma.teachingAssignment.findMany({
       where: { schoolId },
       select: {
-        id: true, classId: true,
+        id: true,
+        classId: true,
+        teacherId: true,
         teacher: { select: { id: true, firstName: true, lastName: true } },
         subject: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: "asc" },
     }),
+    prisma.grade.groupBy({
+      by: ["classId", "subjectId"],
+      where: { class: { schoolId } },
+      _count: { _all: true },
+    }),
     recentPlanningChanges(actor),
   ]);
+
+  const gradeCounts = new Map(gradeCountsRaw.map((c) => [`${c.classId}|${c.subjectId}`, c._count._all]));
+  const titulaires = rawClasses.filter((c) => c.teacherId && c.teacher);
+
+  const [programme, calendar, readiness] = await Promise.all([
+    programmeByClass(actor, rawClasses, gradeCounts),
+    schoolCalendar(actor, new Date(), termRows),
+    configurationReadiness(actor, {
+      classes: rawClasses,
+      terms: termRows,
+      assignments,
+      teachersCount: teachers.filter((t) => t.role === "TEACHER").length,
+    }),
+  ]);
+
 
   const proposal = curriculumProposal(
     programme.map((p) => ({ id: p.classId, name: p.className, cycle: p.cycle })),
     { withControls: true },
   );
   const restantAuModele = programme.reduce((n, p) => n + p.missingFromModel.length, 0);
+
+  // Prochaine composition
+  const allEvaluations = calendar.terms.flatMap((t) => t.evaluations);
+  const upcomingComp = allEvaluations
+    .filter((e) => e.isComposition && e.date)
+    .sort((a, b) => (a.date ? new Date(a.date).getTime() : 0) - (b.date ? new Date(b.date).getTime() : 0))[0];
+
+  const nextExamFormatted = upcomingComp?.date
+    ? new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" }).format(new Date(upcomingComp.date))
+    : null;
+
+  const totalStudents = rawClasses.reduce((acc, c) => acc + c._count.enrollments, 0);
+  const nonMaternelleClasses = rawClasses.filter((c) => c.cycle !== "MATERNELLE");
 
   const ICONE = {
     done: CheckCircle2,
@@ -99,6 +147,20 @@ export default async function PedagogiePage() {
     todo: "text-text-faint",
   } as const;
 
+  const summary = {
+    classesCount: rawClasses.length,
+    studentsCount: totalStudents,
+    weightedSubjectsCount: subjects.length,
+    coveredClassesCount: nonMaternelleClasses.length,
+    termsCount: calendar.terms.length,
+    nextExamFormatted,
+    teachersCount: teachers.length,
+    assignedClassesCount: new Set([
+      ...assignments.map((a) => a.classId),
+      ...titulaires.map((t) => t.id),
+    ]).size,
+  };
+
   return (
     <div className="space-y-6 pb-16">
       <PageHeader
@@ -107,12 +169,9 @@ export default async function PedagogiePage() {
         description="Le programme, le calendrier et les affectations de votre établissement. Tout est modifiable à tout moment."
       />
 
-      {/* ══ VALIDATION — l'étape finale du parcours, placée EN TÊTE ══
-          Elle conclut la configuration, mais c'est la première chose qu'une
-          directrice veut lire : « où j'en suis ». La reléguer en bas obligerait
-          à parcourir cinq sections pour obtenir la réponse. */}
+      {/* ══ VALIDATION / ÉTAT DE PRÉPARATION ══ */}
       <Card
-        title={readiness.canEnterGrades ? "Votre école peut produire des bulletins" : "Il manque encore quelque chose"}
+        title={readiness.canEnterGrades ? "Votre école peut produire des bulletins" : `${readiness.steps.filter(s => s.blocking && s.state !== "done").length} choses à régler avant les bulletins`}
         description={
           readiness.canEnterGrades
             ? `${readiness.done} / ${readiness.total} étapes complètes. Vos enseignants peuvent saisir des notes.`
@@ -139,10 +198,6 @@ export default async function PedagogiePage() {
                 <div className="min-w-0">
                   <p className="text-role-body font-medium text-text">
                     {s.label}
-                    {/* ⚠️ « Bloquant » n'est écrit QUE sur ce qui empêche
-                        réellement de saisir une note aujourd'hui. Marquer
-                        toutes les étapes comme obligatoires ferait croire à une
-                        configuration de trois heures avant la première valeur. */}
                     {s.blocking && s.state !== "done" && (
                       <span className="ml-2 rounded-pill bg-warning/10 px-1.5 py-0.5 text-role-meta font-semibold text-warning">
                         bloquant
@@ -162,10 +217,7 @@ export default async function PedagogiePage() {
         </ol>
       </Card>
 
-      {/* ══ Changements de planning récents ══
-          Ils sont affichés ICI, à la direction, parce que c'est elle qui décide
-          s'il faut prévenir les familles — et parce que le produit ne peut pas
-          les prévenir à sa place (voir `src/lib/channels.ts`). */}
+      {/* ══ Changements de planning récents ══ */}
       {notices.length > 0 && (
         <Card
           title="Le calendrier a changé récemment"
@@ -184,14 +236,6 @@ export default async function PedagogiePage() {
             ))}
           </ul>
 
-          {/*
-            ⚠️ **Ce bloc ne dit jamais « envoyé ».** `outboundNoticeReady()`
-            relaie `src/lib/channels.ts`, seule autorité du projet sur la
-            question, et son registre d'envois réels est VIDE. Écrire
-            « les familles ont été prévenues » ferait croire à trois cents
-            parents informés alors que personne ne l'est. Le produit dit donc ce
-            qu'il fait réellement : il a prévenu à l'intérieur d'EduCom.
-          */}
           <p className="mt-4 flex items-start gap-2 rounded-control border border-rule bg-sunk px-3 py-2.5 text-role-meta leading-relaxed text-text-soft">
             <Megaphone aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             {outboundNoticeReady()
@@ -201,32 +245,38 @@ export default async function PedagogiePage() {
         </Card>
       )}
 
-      <ProgrammePanel
-        rows={programme}
-        subjects={subjects}
-        proposal={{ totals: proposal.totals, uncovered: proposal.uncovered }}
-        missingFromModel={restantAuModele}
-      />
-
-      <CalendarPanel calendar={calendar} />
-
-      {/*
-        ⚠️ Le TITULAIRE est transmis, pas seulement les affectations. Sans lui,
-        l'écran annonçait « personne n'est affecté » sur une classe dont le
-        professeur principal peut parfaitement saisir les notes —
-        `editableSubjectIds()` retombe sur `Class.teacherId` tant qu'aucune
-        affectation n'existe. Le tableau aurait donc décrit un vide qui n'en
-        était pas un, et poussé la direction à corriger ce qui marchait.
-      */}
-      <AssignmentsPanel
-        classes={programme.map((p) => ({
-          classId: p.classId,
-          className: p.className,
-          teacher: titulaires.find((t) => t.id === p.classId)?.teacher ?? null,
-          subjects: p.subjects.map((s) => ({ id: s.subjectId, name: s.name, groupName: s.groupName })),
+      {/* ══ ACCORDÉON DES 4 SECTIONS D'ÉDITION PÉDAGOGIQUE ══ */}
+      <PedagogyAccordionView
+        summary={summary}
+        classesList={rawClasses.map((c) => ({
+          id: c.id,
+          name: c.name,
+          cycle: c.cycle,
+          studentCount: c._count.enrollments,
         }))}
-        teachers={teachers}
-        assignments={assignments}
+        children={{
+          programme: (
+            <ProgrammePanel
+              rows={programme}
+              subjects={subjects}
+              proposal={{ totals: proposal.totals, uncovered: proposal.uncovered }}
+              missingFromModel={restantAuModele}
+            />
+          ),
+          calendar: <CalendarPanel calendar={calendar} />,
+          assignments: (
+            <AssignmentsPanel
+              classes={programme.map((p) => ({
+                classId: p.classId,
+                className: p.className,
+                teacher: titulaires.find((t) => t.id === p.classId)?.teacher ?? null,
+                subjects: p.subjects.map((s) => ({ id: s.subjectId, name: s.name, groupName: s.groupName })),
+              }))}
+              teachers={teachers}
+              assignments={assignments}
+            />
+          ),
+        }}
       />
     </div>
   );

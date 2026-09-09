@@ -1,16 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
-import { type NavSpace, getActiveSpaceId } from "@/lib/navigation";
 import AppRail from "./AppRail";
 import ContextualSidebar from "./ContextualSidebar";
 import AppTopBar from "./AppTopBar";
-import { setSidebarCollapsed } from "@/app/dashboard/actions";
+import { type NavSpace, getActiveSpaceId } from "@/lib/navigation";
 
 export interface AppShellProps {
   spaces: NavSpace[];
-  initialCollapsed?: boolean;
+  initialWidth?: number;
   schoolName?: string;
   schoolLogo?: string | null;
   userRole?: string;
@@ -20,7 +18,7 @@ export interface AppShellProps {
 
 export default function AppShell({
   spaces,
-  initialCollapsed = false,
+  initialWidth = 220,
   schoolName = "EduCom",
   schoolLogo,
   userRole = "OWNER",
@@ -28,46 +26,26 @@ export default function AppShell({
   children,
 }: AppShellProps) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(initialCollapsed);
-  const [, startTransition] = useTransition();
-
-  // Déterminer l'espace actif
   const activeSpaceId = getActiveSpaceId(pathname, spaces);
-  const [manualSpaceId, setManualSpaceId] = useState<string | null>(null);
-
-  // Espace actuellement affiché dans la sidebar contextuelle
-  const currentSpaceId = manualSpaceId || activeSpaceId;
-  const activeSpace = spaces.find((s) => s.id === currentSpaceId) || spaces[0];
-
-  const handleToggleCollapse = () => {
-    const nextState = !collapsed;
-    setCollapsed(nextState);
-    startTransition(async () => {
-      await setSidebarCollapsed(nextState);
-    });
-  };
-
-  const handleSelectSpace = (spaceId: string) => {
-    setManualSpaceId(spaceId);
-  };
+  const activeSpace = activeSpaceId ? (spaces.find((s) => s.id === activeSpaceId) ?? null) : null;
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-ground print:bg-white print:h-auto print:overflow-visible">
-      {/* 1. Rail Principal Fixe (72px) */}
+      {/* 1. Rail Principal Fixe (72px) - RSC */}
       <AppRail
         spaces={spaces}
         schoolName={schoolName}
         schoolLogo={schoolLogo}
-        selectedSpaceId={currentSpaceId}
-        onSelectSpace={handleSelectSpace}
+        activeSpaceId={activeSpaceId}
       />
 
-      {/* 2. Sidebar Contextuelle Rétractable */}
+      {/* 2. Sidebar Contextuelle (Masquée sur /dashboard où aucun espace n'est actif) */}
       {activeSpace && (
         <ContextualSidebar
           space={activeSpace}
-          collapsed={collapsed}
-          onToggleCollapse={handleToggleCollapse}
+          schoolName={schoolName}
+          initialWidth={initialWidth}
+          currentPath={pathname}
         />
       )}
 
@@ -78,7 +56,7 @@ export default function AppShell({
           schoolLogo={schoolLogo}
           userRole={userRole}
           userName={userName}
-          activeSpace={activeSpace}
+          activeSpace={activeSpace ?? undefined}
         />
 
         <main className="flex-1 w-full overflow-y-auto relative print:overflow-visible print:m-0 print:p-0">

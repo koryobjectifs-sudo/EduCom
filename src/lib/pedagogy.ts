@@ -245,6 +245,37 @@ export type ConfigurationReadiness = {
   firstBlocker: ReadinessStep | null;
 };
 
+export type PreloadedPedagogy = {
+  classes?: {
+    id: string;
+    name: string;
+    cycle: any;
+    teacherId?: string | null;
+    teacher?: { id: string; firstName: string; lastName: string } | null;
+    _count?: { enrollments: number };
+    subjects?: {
+      subjectId: string;
+      coefficient: number;
+      subject: { name: string; parent: { name: string } | null };
+    }[];
+  }[];
+  terms?: {
+    id: string;
+    name: string;
+    startDate: Date | null;
+    endDate: Date | null;
+    createdAt: Date;
+    evaluations?: { id: string; name: string; type: any; date: Date | null }[];
+  }[];
+  evaluations?: { id: string; termId: string; type: any; date: Date | null; name?: string }[];
+  teachersCount?: number;
+  assignments?: { classId: string; teacherId?: string; subjectId?: string | null }[];
+  classesWithTeacher?: { id: string }[];
+  customCoefficients?: number;
+  links?: { classId: string }[];
+  gradeCounts?: Map<string, number>;
+};
+
 /**
  * **Où en est la configuration pédagogique de cette école ?**
  *
@@ -255,34 +286,63 @@ export type ConfigurationReadiness = {
  * saisissable. Ici la réponse se recalcule à chaque lecture, donc elle ne peut
  * pas se désynchroniser de la réalité.
  */
-export async function configurationReadiness(actor: ActorContext): Promise<ConfigurationReadiness> {
+export async function configurationReadiness(
+  actor: ActorContext,
+  preloaded?: PreloadedPedagogy
+): Promise<ConfigurationReadiness> {
   const { schoolId } = actor;
 
-  const [classes, links, terms, evaluations, teachers, assignments, classesWithTeacher, customCoefficients] =
-    await Promise.all([
-      prisma.class.findMany({ where: { schoolId }, select: { id: true, name: true, cycle: true } }),
-      prisma.classSubject.groupBy({
-        by: ["classId"],
-        where: { class: { schoolId } },
-        _count: { _all: true },
-      }),
-      prisma.term.findMany({
-        where: { schoolId },
-        select: { id: true, name: true, startDate: true, endDate: true, createdAt: true },
-      }),
-      prisma.evaluation.findMany({
-        where: { schoolId },
-        select: { id: true, termId: true, type: true, date: true },
-      }),
-      prisma.user.count({ where: { schoolId, role: "TEACHER" } }),
-      prisma.teachingAssignment.groupBy({
-        by: ["classId"],
-        where: { schoolId },
-        _count: { _all: true },
-      }),
-      prisma.class.findMany({ where: { schoolId, teacherId: { not: null } }, select: { id: true } }),
-      prisma.classSubject.count({ where: { class: { schoolId }, coefficient: { not: 1 } } }),
-    ]);
+  const [classes, links, terms, evaluations, teachers, assignments, classesWithTeacher, customCoefficients] = await Promise.all([
+    preloaded?.classes !== undefined
+      ? preloaded.classes
+      : prisma.class.findMany({ where: { schoolId }, select: { id: true, name: true, cycle: true } }),
+    preloaded?.links !== undefined
+      ? preloaded.links
+      : preloaded?.classes !== undefined && preloaded.classes.length > 0 && preloaded.classes[0].subjects !== undefined
+      ? preloaded.classes.filter((c) => (c.subjects?.length ?? 0) > 0).map((c) => ({ classId: c.id }))
+      : prisma.classSubject.groupBy({
+          by: ["classId"],
+          where: { class: { schoolId } },
+          _count: { _all: true },
+        }),
+    preloaded?.terms !== undefined
+      ? preloaded.terms
+      : prisma.term.findMany({
+          where: { schoolId },
+          select: { id: true, name: true, startDate: true, endDate: true, createdAt: true },
+        }),
+    preloaded?.evaluations !== undefined
+      ? preloaded.evaluations
+      : preloaded?.terms !== undefined && preloaded.terms.some((t) => t.evaluations !== undefined)
+      ? preloaded.terms.flatMap((t) => (t.evaluations || []).map((e) => ({ ...e, termId: t.id })))
+      : prisma.evaluation.findMany({
+          where: { schoolId },
+          select: { id: true, termId: true, type: true, date: true },
+        }),
+    preloaded?.teachersCount !== undefined
+      ? preloaded.teachersCount
+      : prisma.user.count({ where: { schoolId, role: "TEACHER" } }),
+    preloaded?.assignments !== undefined
+      ? preloaded.assignments
+      : prisma.teachingAssignment.groupBy({
+          by: ["classId"],
+          where: { schoolId },
+          _count: { _all: true },
+        }),
+    preloaded?.classesWithTeacher !== undefined
+      ? preloaded.classesWithTeacher
+      : preloaded?.classes !== undefined
+      ? preloaded.classes.filter((c) => c.teacherId !== null && c.teacherId !== undefined).map((c) => ({ id: c.id }))
+      : prisma.class.findMany({ where: { schoolId, teacherId: { not: null } }, select: { id: true } }),
+    preloaded?.customCoefficients !== undefined
+      ? preloaded.customCoefficients
+      : preloaded?.classes !== undefined && preloaded.classes.length > 0 && preloaded.classes[0].subjects !== undefined
+      ? preloaded.classes.reduce(
+          (sum, c) => sum + (c.subjects?.filter((s) => s.coefficient !== 1).length ?? 0),
+          0
+        )
+      : prisma.classSubject.count({ where: { class: { schoolId }, coefficient: { not: 1 } } }),
+  ]);
 
   const withSubjects = new Set(links.map((l) => l.classId));
   const datedTerms = terms.filter((t) => t.startDate !== null && t.endDate !== null);
@@ -306,6 +366,12 @@ export async function configurationReadiness(actor: ActorContext): Promise<Confi
   const step = (s: ReadinessStep): ReadinessStep => s;
   const nClasses = classes.length;
 
+  // ⚠️ La maternelle est structurellement évaluée par domaines d'apprentissage (pas par matières).
+  // On l'exclut donc du dénominateur du programme afin de ne jamais bloquer l'école à 6/9 classes.
+  const nonMaternelleClasses = classes.filter((c) => c.cycle !== "MATERNELLE");
+  const nNonMaternelle = nonMaternelleClasses.length;
+  const withSubjectsCount = nonMaternelleClasses.filter((c) => withSubjects.has(c.id)).length;
+
   const steps: ReadinessStep[] = [
     step({
       id: "classes",
@@ -314,19 +380,29 @@ export async function configurationReadiness(actor: ActorContext): Promise<Confi
       display: `${nClasses} classe${nClasses > 1 ? "s" : ""}`,
       state: nClasses > 0 ? "done" : "todo",
       blocking: true,
-      href: "/dashboard/directory",
+      href: "/dashboard/classes",
       todo: nClasses > 0 ? null : "Créez au moins une classe.",
     }),
     step({
       id: "programme",
       label: "Programme",
       purpose: "Les matières enseignées dans chaque classe — celles qui apparaîtront au bulletin.",
-      display: `${withSubjects.size} / ${nClasses} classe${nClasses > 1 ? "s" : ""} avec un programme`,
-      state: nClasses === 0 ? "todo" : withSubjects.size === nClasses ? "done" : withSubjects.size > 0 ? "partial" : "todo",
+      display:
+        nNonMaternelle === 0
+          ? "Évaluation par domaines (Maternelle)"
+          : `${withSubjectsCount} / ${nNonMaternelle} classe${nNonMaternelle > 1 ? "s" : ""} concernée${nNonMaternelle > 1 ? "s" : ""}`,
+      state:
+        nNonMaternelle === 0
+          ? "done"
+          : withSubjectsCount === nNonMaternelle
+          ? "done"
+          : withSubjectsCount > 0
+          ? "partial"
+          : "todo",
       blocking: true,
       href: "/dashboard/settings/pedagogie#programme",
       todo:
-        withSubjects.size === nClasses && nClasses > 0
+        nNonMaternelle === 0 || withSubjectsCount === nNonMaternelle
           ? null
           : "Appliquez le programme proposé, ou composez le vôtre classe par classe.",
     }),
@@ -338,10 +414,6 @@ export async function configurationReadiness(actor: ActorContext): Promise<Confi
         customCoefficients > 0
           ? `${customCoefficients} matière${customCoefficients > 1 ? "s" : ""} pondérée${customCoefficients > 1 ? "s" : ""}`
           : "Toutes les matières à 1",
-      // ⚠️ JAMAIS « todo ». Un coefficient de 1 partout est une configuration
-      // valide et fréquente — trois des quatre bulletins réels analysés le
-      // 17 août fonctionnent ainsi. La marquer « à faire » inventerait une
-      // obligation, et pousserait l'école à saisir des chiffres au hasard.
       state: "done",
       blocking: false,
       href: "/dashboard/settings/pedagogie#programme",
@@ -361,11 +433,8 @@ export async function configurationReadiness(actor: ActorContext): Promise<Confi
       id: "calendrier",
       label: "Dates de trimestre",
       purpose: "Elles décident quel trimestre EduCom ouvre par défaut à vos enseignants.",
-      display: `${datedTerms.length} / ${terms.length || 3} daté${datedTerms.length > 1 ? "s" : ""}`,
+      display: `${datedTerms.length} / ${terms.length || 3} trimestre${(terms.length || 3) > 1 ? "s" : ""} daté${datedTerms.length > 1 ? "s" : ""}`,
       state: terms.length > 0 && datedTerms.length === terms.length ? "done" : datedTerms.length > 0 ? "partial" : "todo",
-      // Non bloquant : sans dates, `pickCurrentTerm()` retombe sur le dernier
-      // trimestre de la liste. La saisie fonctionne — elle s'ouvre simplement
-      // sur la mauvaise période, et l'écran le signale.
       blocking: false,
       href: "/dashboard/settings/pedagogie#calendrier",
       todo:
@@ -383,8 +452,6 @@ export async function configurationReadiness(actor: ActorContext): Promise<Confi
           ? "done"
           : evaluations.length > 0 ? "partial" : "todo",
       blocking: true,
-      // Contrôles et compositions vivent DANS le panneau calendrier : une
-      // ancre `#evaluations` séparée pointerait vers un titre qui n'existe pas.
       href: "/dashboard/settings/pedagogie#calendrier",
       todo:
         terms.length > 0 && termsWithComposition.size === terms.length
@@ -397,8 +464,6 @@ export async function configurationReadiness(actor: ActorContext): Promise<Confi
       purpose: "Les comptes qui saisiront les notes.",
       display: `${teachers} enseignant${teachers > 1 ? "s" : ""}`,
       state: teachers > 0 ? "done" : "todo",
-      // La direction peut saisir elle-même (`editableSubjectIds` rend "ALL") :
-      // une école sans compte enseignant fonctionne, en mode direction.
       blocking: false,
       href: "/dashboard/team",
       todo: teachers > 0 ? null : "Invitez vos enseignants pour qu'ils saisissent leurs propres notes.",
@@ -454,13 +519,6 @@ export type SchoolCalendar = {
     isCurrent: boolean;
     /**
      * Trimestre qu'EduCom ouvre **faute de mieux**, parce qu'aucun n'est daté.
-     *
-     * ⚠️ **Ce n'est PAS « en cours », et les confondre produit un écran qui se
-     * contredit lui-même.** Constaté sur la capture du 22 août : le troisième
-     * trimestre portait la pastille « en cours » et, deux lignes plus bas,
-     * « sans dates, ce trimestre ne peut pas être choisi comme trimestre
-     * courant ». Les deux venaient du même `pickCurrentTerm()` — l'un lisait son
-     * résultat, l'autre sa condition. Le repli est donc nommé pour ce qu'il est.
      */
     isFallback: boolean;
     evaluations: CalendarEvaluation[];
@@ -475,43 +533,65 @@ export type SchoolCalendar = {
 
 /**
  * Le calendrier pédagogique, tel qu'il est réellement en base.
- *
- * ⚠️ **Aucune date n'est déduite ni complétée.** Une évaluation sans date reste
- * sans date : elle apparaît dans `undated`, pas placée « au milieu du
- * trimestre ». Placer une composition à une date inventée ferait planifier
- * toute une école sur une fiction.
  */
-export async function schoolCalendar(actor: ActorContext, now: Date = new Date()): Promise<SchoolCalendar> {
+export async function schoolCalendar(
+  actor: ActorContext,
+  now: Date = new Date(),
+  preloadedTerms?: {
+    id: string;
+    name: string;
+    startDate: Date | null;
+    endDate: Date | null;
+    createdAt: Date;
+    evaluations?: { id: string; name: string; type: any; date: Date | null }[];
+  }[]
+): Promise<SchoolCalendar> {
   const { schoolId } = actor;
 
-  const termRows = await prisma.term.findMany({
-    where: { schoolId },
-    select: {
-      id: true, name: true, startDate: true, endDate: true, createdAt: true,
-      evaluations: {
-        select: { id: true, name: true, type: true, date: true },
-        orderBy: [{ date: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
-      },
-    },
-  });
+  const termRows =
+    preloadedTerms !== undefined
+      ? preloadedTerms
+      : await prisma.term.findMany({
+          where: { schoolId },
+          select: {
+            id: true,
+            name: true,
+            startDate: true,
+            endDate: true,
+            createdAt: true,
+            evaluations: {
+              select: { id: true, name: true, type: true, date: true },
+              orderBy: [{ date: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+            },
+          },
+        });
 
-  const { current } = pickCurrentTerm(termRows, now);
+  const { current } = pickCurrentTerm(termRows as any, now);
 
-  const dated = termRows.filter((t) => t.startDate !== null)
+  const dated = termRows
+    .filter((t) => t.startDate !== null)
     .sort((a, b) => a.startDate!.getTime() - b.startDate!.getTime());
-  const undatedTerms = termRows.filter((t) => t.startDate === null)
+  const undatedTerms = termRows
+    .filter((t) => t.startDate === null)
     .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
   const all: CalendarEvaluation[] = [];
   const terms = [...dated, ...undatedTerms].map((t) => {
-    const evaluations: CalendarEvaluation[] = t.evaluations.map((e) => {
+    const evaluations: CalendarEvaluation[] = (t.evaluations || []).map((e) => {
       const outsideTerm =
-        e.date !== null && t.startDate !== null && t.endDate !== null &&
+        e.date !== null &&
+        t.startDate !== null &&
+        t.endDate !== null &&
         (e.date < t.startDate || e.date > t.endDate);
       const row: CalendarEvaluation = {
-        id: e.id, name: e.name, type: String(e.type),
+        id: e.id,
+        name: e.name,
+        type: String(e.type),
         isComposition: evaluationKind(e.type) === "COMPOSITION",
-        date: e.date, termId: t.id, termName: t.name, outsideTerm,
+        date: e.date,
+        termId: t.id,
+        termName: t.name,
+        outsideTerm,
       };
       all.push(row);
       return row;
@@ -519,12 +599,12 @@ export async function schoolCalendar(actor: ActorContext, now: Date = new Date()
     const estCourant = current?.id === t.id;
     const date = t.startDate !== null && t.endDate !== null;
     return {
-      id: t.id, name: t.name,
-      startDate: t.startDate, endDate: t.endDate,
-      // Un trimestre sans dates n'est jamais « en cours » : il est, au mieux,
-      // celui sur lequel on se rabat.
-      isCurrent: estCourant && date && t.startDate! <= now,
-      isFallback: estCourant && !(date && t.startDate! <= now),
+      id: t.id,
+      name: t.name,
+      startDate: t.startDate,
+      endDate: t.endDate,
+      isCurrent: Boolean(estCourant && date && t.startDate! <= now),
+      isFallback: Boolean(estCourant && !(date && t.startDate! <= now)),
       evaluations,
     };
   });
@@ -558,38 +638,64 @@ export type ProgrammeRow = {
 };
 
 /** Le programme réel de chaque classe, avec ses coefficients et son écart au modèle. */
-export async function programmeByClass(actor: ActorContext): Promise<ProgrammeRow[]> {
-  const { schoolId } = actor;
-
-  const classes = sortClasses(
-    await prisma.class.findMany({
-      where: { schoolId },
-      select: {
-        id: true, name: true, cycle: true,
-        _count: { select: { enrollments: true } },
-        subjects: {
-          select: {
-            subjectId: true, coefficient: true,
-            subject: { select: { name: true, parent: { select: { name: true } } } },
-          },
-        },
-      },
-    }) as never[],
-  ) as unknown as {
-    id: string; name: string; cycle: string;
+export async function programmeByClass(
+  actor: ActorContext,
+  preloadedClasses?: {
+    id: string;
+    name: string;
+    cycle: any;
     _count: { enrollments: number };
     subjects: {
-      subjectId: string; coefficient: number;
+      subjectId: string;
+      coefficient: number;
+      subject: { name: string; parent: { name: string } | null };
+    }[];
+  }[],
+  preloadedGradeCounts?: Map<string, number>
+): Promise<ProgrammeRow[]> {
+  const { schoolId } = actor;
+
+  const rawClasses =
+    preloadedClasses !== undefined
+      ? preloadedClasses
+      : ((await prisma.class.findMany({
+          where: { schoolId },
+          select: {
+            id: true,
+            name: true,
+            cycle: true,
+            _count: { select: { enrollments: true } },
+            subjects: {
+              select: {
+                subjectId: true,
+                coefficient: true,
+                subject: { select: { name: true, parent: { select: { name: true } } } },
+              },
+            },
+          },
+        })) as any);
+
+  const classes = sortClasses(rawClasses as never[]) as unknown as {
+    id: string;
+    name: string;
+    cycle: string;
+    _count: { enrollments: number };
+    subjects: {
+      subjectId: string;
+      coefficient: number;
       subject: { name: string; parent: { name: string } | null };
     }[];
   }[];
 
-  const counts = await prisma.grade.groupBy({
-    by: ["classId", "subjectId"],
-    where: { class: { schoolId } },
-    _count: { _all: true },
-  });
-  const gradeCount = new Map(counts.map((c) => [`${c.classId}|${c.subjectId}`, c._count._all]));
+  let gradeCount = preloadedGradeCounts;
+  if (!gradeCount) {
+    const counts = await prisma.grade.groupBy({
+      by: ["classId", "subjectId"],
+      where: { class: { schoolId } },
+      _count: { _all: true },
+    });
+    gradeCount = new Map(counts.map((c) => [`${c.classId}|${c.subjectId}`, c._count._all]));
+  }
 
   return classes.map((c) => {
     const attached = new Set(c.subjects.map((s) => s.subject.name));
@@ -605,7 +711,7 @@ export async function programmeByClass(actor: ActorContext): Promise<ProgrammeRo
           name: s.subject.name,
           groupName: s.subject.parent?.name ?? null,
           coefficient: s.coefficient,
-          gradeCount: gradeCount.get(`${c.id}|${s.subjectId}`) ?? 0,
+          gradeCount: gradeCount!.get(`${c.id}|${s.subjectId}`) ?? 0,
         }))
         .sort((a, b) =>
           (a.groupName ?? a.name).localeCompare(b.groupName ?? b.name, "fr") ||
@@ -615,3 +721,4 @@ export async function programmeByClass(actor: ActorContext): Promise<ProgrammeRo
     };
   });
 }
+

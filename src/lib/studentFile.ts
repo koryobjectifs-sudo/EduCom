@@ -53,15 +53,8 @@ export function storagePathFor(schoolId: string, studentId: string, documentId: 
   return `${schoolId}/${studentId}/${documentId}/${sanitizeFileName(fileName)}`;
 }
 
-/* ═══════════════════ type d'élève (point 9) ═══════════════════ */
-
-/** Année scolaire courante, au format des `Enrollment` déjà en base. */
-export function currentAcademicYear(ref: Date = new Date()): string {
-  // L'année scolaire sénégalaise commence en octobre : avant septembre, on est
-  // encore sur l'année ouverte l'automne précédent.
-  const y = ref.getFullYear();
-  return ref.getMonth() >= 8 ? `${y}-${y + 1}` : `${y - 1}-${y}`;
-}
+import { currentAcademicYear, defaultAcademicYear } from "./academicYear";
+export { currentAcademicYear, defaultAcademicYear };
 
 /**
  * Type d'un élève.
@@ -177,6 +170,43 @@ export type Completeness = {
 };
 
 /**
+ * Évalue si une exigence conditionnelle s'applique à un élève spécifique.
+ */
+export function evaluateRequirementCondition(
+  conditional: string | null | undefined,
+  context: {
+    className?: string | null;
+    cycle?: EducationalCycle | null;
+    dateOfBirth?: Date | string | null;
+    kind?: StudentKind | null;
+    age?: number | null;
+  }
+): boolean {
+  if (!conditional) return true;
+
+  const cond = conditional.toLowerCase().trim();
+
+  // Condition "age < 6 in CI" pour le certificat préscolaire
+  if (cond.includes("age < 6") || cond.includes("age_lt_6") || cond.includes("prescolaire")) {
+    const isCI = context.className ? context.className.toUpperCase().includes("CI") : true;
+    if (!isCI) return false;
+    
+    // Si l'âge est connu et >= 6 ans : la pièce disparaît de la checklist
+    if (context.age !== null && context.age !== undefined && context.age >= 6) {
+      return false;
+    }
+    return true;
+  }
+
+  // Condition transfert
+  if (cond.includes("transfert") || cond.includes("exeat")) {
+    return context.kind === "TRANSFERT";
+  }
+
+  return true;
+}
+
+/**
  * Exigences applicables à un élève.
  *
  * Une exigence s'applique si **chacun** de ses filtres renseignés correspond ;
@@ -185,7 +215,15 @@ export type Completeness = {
  */
 export async function requirementsFor(
   actor: ActorContext,
-  opts: { classId: string | null; cycle: EducationalCycle | null; kind: StudentKind; year: string },
+  opts: {
+    classId: string | null;
+    className?: string | null;
+    cycle: EducationalCycle | null;
+    kind: StudentKind;
+    year: string;
+    dateOfBirth?: Date | null;
+    age?: number | null;
+  },
 ) {
   const rows = await prisma.documentRequirement.findMany({
     where: {
@@ -200,7 +238,16 @@ export async function requirementsFor(
     },
     orderBy: [{ position: "asc" }, { label: "asc" }],
   });
-  return rows;
+
+  return rows.filter((r) =>
+    evaluateRequirementCondition(r.conditional, {
+      className: opts.className,
+      cycle: opts.cycle,
+      kind: opts.kind,
+      dateOfBirth: opts.dateOfBirth,
+      age: opts.age,
+    })
+  );
 }
 
 /**

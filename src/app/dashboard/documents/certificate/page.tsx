@@ -67,7 +67,7 @@ export default async function CertificatePage({
         students={students}
         school={school}
         initialStudentId={studentId ?? null}
-        academicYear={currentAcademicYear()}
+        academicYear={currentAcademicYear(school)}
       />
     </div>
   );

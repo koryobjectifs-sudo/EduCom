@@ -284,21 +284,32 @@ export function SectionScolarite({ d }: { d: Student360 }) {
               // déjà la première comme la classe courante : le libellé suit la
               // même règle au lieu de la contredire.
               const enCours = i === 0;
+              // ⚠️ 7 septembre 2026 : compte déjà calculé dans `data.ts` à partir
+              // des pièces lues par `studentFile()` — aucune requête ici.
+              const nbDocsAnnee = d.documentsParAnnee[enr.academicYear] ?? 0;
               return (
                 <li key={enr.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
                   <div className="min-w-0">
                     <p className="text-role-body font-semibold text-text">{enr.class?.name}</p>
                     <p className="text-role-meta text-text-faint">Année {enr.academicYear}</p>
                   </div>
-                  <span
-                    className={`shrink-0 rounded-pill px-2 py-0.5 text-role-meta font-medium ${
-                      enCours
-                        ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/20"
-                        : "border border-rule bg-sunk text-text-soft"
-                    }`}
-                  >
-                    {enCours ? "En cours" : "Terminé"}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {nbDocsAnnee > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded-pill border border-rule bg-sunk px-2 py-0.5 text-role-meta text-text-soft">
+                        <FolderOpen aria-hidden="true" className="h-3 w-3" />
+                        {nbDocsAnnee} document{nbDocsAnnee > 1 ? "s" : ""}
+                      </span>
+                    )}
+                    <span
+                      className={`rounded-pill px-2 py-0.5 text-role-meta font-medium ${
+                        enCours
+                          ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/20"
+                          : "border border-rule bg-sunk text-text-soft"
+                      }`}
+                    >
+                      {enCours ? "En cours" : "Terminé"}
+                    </span>
+                  </div>
                 </li>
               );
             })}

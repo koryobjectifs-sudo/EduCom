@@ -10,9 +10,9 @@ export async function injectDemoData() {
   
   // Create 3 demo classes
   const classes = await Promise.all([
-    prisma.class.create({ data: { name: `[DÉMO] 6ème A${DEMO_MARKER}`, cycle: "COLLEGE", schoolId } }),
-    prisma.class.create({ data: { name: `[DÉMO] 5ème B${DEMO_MARKER}`, cycle: "COLLEGE", schoolId } }),
-    prisma.class.create({ data: { name: `[DÉMO] 4ème C${DEMO_MARKER}`, cycle: "COLLEGE", schoolId } })
+    prisma.class.create({ data: { name: `[DÉMO] 6ème A${DEMO_MARKER}`, cycle: "COLLEGE", schoolId, isDemo: true } }),
+    prisma.class.create({ data: { name: `[DÉMO] 5ème B${DEMO_MARKER}`, cycle: "COLLEGE", schoolId, isDemo: true } }),
+    prisma.class.create({ data: { name: `[DÉMO] 4ème C${DEMO_MARKER}`, cycle: "COLLEGE", schoolId, isDemo: true } })
   ]);
   
   // Create demo subjects

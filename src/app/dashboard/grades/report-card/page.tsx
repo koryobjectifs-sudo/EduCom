@@ -174,8 +174,8 @@ export default async function ReportCardPage({
                 : "Créez une classe et inscrivez-y des élèves pour produire des bulletins."
             }
             action={{
-              label: termRows.length === 0 ? "Configurer le calendrier" : "Ouvrir l'annuaire",
-              href: termRows.length === 0 ? "/dashboard/settings/pedagogie#calendrier" : "/dashboard/directory",
+              label: termRows.length === 0 ? "Configurer le calendrier" : "Ouvrir le registre",
+              href: termRows.length === 0 ? "/dashboard/settings/pedagogie#calendrier" : "/dashboard/students",
             }}
           />
         </div>

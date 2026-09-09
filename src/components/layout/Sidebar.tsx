@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { RoleType } from "@/lib/permissions";
 import { visibleSections, isActive, type NavItem } from "@/lib/navigation";
+import { getNavIcon } from "./nav-icons";
 
 /**
  * Navigation persistante du tableau de bord.
@@ -37,13 +38,13 @@ import { visibleSections, isActive, type NavItem } from "@/lib/navigation";
  */
 
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {
-  const Icon = item.icon;
+  const Icon = getNavIcon(item.icon);
   return (
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
       className={[
-        "group flex items-center gap-3 rounded-control px-3 py-2 text-role-body transition-colors",
+        "group flex items-center gap-2.5 rounded-control px-2.5 py-1.5 text-xs transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
         active
           ? "bg-primary/8 font-semibold text-primary"
@@ -53,7 +54,7 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
       <Icon
         aria-hidden="true"
         strokeWidth={active ? 2.2 : 1.8}
-        className={`h-[18px] w-[18px] shrink-0 ${active ? "text-primary" : "text-text-faint group-hover:text-text-soft"}`}
+        className={`h-4 w-4 shrink-0 ${active ? "text-primary" : "text-text-faint group-hover:text-text-soft"}`}
       />
       <span className="truncate">{item.name}</span>
     </Link>
@@ -65,11 +66,11 @@ export function SidebarNav({ userRole }: { userRole: string }) {
   const sections = visibleSections(userRole as RoleType);
 
   return (
-    <nav aria-label="Navigation principale" className="flex flex-col gap-5">
+    <nav aria-label="Navigation principale" className="flex flex-col gap-3.5">
       {sections.map((section, i) => (
         <div key={section.title ?? `top-${i}`} className="flex flex-col gap-0.5">
           {section.title && (
-            <h2 className="px-3 pb-1.5 text-role-meta font-semibold uppercase tracking-wider text-text-faint">
+            <h2 className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-text-faint">
               {section.title}
             </h2>
           )}
@@ -84,10 +85,6 @@ export function SidebarNav({ userRole }: { userRole: string }) {
 
 /**
  * En-tête d'identité de l'établissement.
- *
- * Le nom de l'école est l'ancrage de contexte : l'utilisateur doit savoir en
- * permanence dans quel établissement il travaille. Il était auparavant caché
- * dans une infobulle au survol du logo.
  */
 export function SchoolIdentity({
   schoolName,
@@ -97,43 +94,34 @@ export function SchoolIdentity({
   schoolLogo?: string | null;
 }) {
   return (
-    <div className="flex items-center gap-3 px-1">
+    <div className="flex items-center gap-2.5 px-0.5">
       {schoolLogo ? (
         <img
           src={schoolLogo}
           alt=""
           aria-hidden="true"
-          className="h-9 w-auto max-w-[80px] shrink-0 rounded-sm object-contain"
+          className="h-7 w-auto max-w-[70px] shrink-0 rounded-sm object-contain"
         />
       ) : (
         <div
           aria-hidden="true"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-primary text-role-card font-semibold text-white"
+          className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-control bg-primary text-xs font-bold text-white"
         >
           {schoolName.charAt(0).toUpperCase()}
         </div>
       )}
       <div className="min-w-0">
-        {/* ⚠️ Chantier PLG — c'était `truncate` : un nom d'école un peu long
-            sortait « Institution Sainte-Marie de… », et l'infobulle `title` qui
-            portait la valeur complète ne s'ouvre pas au doigt. Le nom de son
-            propre établissement est la première chose qu'un directeur lit après
-            l'installation : le voir amputé fait douter de ce qui a été
-            enregistré. Il passe sur deux lignes — la hauteur reste bornée. */}
-        <p className="line-clamp-2 text-role-card font-semibold leading-tight text-text" title={schoolName}>
+        <p className="line-clamp-2 text-xs font-semibold leading-tight text-text" title={schoolName}>
           {schoolName}
         </p>
-        <p className="text-role-meta text-text-faint">EduCom</p>
+        <p className="text-[10px] text-text-faint leading-none mt-0.5">EduCom</p>
       </div>
     </div>
   );
 }
 
 /**
- * Sidebar desktop — 240 px, persistante.
- *
- * Masquée sous `lg`. La navigation mobile prend le relais dans un tiroir
- * (`MobileNav`) : elle ne disparaît pas, elle change de forme.
+ * Sidebar desktop — 224 px, persistante & compacte.
  */
 export default function Sidebar({
   schoolName = "EduCom",
@@ -145,12 +133,12 @@ export default function Sidebar({
   userRole?: string;
 }) {
   return (
-    <aside className="hidden w-60 shrink-0 border-r border-rule bg-surface lg:flex lg:flex-col print:hidden">
-      <div className="flex h-16 shrink-0 items-center border-b border-rule px-4">
+    <aside className="hidden w-56 shrink-0 border-r border-rule bg-surface lg:flex lg:flex-col print:hidden">
+      <div className="flex h-13 shrink-0 items-center border-b border-rule px-3.5">
         <SchoolIdentity schoolName={schoolName} schoolLogo={schoolLogo} />
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-4">
+      <div className="flex-1 overflow-y-auto px-2.5 py-3">
         <SidebarNav userRole={userRole} />
       </div>
     </aside>

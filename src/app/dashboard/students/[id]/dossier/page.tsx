@@ -68,7 +68,7 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
    * `canSeeCategory()`, la même règle que le téléchargement et la diffusion.
    * Le composant client n'en décide rien — il reçoit la liste déjà bornée.
    */
-  const categories = (["IDENTITE", "INSCRIPTION", "SCOLARITE", "SANTE", "EXAMENS", "TRANSFERT", "AUTRES"] as const)
+  const categories = (["IDENTITE", "INSCRIPTION", "SCOLARITE", "EXAMENS", "TRANSFERT", "AUTRES"] as const)
     .filter((c) => canSeeCategory(ctx, c));
 
   /**

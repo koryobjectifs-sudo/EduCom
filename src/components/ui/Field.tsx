@@ -42,7 +42,7 @@ function FieldShell({ id, label, hint, error, required, className = "", children
   return (
     <div className={className}>
       {label && (
-        <label htmlFor={id} className="block text-role-label font-medium text-text-soft mb-1.5">
+        <label htmlFor={id} className="block text-role-label font-medium text-text-soft mb-1">
           {label}
           {required && (
             <>
@@ -54,12 +54,12 @@ function FieldShell({ id, label, hint, error, required, className = "", children
       )}
       {children}
       {hint && !error && (
-        <p id={`${id}-hint`} className="mt-1.5 text-role-meta text-text-faint">
+        <p id={`${id}-hint`} className="mt-1 text-role-meta text-text-faint">
           {hint}
         </p>
       )}
       {error && (
-        <p id={`${id}-error`} className="mt-1.5 text-role-meta text-danger font-medium">
+        <p id={`${id}-error`} className="mt-1 text-role-meta text-danger font-medium">
           {error}
         </p>
       )}
@@ -70,7 +70,7 @@ function FieldShell({ id, label, hint, error, required, className = "", children
 /** Classes partagées par les trois contrôles, pour qu'ils ne divergent pas. */
 function controlClasses(error?: string | null, extra = "") {
   return [
-    "block w-full rounded-control bg-surface px-3 py-2 text-role-body text-text",
+    "block w-full rounded-control bg-surface px-2.5 py-1.5 text-role-body text-text",
     "placeholder:text-text-faint shadow-card transition-colors",
     "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
     "disabled:bg-sunk disabled:text-text-faint disabled:cursor-not-allowed",

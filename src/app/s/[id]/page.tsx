@@ -2,9 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import ClientSurvey from "./ClientSurvey";
 
-export default async function PublicSurveyPage({ params }: { params: { id: string } }) {
+export default async function PublicSurveyPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const survey = await prisma.survey.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       school: true
     }

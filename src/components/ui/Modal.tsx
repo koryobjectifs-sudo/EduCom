@@ -170,13 +170,13 @@ export function Modal({
         tabIndex={-1}
         className={`relative w-full ${SIZE[size]} rounded-surface border border-rule bg-surface shadow-overlay focus:outline-none`}
       >
-        <div className="flex items-start gap-4 border-b border-rule px-5 py-4">
+        <div className="flex items-start gap-3 border-b border-rule px-4 py-3">
           <div className="min-w-0 flex-1">
             <h2 id={titleId} className="text-role-card font-semibold text-text">
               {title}
             </h2>
             {description && (
-              <p id={descId} className="mt-1 text-role-meta text-text-soft">
+              <p id={descId} className="mt-0.5 text-role-meta text-text-soft">
                 {description}
               </p>
             )}
@@ -187,16 +187,16 @@ export function Modal({
               size="sm"
               aria-label="Fermer"
               onClick={onClose}
-              icon={<X aria-hidden="true" className="h-4 w-4" />}
-              className="-mr-1 -mt-1 shrink-0"
+              icon={<X aria-hidden="true" className="h-3.5 w-3.5" />}
+              className="-mr-1 -mt-0.5 shrink-0"
             />
           )}
         </div>
 
-        {children && <div className="px-5 py-4 text-role-body text-text-soft">{children}</div>}
+        {children && <div className="px-4 py-3.5 text-role-body text-text-soft">{children}</div>}
 
         {footer && (
-          <div className="flex items-center justify-end gap-2 border-t border-rule px-5 py-4">
+          <div className="flex items-center justify-end gap-2 border-t border-rule px-4 py-3">
             {footer}
           </div>
         )}

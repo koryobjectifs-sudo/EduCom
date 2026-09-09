@@ -4,31 +4,15 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireActionContext } from "@/lib/actionContext";
 import { recordAudit } from "@/lib/audit";
-import { OFFICIAL_REQUIREMENTS } from "@/lib/officialRequirements";
-import type { DocCategory, StudentKind, EducationalCycle } from "../../../../generated/prisma/client";
-
-/**
- * Checklist documentaire — actions serveur. Lot 13.
- *
- * ⚠️ Exigent `/dashboard/settings`, qu'**aucun rôle ne liste** : seuls OWNER et
- * ADMIN l'atteignent via `"*"`. La direction définit ce que l'établissement
- * exige, exactement comme elle définit les tarifs (lot 12.1). Aucune matrice
- * parallèle, aucun rôle cité ici.
- *
- * ⚠️ **Aucune liste n'est IMPOSÉE.** Ce fichier enregistre ce que l'école
- * déclare. `applyOfficialRequirements()`, en bas, propose le référentiel
- * sénégalais par cycle (`src/lib/officialRequirements.ts`) — mais seulement
- * quand la direction le demande, et chaque ligne créée reste modifiable comme
- * les autres. La note précédente interdisait toute liste pré-remplie ; elle
- * laissait surtout chaque école ouvrir son premier dossier sur zéro exigence,
- * donc sur un taux de complétude incalculable.
- */
+import { OFFICIAL_REQUIREMENTS_BY_CYCLE } from "@/lib/officialRequirements";
+import type { DocCategory, StudentKind, EducationalCycle, RequirementSource } from "../../../../generated/prisma/client";
 
 const SETTINGS_PATH = "/dashboard/settings";
 
 function done() {
   revalidatePath("/dashboard/settings/documents");
   revalidatePath("/dashboard/students");
+  revalidatePath("/dashboard/students/dossiers/review");
 }
 
 export async function upsertRequirement(input: {
@@ -39,16 +23,19 @@ export async function upsertRequirement(input: {
   classId?: string | null;
   academicYear?: string | null;
   studentKind?: StudentKind | null;
+  source?: RequirementSource;
+  required?: boolean;
+  pinned?: boolean;
+  conditional?: string | null;
   validityMonths?: number | null;
   position?: number;
+  order?: number;
 }) {
   const auth = await requireActionContext(SETTINGS_PATH);
   if (!auth.ok) return { error: auth.error };
   const { ctx } = auth;
 
   if (!input.label.trim()) return { error: "Le libellé de la pièce est obligatoire." };
-  // Ciblage exclusif : viser une classe ET un cycle rendrait l'exigence
-  // ambiguë — la classe porte déjà son cycle.
   if (input.classId && input.cycle) {
     return { error: "Une exigence vise une classe OU un cycle, pas les deux." };
   }
@@ -64,7 +51,6 @@ export async function upsertRequirement(input: {
   const before = input.id
     ? await prisma.documentRequirement.findFirst({
         where: { id: input.id, schoolId: ctx.schoolId },
-        select: { id: true, label: true },
       })
     : null;
   if (input.id && !before) return { error: "Exigence introuvable." };
@@ -76,8 +62,12 @@ export async function upsertRequirement(input: {
     classId: input.classId ?? null,
     academicYear: input.academicYear?.trim() || null,
     studentKind: input.studentKind ?? null,
+    source: input.source ?? (before?.source ?? "ETABLISSEMENT"),
+    required: input.required ?? (before?.required ?? true),
+    pinned: input.pinned ?? (before?.pinned ?? true),
+    conditional: input.conditional ?? (before?.conditional ?? null),
     validityMonths: input.validityMonths ?? null,
-    position: input.position ?? 0,
+    position: input.position ?? (before?.position ?? 0),
     schoolId: ctx.schoolId,
   };
 
@@ -97,12 +87,6 @@ export async function upsertRequirement(input: {
   return { data: { id: row.id } };
 }
 
-/**
- * Active ou désactive une exigence.
- *
- * ⚠️ Désactiver plutôt que supprimer : une exigence retirée ne doit pas faire
- * disparaître les pièces déjà reçues à ce titre, ni leur historique.
- */
 export async function setRequirementActive(id: string, active: boolean) {
   const auth = await requireActionContext(SETTINGS_PATH);
   if (!auth.ok) return { error: auth.error };
@@ -116,37 +100,103 @@ export async function setRequirementActive(id: string, active: boolean) {
 
   await recordAudit(ctx, {
     action: active ? "documentRequirement.activate" : "documentRequirement.deactivate",
-    entity: "documentRequirement", entityId: id, outcome: "success", details: { active },
+    entity: "documentRequirement",
+    entityId: id,
+    outcome: "success",
+    details: { active },
   });
   done();
   return { success: true };
 }
 
-/**
- * Applique le référentiel officiel sénégalais aux cycles choisis.
- *
- * ⚠️ **Idempotent, et jamais destructif.** Une exigence dont le libellé existe
- * déjà pour ce cycle est IGNORÉE, pas réécrite : la direction a pu en modifier
- * la catégorie, la validité ou le ciblage, et repasser dessus effacerait son
- * arbitrage. Rien n'est supprimé, rien n'est désactivé — seules les lignes
- * absentes sont créées.
- *
- * ⚠️ **Écriture en lot.** Vingt exigences en vingt requêtes séquentielles, c'est
- * vingt allers-retours ; `createMany` n'en fait qu'un (règle 10 du projet).
- */
+export async function toggleRequirementPinned(id: string, pinned: boolean) {
+  const auth = await requireActionContext(SETTINGS_PATH);
+  if (!auth.ok) return { error: auth.error };
+  const { ctx } = auth;
+
+  const { count } = await prisma.documentRequirement.updateMany({
+    where: { id, schoolId: ctx.schoolId },
+    data: { pinned },
+  });
+  if (count === 0) return { error: "Exigence introuvable." };
+
+  done();
+  return { success: true };
+}
+
+export async function toggleRequirementRequired(id: string, required: boolean) {
+  const auth = await requireActionContext(SETTINGS_PATH);
+  if (!auth.ok) return { error: auth.error };
+  const { ctx } = auth;
+
+  const { count } = await prisma.documentRequirement.updateMany({
+    where: { id, schoolId: ctx.schoolId },
+    data: { required },
+  });
+  if (count === 0) return { error: "Exigence introuvable." };
+
+  done();
+  return { success: true };
+}
+
+export async function deleteRequirement(id: string) {
+  const auth = await requireActionContext(SETTINGS_PATH);
+  if (!auth.ok) return { error: auth.error };
+  const { ctx } = auth;
+
+  const item = await prisma.documentRequirement.findFirst({
+    where: { id, schoolId: ctx.schoolId },
+  });
+  if (!item) return { error: "Exigence introuvable." };
+
+  if (item.source === "OFFICIEL") {
+    return {
+      error: "Cette pièce est une exigence officielle réglementaire. Elle ne peut pas être supprimée, mais vous pouvez la rendre optionnelle ou la désactiver.",
+    };
+  }
+
+  await prisma.documentRequirement.delete({
+    where: { id },
+  });
+
+  await recordAudit(ctx, {
+    action: "documentRequirement.delete",
+    entity: "documentRequirement",
+    entityId: id,
+    outcome: "success",
+    details: { label: item.label },
+  });
+
+  done();
+  return { success: true };
+}
+
+export async function reorderRequirements(items: { id: string; position: number }[]) {
+  const auth = await requireActionContext(SETTINGS_PATH);
+  if (!auth.ok) return { error: auth.error };
+  const { ctx } = auth;
+
+  await prisma.$transaction(
+    items.map((item) =>
+      prisma.documentRequirement.updateMany({
+        where: { id: item.id, schoolId: ctx.schoolId },
+        data: { position: item.position },
+      })
+    )
+  );
+
+  done();
+  return { success: true };
+}
+
 export async function applyOfficialRequirements(cycles: EducationalCycle[]) {
   const auth = await requireActionContext(SETTINGS_PATH);
   if (!auth.ok) return { error: auth.error };
   const { ctx } = auth;
 
-  const vises = cycles.filter((c) => OFFICIAL_REQUIREMENTS[c]);
+  const vises = cycles.filter((c) => OFFICIAL_REQUIREMENTS_BY_CYCLE[c]);
   if (vises.length === 0) return { error: "Aucun cycle sélectionné." };
 
-  // Ce qui existe déjà, pour ne rien écraser. La comparaison porte sur le
-  // couple (cycle, libellé normalisé) : « Photos d'identité » et « photos
-  // d'identité  » sont la même exigence, et en créer deux serait un doublon
-  // que personne ne remarquerait avant de voir le dossier réclamer deux fois
-  // la même pièce.
   const existantes = await prisma.documentRequirement.findMany({
     where: { schoolId: ctx.schoolId, cycle: { in: vises } },
     select: { cycle: true, label: true },
@@ -156,21 +206,25 @@ export async function applyOfficialRequirements(cycles: EducationalCycle[]) {
   const deja = new Set(existantes.map((r) => cle(r.cycle, r.label)));
 
   const aCreer = vises.flatMap((cycle) =>
-    (OFFICIAL_REQUIREMENTS[cycle] ?? [])
+    (OFFICIAL_REQUIREMENTS_BY_CYCLE[cycle] ?? [])
       .filter((r) => !deja.has(cle(cycle, r.label)))
       .map((r, i) => ({
         label: r.label,
         category: r.category,
         cycle,
+        source: r.source,
+        required: r.required,
+        pinned: r.pinned,
+        conditional: r.conditional ?? null,
         studentKind: r.studentKind ?? null,
         validityMonths: null,
-        position: i,
+        position: r.order || i + 1,
         schoolId: ctx.schoolId,
       })),
   );
 
   if (aCreer.length === 0) {
-    return { data: { created: 0, skipped: vises.reduce((n, c) => n + (OFFICIAL_REQUIREMENTS[c]?.length ?? 0), 0) } };
+    return { data: { created: 0, skipped: vises.reduce((n, c) => n + (OFFICIAL_REQUIREMENTS_BY_CYCLE[c]?.length ?? 0), 0) } };
   }
 
   await prisma.documentRequirement.createMany({ data: aCreer });
@@ -186,7 +240,7 @@ export async function applyOfficialRequirements(cycles: EducationalCycle[]) {
   return {
     data: {
       created: aCreer.length,
-      skipped: vises.reduce((n, c) => n + (OFFICIAL_REQUIREMENTS[c]?.length ?? 0), 0) - aCreer.length,
+      skipped: vises.reduce((n, c) => n + (OFFICIAL_REQUIREMENTS_BY_CYCLE[c]?.length ?? 0), 0) - aCreer.length,
     },
   };
 }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { getVisibleSpaces, isActive } from "@/lib/navigation";
+import { getNavIcon } from "./nav-icons";
 
 export interface MobileNavProps {
   schoolName?: string;
@@ -58,11 +59,11 @@ export default function MobileNav({
         aria-label="Ouvrir la navigation"
         aria-expanded={open}
         icon={<Menu aria-hidden="true" className="h-5 w-5 text-text" />}
-        className="lg:hidden h-10 w-10 min-h-[44px] min-w-[44px] flex items-center justify-center p-0"
+        className="md:hidden h-10 w-10 min-h-[44px] min-w-[44px] flex items-center justify-center p-0"
       />
 
       {open && (
-        <div className="fixed inset-0 z-50 lg:hidden print:hidden">
+        <div className="fixed inset-0 z-50 md:hidden print:hidden">
           {/* Fond sombre */}
           <div
             aria-hidden="true"
@@ -118,7 +119,7 @@ export default function MobileNav({
             {/* Corps du menu mobile : Espaces & Sous-destinations */}
             <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
               {spaces.map((space) => {
-                const SpaceIcon = space.icon;
+                const SpaceIcon = getNavIcon(space.icon);
                 return (
                   <div key={space.id} className="space-y-2">
                     <div className="flex items-center gap-2 px-2 text-xs font-bold uppercase tracking-wider text-text-soft">
@@ -129,7 +130,7 @@ export default function MobileNav({
                     <div className="space-y-0.5 border-inline-start-2 border-rule/60 ms-2 ps-2">
                       {space.sections.map((section) =>
                         section.items.map((item) => {
-                          const ItemIcon = item.icon;
+                          const ItemIcon = getNavIcon(item.icon);
                           const active = isActive(item.href, pathname);
                           return (
                             <Link

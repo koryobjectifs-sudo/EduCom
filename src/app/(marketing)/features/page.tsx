@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import PageHeader from "@/components/landing/PageHeader";
-import Features from "@/components/landing/Features";
+import ProductStory from "@/components/landing/ProductStory";
 import DocumentsShowcase from "@/components/landing/DocumentsShowcase";
 import FinalCTA from "@/components/landing/FinalCTA";
 
@@ -26,7 +26,7 @@ export default function FeaturesPage() {
         intro="Chaque capacité listée ici correspond à un écran que vous pouvez ouvrir dès la création de votre espace. Rien n'est annoncé « à venir » : ce qui manque encore est dit à la fin de la page."
       />
       <DocumentsShowcase />
-      <Features />
+      <ProductStory />
       <FinalCTA />
     </>
   );

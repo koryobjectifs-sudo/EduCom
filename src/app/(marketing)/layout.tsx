@@ -1,36 +1,39 @@
-import { Fraunces } from "next/font/google";
+import { Instrument_Sans } from "next/font/google";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
 
 /**
- * Typographie d'affichage des surfaces publiques — addendum PLG.
+ * Typographie d'affichage des surfaces publiques — refonte du 4 septembre
+ * 2026 (troisième version, rejet explicite des deux précédentes).
  *
- * ═══ POURQUOI UNE SECONDE FAMILLE, ET POURQUOI CELLE-CI ═══
+ * ═══ POURQUOI ENCORE UNE SECONDE FAMILLE, ET POURQUOI CELLE-CI ═══
  *
- * Toute la page d'accueil était composée en Inter, y compris les titres. Inter
- * est un excellent caractère d'interface — c'est justement le problème : c'est
- * le caractère par défaut de tout le monde, et une page entièrement composée
- * dans la police de son propre tableau de bord n'a pas de voix.
+ * Toute la page d'accueil était composée en Inter, y compris les titres —
+ * or Inter est le caractère du produit lui-même : une page entièrement
+ * composée dans la police de son propre tableau de bord n'a pas de voix.
+ * Une seconde famille reste donc nécessaire pour les titres.
  *
- * Fraunces n'est pas choisie pour « faire joli ». EduCom fabrique des
- * **documents officiels** : certificats, bulletins, reçus, attestations
- * d'inspection. Ces objets sont composés en romain depuis toujours, et une
- * famille à empattements sur les titres relie visuellement la page au livrable
- * — c'est la même promesse, dite deux fois.
+ * ⚠️ Ce n'est PLUS Fraunces. La tentative précédente choisissait un romain
+ * d'affichage parce que la métaphore était le document officiel (certificat,
+ * cachet). Cette refonte change de métaphore — EduCom comme système, pas
+ * comme imprimerie (voir l'en-tête du socle marketing dans `globals.css`) —
+ * et une linéale confiante raconte mieux « logiciel sérieux » qu'un romain.
+ * Instrument Sans plutôt qu'Inter en plus gras : Inter en très grand corps
+ * s'aplatit et ressemble exactement à... Inter en très grand corps. Une
+ * famille distincte, à l'assise plus haute et plus resserrée, donne aux
+ * titres une voix qu'un simple changement de graisse n'aurait pas.
  *
- * ⚠️ Elle est **cantonnée aux titres des pages publiques**. Le texte courant
- * reste en Inter, et le produit n'est pas touché : un tableau de notes ne se lit
- * pas en romain de labeur.
+ * ⚠️ Cantonnée aux titres des pages publiques. Le texte courant reste en
+ * Inter, et le produit n'est pas touché.
  *
- * ⚠️ Deux graisses seulement (600, 700). Une famille variable complète pèse
- * plusieurs centaines de kilo-octets ; la page d'accueil doit s'ouvrir depuis
- * Dakar sur une connexion mobile.
+ * ⚠️ Trois graisses seulement (500, 600, 700), pas la famille variable
+ * complète : la page doit s'ouvrir vite depuis une connexion mobile à Dakar.
  */
-const fraunces = Fraunces({
+const instrument = Instrument_Sans({
   subsets: ["latin"],
-  weight: ["600", "700"],
+  weight: ["500", "600", "700"],
   display: "swap",
-  variable: "--font-fraunces",
+  variable: "--font-instrument",
 });
 
 export default function MarketingLayout({
@@ -39,7 +42,7 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-m-paper text-m-ink-soft`}>
+    <div className={`${instrument.variable} flex min-h-screen flex-col bg-m-paper text-m-ink-soft`}>
       <Navbar />
       <main className="flex-grow">{children}</main>
       <Footer />

@@ -13,18 +13,44 @@ import Link from "next/link";
  * reste, parce qu'une école a le droit de savoir que ces textes manquent avant
  * de confier des données d'enfants.
  *
- * ⚠️ Le « E » dans un carré est remplacé par le logotype de marque en blanc,
+ * ⚠️ Le « E » dans un carré est remplacé par le logotype de marque,
  * qui existait depuis toujours dans `public/brand/`.
+ *
+ * ⚠️ Refonte du 4 septembre 2026 : même encre profonde que `FinalCTA` et
+ * `SystemSection` — le pied de page ferme le même registre sombre plutôt que
+ * d'introduire une quatrième nuance de noir.
+ *
+ * ⚠️ CORRECTION DU 5 SEPTEMBRE 2026 — découverte en auditant la marque à la
+ * demande de Kory. **Les quinze SVG de `public/brand/` ne sont PAS le logo
+ * officiel** : ce sont tous la même forme géométrique abstraite (un « E »
+ * en crochets), un symbole placeholder différent du vrai blason (écu
+ * marine/rouge, toque, livre ouvert) qui n'existe qu'en JPG,
+ * `educom-logo-officiel.jpg`. Le logo réel n'a ni variante blanche ni
+ * variante transparente : voir la plaque blanche posée autour de l'image
+ * ci-dessous.
+ *
+ * ⚠️ CORRECTION DU 5 SEPTEMBRE 2026 (v5) — le paragraphe ci-dessus annonçait
+ * le filigrane de fond (`educom-symbole-blanc.svg`) déjà retiré ; la sonde de
+ * validation de la v5 a trouvé le `<img>` toujours présent dans le rendu
+ * réel. Retiré pour de vrai cette fois, et vérifié par la même sonde.
  */
 export default function Footer() {
   const annee = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-m-line bg-m-ink text-white/70">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+    <footer className="relative overflow-hidden border-t border-white/5 bg-m-ink-deep text-white/70">
+      <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
-            <Link href="/" aria-label="EduCom — accueil" className="inline-flex h-11 items-center">
+            {/* ⚠️ `educom-logo-officiel.jpg` a un fond blanc gravé dans le
+                fichier — aucune variante transparente fidèle n'existe dans
+                `public/brand/` (voir l'en-tête plus bas : tous les SVG du
+                dossier sont un symbole abstrait différent, jamais utilisable
+                ici). Sur le marine profond du pied de page, le logo tel quel
+                laisserait un rectangle blanc disgracieux. La plaque blanche
+                est un choix de présentation autour du fichier, qui reste
+                inchangé au pixel près. */}
+            <Link href="/" aria-label="EduCom — accueil" className="inline-flex items-center rounded-[10px] bg-white p-2.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/brand/educom-logo-officiel.jpg"
@@ -63,7 +89,7 @@ export default function Footer() {
                 pied de page se manipule au pouce, en bas de l'écran, là où la
                 main est la moins précise. Les entrées offrent maintenant 44 px. */}
             <ul className="mt-3 text-[15px]">
-              <li><Link className="flex min-h-11 items-center transition-colors hover:text-white" href="/register">Créer l&apos;espace de mon école</Link></li>
+              <li><Link className="flex min-h-11 items-center transition-colors hover:text-white" href="/register">Commencer gratuitement</Link></li>
               <li><Link className="flex min-h-11 items-center transition-colors hover:text-white" href="/login">Se connecter</Link></li>
             </ul>
           </div>

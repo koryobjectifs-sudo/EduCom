@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { hasAccess, type RoleType } from "@/lib/permissions";
+import { currentAcademicYear } from "@/lib/academicYear";
 import SettingsClient from "./ClientPage";
 
 /**
@@ -36,9 +37,44 @@ export default async function SettingsPage() {
     return <div>École non trouvée</div>;
   }
 
+  const activeYear = currentAcademicYear(school);
+
+  const [enrollmentYears, feeYears] = await Promise.all([
+    prisma.enrollment.findMany({
+      where: { class: { schoolId: school.id } },
+      distinct: ["academicYear"],
+      select: { academicYear: true },
+    }),
+    prisma.feeSchedule.findMany({
+      where: { schoolId: school.id },
+      distinct: ["academicYear"],
+      select: { academicYear: true },
+    }),
+  ]);
+
+  const availableYears = Array.from(
+    new Set([
+      activeYear,
+      ...enrollmentYears.map((e) => e.academicYear),
+      ...feeYears.map((f) => f.academicYear),
+    ])
+  ).sort((a, b) => b.localeCompare(a));
+
   return (
     <div className="space-y-6">
-      <SettingsClient school={school} />
+      <SettingsClient
+        school={{
+          name: school.name || "",
+          email: school.email || "",
+          phone: school.phone || "",
+          address: school.address || "",
+          logo: school.logo || "",
+          stamp: school.stamp || "",
+          signature: school.signature || "",
+          activeAcademicYear: activeYear,
+        }}
+        availableYears={availableYears}
+      />
     </div>
   );
 }

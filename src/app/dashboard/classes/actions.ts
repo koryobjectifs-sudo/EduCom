@@ -119,6 +119,35 @@ export async function updateClass(id: string, formData: FormData) {
   return { success: true };
 }
 
+export async function assignTeacherDirectly(classId: string, teacherId: string | null) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non autorisé" };
+
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { error: "Utilisateur introuvable" };
+
+  try {
+    await prisma.class.update({
+      where: {
+        id: classId,
+        schoolId: dbUser.schoolId,
+      },
+      data: {
+        teacherId: teacherId || null,
+      },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/classes");
+    revalidatePath("/dashboard/settings/pedagogie");
+    return { success: true };
+  } catch (error) {
+    console.error("Error assigning teacher to class:", error);
+    return { error: "Erreur lors de l'affectation de l'enseignant." };
+  }
+}
+
 export async function deleteClass(id: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -260,7 +289,8 @@ export async function generateCycleClasses(cycleId: string) {
       });
     }
 
-    revalidatePath("/dashboard/directory");
+    revalidatePath("/dashboard/students");
+    revalidatePath("/dashboard/classes");
     return { success: true, count: classesToCreate.length };
   } catch (error) {
     console.error("Error generating cycle classes:", error);

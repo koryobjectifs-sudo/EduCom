@@ -7,7 +7,13 @@
 
 export const PRO_PRICE_EUR = 9;
 export const EUR_TO_XOF_RATE = 655.957;
-export const TRIAL_DAYS = 14;
+/**
+ * ⚠️ 7, pas 14 — décision de Kory du 5 septembre 2026 (refonte landing v4).
+ * Aucun mécanisme ne l'applique encore (voir `Pricing.tsx`) : changer cette
+ * valeur ne modifie qu'un nombre affiché sur la page publique, aucune
+ * logique produit.
+ */
+export const TRIAL_DAYS = 7;
 
 /**
  * Convertit un montant EUR en Francs CFA (XOF) selon le taux fixe.

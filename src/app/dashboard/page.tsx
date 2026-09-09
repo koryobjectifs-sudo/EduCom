@@ -1,6 +1,11 @@
+import { Suspense } from "react";
 import { requireSchoolContext } from "@/lib/documentContext";
 import { getDirectorDashboardSnapshot } from "@/lib/dashboard-director";
 import DirectorDashboard from "@/components/dashboard/director/DirectorDashboard";
+import AcademicProgressSectionServer from "@/components/dashboard/director/AcademicProgressSectionServer";
+import AcademicProgressSkeleton from "@/components/dashboard/director/AcademicProgressSkeleton";
+import RecentActivityFeedServer from "@/components/dashboard/director/RecentActivityFeedServer";
+import RecentActivitySkeleton from "@/components/dashboard/director/RecentActivitySkeleton";
 import DemoDataBanner from "@/components/dashboard/DemoDataBanner";
 import { type PeriodKind } from "@/lib/contextEngine";
 import { hasAccess, firstAllowedPath } from "@/lib/permissions";
@@ -36,10 +41,27 @@ export default async function DashboardHome() {
     simulation
   );
 
+  const academicSlot = snapshot.scope.pedagogie ? (
+    <Suspense fallback={<AcademicProgressSkeleton />}>
+      <AcademicProgressSectionServer schoolId={schoolId} />
+    </Suspense>
+  ) : undefined;
+
+  const recentActivitySlot = (
+    <Suspense fallback={<RecentActivitySkeleton />}>
+      <RecentActivityFeedServer schoolId={schoolId} scopeMoney={snapshot.scope.money} />
+    </Suspense>
+  );
+
   return (
     <div className="space-y-6">
       {snapshot.hasDemoData && <DemoDataBanner />}
-      <DirectorDashboard snapshot={snapshot} />
+      <DirectorDashboard
+        snapshot={snapshot}
+        academicSlot={academicSlot}
+        recentActivitySlot={recentActivitySlot}
+      />
     </div>
   );
 }
+

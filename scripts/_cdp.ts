@@ -48,6 +48,8 @@ export class CDP {
   private waiting = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
   private listeners: { method: string; resolve: () => void }[] = [];
 
+  private eventCallbacks: ((method: string, params?: unknown) => void)[] = [];
+
   static async open(url: string): Promise<CDP> {
     const c = new CDP();
     c.ws = new WebSocket(url);
@@ -56,7 +58,7 @@ export class CDP {
       c.ws.addEventListener("error", () => reject(new Error("WebSocket DevTools refusée")), { once: true });
     });
     c.ws.addEventListener("message", (ev) => {
-      const msg = JSON.parse(String((ev as MessageEvent).data)) as { id?: number; result?: unknown; error?: { message: string }; method?: string };
+      const msg = JSON.parse(String((ev as MessageEvent).data)) as { id?: number; result?: unknown; error?: { message: string }; method?: string; params?: unknown };
       if (msg.id !== undefined) {
         const w = c.waiting.get(msg.id);
         if (!w) return;
@@ -65,12 +67,19 @@ export class CDP {
         return;
       }
       if (msg.method) {
+        for (const cb of c.eventCallbacks) {
+          try { cb(msg.method, msg.params); } catch {}
+        }
         for (const l of [...c.listeners]) {
           if (l.method === msg.method) { c.listeners.splice(c.listeners.indexOf(l), 1); l.resolve(); }
         }
       }
     });
     return c;
+  }
+
+  onEvent(cb: (method: string, params?: unknown) => void) {
+    this.eventCallbacks.push(cb);
   }
 
   send<T = Record<string, unknown>>(method: string, params?: unknown, sessionId?: string): Promise<T> {

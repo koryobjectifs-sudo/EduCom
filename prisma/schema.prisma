@@ -73,6 +73,10 @@ model School {
   /// pour ces variantes — elles dériveraient les unes des autres et
   /// produiraient des chartes incohérentes.
   primaryColor        String?
+  /// Année scolaire active déclarée par l'établissement (ex. "2026-2027").
+  /// Source UNIQUE de vérité pour toute l'application : bandeau, annuaire,
+  /// classes, facturation, bulletins et présences.
+  activeAcademicYear  String?
   address             String?
   phone               String?
   email               String?
@@ -304,6 +308,8 @@ model Student {
 
   @@index([schoolId])
   @@index([parentId])
+  @@index([schoolId, status])
+  @@index([schoolId, createdAt])
 }
 
 enum EducationalCycle {
@@ -324,6 +330,8 @@ model Class {
   teacherId String?
   teacher   User?   @relation("ClassTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
 
+  isDemo    Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -339,6 +347,7 @@ model Class {
 
   @@index([schoolId])
   @@index([teacherId])
+  @@index([schoolId, name])
 }
 
 model Enrollment {
@@ -353,6 +362,8 @@ model Enrollment {
 
   @@unique([studentId, academicYear])
   @@index([classId])
+  @@index([academicYear])
+  @@index([classId, academicYear])
 }
 
 enum InvoiceStatus {
@@ -389,6 +400,9 @@ model Invoice {
   @@index([schoolId])
   @@index([studentId])
   @@index([parentId])
+  @@index([schoolId, status])
+  @@index([schoolId, dueDate])
+  @@index([schoolId, status, dueDate])
 }
 
 model InvoiceItem {
@@ -428,6 +442,7 @@ model Payment {
 
   @@index([invoiceId])
   @@index([schoolId])
+  @@index([schoolId, method])
   /// Recettes par période : `createdAt` est la SEULE date d'un encaissement.
   @@index([schoolId, createdAt])
 }
@@ -864,6 +879,8 @@ model TeachingAssignment {
   @@index([classId])
   @@index([teacherId])
   @@index([schoolId])
+  @@index([schoolId, teacherId])
+  @@index([schoolId, classId])
 }
 
 model Term {
@@ -912,6 +929,7 @@ model Evaluation {
 
   @@index([termId])
   @@index([schoolId])
+  @@index([schoolId, date])
 }
 
 enum ReportCardStatus {
@@ -959,6 +977,8 @@ model ReportCard {
   @@unique([studentId, evaluationId])
   @@index([classId, evaluationId])
   @@index([schoolId])
+  @@index([schoolId, status])
+  @@index([schoolId, termId])
 }
 
 model Grade {
@@ -997,6 +1017,8 @@ model Grade {
   @@index([termId])
   @@index([evaluationId])
   @@index([teacherId])
+  @@index([classId, termId])
+  @@index([studentId, termId])
 }
 
 /**
@@ -1214,7 +1236,6 @@ enum DocCategory {
   IDENTITE
   INSCRIPTION
   SCOLARITE
-  SANTE
   TRANSFERT
   EXAMENS
   AUTRES
@@ -1234,6 +1255,11 @@ enum StudentKind {
   TRANSFERT
 }
 
+enum RequirementSource {
+  OFFICIEL
+  ETABLISSEMENT
+}
+
 /// État d'une pièce du dossier.
 ///
 /// ⚠️ `MISSING` n'est jamais écrit en base : une pièce manquante n'a pas de
@@ -1246,6 +1272,7 @@ enum StudentDocStatus {
   VALIDATED
   REJECTED
   EXPIRED
+  EN_REGULARISATION
 }
 
 /// Une pièce exigée par l'établissement — la checklist configurable.
@@ -1263,6 +1290,7 @@ enum StudentDocStatus {
 model DocumentRequirement {
   id       String      @id @default(uuid())
   label    String
+  shortLabel String?
   category DocCategory @default(AUTRES)
 
   cycle        EducationalCycle?
@@ -1270,6 +1298,11 @@ model DocumentRequirement {
   class        Class?            @relation(fields: [classId], references: [id], onDelete: Cascade)
   academicYear String?
   studentKind  StudentKind?
+
+  required    Boolean           @default(true)
+  source      RequirementSource @default(OFFICIEL)
+  conditional String?
+  pinned      Boolean           @default(true)
 
   /// Durée de validité en mois. NULL = la pièce ne périme pas.
   /// Sert à faire passer un document en EXPIRED sans supposer de durée par défaut.
@@ -1288,9 +1321,11 @@ model DocumentRequirement {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
+  @@unique([schoolId, cycle, label])
   @@index([schoolId])
   @@index([schoolId, active])
   @@index([classId])
+  @@index([schoolId, active, position])
 }
 
 /// Une pièce réellement reçue, stockée dans Supabase Storage.
@@ -1337,11 +1372,12 @@ model StudentDocument {
   academicYear String?
   expiresAt    DateTime?
 
-  uploadedById String
-  reviewedById String?
-  reviewedAt   DateTime?
+  uploadedById   String
+  uploadedByRole String?
+  reviewedById   String?
+  reviewedAt     DateTime?
   /// Motif de rejet, ou note de validation.
-  reviewNote   String?
+  reviewNote     String?
 
   /// Chaîne de remplacement.
   supersedesId String?          @unique
@@ -1360,6 +1396,9 @@ model StudentDocument {
   @@index([studentId, supersededAt])
   @@index([requirementId])
   @@index([folderId])
+  @@index([schoolId, supersededAt])
+  @@index([schoolId, status])
+  @@index([schoolId, studentId, requirementId])
 }
 
 /**

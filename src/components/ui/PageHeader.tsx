@@ -39,10 +39,10 @@ export function PageHeader({
   className = "",
 }: PageHeaderProps) {
   return (
-    <div className={`flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between ${className}`}>
+    <div className={`flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between ${className}`}>
       <div className="min-w-0">
         {breadcrumb && breadcrumb.length > 0 && (
-          <nav aria-label="Fil d'Ariane" className="mb-2">
+          <nav aria-label="Fil d'Ariane" className="mb-1">
             <ol className="flex flex-wrap items-center gap-1 text-role-meta text-text-faint">
               {breadcrumb.map((c, i) => {
                 const last = i === breadcrumb.length - 1;
@@ -65,10 +65,10 @@ export function PageHeader({
           </nav>
         )}
 
-        <h1 className="text-role-page font-semibold tracking-tight text-text">{title}</h1>
+        <h1 className="type-page-title">{title}</h1>
 
         {description && (
-          <p className="mt-1 text-role-body text-text-soft max-w-2xl">{description}</p>
+          <p className="mt-0.5 type-page-subtitle max-w-2xl">{description}</p>
         )}
       </div>
 

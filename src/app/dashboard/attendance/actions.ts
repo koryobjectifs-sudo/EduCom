@@ -85,33 +85,37 @@ export async function saveAttendanceBatch(classId: string, date: Date, records: 
   });
   if (!targetClass) throw new Error("Classe non trouvée ou accès refusé.");
 
-  // We must upsert. But Prisma doesn't have createManyUpsert for PG in the standard way without raw SQL
-  // or iterating. But we can just use a transaction of upserts.
-  // It's much faster than individual queries but safer than complex raw.
-  
+  if (records.length === 0) {
+    return { success: true };
+  }
+
+  const studentIds = records.map((r) => r.studentId);
+
+  // Règle 10 : Optimisation par batching atomique (deleteMany + createMany)
+  // Exécute 2 requêtes SQL globales au lieu de N requêtes upsert séquentielles,
+  // éliminant tout risque d'expiration de transaction (timeout 5000ms).
   await prisma.$transaction(
-    records.map(r => prisma.attendance.upsert({
-      where: {
-        studentId_date: {
+    [
+      prisma.attendance.deleteMany({
+        where: {
+          schoolId,
+          date: normalizedDate,
+          studentId: { in: studentIds },
+        },
+      }),
+      prisma.attendance.createMany({
+        data: records.map((r) => ({
+          date: normalizedDate,
+          status: r.status,
+          reason: r.reason || null,
           studentId: r.studentId,
-          date: normalizedDate
-        }
-      },
-      update: {
-        status: r.status,
-        reason: r.reason || null,
-        recordedById: userId
-      },
-      create: {
-        date: normalizedDate,
-        status: r.status,
-        reason: r.reason || null,
-        studentId: r.studentId,
-        classId,
-        schoolId,
-        recordedById: userId
-      }
-    }))
+          classId,
+          schoolId,
+          recordedById: userId,
+        })),
+      }),
+    ],
+    { timeout: 15000 }
   );
 
   return { success: true };
