@@ -312,8 +312,119 @@ async function main() {
       console.log(`✓ /dashboard/students/dossiers/review -> Hydratation client & Affichage OK dans Chrome (Titre : "${browserCheck.h1}")`);
     }
 
-    // 5.2 Test systématique de TOUTES les 54 routes pour OWNER avec inspection du contenu rendu et assertion positive
-    console.log("\n--- TEST D'EXÉCUTION DES 54 ROUTES (OWNER) ---");
+    // 5.1c Test géométrique strict du liseré actif du rail (Non-chevauchement de l'icône sur les 6 tuiles à 1440px, 768px et 390px)
+    console.log("\n--- TEST DU LISERÉ ACTIF DU RAIL (6 TUILES, 3 RÉSOLUTIONS) ---");
+    const SPACES_TO_TEST = [
+      { name: "Accueil", url: "/dashboard" },
+      { name: "Scolarité", url: "/dashboard/students" },
+      { name: "Pédagogie", url: "/dashboard/grades" },
+      { name: "Finances", url: "/dashboard/payments" },
+      { name: "Documents", url: "/dashboard/documents" },
+      { name: "Admin", url: "/dashboard/admin" },
+    ];
+
+    const VIEWPORTS = [
+      { name: "Desktop (1440px)", width: 1440, height: 900 },
+      { name: "Tablet (768px)", width: 768, height: 1024 },
+      { name: "Mobile (390px)", width: 390, height: 844 },
+    ];
+
+    for (const vp of VIEWPORTS) {
+      await cdp.send("Emulation.setDeviceMetricsOverride", {
+        width: vp.width,
+        height: vp.height,
+        deviceScaleFactor: 2,
+        mobile: vp.width < 768,
+      }, session);
+
+      for (const sp of SPACES_TO_TEST) {
+        await cdp.send("Page.navigate", { url: `${BASE}${sp.url}` }, session);
+        await new Promise((r) => setTimeout(r, 600));
+
+        const railCheck = await evaluate<{
+          isMobile: boolean;
+          railHidden: boolean;
+          activeTileFound: boolean;
+          indicatorFound: boolean;
+          indicatorLeft: number;
+          tileLeft: number;
+          indicatorRight: number;
+          iconLeft: number;
+          iconRight: number;
+          overlaps: boolean;
+          bgColor: string;
+        }>(
+          cdp,
+          session,
+          `(() => {
+            const isMobile = window.innerWidth < 768;
+            const rail = document.querySelector('aside[aria-label="Espaces de travail"]');
+            if (isMobile) {
+              const style = rail ? window.getComputedStyle(rail) : null;
+              const railHidden = !rail || style.display === 'none';
+              return { isMobile: true, railHidden, activeTileFound: false, indicatorFound: false, indicatorLeft: 0, tileLeft: 0, indicatorRight: 0, iconLeft: 0, iconRight: 0, overlaps: false, bgColor: '' };
+            }
+
+            const activeTile = rail ? rail.querySelector('a[aria-current="page"]') : null;
+            if (!activeTile) {
+              return { isMobile: false, railHidden: false, activeTileFound: false, indicatorFound: false, indicatorLeft: 0, tileLeft: 0, indicatorRight: 0, iconLeft: 0, iconRight: 0, overlaps: false, bgColor: '' };
+            }
+
+            const indicator = activeTile.querySelector('[data-testid="rail-active-indicator"]');
+            const icon = activeTile.querySelector('svg');
+
+            if (!indicator || !icon) {
+              return { isMobile: false, railHidden: false, activeTileFound: true, indicatorFound: !!indicator, indicatorLeft: 0, tileLeft: 0, indicatorRight: 0, iconLeft: 0, iconRight: 0, overlaps: false, bgColor: '' };
+            }
+
+            const tileRect = activeTile.getBoundingClientRect();
+            const indRect = indicator.getBoundingClientRect();
+            const iconRect = icon.getBoundingClientRect();
+            const indStyle = window.getComputedStyle(indicator);
+
+            // Le liseré ne doit JAMAIS déborder sur l'icône (indRect.right <= iconRect.left)
+            const overlaps = indRect.right > iconRect.left && indRect.left < iconRect.right;
+
+            return {
+              isMobile: false,
+              railHidden: false,
+              activeTileFound: true,
+              indicatorFound: true,
+              indicatorLeft: Math.round(indRect.left),
+              tileLeft: Math.round(tileRect.left),
+              indicatorRight: Math.round(indRect.right),
+              iconLeft: Math.round(iconRect.left),
+              iconRight: Math.round(iconRect.right),
+              overlaps,
+              bgColor: indStyle.backgroundColor,
+            };
+          })()`
+        );
+
+        if (railCheck.isMobile) {
+          if (!railCheck.railHidden) {
+            console.error(`❌ Rail non masqué sur mobile 390px (${sp.name})`);
+            failures.push({ route: `Rail Mobile ${sp.name}`, error: "Rail visible on mobile" });
+          }
+        } else {
+          if (!railCheck.activeTileFound) {
+            console.error(`❌ Tuile active non trouvée pour l'espace ${sp.name} (${vp.name})`);
+            failures.push({ route: `Rail ${sp.name} (${vp.name})`, error: "Active tile not found" });
+          } else if (!railCheck.indicatorFound) {
+            console.error(`❌ Liseré actif [data-testid="rail-active-indicator"] non trouvé pour ${sp.name} (${vp.name})`);
+            failures.push({ route: `Rail ${sp.name} (${vp.name})`, error: "Active indicator not found" });
+          } else if (railCheck.overlaps) {
+            console.error(`❌ RÉGRESSION : Le liseré chevauche l'icône sur la tuile ${sp.name} (${vp.name}) ! Liseré right: ${railCheck.indicatorRight}px, Icône left: ${railCheck.iconLeft}px`);
+            failures.push({ route: `Rail ${sp.name} (${vp.name})`, error: "Indicator overlaps icon" });
+          } else {
+            console.log(`✓ [${vp.name}] Tuile ${sp.name.padEnd(10)} -> Liseré bord gauche OK (x=${railCheck.indicatorLeft}px, icône x=${railCheck.iconLeft}px, zéro chevauchement)`);
+          }
+        }
+      }
+    }
+
+    // Remise de la résolution Desktop par défaut
+    await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 2, mobile: false }, session);
     let count = 0;
     for (const route of concreteRoutes) {
       count++;

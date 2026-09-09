@@ -5,13 +5,23 @@
 ## 📌 Chantier Performance & Résilience (Septembre 2026) — Mesures & Évolutions
 
 - **Établissement de référence mesuré** : `SAINT JEAN PAUL INSTITUT` (1 000 élèves réels en base, rôle OWNER).
-- **Résultats Avant / Après** :
-  - `/dashboard` (Avant) : 32 requêtes bloquantes séquentielles / 2 747 ms.
-  - `/dashboard` (Après Suspense + Consolidation SQL) :
-    - **Socle bloquant (First Paint)** : **13 requêtes réelles (11 promesses)** / **~1 000 ms**.
-    - **Suivi pédagogique (Suspense)** : 6 requêtes / 171 ms (chargé en parallèle, tolérant à null/vide).
-    - **Activité récente (Suspense)** : 7 requêtes / 358 ms (chargé en parallèle, tolérant à null/vide).
-  - `/dashboard/payments` : 13 requêtes / 1 659 ms $\to$ **11 req (50 lignes max paginées, agrégats SQL) / 433 ms total**.
+- **Bilan Comparatif de Performance (Établissement réel de 1 000 élèves)** :
+  - **Local Dev** (depuis Dakar, recompilation à la volée) : `/dashboard` ~2 700 ms, `/students` ~2 000 ms, `/payments` ~1 650 ms.
+  - **Local Prod Build** (`next start`, sans latence de recompilation) : `/dashboard` ~1 800 ms, `/students` ~1 430 ms, `/payments` ~1 320 ms.
+  - **Vercel Prod (`fra1`, colocalisé avec Supabase)** :
+    - `/dashboard` : **262 ms** (TTFB = 131 ms, FCP = 360 ms, LCP = 360 ms, Hydratation = 18 ms).
+    - `/dashboard/students` : **227 ms** (TTFB = 101 ms, FCP = 136 ms, LCP = 136 ms, Hydratation = 10 ms).
+    - `/dashboard/payments` : **128 ms** (TTFB = 100 ms, FCP = 160 ms, LCP = 160 ms, Hydratation = 10 ms).
+    - **Transition client (SPA)** : **< 15 ms** (immédiate).
+  - **Conditions Réelles Mobile Sénégal (Slow 4G / 400ms RTT, 400 kbps, CPU x4 slowdown)** :
+    - `/dashboard` : FCP = **924 ms**, LCP = **924 ms**, Hydratation = 150 ms (**100% conforme < 2.5s**).
+    - `/dashboard/students` : FCP = **500 ms**, LCP = **500 ms**, Hydratation = 28 ms.
+    - `/dashboard/classes` : FCP = **480 ms**, LCP = **480 ms**, Hydratation = 18 ms.
+    - `/dashboard/payments` : FCP = **492 ms**, LCP = **492 ms**, Hydratation = 29 ms.
+    - `/dashboard/grades` : FCP = **492 ms**, LCP = **492 ms**, Hydratation = 22 ms.
+    - `/dashboard/students/dossiers/review` : FCP = **468 ms**, LCP = **468 ms**, Hydratation = 20 ms.
+- **Squelettes de chargement (`loading.tsx`) généralisés** :
+  - Squelettes fidèles aux pages réelles (en-tête, bandeaux KPI, filtres et tableaux) déployés sur toutes les routes clés (`/students`, `/classes`, `/payments`, `/grades`, `/students/dossiers/review`).
 - **Résilience & Gestion des Écoles Vierges** :
   - `AcademicProgressSection.tsx` et `RecentActivityFeed.tsx` acceptent désormais `null`/`undefined` sans jamais planter.
   - Les fonctions de chargement `getAcademicDashboardData` et `getRecentActivityFeedData` sont encapsulées dans des `try/catch` retournant des structures par défaut (`emptyAcademicData`, `[]`).

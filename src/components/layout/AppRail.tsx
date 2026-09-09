@@ -69,7 +69,8 @@ export default function AppRail({
             {isDashboardActive && (
               <span
                 aria-hidden="true"
-                className="absolute inset-inline-start-0 top-1/2 -translate-y-1/2 h-4 w-1 rounded-full bg-[#9C0F15]"
+                data-testid="rail-active-indicator"
+                className="absolute left-0 top-1/2 -translate-y-1/2 h-[26px] w-[3px] rounded-r-full bg-[#9C0F15]"
               />
             )}
 
@@ -111,11 +112,12 @@ export default function AppRail({
                     : "text-slate-400 hover:bg-[#18365D] hover:text-white",
                 ].join(" ")}
               >
-                {/* Liseré d'accent actif Rouge EduCom (#9C0F15) */}
+                {/* Liseré d'accent actif Rouge EduCom (#9C0F15) sur le bord gauche de la tuile */}
                 {isActive && (
                   <span
                     aria-hidden="true"
-                    className="absolute inset-inline-start-0 top-1/2 -translate-y-1/2 h-4 w-1 rounded-full bg-[#9C0F15]"
+                    data-testid="rail-active-indicator"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 h-[26px] w-[3px] rounded-r-full bg-[#9C0F15]"
                   />
                 )}
 
