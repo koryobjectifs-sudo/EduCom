@@ -10,9 +10,12 @@
  */
 
 const CYCLE_ORDER: Record<string, number> = {
+  PRESCOLAIRE: 0,
   MATERNELLE: 0,
   ELEMENTAIRE: 1,
+  MOYEN: 2,
   COLLEGE: 2,
+  SECONDAIRE: 3,
   LYCEE: 3,
   AUTRE: 4,
 };

@@ -194,22 +194,22 @@ export async function generateDefaultClasses() {
   if (!dbUser) return { error: "Utilisateur introuvable" };
 
   const defaultClasses = [
-    { name: "Petite Section", cycle: "MATERNELLE" },
-    { name: "Moyenne Section", cycle: "MATERNELLE" },
-    { name: "Grande Section", cycle: "MATERNELLE" },
+    { name: "Petite Section", cycle: "PRESCOLAIRE" },
+    { name: "Moyenne Section", cycle: "PRESCOLAIRE" },
+    { name: "Grande Section", cycle: "PRESCOLAIRE" },
     { name: "CI", cycle: "ELEMENTAIRE" },
     { name: "CP", cycle: "ELEMENTAIRE" },
     { name: "CE1", cycle: "ELEMENTAIRE" },
     { name: "CE2", cycle: "ELEMENTAIRE" },
     { name: "CM1", cycle: "ELEMENTAIRE" },
     { name: "CM2", cycle: "ELEMENTAIRE" },
-    { name: "6ème", cycle: "COLLEGE" },
-    { name: "5ème", cycle: "COLLEGE" },
-    { name: "4ème", cycle: "COLLEGE" },
-    { name: "3ème", cycle: "COLLEGE" },
-    { name: "Seconde", cycle: "LYCEE" },
-    { name: "Première", cycle: "LYCEE" },
-    { name: "Terminale", cycle: "LYCEE" },
+    { name: "6ème", cycle: "MOYEN" },
+    { name: "5ème", cycle: "MOYEN" },
+    { name: "4ème", cycle: "MOYEN" },
+    { name: "3ème", cycle: "MOYEN" },
+    { name: "Seconde", cycle: "SECONDAIRE" },
+    { name: "Première", cycle: "SECONDAIRE" },
+    { name: "Terminale", cycle: "SECONDAIRE" },
   ];
 
   try {
@@ -249,22 +249,22 @@ export async function generateCycleClasses(cycleId: string) {
   if (!dbUser) return { error: "Utilisateur introuvable" };
 
   const defaultClasses = [
-    { name: "Petite Section", cycle: "MATERNELLE" },
-    { name: "Moyenne Section", cycle: "MATERNELLE" },
-    { name: "Grande Section", cycle: "MATERNELLE" },
+    { name: "Petite Section", cycle: "PRESCOLAIRE" },
+    { name: "Moyenne Section", cycle: "PRESCOLAIRE" },
+    { name: "Grande Section", cycle: "PRESCOLAIRE" },
     { name: "CI", cycle: "ELEMENTAIRE" },
     { name: "CP", cycle: "ELEMENTAIRE" },
     { name: "CE1", cycle: "ELEMENTAIRE" },
     { name: "CE2", cycle: "ELEMENTAIRE" },
     { name: "CM1", cycle: "ELEMENTAIRE" },
     { name: "CM2", cycle: "ELEMENTAIRE" },
-    { name: "6ème", cycle: "COLLEGE" },
-    { name: "5ème", cycle: "COLLEGE" },
-    { name: "4ème", cycle: "COLLEGE" },
-    { name: "3ème", cycle: "COLLEGE" },
-    { name: "Seconde", cycle: "LYCEE" },
-    { name: "Première", cycle: "LYCEE" },
-    { name: "Terminale", cycle: "LYCEE" },
+    { name: "6ème", cycle: "MOYEN" },
+    { name: "5ème", cycle: "MOYEN" },
+    { name: "4ème", cycle: "MOYEN" },
+    { name: "3ème", cycle: "MOYEN" },
+    { name: "Seconde", cycle: "SECONDAIRE" },
+    { name: "Première", cycle: "SECONDAIRE" },
+    { name: "Terminale", cycle: "SECONDAIRE" },
   ];
 
   const cycleClasses = defaultClasses.filter(c => c.cycle === cycleId);

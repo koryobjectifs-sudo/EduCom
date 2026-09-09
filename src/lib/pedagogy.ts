@@ -368,7 +368,7 @@ export async function configurationReadiness(
 
   // ⚠️ La maternelle est structurellement évaluée par domaines d'apprentissage (pas par matières).
   // On l'exclut donc du dénominateur du programme afin de ne jamais bloquer l'école à 6/9 classes.
-  const nonMaternelleClasses = classes.filter((c) => c.cycle !== "MATERNELLE");
+  const nonMaternelleClasses = classes.filter((c) => c.cycle !== "PRESCOLAIRE");
   const nNonMaternelle = nonMaternelleClasses.length;
   const withSubjectsCount = nonMaternelleClasses.filter((c) => withSubjects.has(c.id)).length;
 

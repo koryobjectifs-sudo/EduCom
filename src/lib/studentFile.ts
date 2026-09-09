@@ -199,7 +199,7 @@ export function evaluateRequirementCondition(
   }
 
   // Condition transfert
-  if (cond.includes("transfert") || cond.includes("exeat")) {
+  if (cond.includes("transfer") || cond.includes("exeat")) {
     return context.kind === "TRANSFERT";
   }
 
@@ -396,7 +396,7 @@ export async function studentFile(actor: ActorContext, studentId: string) {
 export async function signedUrlFor(
   actor: ActorContext,
   documentId: string,
-  expiresInSeconds = 120,
+  expiresInSeconds = 900, // 15 minutes
 ): Promise<{ url: string; fileName: string } | { error: string }> {
   const NOT_FOUND = { error: "Document introuvable dans votre établissement." };
 

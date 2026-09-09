@@ -134,7 +134,7 @@ export default async function PedagogiePage() {
     : null;
 
   const totalStudents = rawClasses.reduce((acc, c) => acc + c._count.enrollments, 0);
-  const nonMaternelleClasses = rawClasses.filter((c) => c.cycle !== "MATERNELLE");
+  const nonMaternelleClasses = rawClasses.filter((c) => c.cycle !== "PRESCOLAIRE");
 
   const ICONE = {
     done: CheckCircle2,

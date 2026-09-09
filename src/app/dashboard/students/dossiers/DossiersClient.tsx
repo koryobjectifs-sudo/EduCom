@@ -42,7 +42,7 @@ const CYCLE_CONFIG: Record<
     iconColor: string;
   }
 > = {
-  MATERNELLE: {
+  PRESCOLAIRE: {
     icon: Sparkles,
     accentColor: "rose",
     bgBadge: "bg-rose-50",
@@ -62,7 +62,7 @@ const CYCLE_CONFIG: Record<
     iconBg: "bg-blue-100/70 text-blue-600",
     iconColor: "text-blue-500",
   },
-  COLLEGE: {
+  MOYEN: {
     icon: GraduationCap,
     accentColor: "purple",
     bgBadge: "bg-purple-50",
@@ -72,7 +72,7 @@ const CYCLE_CONFIG: Record<
     iconBg: "bg-purple-100/70 text-purple-600",
     iconColor: "text-purple-500",
   },
-  LYCEE: {
+  SECONDAIRE: {
     icon: Landmark,
     accentColor: "emerald",
     bgBadge: "bg-emerald-50",
@@ -98,18 +98,15 @@ export default function DossiersClient({
   studentsData,
   classesData,
   selectedClassId: externalSelectedClassId,
-  onSelectClass,
+  onSelectClass: externalOnSelectClass,
 }: DossiersClientProps) {
   const [internalSelectedClassId, setInternalSelectedClassId] = useState<string | null>(null);
 
   const selectedClassId = externalSelectedClassId !== undefined ? externalSelectedClassId : internalSelectedClassId;
+  const onSelectClass = externalOnSelectClass || setInternalSelectedClassId;
 
   const handleSelectClass = (id: string | null) => {
-    if (onSelectClass) {
-      onSelectClass(id);
-    } else {
-      setInternalSelectedClassId(id);
-    }
+    onSelectClass(id);
   };
 
   /**
@@ -143,7 +140,7 @@ export default function DossiersClient({
   }, [studentsData, classesData]);
 
   const groupes = useMemo(() => {
-    const ordre = ["MATERNELLE", "ELEMENTAIRE", "COLLEGE", "LYCEE", "AUTRE"] as const;
+    const ordre = ["PRESCOLAIRE", "ELEMENTAIRE", "MOYEN", "SECONDAIRE", "AUTRE"] as const;
     const connus = new Set<string>(ordre);
     const listes = ordre
       .map((cycle) => {
@@ -151,7 +148,7 @@ export default function DossiersClient({
         const totalStudents = classes.reduce((sum, c) => sum + (statsByClass.stats[c.id] || 0), 0);
         return {
           cle: cycle as string,
-          titre: CYCLE_LABELS[cycle] || cycle,
+          titre: (CYCLE_LABELS as Record<string, string>)[cycle] || cycle,
           classes,
           totalStudents,
           config: CYCLE_CONFIG[cycle] || CYCLE_CONFIG.AUTRE,

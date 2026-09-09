@@ -24,7 +24,7 @@ type Request = {
   itemLabel: string; className: string | null; decisionReason: string | null;
 };
 
-const CYCLES = ["MATERNELLE", "ELEMENTAIRE", "COLLEGE", "LYCEE", "AUTRE"];
+const CYCLES = ["PRESCOLAIRE", "ELEMENTAIRE", "MOYEN", "SECONDAIRE", "AUTRE"];
 
 export function FeesClient({
   schedules, activeId, items, classes, requests, forecastTotal, forecastStudents, uncovered,

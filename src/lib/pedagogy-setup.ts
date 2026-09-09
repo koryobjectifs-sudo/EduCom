@@ -197,6 +197,6 @@ export async function setupSchoolPedagogy(
     termsCreated,
     evaluationsCreated,
     totalClasses: allClasses.length,
-    nonMaternelleClasses: allClasses.filter((c) => c.cycle !== "MATERNELLE").length,
+    nonMaternelleClasses: allClasses.filter((c) => c.cycle !== "PRESCOLAIRE").length,
   };
 }

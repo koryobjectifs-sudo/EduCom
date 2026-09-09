@@ -313,10 +313,10 @@ model Student {
 }
 
 enum EducationalCycle {
-  MATERNELLE
+  PRESCOLAIRE
   ELEMENTAIRE
-  COLLEGE
-  LYCEE
+  MOYEN
+  SECONDAIRE
   AUTRE
 }
 

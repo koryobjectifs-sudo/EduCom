@@ -72,7 +72,7 @@ async function main() {
   const testClass = await prisma.class.create({
     data: {
       name: "6ème A",
-      cycle: "COLLEGE",
+      cycle: "MOYEN",
       schoolId: school.id,
     },
   });

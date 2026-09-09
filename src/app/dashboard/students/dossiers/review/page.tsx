@@ -19,20 +19,40 @@ export const metadata = {
   description: "Examen des admissions, conformité des pièces d'inscription réglementaires sénégalaises",
 };
 
-export default async function DossierReviewPage() {
+export default async function DossierReviewPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    tab?: string;
+    page?: string;
+    q?: string;
+    classId?: string;
+    cycle?: string;
+    missingPiece?: string;
+  }>;
+}) {
   const { user, schoolId } = await requireSchoolContext();
   const role = user.role as RoleType;
 
-  if (!hasAccess(role, "/dashboard/students")) {
+  // Enseignants et parents n'ont aucun accès aux dossiers d'admission administratifs globaux
+  if (role === "TEACHER" || role === "PARENT" || !hasAccess(role, "/dashboard/students")) {
     redirect("/dashboard");
   }
+
+  const sp = searchParams ? await searchParams : {};
+  const currentTab = (sp.tab || "todo") as "todo" | "missing_docs" | "compliant" | "all";
+  const currentPage = Math.max(1, parseInt(sp.page || "1", 10));
+  const pageSize = 50;
+  const searchQuery = sp.q?.trim() || "";
+  const classFilter = sp.classId || "";
+  const cycleFilter = sp.cycle || "";
 
   const actor = { schoolId, userId: user.id, role };
   const scope = await studentWhereFor(actor);
   const year = currentAcademicYear();
 
-  // 1. Récupération parallèle des classes, exigences, élèves et pièces
-  const [classes, allConfiguredRequirements, students, allStudentDocs] = await Promise.all([
+  // 1. Récupération des classes et des exigences
+  const [classes, allConfiguredRequirements] = await Promise.all([
     prisma.class.findMany({
       where: { schoolId },
       select: { id: true, name: true, cycle: true },
@@ -42,66 +62,9 @@ export default async function DossierReviewPage() {
       where: { schoolId, active: true },
       orderBy: [{ position: "asc" }, { label: "asc" }],
     }),
-    prisma.student.findMany({
-      where: { AND: [scope, { schoolId }] },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        dateOfBirth: true,
-        gender: true,
-        status: true,
-        kindOverride: true,
-        createdAt: true,
-        emergencyContact: true,
-        emergencyPhone: true,
-        parent: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            phone: true,
-          },
-        },
-        enrollments: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: {
-            academicYear: true,
-            class: {
-              select: {
-                id: true,
-                name: true,
-                cycle: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: [
-        { status: "asc" }, // "PENDING" prioritaire
-        { createdAt: "desc" },
-      ],
-    }),
-    prisma.studentDocument.findMany({
-      where: {
-        schoolId,
-        supersededAt: null,
-      },
-      select: {
-        id: true,
-        studentId: true,
-        requirementId: true,
-        status: true,
-        fileName: true,
-        storagePath: true,
-        reviewNote: true,
-        updatedAt: true,
-      },
-    }),
   ]);
 
-  // 2. Référentiel des exigences (purement en lecture — aucune écriture au rendu)
+  // 2. Référentiel des exigences
   let effectiveRequirements = allConfiguredRequirements;
   if (allConfiguredRequirements.length === 0 && classes.length > 0) {
     const activeCycles = Array.from(
@@ -113,7 +76,7 @@ export default async function DossierReviewPage() {
       return reqs.map((r: OfficialRequirementDef, i: number) => ({
         id: `virtual-${cycle}-${i}`,
         label: r.label,
-        shortLabel: r.label,
+        shortLabel: r.shortLabel || r.label,
         category: r.category as any,
         cycle,
         classId: null,
@@ -133,44 +96,243 @@ export default async function DossierReviewPage() {
     });
   }
 
-  // 3. Indexation des pièces par studentId -> requirementId
-  const docsByStudentAndReq = new Map<string, (typeof allStudentDocs)[0]>();
-  for (const doc of allStudentDocs) {
+  // 3. Calcul des compteurs SQL étanches pour les 4 onglets
+  const baseWhere = { AND: [scope, { schoolId }] };
+
+  // a. À traiter (PENDING)
+  const todoCount = await prisma.student.count({
+    where: {
+      AND: [baseWhere, { status: "PENDING" }],
+    },
+  });
+
+  // b. Tous les élèves
+  const allCount = await prisma.student.count({
+    where: baseWhere,
+  });
+
+  // c. Évaluation des élèves admis (ENROLLED) pour Complétude / Pièces manquantes
+  const enrolledStudents = await prisma.student.findMany({
+    where: {
+      AND: [baseWhere, { status: "ENROLLED" }],
+    },
+    select: {
+      id: true,
+      dateOfBirth: true,
+      kindOverride: true,
+      enrollments: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          academicYear: true,
+          class: { select: { id: true, name: true, cycle: true } },
+        },
+      },
+      documents: {
+        where: { supersededAt: null },
+        select: { requirementId: true, status: true },
+      },
+    },
+  });
+
+  const compliantStudentIds: string[] = [];
+  const missingDocsStudentIds: string[] = [];
+
+  for (const s of enrolledStudents) {
+    const currentEnrollment = s.enrollments[0]?.class ?? null;
+    const kind = resolveStudentKind(s, year);
+    const ageCalc = calculateAge(s.dateOfBirth);
+    const age = ageCalc ? ageCalc.age : null;
+
+    let totalRequiredApplicable = 0;
+    let compliantCount = 0;
+
+    for (const req of effectiveRequirements) {
+      if (!req.required) continue;
+
+      let applicable = true;
+      if (req.cycle && currentEnrollment?.cycle && req.cycle !== currentEnrollment.cycle) {
+        applicable = false;
+      } else if (req.classId && currentEnrollment?.id && req.classId !== currentEnrollment.id) {
+        applicable = false;
+      } else if (req.studentKind && req.studentKind !== kind) {
+        applicable = false;
+      } else if (req.conditional) {
+        const cond = req.conditional.toLowerCase().trim();
+        if (cond.includes("age < 6") || cond.includes("age_lt_6") || cond.includes("prescolaire")) {
+          const isCI = currentEnrollment?.name ? currentEnrollment.name.toUpperCase().includes("CI") : false;
+          if (!isCI || (age !== null && age >= 6)) applicable = false;
+        } else if (cond.includes("transfer") || cond.includes("exeat")) {
+          if (kind !== "TRANSFERT") applicable = false;
+        }
+      }
+
+      if (applicable) {
+        totalRequiredApplicable++;
+        const hasValidDoc = s.documents.some(
+          (d) => d.requirementId === req.id && d.status === "VALIDATED"
+        );
+        if (hasValidDoc) compliantCount++;
+      }
+    }
+
+    const isFullyCompliant = totalRequiredApplicable > 0 && compliantCount === totalRequiredApplicable;
+    if (isFullyCompliant) {
+      compliantStudentIds.push(s.id);
+    } else {
+      missingDocsStudentIds.push(s.id);
+    }
+  }
+
+  const sqlCounts = {
+    todo: todoCount,
+    missing_docs: missingDocsStudentIds.length,
+    compliant: compliantStudentIds.length,
+    all: allCount,
+  };
+
+  // 4. Construction de la condition de filtrage pour la page courante
+  let targetWhere: any = { ...baseWhere };
+
+  if (currentTab === "todo") {
+    targetWhere = { AND: [targetWhere, { status: "PENDING" }] };
+  } else if (currentTab === "missing_docs") {
+    targetWhere = { AND: [targetWhere, { id: { in: missingDocsStudentIds } }] };
+  } else if (currentTab === "compliant") {
+    targetWhere = { AND: [targetWhere, { id: { in: compliantStudentIds } }] };
+  }
+
+  if (classFilter && classFilter !== "ALL") {
+    targetWhere = {
+      AND: [targetWhere, { enrollments: { some: { classId: classFilter } } }],
+    };
+  } else if (cycleFilter && cycleFilter !== "ALL") {
+    targetWhere = {
+      AND: [targetWhere, { enrollments: { some: { class: { cycle: cycleFilter as any } } } }],
+    };
+  }
+
+  if (searchQuery) {
+    targetWhere = {
+      AND: [
+        targetWhere,
+        {
+          OR: [
+            { firstName: { contains: searchQuery, mode: "insensitive" } },
+            { lastName: { contains: searchQuery, mode: "insensitive" } },
+            { matricule: { contains: searchQuery, mode: "insensitive" } },
+            { emergencyContact: { contains: searchQuery, mode: "insensitive" } },
+            { emergencyPhone: { contains: searchQuery, mode: "insensitive" } },
+            { parent: { firstName: { contains: searchQuery, mode: "insensitive" } } },
+            { parent: { lastName: { contains: searchQuery, mode: "insensitive" } } },
+            { parent: { phone: { contains: searchQuery, mode: "insensitive" } } },
+          ],
+        },
+      ],
+    };
+  }
+
+  // 5. Comptage total et pagination serveur (50 lignes max)
+  const totalFilteredCount = await prisma.student.count({ where: targetWhere });
+  const totalPages = Math.max(1, Math.ceil(totalFilteredCount / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+
+  const pageStudents = await prisma.student.findMany({
+    where: targetWhere,
+    skip: (safePage - 1) * pageSize,
+    take: pageSize,
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      dateOfBirth: true,
+      gender: true,
+      status: true,
+      kindOverride: true,
+      createdAt: true,
+      emergencyContact: true,
+      emergencyPhone: true,
+      parent: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+        },
+      },
+      enrollments: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          academicYear: true,
+          class: {
+            select: {
+              id: true,
+              name: true,
+              cycle: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: [
+      { status: "asc" }, // "PENDING" en priorité
+      { createdAt: "desc" },
+    ],
+  });
+
+  // 6. Une SEULE requête agrégée pour les pièces des 50 élèves de la page
+  const pageStudentIds = pageStudents.map((s) => s.id);
+  const pageStudentDocs = pageStudentIds.length > 0
+    ? await prisma.studentDocument.findMany({
+        where: {
+          schoolId,
+          studentId: { in: pageStudentIds },
+          supersededAt: null,
+        },
+        select: {
+          id: true,
+          studentId: true,
+          requirementId: true,
+          status: true,
+          fileName: true,
+          storagePath: true,
+          reviewNote: true,
+          updatedAt: true,
+        },
+      })
+    : [];
+
+  // Indexation des pièces par studentId -> requirementId
+  const docsByStudentAndReq = new Map<string, (typeof pageStudentDocs)[0]>();
+  for (const doc of pageStudentDocs) {
     if (doc.requirementId) {
       docsByStudentAndReq.set(`${doc.studentId}|${doc.requirementId}`, doc);
     }
   }
 
-  // 4. Construction des items pour la matrice avec calcul d'âge et pièces dynamiques
-  const formattedStudents: ReviewStudentItem[] = students.map((s) => {
+  // 7. Construction des items pour la matrice
+  const formattedStudents: ReviewStudentItem[] = pageStudents.map((s) => {
     const currentEnrollment = s.enrollments[0]?.class ?? null;
     const kind = resolveStudentKind(s, year);
     const ageCalc = calculateAge(s.dateOfBirth);
     const age = ageCalc ? ageCalc.age : null;
     const formattedAge = formatStudentAge(s.dateOfBirth);
 
-    // Évaluation de l'applicabilité et de l'état de chaque exigence pour cet élève
     const docItems: StudentDocItem[] = effectiveRequirements.map((req) => {
       let applicable = true;
       let nonApplicableReason: string | null = null;
 
-      // Cycle check
       if (req.cycle && currentEnrollment?.cycle && req.cycle !== currentEnrollment.cycle) {
         applicable = false;
         nonApplicableReason = `Non exigé en cycle ${currentEnrollment.cycle.toLowerCase()}`;
-      }
-      // Class check
-      else if (req.classId && currentEnrollment?.id && req.classId !== currentEnrollment.id) {
+      } else if (req.classId && currentEnrollment?.id && req.classId !== currentEnrollment.id) {
         applicable = false;
         nonApplicableReason = `Spécifique à une autre classe`;
-      }
-      // Student kind check
-      else if (req.studentKind && req.studentKind !== kind) {
+      } else if (req.studentKind && req.studentKind !== kind) {
         applicable = false;
         nonApplicableReason = `Non exigé pour les ${kind.toLowerCase()}s`;
-      }
-      // Condition check : "age < 6 in CI", transfert, etc.
-      else if (req.conditional) {
+      } else if (req.conditional) {
         const cond = req.conditional.toLowerCase().trim();
         if (cond.includes("age < 6") || cond.includes("age_lt_6") || cond.includes("prescolaire")) {
           const isCI = currentEnrollment?.name ? currentEnrollment.name.toUpperCase().includes("CI") : false;
@@ -181,7 +343,7 @@ export default async function DossierReviewPage() {
             applicable = false;
             nonApplicableReason = "Dispensé (élève de 6 ans ou plus)";
           }
-        } else if (cond.includes("transfert") || cond.includes("exeat")) {
+        } else if (cond.includes("transfer") || cond.includes("exeat")) {
           if (kind !== "TRANSFERT") {
             applicable = false;
             nonApplicableReason = "Uniquement en cas de transfert";
@@ -203,7 +365,7 @@ export default async function DossierReviewPage() {
           status = "NON_CONFORME";
         } else if (doc.status === "EN_REGULARISATION") {
           status = "EN_REGULARISATION";
-        } else if (doc.status === "TO_VERIFY" || doc.status === "RECEIVED") {
+        } else if (doc.status === "TO_VERIFY") {
           status = "FOURNI";
         } else {
           status = "MANQUANT";
@@ -232,7 +394,6 @@ export default async function DossierReviewPage() {
       };
     });
 
-    // Calcul de la complétude basé UNIQUEMENT sur les pièces applicables et requises
     const applicableRequiredDocs = docItems.filter((d) => d.applicable && d.required);
     const compliantCount = applicableRequiredDocs.filter((d) => d.status === "CONFORME").length;
     const providedRequired = applicableRequiredDocs.filter(
@@ -241,11 +402,9 @@ export default async function DossierReviewPage() {
     const missingCount = applicableRequiredDocs.filter(
       (d) => d.status === "MANQUANT" || d.status === "NON_CONFORME"
     ).length;
-    
-    // Un dossier est complet UNIQUEMENT si toutes ses pièces requises et applicables sont CONFORME
+
     const isCompliant = applicableRequiredDocs.length > 0 && compliantCount === applicableRequiredDocs.length;
 
-    // Résolution tuteur / parent avec fallback si non renseigné
     let parentObj = s.parent
       ? {
           id: s.parent.id,
@@ -290,7 +449,6 @@ export default async function DossierReviewPage() {
     };
   });
 
-  // Liste globale de toutes les exigences pour la configuration
   const requirementDefs: RequirementDefItem[] = effectiveRequirements.map((r) => ({
     id: r.id,
     label: r.label,
@@ -304,8 +462,6 @@ export default async function DossierReviewPage() {
     conditional: r.conditional,
   }));
 
-  const pendingCount = formattedStudents.filter((s) => s.status === "PENDING").length;
-
   return (
     <div className="space-y-4">
       <PageHeader
@@ -315,22 +471,18 @@ export default async function DossierReviewPage() {
           { label: "Examen des admissions & conformité" },
         ]}
         title="Examen des admissions & conformité"
-        description={`${pendingCount} dossier${pendingCount > 1 ? "s" : ""} d'admission à traiter · Contrôle des pièces réglementaires`}
-        actions={
-          <a
-            href="/dashboard/settings/documents"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs transition-colors"
-          >
-            <span>Configurer les pièces exigées</span>
-          </a>
-        }
+        description={`${todoCount} dossier${todoCount > 1 ? "s" : ""} d'admission à traiter · Contrôle des pièces réglementaires`}
       />
 
       <ReviewPortalClient
         students={formattedStudents}
         classes={classes}
         requirementDefs={requirementDefs}
-        initialFilter="todo"
+        initialFilter={currentTab}
+        sqlCounts={sqlCounts}
+        currentPage={safePage}
+        totalPages={totalPages}
+        totalFilteredCount={totalFilteredCount}
       />
     </div>
   );

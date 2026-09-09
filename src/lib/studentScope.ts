@@ -163,6 +163,7 @@ export function visibleCategories(actor: ActorContext): readonly DocCategory[] |
     case "ADMIN":
     case "SECRETARY":
     case "ASSISTANT":
+    case "PARENT":
       return null;
     case "TEACHER":
       return TEACHER_DOC_CATEGORIES;

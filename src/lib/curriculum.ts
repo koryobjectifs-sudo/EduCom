@@ -198,10 +198,10 @@ export type ProposedClass = { id: string; name: string; cycle: string };
  * `classes.length` : il ne peut plus se tromper.
  */
 export const LEVELS = [
-  { id: "Maternelle", cycle: "MATERNELLE", classes: ["Petite Section", "Moyenne Section", "Grande Section"] },
+  { id: "Maternelle", cycle: "PRESCOLAIRE", classes: ["Petite Section", "Moyenne Section", "Grande Section"] },
   { id: "Primaire", cycle: "ELEMENTAIRE", classes: ["CI", "CP", "CE1", "CE2", "CM1", "CM2"] },
-  { id: "Collège", cycle: "COLLEGE", classes: ["6ème", "5ème", "4ème", "3ème"] },
-  { id: "Lycée", cycle: "LYCEE", classes: ["Seconde", "Première", "Terminale"] },
+  { id: "Collège", cycle: "MOYEN", classes: ["6ème", "5ème", "4ème", "3ème"] },
+  { id: "Lycée", cycle: "SECONDAIRE", classes: ["Seconde", "Première", "Terminale"] },
 ] as const;
 
 export type LevelId = (typeof LEVELS)[number]["id"];
@@ -285,7 +285,7 @@ export function curriculumProposal(
         classId: c.id,
         className: c.name,
         reason:
-          c.cycle === "MATERNELLE"
+          c.cycle === "PRESCOLAIRE"
             ? "La maternelle s'évalue par domaines d'apprentissage, pas par matières notées."
             : "Aucun programme type ne correspond à ce niveau — à composer à la main.",
       });

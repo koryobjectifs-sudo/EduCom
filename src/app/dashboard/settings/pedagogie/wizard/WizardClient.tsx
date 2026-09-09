@@ -42,7 +42,7 @@ interface WizardClientProps {
 
 type ClassDraft = {
   name: string;
-  cycle: "MATERNELLE" | "ELEMENTAIRE" | "COLLEGE" | "LYCEE";
+  cycle: "PRESCOLAIRE" | "ELEMENTAIRE" | "MOYEN" | "SECONDAIRE";
   checked: boolean;
 };
 
@@ -77,11 +77,11 @@ export default function WizardClient({ schoolName, currentYear, initialStep = 1 
     if (!trimmed) return;
     const defaultCycle =
       selectedType === "MATERNELLE"
-        ? "MATERNELLE"
+        ? "PRESCOLAIRE"
         : selectedType === "COLLEGE"
-        ? "COLLEGE"
+        ? "MOYEN"
         : selectedType === "LYCEE"
-        ? "LYCEE"
+        ? "SECONDAIRE"
         : "ELEMENTAIRE";
 
     setClassesList((prev) => [...prev, { name: trimmed, cycle: defaultCycle, checked: true }]);

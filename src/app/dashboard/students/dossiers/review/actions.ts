@@ -6,7 +6,7 @@ import { requireActionContext } from "@/lib/actionContext";
 import { currentAcademicYear, BUCKET, storagePathFor, signedUrlFor, sanitizeFileName } from "@/lib/studentFile";
 import { recordAudit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ALLOWED_MIME, MAX_BYTES, checkFile } from "@/lib/studentFileLimits";
+import { ALLOWED_MIME, MAX_BYTES, checkFile, validateMagicBytes } from "@/lib/studentFileLimits";
 import type { DocCategory } from "../../../../../generated/prisma/client";
 
 const READ_PATH = "/dashboard/students";
@@ -161,7 +161,12 @@ export async function validateStudentDocumentAction(input: {
 }) {
   const auth = await requireActionContext(READ_PATH);
   if (!auth.ok) return { error: auth.error };
-  const { schoolId, userId } = auth.ctx;
+  const { schoolId, userId, role } = auth.ctx;
+
+  // Seuls OWNER, ADMIN, SECRETARY, ASSISTANT peuvent valider
+  if (role === "TEACHER" || role === "PARENT") {
+    return { error: "Action non autorisée pour ce rôle." };
+  }
 
   try {
     let doc = input.documentId
@@ -225,18 +230,19 @@ export async function validateStudentDocumentAction(input: {
       },
     });
 
-    // Notification transactionnelle vers le parent si présent
+    // Notification transactionnelle in-app pour le parent (si présent)
     if (doc.student?.parentId) {
-      const docLabel = doc.requirement?.label || doc.label || "pièce";
-      await prisma.message.create({
+      const docLabel = doc.requirement?.label || doc.label;
+      await prisma.staffNotification.create({
         data: {
-          direction: "OUTBOUND",
-          status: "SENT",
-          content: `Le document « ${docLabel} » de ${doc.student.firstName} a été validé par l'établissement.`,
+          userId: doc.student.parentId,
           schoolId,
-          parentId: doc.student.parentId,
+          kind: "document.validated",
+          title: `Pièce validée — ${doc.student.firstName} ${doc.student.lastName}`,
+          body: `Le document « ${docLabel} » a été vérifié et déclaré conforme par l'établissement.`,
+          link: `/dashboard/students/${input.studentId}/dossier`,
         },
-      }).catch((e) => console.warn("Notice message skipped:", e));
+      });
     }
 
     done();
@@ -258,7 +264,12 @@ export async function rejectStudentDocumentAction(input: {
 }) {
   const auth = await requireActionContext(READ_PATH);
   if (!auth.ok) return { error: auth.error };
-  const { schoolId, userId } = auth.ctx;
+  const { schoolId, userId, role } = auth.ctx;
+
+  // Seuls OWNER, ADMIN, SECRETARY, ASSISTANT peuvent refuser
+  if (role === "TEACHER" || role === "PARENT") {
+    return { error: "Action non autorisée pour ce rôle." };
+  }
 
   if (!input.reason || input.reason.trim().length === 0) {
     return { error: "Le motif du refus est obligatoire pour orienter la famille." };
@@ -324,18 +335,19 @@ export async function rejectStudentDocumentAction(input: {
       },
     });
 
-    // Notification transactionnelle au parent
+    // Notification transactionnelle in-app pour le parent avec motif obligatoire
     if (doc.student?.parentId) {
-      const docLabel = doc.requirement?.label || doc.label || "pièce";
-      await prisma.message.create({
+      const docLabel = doc.requirement?.label || doc.label;
+      await prisma.staffNotification.create({
         data: {
-          direction: "OUTBOUND",
-          status: "SENT",
-          content: `Le document « ${docLabel} » de ${doc.student.firstName} doit être renvoyé. Motif : ${input.reason.trim()}`,
+          userId: doc.student.parentId,
           schoolId,
-          parentId: doc.student.parentId,
+          kind: "document.rejected",
+          title: `Pièce non conforme — ${doc.student.firstName} ${doc.student.lastName}`,
+          body: `Le document « ${docLabel} » n'a pas été accepté. Motif : ${input.reason.trim()}. Veuillez déposer un nouveau document conforme.`,
+          link: `/dashboard/students/${input.studentId}/dossier`,
         },
-      }).catch((e) => console.warn("Notice message skipped:", e));
+      });
     }
 
     done();
@@ -490,7 +502,11 @@ export async function getSignedDocumentUrlAction(documentId: string) {
 export async function uploadStudentDocumentDirectAction(formData: FormData) {
   const auth = await requireActionContext(READ_PATH);
   if (!auth.ok) return { error: auth.error };
-  const { schoolId, userId } = auth.ctx;
+  const { schoolId, userId, role } = auth.ctx;
+
+  if (role === "TEACHER") {
+    return { error: "Action interdite aux enseignants sur les dossiers administratifs." };
+  }
 
   const file = formData.get("file") as File | null;
   const studentId = formData.get("studentId") as string | null;
@@ -513,13 +529,40 @@ export async function uploadStudentDocumentDirectAction(formData: FormData) {
     ]);
     if (!student || !req) return { error: "Élève ou exigence introuvable." };
 
+    // Vérification de la pièce existante
+    const existing = await prisma.studentDocument.findFirst({
+      where: { studentId, requirementId, supersededAt: null, schoolId },
+    });
+
+    // Règles de sécurité pour les parents
+    if (role === "PARENT") {
+      if (student.parentId !== userId) {
+        return { error: "Accès refusé au dossier d'un autre élève." };
+      }
+      if (existing && existing.status === "VALIDATED") {
+        return { error: "Une pièce déjà validée et conforme ne peut pas être remplacée par le parent." };
+      }
+      const oneHourAgo = new Date(Date.now() - 3600 * 1000);
+      const recentCount = await prisma.studentDocument.count({
+        where: { uploadedById: userId, createdAt: { gte: oneHourAgo } },
+      });
+      if (recentCount >= 20) {
+        return { error: "Limite de 20 téléversements par heure atteinte pour ce compte." };
+      }
+    }
+
     const cleanName = sanitizeFileName(file.name);
     const newDocId = crypto.randomUUID();
     const storagePath = storagePathFor(schoolId, studentId, newDocId, cleanName);
 
-    // Upload Supabase Storage
+    // Upload Supabase Storage avec validation Magic Bytes
     const supabase = createAdminClient();
     const arrayBuffer = await file.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+    if (!validateMagicBytes(uint8, file.type)) {
+      return { error: `Le contenu du fichier est invalide ou corrompu pour le type ${file.type}.` };
+    }
+
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
       .upload(storagePath, arrayBuffer, {
@@ -531,11 +574,6 @@ export async function uploadStudentDocumentDirectAction(formData: FormData) {
       console.error("Supabase Storage Error:", uploadError);
       return { error: `Erreur lors de l'enregistrement du fichier (${uploadError.message}).` };
     }
-
-    // Gestion du chaînage de remplacement
-    const existing = await prisma.studentDocument.findFirst({
-      where: { studentId, requirementId, supersededAt: null, schoolId },
-    });
 
     const now = new Date();
     await prisma.$transaction(async (tx) => {
@@ -617,6 +655,10 @@ export async function bulkUploadStudentDocumentAction(formData: FormData) {
     const cleanName = sanitizeFileName(file.name);
     const supabase = createAdminClient();
     const arrayBuffer = await file.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+    if (!validateMagicBytes(uint8, file.type)) {
+      return { error: `Le contenu du fichier est invalide ou corrompu pour le type ${file.type}.` };
+    }
 
     let uploadedCount = 0;
     for (const studentId of studentIds) {

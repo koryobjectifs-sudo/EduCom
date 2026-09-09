@@ -8,6 +8,7 @@ import { recordAudit, type ActorContext } from "@/lib/audit";
 import {
   BUCKET, checkFile, sanitizeFileName, storagePathFor, signedUrlFor, currentAcademicYear, expiryFor,
 } from "@/lib/studentFile";
+import { validateMagicBytes } from "@/lib/studentFileLimits";
 import { canSeeCategory, canSeeStudent } from "@/lib/studentScope";
 import { analyzeDocument, ocrCapability } from "@/lib/documentProposals";
 import { prepareDiffusion, recordManualDelivery } from "@/lib/diffusion";
@@ -164,6 +165,20 @@ export async function uploadStudentDocument(formData: FormData) {
       })
     : null;
 
+  // Règles strictes pour les parents
+  if (ctx.role === "PARENT") {
+    if (previous && previous.status === "VALIDATED") {
+      return { error: "Une pièce déjà validée et conforme ne peut pas être remplacée par le parent." };
+    }
+    const oneHourAgo = new Date(Date.now() - 3600 * 1000);
+    const countRecent = await prisma.studentDocument.count({
+      where: { uploadedById: ctx.userId, createdAt: { gte: oneHourAgo } },
+    });
+    if (countRecent >= 20) {
+      return { error: "Limite de 20 téléversements par heure atteinte pour ce compte." };
+    }
+  }
+
   // ⚠️ **Avant tout envoi.** Refuser après avoir déposé le binaire laisserait un
   // objet orphelin dans le bucket, que plus aucune ligne ne désignerait.
   if (previous && String(formData.get("confirmReplace") ?? "") !== "1") {
@@ -177,19 +192,21 @@ export async function uploadStudentDocument(formData: FormData) {
   }
 
   const id = crypto.randomUUID();
-  // ⚠️ Lot 13.1 — l'échéance est écrite au dépôt, jamais devinée : `expiryFor()`
-  // renvoie `null` quand l'exigence ne fixe aucune durée. La colonne est une
-  // copie datée ; la lecture du dossier recalcule depuis la règle en vigueur,
-  // qui reste l'arbitre si la direction change la durée plus tard.
   const receivedAt = new Date();
   const expiresAt = expiryFor(receivedAt, requirement?.validityMonths ?? null);
   const cleanName = sanitizeFileName(file.name);
   const path = storagePathFor(ctx.schoolId, studentId, id, cleanName);
 
+  // Validation Magic Bytes
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const uint8 = new Uint8Array(bytes);
+  if (!validateMagicBytes(uint8, file.type)) {
+    return { error: `Le contenu du fichier est invalide ou corrompu pour le type ${file.type}.` };
+  }
+
   // 1. Le binaire part d'abord : si l'envoi échoue, aucune ligne orpheline ne
   //    reste en base à pointer vers un objet inexistant.
   const supabase = createAdminClient();
-  const bytes = Buffer.from(await file.arrayBuffer());
   const up = await supabase.storage.from(BUCKET).upload(path, bytes, {
     contentType: file.type,
     upsert: false,

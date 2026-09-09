@@ -122,6 +122,15 @@ interface ReviewPortalClientProps {
   classes: { id: string; name: string; cycle: string }[];
   requirementDefs: RequirementDefItem[];
   initialFilter?: "todo" | "missing_docs" | "compliant" | "all";
+  sqlCounts?: {
+    todo: number;
+    missing_docs: number;
+    compliant: number;
+    all: number;
+  };
+  currentPage?: number;
+  totalPages?: number;
+  totalFilteredCount?: number;
 }
 
 /**
@@ -139,25 +148,21 @@ async function compressImageClient(file: File, maxWidth = 1600, quality = 0.8): 
       const img = new Image();
       img.src = event.target?.result as string;
       img.onload = () => {
-        const elem = document.createElement("canvas");
         let width = img.width;
         let height = img.height;
 
         if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
+          height = (height * maxWidth) / width;
           width = maxWidth;
         }
 
-        elem.width = width;
-        elem.height = height;
-        const ctx = elem.getContext("2d");
-        if (!ctx) {
-          resolve(file);
-          return;
-        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
 
-        ctx.drawImage(img, 0, 0, width, height);
-        elem.toBlob(
+        canvas.toBlob(
           (blob) => {
             if (!blob) {
               resolve(file);
@@ -184,6 +189,10 @@ export default function ReviewPortalClient({
   classes,
   requirementDefs,
   initialFilter = "todo",
+  sqlCounts,
+  currentPage = 1,
+  totalPages = 1,
+  totalFilteredCount,
 }: ReviewPortalClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -258,7 +267,7 @@ export default function ReviewPortalClient({
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   // 1. Détermination des colonnes canoniques dédoublonnées de la matrice selon la vue
-  const visibleColumns = useMemo(() => {
+  const { pinnedColumns, otherColumns } = useMemo(() => {
     // Filtrer les exigences brutes selon la classe / cycle sélectionné
     let pool = requirementDefs;
     if (classFilter !== "ALL") {
@@ -277,6 +286,7 @@ export default function ReviewPortalClient({
       shortLabel: string;
       category: string;
       source: "OFFICIEL" | "ETABLISSEMENT";
+      pinned: boolean;
       reqIds: string[];
       sampleReq: RequirementDefItem;
     }>();
@@ -308,6 +318,7 @@ export default function ReviewPortalClient({
           shortLabel: req.shortLabel || req.label,
           category: req.category,
           source: req.source,
+          pinned: req.pinned,
           reqIds: [req.id],
           sampleReq: req,
         });
@@ -319,19 +330,52 @@ export default function ReviewPortalClient({
         if (req.source === "OFFICIEL") {
           existing.source = "OFFICIEL";
         }
+        if (req.pinned) {
+          existing.pinned = true;
+        }
       }
     }
 
-    return Array.from(map.values()).sort((a, b) => {
+    const allSorted = Array.from(map.values()).sort((a, b) => {
       const prioA = getOrderPriority(a.label);
       const prioB = getOrderPriority(b.label);
       if (prioA !== prioB) return prioA - prioB;
       return a.label.localeCompare(b.label);
     });
+
+    const pinned = allSorted.filter((c) => c.pinned || c.source === "OFFICIEL").slice(0, 3);
+    const pinnedKeys = new Set(pinned.map((p) => p.key));
+    const others = allSorted.filter((c) => !pinnedKeys.has(c.key));
+
+    return { pinnedColumns: pinned, otherColumns: others };
   }, [requirementDefs, classFilter, classes]);
+
+  const visibleColumns = pinnedColumns;
+
+  const distinctCycles = useMemo(() => {
+    return Array.from(new Set(students.map((s) => s.cycle).filter(Boolean)));
+  }, [students]);
+
+  const singleCycle = distinctCycles.length === 1 ? distinctCycles[0] : null;
+
+  const applicableOtherCount = singleCycle
+    ? otherColumns.filter((r) => !r.sampleReq.cycle || r.sampleReq.cycle === singleCycle).length
+    : null;
+
+  // Lignes dépliées pour "Autres pièces"
+  const [expandedStudentIds, setExpandedStudentIds] = useState<Set<string>>(new Set());
+  const toggleRowExpand = (studentId: string) => {
+    setExpandedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(studentId)) next.delete(studentId);
+      else next.add(studentId);
+      return next;
+    });
+  };
 
   // 2. Calcul des KPI globaux
   const counts = useMemo(() => {
+    if (sqlCounts) return sqlCounts;
     let todo = 0;
     let missing = 0;
     let compliant = 0;
@@ -354,15 +398,25 @@ export default function ReviewPortalClient({
       compliant,
       all: students.length,
     };
-  }, [students]);
+  }, [students, sqlCounts]);
+
+  const handleTabChange = (newTab: "todo" | "missing_docs" | "compliant" | "all") => {
+    setActiveTab(newTab);
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", newTab);
+    params.set("page", "1");
+    router.push(`?${params.toString()}`);
+  };
 
   // 3. Filtrage de la liste
   const filteredList = useMemo(() => {
     return students.filter((s) => {
-      // Onglet
-      if (activeTab === "todo" && s.status !== "PENDING") return false;
-      if (activeTab === "missing_docs" && (s.status === "PENDING" || s.completeness.isCompliant)) return false;
-      if (activeTab === "compliant" && (s.status === "PENDING" || !s.completeness.isCompliant)) return false;
+      // Si la pagination serveur est active et qu'on a reçu la liste pré-filtrée
+      if (!sqlCounts) {
+        if (activeTab === "todo" && s.status !== "PENDING") return false;
+        if (activeTab === "missing_docs" && (s.status === "PENDING" || s.completeness.isCompliant)) return false;
+        if (activeTab === "compliant" && (s.status === "PENDING" || !s.completeness.isCompliant)) return false;
+      }
 
       // Classe
       if (classFilter !== "ALL" && s.classId !== classFilter) return false;
@@ -373,20 +427,20 @@ export default function ReviewPortalClient({
           const normKey = (d.shortLabel || d.label)
             .toLowerCase()
             .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .trim();
-          return normKey === missingPieceFilter || d.requirementId === missingPieceFilter;
+            .replace(/[\u0300-\u036f]/g, "");
+          return normKey.includes(missingPieceFilter);
         });
-        if (!doc || !doc.applicable || doc.status === "CONFORME") return false;
+        if (!doc || doc.status === "CONFORME" || doc.status === "NON_APPLICABLE") return false;
       }
 
-      // Recherche
+      // Recherche textuelle
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
-        const parentName = `${s.parent?.firstName || ""} ${s.parent?.lastName || ""}`.toLowerCase();
+        const parentName = s.parent ? `${s.parent.firstName} ${s.parent.lastName}`.toLowerCase() : "";
         const phone = (s.parent?.phone || "").replace(/[^0-9]/g, "");
         const cleanQ = q.replace(/[^0-9]/g, "");
+        const className = s.className?.toLowerCase() || "";
 
         const matchName = fullName.includes(q);
         const matchParent = parentName.includes(q);
@@ -452,7 +506,7 @@ export default function ReviewPortalClient({
     });
   };
 
-  // Actions d'admission
+  // Actions d'admission individuelles et groupées
   const handleApproveClick = (student: ReviewStudentItem) => {
     if (!student.completeness.isCompliant) {
       setConfirmAdmissionStudent({
@@ -521,7 +575,6 @@ export default function ReviewPortalClient({
       if (res.error) {
         alert(res.error);
       } else {
-        // Avancer à la pièce suivante si disponible
         advanceDrawerDoc(1);
         router.refresh();
       }
@@ -554,13 +607,27 @@ export default function ReviewPortalClient({
     });
   };
 
+  // Navigation intelligente dans le tiroir : saute NON_APPLICABLE et CONFORME
   const advanceDrawerDoc = (direction: number) => {
     if (!drawerStudent) return;
-    const applicableDocs = drawerStudent.docs.filter((d) => d.applicable);
-    const currentIndex = applicableDocs.findIndex((d) => d.requirementId === activeDrawerDoc?.requirementId);
-    const nextIndex = currentIndex + direction;
-    if (nextIndex >= 0 && nextIndex < applicableDocs.length) {
-      setDrawerDocReqId(applicableDocs[nextIndex].requirementId);
+    // On ne propose que les pièces applicables et non encore validées (à contrôler)
+    const docsToReview = drawerStudent.docs.filter(
+      (d) => d.applicable && d.status !== "CONFORME"
+    );
+    if (docsToReview.length === 0) {
+      // Toutes les pièces applicables sont déjà conformes !
+      return;
+    }
+    const currentIndex = docsToReview.findIndex((d) => d.requirementId === activeDrawerDoc?.requirementId);
+    let nextIndex =
+      currentIndex === -1
+        ? direction > 0
+          ? 0
+          : docsToReview.length - 1
+        : currentIndex + direction;
+
+    if (nextIndex >= 0 && nextIndex < docsToReview.length) {
+      setDrawerDocReqId(docsToReview[nextIndex].requirementId);
       setShowRejectInput(false);
       setRejectReason("");
     }
@@ -626,7 +693,7 @@ export default function ReviewPortalClient({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         <button
           type="button"
-          onClick={() => setActiveTab("todo")}
+          onClick={() => handleTabChange("todo")}
           className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden ${
             activeTab === "todo"
               ? "bg-amber-50/80 border-amber-300 ring-1.5 ring-amber-400 shadow-xs"
@@ -645,7 +712,7 @@ export default function ReviewPortalClient({
 
         <button
           type="button"
-          onClick={() => setActiveTab("missing_docs")}
+          onClick={() => handleTabChange("missing_docs")}
           className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden ${
             activeTab === "missing_docs"
               ? "bg-orange-50/80 border-orange-300 ring-1.5 ring-orange-400 shadow-xs"
@@ -664,7 +731,7 @@ export default function ReviewPortalClient({
 
         <button
           type="button"
-          onClick={() => setActiveTab("compliant")}
+          onClick={() => handleTabChange("compliant")}
           className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden ${
             activeTab === "compliant"
               ? "bg-emerald-50/80 border-emerald-300 ring-1.5 ring-emerald-400 shadow-xs"
@@ -683,7 +750,7 @@ export default function ReviewPortalClient({
 
         <button
           type="button"
-          onClick={() => setActiveTab("all")}
+          onClick={() => handleTabChange("all")}
           className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden ${
             activeTab === "all"
               ? "bg-slate-100/90 border-slate-300 ring-1.5 ring-slate-400 shadow-xs"
@@ -821,21 +888,30 @@ export default function ReviewPortalClient({
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/90 text-slate-600 font-semibold text-[10px] h-8">
-                  {/* Pinned 1: Élève */}
-                  <th className="sticky left-0 z-20 bg-slate-50 py-1 pl-3 pr-2 min-w-[150px] max-w-[170px] uppercase tracking-wider shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] border-r border-slate-200">
-                    Élève
+                  {/* Pinned 1: Checkbox & Élève */}
+                  <th className="sticky left-0 z-20 bg-slate-50 py-1 pl-3 pr-2 min-w-[170px] max-w-[190px] uppercase tracking-wider shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] border-r border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.size > 0 && selectedIds.size === filteredList.length}
+                        onChange={handleSelectAll}
+                        className="rounded border-slate-300 text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer"
+                        title="Sélectionner tous les élèves de la page"
+                      />
+                      <span>Élève</span>
+                    </div>
                   </th>
 
                   {/* Pinned 2: Classe */}
-                  <th className="sticky left-[150px] z-20 bg-slate-50 py-1 px-2 min-w-[70px] max-w-[80px] uppercase tracking-wider shadow-[4px_0_6px_-2px_rgba(0,0,0,0.08)] border-r border-slate-200">
+                  <th className="sticky left-[170px] z-20 bg-slate-50 py-1 px-2 min-w-[75px] max-w-[85px] uppercase tracking-wider shadow-[4px_0_6px_-2px_rgba(0,0,0,0.08)] border-r border-slate-200">
                     Classe
                   </th>
 
-                  {/* Colonnes de pièces dédoublonnées (Matrice dynamique ajustée) */}
-                  {visibleColumns.map((col) => (
+                  {/* Colonnes de pièces épinglées */}
+                  {pinnedColumns.map((col) => (
                     <th
                       key={col.key}
-                      className="py-1 px-1 text-center min-w-[85px] max-w-[110px] border-l border-slate-100 group/th relative align-middle select-none normal-case tracking-normal"
+                      className="py-1 px-1 text-center min-w-[95px] max-w-[120px] border-l border-slate-100 group/th relative align-middle select-none normal-case tracking-normal"
                     >
                       <div className="flex flex-col items-center justify-center gap-0.5">
                         <div className="flex items-center justify-center gap-1 w-full">
@@ -862,7 +938,7 @@ export default function ReviewPortalClient({
                         </span>
                       </div>
 
-                      {/* Bouton de menu rapide sur l'en-tête */}
+                      {/* Menu rapide */}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -875,7 +951,6 @@ export default function ReviewPortalClient({
                         <ChevronDown className="h-2.5 w-2.5" />
                       </button>
 
-                      {/* Menu déroulant de colonne */}
                       {columnMenuReqId === col.key && (
                         <div
                           className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-30 w-52 rounded-xl bg-white border border-slate-200 p-1.5 shadow-xl text-left normal-case"
@@ -890,19 +965,46 @@ export default function ReviewPortalClient({
                               setMissingPieceFilter(col.key);
                               setColumnMenuReqId(null);
                             }}
-                            className="w-full text-left px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-1.5"
+                            className="w-full text-left px-2 py-1.5 rounded-lg text-xs hover:bg-slate-50 text-slate-700 flex items-center justify-between"
                           >
-                            <Filter className="h-3 w-3 text-amber-600" />
                             <span>Filtrer les manquants</span>
+                            <Filter className="h-3 w-3 text-slate-400" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBulkUploadModal(true);
+                              setColumnMenuReqId(null);
+                            }}
+                            className="w-full text-left px-2 py-1.5 rounded-lg text-xs hover:bg-slate-50 text-slate-700 flex items-center justify-between"
+                          >
+                            <span>Dépôt groupé ({selectedIds.size || filteredList.length})</span>
+                            <UploadCloud className="h-3 w-3 text-slate-400" />
                           </button>
                         </div>
                       )}
                     </th>
                   ))}
 
+                  {/* Colonne Autres Pièces compacte */}
+                  {otherColumns.length > 0 && (
+                    <th className="py-2.5 px-2 text-center min-w-[95px] max-w-[120px] border-l border-slate-100 align-middle normal-case tracking-normal">
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <span className="font-semibold text-slate-900 text-xs leading-tight">
+                          Autres pièces
+                        </span>
+                        {applicableOtherCount !== null && (
+                          <span className="text-[10px] text-slate-400 font-normal leading-none">
+                            {applicableOtherCount} pièce{applicableOtherCount > 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                  )}
+
                   {/* Pinned Right: Progression & Statut Admission */}
-                  <th className="sticky right-0 z-20 bg-slate-50 py-1 pl-1.5 pr-2.5 text-right min-w-[130px] max-w-[150px] uppercase tracking-wider shadow-[-6px_0_8px_-2px_rgba(0,0,0,0.06)] border-l border-slate-200">
-                    Progression & Statut
+                  <th className="sticky right-0 z-20 bg-slate-50 py-2.5 pl-2 pr-3.5 text-right min-w-[160px] max-w-[180px] uppercase tracking-wider shadow-[-6px_0_8px_-2px_rgba(0,0,0,0.06)] border-l border-slate-200 text-[11px]">
+                    Admission
                   </th>
                 </tr>
               </thead>
@@ -910,248 +1012,426 @@ export default function ReviewPortalClient({
               <tbody className="divide-y divide-slate-100 bg-white">
                 {filteredList.map((student) => {
                   const isProcessing = processingId === student.id;
+                  const isExpanded = expandedStudentIds.has(student.id);
+
+                  // Calcul des pièces "Autres" pour cet élève
+                  const studentOtherDocs = student.docs.filter((d) => {
+                    if (!d.applicable) return false;
+                    const isPinned = pinnedColumns.some((col) => col.reqIds.includes(d.requirementId));
+                    return !isPinned;
+                  });
+
+                  const otherConforme = studentOtherDocs.filter((d) => d.status === "CONFORME").length;
+                  const otherToVerify = studentOtherDocs.filter((d) => d.status === "FOURNI").length;
+                  const otherReg = studentOtherDocs.filter((d) => d.status === "EN_REGULARISATION").length;
+                  // Seules les pièces REQUISES manquantes comptent comme ✗
+                  const otherMissingRequired = studentOtherDocs.filter(
+                    (d) => d.required && (d.status === "MANQUANT" || d.status === "NON_CONFORME")
+                  ).length;
 
                   return (
-                    <tr
-                      key={student.id}
-                      className="group transition-colors h-8 hover:bg-slate-50/70"
-                    >
-                      {/* Pinned 1: Élève (Nom + Âge compact, sans avatar) */}
-                      <td className="sticky left-0 z-10 bg-white group-hover:bg-slate-50/70 py-0.5 pl-3 pr-2 align-middle shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] border-r border-slate-100">
-                        <div className="min-w-0 flex items-center gap-1.5 truncate">
-                          <Link
-                            href={`/dashboard/students/${student.id}`}
-                            className="font-medium text-slate-900 hover:text-primary transition-colors text-xs truncate max-w-[115px]"
-                            title={`${student.firstName} ${student.lastName}`}
-                          >
-                            {student.firstName} {student.lastName}
-                          </Link>
-                          <span className="text-[10px] text-slate-300 shrink-0">·</span>
-                          <span
-                            className={`text-[10px] shrink-0 ${
-                              student.formattedAge === "Âge inconnu"
-                                ? "text-amber-700 font-medium bg-amber-50 px-1 rounded"
-                                : "text-slate-500"
-                            }`}
-                          >
-                            {student.formattedAge}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Pinned 2: Classe */}
-                      <td className="sticky left-[150px] z-10 bg-white group-hover:bg-slate-50/70 py-0.5 px-2 align-middle shadow-[4px_0_6px_-2px_rgba(0,0,0,0.08)] border-r border-slate-100">
-                        {student.className ? (
-                          <span className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 font-medium text-slate-700 text-[10px] whitespace-nowrap leading-none">
-                            {student.className}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700 text-[10px] border border-amber-200 whitespace-nowrap leading-none">
-                            Non assignée
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Cellules de la Matrice (Format ultra-compact Google Sheets) */}
-                      {visibleColumns.map((col) => {
-                        const doc = student.docs.find((d) => {
-                          if (col.reqIds.includes(d.requirementId)) return true;
-                          const dNorm = (d.shortLabel || d.label)
-                            .toLowerCase()
-                            .normalize("NFD")
-                            .replace(/[\u0300-\u036f]/g, "")
-                            .trim();
-                          return dNorm === col.key;
-                        });
-                        const status = doc?.status || "MANQUANT";
-
-                        // État 1 : NON_APPLICABLE
-                        if (!doc?.applicable || status === "NON_APPLICABLE") {
-                          return (
-                            <td
-                              key={col.key}
-                              className="py-0.5 px-1 text-center align-middle border-l border-slate-100 bg-slate-50/20"
-                            >
+                    <tr key={student.id} className="contents">
+                      {/* Ligne principale — hauteur minimale 52px */}
+                      <tr
+                        className={`group transition-colors h-[54px] min-h-[52px] hover:bg-slate-50/80 ${
+                          isExpanded ? "bg-slate-50/50" : ""
+                        }`}
+                      >
+                        {/* Pinned 1: Checkbox & Élève */}
+                        <td className="sticky left-0 z-10 bg-white group-hover:bg-slate-50/80 py-2 pl-3.5 pr-2 align-middle shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] border-r border-slate-100">
+                          <div className="min-w-0 flex items-center gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(student.id)}
+                              onChange={() => toggleSelect(student.id)}
+                              className="rounded border-slate-300 text-primary focus:ring-primary h-4 w-4 cursor-pointer shrink-0"
+                            />
+                            <div className="min-w-0 flex flex-col justify-center">
+                              <Link
+                                href={`/dashboard/students/${student.id}`}
+                                className="font-semibold text-slate-900 hover:text-primary transition-colors text-xs truncate max-w-[130px] leading-tight"
+                                title={`${student.firstName} ${student.lastName}`}
+                              >
+                                {student.firstName} {student.lastName}
+                              </Link>
                               <span
-                                className="inline-flex items-center text-[10px] text-slate-400 font-normal px-1 rounded select-none cursor-default"
-                                title={doc?.nonApplicableReason || `Non exigé en cycle ${student.cycle || ""}`}
+                                className={`text-[11px] truncate mt-0.5 leading-none ${
+                                  student.formattedAge === "Âge inconnu"
+                                    ? "text-amber-700 font-medium bg-amber-50 px-1 py-0.5 rounded w-fit"
+                                    : "text-slate-500"
+                                }`}
                               >
-                                Non exigé
+                                {student.formattedAge}
                               </span>
-                            </td>
-                          );
-                        }
+                            </div>
+                          </div>
+                        </td>
 
-                        // État 2 : CONFORME (Validé)
-                        if (status === "CONFORME") {
-                          return (
-                            <td
-                              key={col.key}
-                              className="py-0.5 px-1 text-center align-middle border-l border-slate-100"
-                            >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setDrawerStudent(student);
-                                  setDrawerDocReqId(doc.requirementId);
-                                }}
-                                className="inline-flex items-center justify-center h-5 w-5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-all cursor-pointer mx-auto"
-                                title={doc?.fileName ? `Conforme (${doc.fileName})` : "Pièce validée"}
+                        {/* Pinned 2: Classe */}
+                        <td className="sticky left-[200px] z-10 bg-white group-hover:bg-slate-50/80 py-2 px-3 align-middle shadow-[4px_0_6px_-2px_rgba(0,0,0,0.08)] border-r border-slate-100">
+                          {student.className ? (
+                            <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 font-medium text-slate-700 text-xs whitespace-nowrap leading-none">
+                              {student.className}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-1 font-medium text-amber-700 text-xs border border-amber-200 whitespace-nowrap leading-none">
+                              Non assignée
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Cellules des pièces épinglées (6 états stricts) */}
+                        {pinnedColumns.map((col) => {
+                          const doc = student.docs.find((d) => {
+                            if (col.reqIds.includes(d.requirementId)) return true;
+                            const dNorm = (d.shortLabel || d.label)
+                              .toLowerCase()
+                              .normalize("NFD")
+                              .replace(/[\u0300-\u036f]/g, "")
+                              .trim();
+                            return dNorm === col.key;
+                          });
+                          const status = doc?.status || "MANQUANT";
+
+                          // État 1 : NON_APPLICABLE (Tiret gris non cliquable)
+                          if (!doc?.applicable || status === "NON_APPLICABLE") {
+                            return (
+                              <td
+                                key={col.key}
+                                className="py-2 px-1 text-center align-middle border-l border-slate-100 bg-slate-50/30"
                               >
-                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                              </button>
-                            </td>
-                          );
-                        }
+                                <span
+                                  className="inline-flex items-center text-slate-300 text-sm font-bold px-2 select-none cursor-default"
+                                  title={doc?.nonApplicableReason || `Non exigé en cycle ${student.cycle || ""}`}
+                                >
+                                  —
+                                </span>
+                              </td>
+                            );
+                          }
 
-                        // État 3 : FOURNI (À vérifier)
-                        if (status === "FOURNI") {
-                          return (
-                            <td
-                              key={col.key}
-                              className="py-0.5 px-1 text-center align-middle border-l border-slate-100"
-                            >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setDrawerStudent(student);
-                                  setDrawerDocReqId(doc.requirementId);
-                                }}
-                                className="inline-flex items-center gap-0.5 h-5 px-1.5 rounded bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-[10px] font-medium transition-all cursor-pointer mx-auto"
-                                title="Fichier reçu — Cliquer pour contrôler"
+                          // État 2 : CONFORME (Coche verte)
+                          if (status === "CONFORME") {
+                            return (
+                              <td
+                                key={col.key}
+                                className="py-2 px-1 text-center align-middle border-l border-slate-100"
                               >
-                                <FileText className="h-3 w-3 text-sky-600" />
-                                <span>À vérifier</span>
-                              </button>
-                            </td>
-                          );
-                        }
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setDrawerStudent(student);
+                                    setDrawerDocReqId(doc.requirementId);
+                                  }}
+                                  className="inline-flex items-center justify-center h-6 w-6 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-all cursor-pointer mx-auto shadow-2xs"
+                                  title={doc?.fileName ? `Conforme (${doc.fileName})` : "Pièce validée"}
+                                >
+                                  <Check className="h-3.5 w-3.5 text-emerald-600 stroke-[2.5]" />
+                                </button>
+                              </td>
+                            );
+                          }
 
-                        // État 4 : EN_REGULARISATION
-                        if (status === "EN_REGULARISATION") {
+                          // État 3 : FOURNI (Pastille bleue "À vérifier")
+                          if (status === "FOURNI") {
+                            return (
+                              <td
+                                key={col.key}
+                                className="py-2 px-1 text-center align-middle border-l border-slate-100"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setDrawerStudent(student);
+                                    setDrawerDocReqId(doc.requirementId);
+                                  }}
+                                  className="inline-flex items-center gap-1 h-6 px-2 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-semibold transition-all cursor-pointer mx-auto shadow-2xs"
+                                  title="Fichier reçu — Cliquer pour contrôler"
+                                >
+                                  <FileText className="h-3 w-3 text-sky-600" />
+                                  <span>À vérifier</span>
+                                </button>
+                              </td>
+                            );
+                          }
+
+                          // État 4 : EN_REGULARISATION (Pastille orange "En cours")
+                          if (status === "EN_REGULARISATION") {
+                            return (
+                              <td
+                                key={col.key}
+                                className="py-2 px-1 text-center align-middle border-l border-slate-100"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRegularisationModal({
+                                      student,
+                                      reqId: doc.requirementId,
+                                      reqLabel: col.label,
+                                    });
+                                    setRegularisationNote(doc?.note || "");
+                                  }}
+                                  className="inline-flex items-center gap-1 h-6 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-medium transition-all cursor-pointer mx-auto shadow-2xs"
+                                  title={`Démarche en cours${doc?.note ? ` : ${doc.note}` : ""}`}
+                                >
+                                  <Hourglass className="h-3 w-3 text-amber-600 animate-spin-slow" />
+                                  <span>En cours</span>
+                                </button>
+                              </td>
+                            );
+                          }
+
+                          // État 5 : NON_CONFORME (Croix rouge + motif au survol)
+                          if (status === "NON_CONFORME") {
+                            return (
+                              <td
+                                key={col.key}
+                                className="py-2 px-1 text-center align-middle border-l border-slate-100"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setDrawerStudent(student);
+                                    setDrawerDocReqId(doc.requirementId);
+                                  }}
+                                  className="inline-flex items-center gap-1 h-6 px-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition-all cursor-pointer mx-auto shadow-2xs"
+                                  title={doc?.note ? `Non conforme : ${doc.note}` : "Document refusé — cliquer pour détails"}
+                                >
+                                  <X className="h-3.5 w-3.5 text-rose-600 stroke-[2.5]" />
+                                  <span>Refusé</span>
+                                </button>
+                              </td>
+                            );
+                          }
+
+                          // État 6 : MANQUANT (Bouton +)
                           return (
                             <td
                               key={col.key}
-                              className="py-0.5 px-1 text-center align-middle border-l border-slate-100"
+                              className="py-2 px-1 text-center align-middle border-l border-slate-100"
                             >
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setRegularisationModal({
+                                  setDepositModal({
                                     student,
-                                    reqId: doc.requirementId,
-                                    reqLabel: col.label,
+                                    req: {
+                                      id: doc?.requirementId || col.sampleReq.id,
+                                      label: col.label,
+                                      shortLabel: col.shortLabel,
+                                      category: col.category,
+                                      cycle: doc?.cycle || col.sampleReq.cycle,
+                                      source: col.source,
+                                      required: doc?.required ?? col.sampleReq.required,
+                                      pinned: doc?.pinned ?? col.sampleReq.pinned,
+                                      order: doc?.order ?? col.sampleReq.order,
+                                      conditional: col.sampleReq.conditional,
+                                    },
                                   });
-                                  setRegularisationNote(doc?.note || "");
                                 }}
-                                className="inline-flex items-center gap-0.5 h-5 px-1.5 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-medium transition-all cursor-pointer mx-auto"
-                                title={`Démarche en cours${doc?.note ? ` : ${doc.note}` : ""}`}
+                                className="inline-flex items-center justify-center h-6 w-6 rounded-lg bg-slate-100 hover:bg-primary/10 text-slate-400 hover:text-primary transition-all mx-auto shadow-2xs"
+                                title={`Déposer ${col.label}`}
                               >
-                                <Hourglass className="h-2.5 w-2.5 text-amber-600 animate-spin-slow" />
-                                <span>En cours</span>
+                                <Plus className="h-3.5 w-3.5" />
                               </button>
                             </td>
                           );
-                        }
+                        })}
 
-                        // État 5 : NON_CONFORME (Refusé)
-                        if (status === "NON_CONFORME") {
-                          return (
-                            <td
-                              key={col.key}
-                              className="py-0.5 px-1 text-center align-middle border-l border-slate-100"
-                            >
+                        {/* Colonne Autres Pièces compacte */}
+                        {otherColumns.length > 0 && (
+                          <td className="py-2 px-1 text-center align-middle border-l border-slate-100">
+                            {studentOtherDocs.length === 0 ? (
+                              <span className="text-slate-300 text-sm font-bold">—</span>
+                            ) : (
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setDrawerStudent(student);
-                                  setDrawerDocReqId(doc.requirementId);
-                                }}
-                                className="inline-flex items-center gap-0.5 h-5 px-1.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-medium transition-all cursor-pointer mx-auto"
-                                title={`Refusé : ${doc?.note || "Document non conforme"}`}
+                                onClick={() => toggleRowExpand(student.id)}
+                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors"
+                                title="Cliquer pour afficher toutes les autres pièces"
                               >
-                                <XCircle className="h-3 w-3 text-rose-600" />
-                                <span>Refusé</span>
+                                {otherConforme > 0 && (
+                                  <span className="text-emerald-700 font-bold">{otherConforme}✓</span>
+                                )}
+                                {otherToVerify > 0 && (
+                                  <span className="text-sky-700 font-bold">{otherToVerify} à vérif.</span>
+                                )}
+                                {otherReg > 0 && (
+                                  <span className="text-amber-700 font-bold">{otherReg}⌛</span>
+                                )}
+                                {otherMissingRequired > 0 && (
+                                  <span className="text-rose-600 font-semibold">{otherMissingRequired}✗</span>
+                                )}
+                                {otherConforme === 0 && otherToVerify === 0 && otherReg === 0 && otherMissingRequired === 0 && (
+                                  <span className="text-slate-500">{studentOtherDocs.length} opt.</span>
+                                )}
+                                <ChevronDown
+                                  className={`h-3 w-3 text-slate-400 transition-transform ${
+                                    isExpanded ? "rotate-180" : ""
+                                  }`}
+                                />
                               </button>
-                            </td>
-                          );
-                        }
-
-                        // État 6 : MANQUANT (Bouton + compact)
-                        return (
-                          <td
-                            key={col.key}
-                            className="py-0.5 px-1 text-center align-middle border-l border-slate-100"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDepositModal({
-                                  student,
-                                  req: {
-                                    id: doc?.requirementId || col.sampleReq.id,
-                                    label: col.label,
-                                    shortLabel: col.shortLabel,
-                                    category: col.category,
-                                    cycle: doc?.cycle || col.sampleReq.cycle,
-                                    source: col.source,
-                                    required: doc?.required ?? col.sampleReq.required,
-                                    pinned: doc?.pinned ?? col.sampleReq.pinned,
-                                    order: doc?.order ?? col.sampleReq.order,
-                                    conditional: col.sampleReq.conditional,
-                                  },
-                                });
-                              }}
-                              className="inline-flex items-center justify-center h-5 w-5 rounded bg-slate-100 hover:bg-primary/10 text-slate-400 hover:text-primary transition-all mx-auto"
-                              title={`Déposer ${col.label}`}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </button>
+                            )}
                           </td>
-                        );
-                      })}
+                        )}
 
-                      {/* Pinned Right: Progression & Statut Admission (Compact) */}
-                      <td className="sticky right-0 z-10 bg-white group-hover:bg-slate-50/70 py-0.5 pl-1.5 pr-2.5 align-middle text-right shadow-[-6px_0_8px_-2px_rgba(0,0,0,0.06)] border-l border-slate-100">
-                        <div className="inline-flex items-center justify-end gap-1.5">
-                          <span className="text-[10px] font-semibold text-slate-600 tabular-nums">
-                            {student.completeness.compliantCount}/{student.completeness.totalRequired}
-                          </span>
+                        {/* Pinned Right: Progression & Statut Admission */}
+                        <td className="sticky right-0 z-10 bg-white group-hover:bg-slate-50/80 py-2 pl-2 pr-3.5 align-middle text-right shadow-[-6px_0_8px_-2px_rgba(0,0,0,0.06)] border-l border-slate-100">
+                          <div className="inline-flex items-center justify-end gap-2">
+                            <span className="text-xs font-medium text-slate-600 tabular-nums whitespace-nowrap">
+                              {student.completeness.compliantCount} / {student.completeness.totalRequired}
+                            </span>
 
-                          {student.status === "PENDING" ? (
-                            student.completeness.isCompliant ? (
+                            {student.status === "PENDING" ? (
                               <button
                                 type="button"
                                 onClick={() => handleApproveClick(student)}
                                 disabled={isProcessing}
-                                className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold shadow-2xs transition-all bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer whitespace-nowrap h-6"
+                                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold shadow-2xs transition-all cursor-pointer whitespace-nowrap h-7 ${
+                                  student.completeness.isCompliant
+                                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                    : "bg-slate-800 text-white hover:bg-slate-900"
+                                }`}
+                                title={
+                                  student.completeness.isCompliant
+                                    ? "Dossier conforme — Valider l'admission"
+                                    : `Dossier incomplet (${student.completeness.missingCount} requise(s) manquante(s)) — Valider avec pièces à régulariser`
+                                }
                               >
                                 {isProcessing ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
-                                  <UserCheck className="h-3 w-3" />
+                                  <UserCheck className="h-3.5 w-3.5" />
                                 )}
                                 <span>Admettre</span>
                               </button>
                             ) : (
-                              <button
-                                type="button"
-                                disabled
-                                className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold shadow-2xs transition-all bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60 whitespace-nowrap h-6"
-                                title={`Dossier incomplet : ${student.completeness.missingCount} pièce(s) manquante(s)`}
-                              >
-                                <UserCheck className="h-3 w-3" />
-                                <span>Admettre</span>
-                              </button>
-                            )
-                          ) : (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 h-5">
-                              <CheckCircle2 className="h-2.5 w-2.5" />
-                              <span>Inscrit</span>
-                            </span>
-                          )}
-                        </div>
-                      </td>
+                              <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 font-medium text-emerald-700 text-xs border border-emerald-200 leading-none">
+                                Admis
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Ligne dépliée pour détails des pièces supplémentaires */}
+                      {isExpanded && (
+                        <tr className="bg-slate-50/90 border-b border-slate-200 animate-in fade-in duration-150">
+                          <td
+                            colSpan={pinnedColumns.length + (otherColumns.length > 0 ? 4 : 3)}
+                            className="py-3 px-4 space-y-2.5"
+                          >
+                            {/* Bloc 1 : Pièces requises */}
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-2 text-xs font-semibold text-slate-800">
+                                <span>Pièces requises :</span>
+                                <span className="text-[11px] font-bold text-slate-500 tabular-nums">
+                                  {student.completeness.compliantCount} / {student.completeness.totalRequired} conformes
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {student.docs
+                                  .filter((d) => d.applicable && d.required)
+                                  .map((doc) => {
+                                    let badgeCls = "bg-white text-slate-700 border-slate-200";
+                                    let icon = <Plus className="h-3 w-3 text-slate-400" />;
+
+                                    if (doc.status === "CONFORME") {
+                                      badgeCls = "bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold";
+                                      icon = <Check className="h-3 w-3 text-emerald-600 stroke-[2.5]" />;
+                                    } else if (doc.status === "FOURNI") {
+                                      badgeCls = "bg-sky-50 text-sky-800 border-sky-200 font-semibold";
+                                      icon = <FileText className="h-3 w-3 text-sky-600" />;
+                                    } else if (doc.status === "EN_REGULARISATION") {
+                                      badgeCls = "bg-amber-50 text-amber-900 border-amber-200 font-medium";
+                                      icon = <Hourglass className="h-3 w-3 text-amber-600 animate-spin-slow" />;
+                                    } else if (doc.status === "NON_CONFORME") {
+                                      badgeCls = "bg-rose-50 text-rose-800 border-rose-200 font-semibold";
+                                      icon = <X className="h-3 w-3 text-rose-600 stroke-[2.5]" />;
+                                    }
+
+                                    return (
+                                      <button
+                                        key={doc.requirementId}
+                                        type="button"
+                                        onClick={() => {
+                                          setDrawerStudent(student);
+                                          setDrawerDocReqId(doc.requirementId);
+                                        }}
+                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs border shadow-2xs hover:shadow-xs transition-all ${badgeCls}`}
+                                      >
+                                        {icon}
+                                        <span>{doc.label}</span>
+                                        <span className="text-[10px] opacity-70">
+                                          ({doc.status === "CONFORME"
+                                            ? "Conforme"
+                                            : doc.status === "FOURNI"
+                                            ? "À vérifier"
+                                            : doc.status === "EN_REGULARISATION"
+                                            ? "En cours"
+                                            : doc.status === "NON_CONFORME"
+                                            ? "Refusé"
+                                            : "Manquant"})
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                              </div>
+                            </div>
+
+                            {/* Bloc 2 : Pièces facultatives */}
+                            {student.docs.some((d) => d.applicable && !d.required) && (
+                              <div className="space-y-1.5 pt-1 border-t border-slate-200/60">
+                                <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                                  <span>Pièces facultatives :</span>
+                                  <span className="text-[11px] tabular-nums">
+                                    {student.docs.filter((d) => d.applicable && !d.required && d.status === "CONFORME").length} /{" "}
+                                    {student.docs.filter((d) => d.applicable && !d.required).length} fournies
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  {student.docs
+                                    .filter((d) => d.applicable && !d.required)
+                                    .map((doc) => {
+                                      let badgeCls = "bg-white/80 text-slate-600 border-slate-200";
+                                      let icon = <Plus className="h-3 w-3 text-slate-400" />;
+
+                                      if (doc.status === "CONFORME") {
+                                        badgeCls = "bg-emerald-50/70 text-emerald-800 border-emerald-200";
+                                        icon = <Check className="h-3 w-3 text-emerald-600" />;
+                                      } else if (doc.status === "FOURNI") {
+                                        badgeCls = "bg-sky-50/70 text-sky-800 border-sky-200";
+                                        icon = <FileText className="h-3 w-3 text-sky-600" />;
+                                      } else if (doc.status === "EN_REGULARISATION") {
+                                        badgeCls = "bg-amber-50/70 text-amber-900 border-amber-200";
+                                        icon = <Hourglass className="h-3 w-3 text-amber-600" />;
+                                      } else if (doc.status === "NON_CONFORME") {
+                                        badgeCls = "bg-rose-50/70 text-rose-800 border-rose-200";
+                                        icon = <X className="h-3 w-3 text-rose-600" />;
+                                      }
+
+                                      return (
+                                        <button
+                                          key={doc.requirementId}
+                                          type="button"
+                                          onClick={() => {
+                                            setDrawerStudent(student);
+                                            setDrawerDocReqId(doc.requirementId);
+                                          }}
+                                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] border shadow-2xs hover:shadow-xs transition-all ${badgeCls}`}
+                                        >
+                                          {icon}
+                                          <span>{doc.label}</span>
+                                        </button>
+                                      );
+                                    })}
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
                     </tr>
                   );
                 })}
@@ -1249,50 +1529,106 @@ export default function ReviewPortalClient({
                   </button>
                 )}
 
-                {/* Ligne des pastilles de pièces applicables */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between text-xs text-slate-600 font-semibold">
-                    <span>Pièces du dossier</span>
-                    <span>
-                      {student.completeness.compliantCount} / {student.completeness.totalRequired} conformes
-                    </span>
+                {/* Ligne des pastilles de pièces : Pièces requises vs Pièces facultatives */}
+                <div className="space-y-2.5 pt-1">
+                  {/* Section 1 : Pièces obligatoires */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span className="text-slate-800">Pièces requises</span>
+                      <span className="text-slate-600 font-bold tabular-nums">
+                        {student.completeness.compliantCount} / {student.completeness.totalRequired} conformes
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {applicableDocs
+                        .filter((d) => d.required)
+                        .map((doc) => {
+                          let badgeStyle = "bg-slate-50 text-slate-700 border-slate-300";
+                          let icon = <Plus className="h-3 w-3 text-slate-400" />;
+
+                          if (doc.status === "CONFORME") {
+                            badgeStyle = "bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold";
+                            icon = <Check className="h-3 w-3 text-emerald-600 stroke-[2.5]" />;
+                          } else if (doc.status === "FOURNI") {
+                            badgeStyle = "bg-sky-50 text-sky-800 border-sky-300 font-semibold";
+                            icon = <FileText className="h-3 w-3 text-sky-600" />;
+                          } else if (doc.status === "EN_REGULARISATION") {
+                            badgeStyle = "bg-amber-50 text-amber-900 border-amber-300 font-medium";
+                            icon = <Hourglass className="h-3 w-3 text-amber-600 animate-spin-slow" />;
+                          } else if (doc.status === "NON_CONFORME") {
+                            badgeStyle = "bg-rose-50 text-rose-800 border-rose-300 font-semibold";
+                            icon = <X className="h-3 w-3 text-rose-600 stroke-[2.5]" />;
+                          }
+
+                          return (
+                            <button
+                              key={doc.requirementId}
+                              type="button"
+                              onClick={() => {
+                                setDrawerStudent(student);
+                                setDrawerDocReqId(doc.requirementId);
+                              }}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs border ${badgeStyle} shadow-2xs`}
+                            >
+                              {icon}
+                              <span>{doc.shortLabel}</span>
+                            </button>
+                          );
+                        })}
+                    </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5">
-                    {applicableDocs.map((doc) => {
-                      let badgeStyle = "bg-slate-100 text-slate-600 border-slate-200";
-                      let icon = <Plus className="h-3 w-3" />;
+                  {/* Section 2 : Pièces facultatives (plus discret) */}
+                  {applicableDocs.some((d) => !d.required) && (
+                    <div className="space-y-1 pt-1 border-t border-slate-100">
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                        <span>Pièces facultatives</span>
+                        <span>
+                          {applicableDocs.filter((d) => !d.required && d.status === "CONFORME").length} /{" "}
+                          {applicableDocs.filter((d) => !d.required).length} fournies
+                        </span>
+                      </div>
 
-                      if (doc.status === "CONFORME") {
-                        badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-200";
-                        icon = <Check className="h-3 w-3 text-emerald-600" />;
-                      } else if (doc.status === "FOURNI") {
-                        badgeStyle = "bg-sky-50 text-sky-700 border-sky-200";
-                        icon = <FileText className="h-3 w-3 text-sky-600" />;
-                      } else if (doc.status === "EN_REGULARISATION") {
-                        badgeStyle = "bg-amber-50 text-amber-800 border-amber-200";
-                        icon = <Hourglass className="h-3 w-3 text-amber-600" />;
-                      } else if (doc.status === "NON_CONFORME") {
-                        badgeStyle = "bg-rose-50 text-rose-700 border-rose-200";
-                        icon = <X className="h-3 w-3 text-rose-600" />;
-                      }
+                      <div className="flex flex-wrap gap-1">
+                        {applicableDocs
+                          .filter((d) => !d.required)
+                          .map((doc) => {
+                            let badgeStyle = "bg-slate-50/60 text-slate-500 border-slate-200";
+                            let icon = <Plus className="h-2.5 w-2.5 text-slate-400" />;
 
-                      return (
-                        <button
-                          key={doc.requirementId}
-                          type="button"
-                          onClick={() => {
-                            setDrawerStudent(student);
-                            setDrawerDocReqId(doc.requirementId);
-                          }}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border ${badgeStyle}`}
-                        >
-                          {icon}
-                          <span>{doc.shortLabel}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                            if (doc.status === "CONFORME") {
+                              badgeStyle = "bg-emerald-50/70 text-emerald-700 border-emerald-200 font-medium";
+                              icon = <Check className="h-2.5 w-2.5 text-emerald-600" />;
+                            } else if (doc.status === "FOURNI") {
+                              badgeStyle = "bg-sky-50/70 text-sky-700 border-sky-200 font-medium";
+                              icon = <FileText className="h-2.5 w-2.5 text-sky-600" />;
+                            } else if (doc.status === "EN_REGULARISATION") {
+                              badgeStyle = "bg-amber-50/70 text-amber-700 border-amber-200";
+                              icon = <Hourglass className="h-2.5 w-2.5 text-amber-600" />;
+                            } else if (doc.status === "NON_CONFORME") {
+                              badgeStyle = "bg-rose-50/70 text-rose-700 border-rose-200";
+                              icon = <X className="h-2.5 w-2.5 text-rose-600" />;
+                            }
+
+                            return (
+                              <button
+                                key={doc.requirementId}
+                                type="button"
+                                onClick={() => {
+                                  setDrawerStudent(student);
+                                  setDrawerDocReqId(doc.requirementId);
+                                }}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] border ${badgeStyle}`}
+                              >
+                                {icon}
+                                <span>{doc.shortLabel}</span>
+                              </button>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Boutons d'action principaux (Zone du pouce, min-h 44px) */}
@@ -1310,27 +1646,28 @@ export default function ReviewPortalClient({
                   </button>
 
                   {student.status === "PENDING" && (
-                    student.completeness.isCompliant ? (
-                      <button
-                        type="button"
-                        onClick={() => handleApproveClick(student)}
-                        disabled={processingId === student.id}
-                        className="min-h-[44px] px-4 inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-700 transition-colors"
-                      >
+                    <button
+                      type="button"
+                      onClick={() => handleApproveClick(student)}
+                      disabled={processingId === student.id}
+                      className={`min-h-[44px] px-4 inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold text-xs transition-colors shadow-2xs ${
+                        student.completeness.isCompliant
+                          ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                          : "bg-slate-800 text-white hover:bg-slate-900"
+                      }`}
+                      title={
+                        student.completeness.isCompliant
+                          ? "Dossier conforme — Valider l'admission"
+                          : `Dossier incomplet (${student.completeness.missingCount} manquante(s)) — Valider avec pièces à régulariser`
+                      }
+                    >
+                      {processingId === student.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
                         <UserCheck className="h-4 w-4" />
-                        <span>Admettre</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled
-                        className="min-h-[44px] px-4 inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 text-slate-400 border border-slate-200 font-semibold text-xs cursor-not-allowed opacity-60"
-                        title={`Dossier incomplet : ${student.completeness.missingCount} pièce(s) manquante(s)`}
-                      >
-                        <UserCheck className="h-4 w-4" />
-                        <span>Incomplet</span>
-                      </button>
-                    )
+                      )}
+                      <span>Admettre</span>
+                    </button>
                   )}
                 </div>
               </div>
@@ -1338,6 +1675,45 @@ export default function ReviewPortalClient({
           })
         )}
       </div>
+
+      {/* ── BARRE DE PAGINATION SERVEUR ── */}
+      {totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-white border border-slate-200 rounded-2xl shadow-2xs text-xs">
+          <span className="text-slate-600">
+            Page <span className="font-bold text-slate-900">{currentPage}</span> sur{" "}
+            <span className="font-bold text-slate-900">{totalPages}</span>
+            {totalFilteredCount !== undefined && (
+              <span className="text-slate-400 ml-1">({totalFilteredCount} dossier{totalFilteredCount > 1 ? "s" : ""})</span>
+            )}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={currentPage <= 1}
+              onClick={() => {
+                const params = new URLSearchParams(window.location.search);
+                params.set("page", String(currentPage - 1));
+                router.push(`?${params.toString()}`);
+              }}
+              className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-semibold min-h-[38px] transition-colors"
+            >
+              Précédent
+            </button>
+            <button
+              type="button"
+              disabled={currentPage >= totalPages}
+              onClick={() => {
+                const params = new URLSearchParams(window.location.search);
+                params.set("page", String(currentPage + 1));
+                router.push(`?${params.toString()}`);
+              }}
+              className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-semibold min-h-[38px] transition-colors"
+            >
+              Suivant
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── PANNEAU LATÉRAL (POSTE DE TRAVAIL DE REVUE) ── */}
       {drawerStudent && activeDrawerDoc && (

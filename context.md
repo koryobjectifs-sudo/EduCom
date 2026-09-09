@@ -1,18 +1,27 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 9 septembre 2026 — **Jalon de Référence Stable : `v1-shell-perf-stable`**
-> Lot livré : Shell 2 étages (Rail 72px + Sidebar contextuelle), fusion des routes, typographie Lato & densité calibrée, année scolaire active déclarative (`School.activeAcademicYear`), performance & découpage Suspense, pool Postgres `connection_limit=5`, squelettes `loading.tsx` généralisés, smoke test exhaustif 54 routes + scénario école vierge.
+> Dernière mise à jour : 9 septembre 2026 — **Chaîne d'Admissions & Espace Documentaire Parent Livrés (`v2-admissions-parents`)**
+> Lot livré : Matrice d'admissions multi-cycles (`/dashboard/students/dossiers/review`), onglets étanches SQL, pagination serveur 50 lignes, requête agrégée par page, poste de travail secrétaire (drawer d'inspection avec motif de refus obligatoire et URLs signées 15 min), espace documentaire parent (`/dashboard/students/[id]/dossier`), validation Magic Bytes serveur, rate limit 20 uploads/h, notifications in-app transactionnelles et isolation stricte (RLS / serveur / 0 accès enseignant).
 
-## 🏷️ Point de Sauvegarde & Rollback : `v1-shell-perf-stable`
+## 🏷️ Point de Sauvegarde & Rollback : `v2-admissions-parents`
 
-- **Nom de l'étiquette Git** : `v1-shell-perf-stable`
-- **Commande de Rollback / Restauration** : `git checkout v1-shell-perf-stable`
+- **Nom de l'étiquette Git** : `v2-admissions-parents`
+- **Commande de Rollback / Restauration** : `git checkout v2-admissions-parents`
 - **Contenu du jalon** :
-  1. **Shell 2 étages & Navigation** : AppRail fixe (72px) avec tuile Accueil + 5 espaces métier, ContextualSidebar repliable, sélecteur d'école et profil dans TopNav.
-  2. **Typographie & Densité** : Police Lato chargée localement, niveaux de zoom calibrés (90%, 100%, 115%).
-  3. **Année scolaire déclarative** : Colonne `School.activeAcademicYear`, écran de réglage de session, bandeau de transition et comparaison des effectifs.
-  4. **Performance Vercel (`fra1`) & Découpage Suspense** : Temps de réponse `/dashboard` = **262 ms** (vs 2 747 ms initialement), FCP/LCP < 1 s sur mobile Slow 4G Dakar, 100% des routes avec squelettes `loading.tsx`.
-  5. **Résilience & Smoke Test** : Tolérance totale aux données nulles/absentes, couverture des 54 routes applicatives, 17 publiques, 7 rôles, scénario « École vierge » et contrôle géométrique anti-chevauchement du rail.
+  1. **Matrice & Exeat conditionnel** : L'exeat est `NON_APPLICABLE` par défaut (`kind === 'TRANSFERT'`), Aminata Fall (CE2) affiche exactement 2 pièces requises.
+  2. **Compteur « Autres pièces »** : Calcule uniquement les pièces applicables aux élèves affichés (5 en CE2, libellé sobre sans chiffre en multi-cycles).
+  3. **Onglets étanches & SQL** : 4 onglets (`À traiter`, `Pièces manquantes`, `Complets`, `Tous`) calculés côté serveur en SQL, pagination 50 lignes dans les `searchParams`.
+  4. **Poste de travail Secrétaire & Mobile** : Tiroir latéral d'instruction avec aperçu, motif de refus obligatoire en clair, boutons Conforme/Non conforme et navigation séquentielle. Cartes tactiles sous 768px.
+  5. **Espace Parent & Sécurité Matrice** :
+     - Parent borné exclusivement à ses enfants (`parentId`).
+     - Dépôt parent autorisé uniquement sur `MANQUANT`, `EN_REGULARISATION`, `NON_CONFORME` (interdit sur `VALIDATED`).
+     - Enseignants (`TEACHER`) sans aucun accès aux dossiers administratifs.
+     - Magic Bytes réels (PDF, JPG, PNG, WEBP, HEIC), URLs signées 15 min (900s), rate-limit 20 uploads/h.
+     - Notifications in-app transactionnelles créées pour le parent sur validation/refus avec motif obligatoire.
+     - Suite de tests `scripts/test-permissions-matrix.ts` validée (6/6 tests réussis).
+  6. **Smoke Test & Stabilité** : 54 routes du dashboard + 17 publiques + 7 rôles + école vierge 100% opérationnels, `npx tsc --noEmit` à 0 erreur.
+
+## 🏷️ Point de Sauvegarde Précédent : `v1-shell-perf-stable`
 - **État des Migrations Prisma** : `npx prisma migrate status` $\to$ **4 migrations appliquées, schéma 100% à jour**.
 
 ## 📌 Chantier Performance & Résilience (Septembre 2026) — Mesures & Évolutions
@@ -51,6 +60,35 @@
   - Documenté dans `docs/latency-senegal-infra.md`.
 
 ## 📌 Nouvelles Fonctionnalités & Logiques Implémentées (Septembre 2026)
+
+### MATRICE DE CONFORMITÉ DES ADMISSIONS & NOMENCLATURE DES CYCLES (9 septembre 2026)
+
+- **1. Nomenclature officielle sénégalaise (`EducationalCycle`)** :
+  - **Prisma & Postgres** : `PRESCOLAIRE`, `ELEMENTAIRE`, `MOYEN`, `SECONDAIRE`, `AUTRE`.
+  - **Migration versionnée** : `prisma/migrations/20260909060500_rename_educational_cycles/migration.sql` avec `ALTER TYPE "EducationalCycle" RENAME VALUE`.
+  - **Conservation stricte des données** : 2 512 `DocumentRequirement`, 19 `Class`, 2 `FeeItem` 100% préservés.
+  - **Libellés UI en français courant** : Séparation stricte de l'enum technique et de l'affichage ("Préscolaire (Maternelle)", "Élémentaire", "Moyen (Collège)", "Secondaire (Lycée)").
+
+- **2. Nettoyage de l'ambiguïté `RECEIVED` vs `TO_VERIFY`** :
+  - Audit en base : **0 ligne** `StudentDocument` au statut `RECEIVED`.
+  - Mapping redondant supprimé du code applicatif (seul `TO_VERIFY` est mappé sur l'état `FOURNI` — Déposé, à vérifier).
+
+- **3. Matrice d'admissions & Évaluation multi-cycles (`/dashboard/students/dossiers/review`)** :
+  - Colonnes d'exigences dynamiques : cellule `—` (`NON_APPLICABLE`) lorsqu'une pièce ne concerne pas le cycle de l'élève (ex. Fiche scolaire Moyen non applicable à un élève en CE2).
+  - Épinglage des colonnes principales, menu déroulant pour les « Autres pièces » manquantes/à vérifier.
+  - Fractions de conformité (« X / Y pièces requises ») ignorant les pièces facultatives.
+  - Séparation responsive : bloc distinct « Pièces facultatives » sur mobile.
+  - En-têtes desktop avec `shortLabel` sur une seule ligne.
+  - Hauteur de ligne calibrée à 54px.
+
+- **4. Sécurité & Poste de contrôle des pièces** :
+  - Magic bytes : détection et validation des signatures de fichiers réels (PDF, JPG, PNG).
+  - URLs de prévisualisation privées signées limitées à 15 minutes.
+  - Motif de rejet obligatoire affiché en clair avec historique `supersedesId`.
+  - Boutons de navigation du tiroir sautant automatiquement les pièces déjà conformes ou non applicables.
+
+- **5. Utilitaire de préparation de test en base (`scripts/_seed-admissions-test.ts`)** :
+  - Injection directe de l'école de test avec `onboardingCompleted: true`, activeAcademicYear, classes multi-cycles (CE2 A, 6ème A), 4 élèves aux âges variés (8, 11, 12 ans) et documents couvrant les 6 états.
 
 ### SOURCE UNIQUE DE VÉRITÉ POUR L'ANNÉE SCOLAIRE ACTIVE & REGISTRE ÉLÈVES (9 septembre 2026)
 

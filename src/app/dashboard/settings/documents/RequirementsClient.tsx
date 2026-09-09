@@ -32,21 +32,21 @@ import {
   applyOfficialRequirements,
 } from "./actions";
 
-const CYCLES_ORDER = ["MATERNELLE", "ELEMENTAIRE", "COLLEGE", "LYCEE", "AUTRE"] as const;
+const CYCLES_ORDER = ["PRESCOLAIRE", "ELEMENTAIRE", "MOYEN", "SECONDAIRE", "AUTRE"] as const;
 
 const CYCLES_LABELS: Record<string, string> = {
-  MATERNELLE: "Préscolaire (Maternelle)",
+  PRESCOLAIRE: "Préscolaire (Maternelle)",
   ELEMENTAIRE: "Élémentaire (CI au CM2)",
-  COLLEGE: "Moyen (6ème à 3ème)",
-  LYCEE: "Secondaire (2nde à Terminale)",
+  MOYEN: "Moyen (6ème à 3ème)",
+  SECONDAIRE: "Secondaire (2nde à Terminale)",
   AUTRE: "Général / Sans cycle",
 };
 
 const CYCLES_REFERENTIEL: { cle: string; titre: string }[] = [
-  { cle: "MATERNELLE", titre: "Préscolaire (Maternelle)" },
+  { cle: "PRESCOLAIRE", titre: "Préscolaire (Maternelle)" },
   { cle: "ELEMENTAIRE", titre: "Élémentaire (CI au CM2)" },
-  { cle: "COLLEGE", titre: "Moyen (6ème à 3ème)" },
-  { cle: "LYCEE", titre: "Secondaire (2nde à Terminale)" },
+  { cle: "MOYEN", titre: "Moyen (6ème à 3ème)" },
+  { cle: "SECONDAIRE", titre: "Secondaire (2nde à Terminale)" },
 ];
 
 export type ReqItem = {
@@ -318,13 +318,13 @@ export function RequirementsClient({
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                {c === "MATERNELLE"
+                {c === "PRESCOLAIRE"
                   ? "Préscolaire"
                   : c === "ELEMENTAIRE"
                   ? "Élémentaire"
-                  : c === "COLLEGE"
+                  : c === "MOYEN"
                   ? "Moyen"
-                  : c === "LYCEE"
+                  : c === "SECONDAIRE"
                   ? "Secondaire"
                   : "Autre"}{" "}
                 ({count})
@@ -383,10 +383,10 @@ export function RequirementsClient({
                   onChange={(e) => setFormData({ ...formData, cycle: e.target.value })}
                   className="w-full h-9 rounded-xl border border-slate-200 px-3 text-xs focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                 >
-                  <option value="MATERNELLE">Préscolaire (Maternelle)</option>
+                  <option value="PRESCOLAIRE">Préscolaire (Maternelle)</option>
                   <option value="ELEMENTAIRE">Élémentaire (CI au CM2)</option>
-                  <option value="COLLEGE">Moyen (6ème à 3ème)</option>
-                  <option value="LYCEE">Secondaire (2nde à Terminale)</option>
+                  <option value="MOYEN">Moyen (6ème à 3ème)</option>
+                  <option value="SECONDAIRE">Secondaire (2nde à Terminale)</option>
                   <option value="AUTRE">Tout l'établissement</option>
                 </select>
               </div>

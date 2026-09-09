@@ -26,10 +26,10 @@ export const SCOPE_LABELS: Record<DocScopeKind, string> = {
 };
 
 export const CYCLE_LABELS: Record<EducationalCycle, string> = {
-  MATERNELLE: "Maternelle",
+  PRESCOLAIRE: "Préscolaire (Maternelle)",
   ELEMENTAIRE: "Élémentaire",
-  COLLEGE: "Collège",
-  LYCEE: "Lycée",
+  MOYEN: "Moyen (Collège)",
+  SECONDAIRE: "Secondaire (Lycée)",
   AUTRE: "Autre",
 };
 
