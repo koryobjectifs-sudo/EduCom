@@ -11,13 +11,11 @@ import type { Prisma, SchoolDocStatus, EducationalCycle } from "../generated/pri
  *
  * ═══ CE N'EST PAS LE DOSSIER ÉLÈVE, ET CE NE DOIT JAMAIS LE DEVENIR ═══
  *
- *   `StudentDocument`  ce qui appartient à UN ENFANT  (extrait, certificat médical)
+ *   `StudentDocument`  ce qui appartient à UN ENFANT  (extrait de naissance, photo)
  *   `SchoolDocument`   ce que l'ÉCOLE produit         (fournitures, règlement, manuels)
  *
- * Les deux vivent dans le même bucket privé, sous deux préfixes distincts, et
- * n'ont **aucun chemin de lecture commun**. Rien ici ne lit `StudentDocument`,
- * et rien du dossier élève ne lit cette table. Une pièce ne se déplace pas de
- * l'une à l'autre : ce serait publier le dossier médical d'un enfant dans une
+ * Le modèle refuse de confondre les deux. Il n'y a aucune passerelle de
+ * l'une à l'autre : ce serait publier la pièce confidentielle d'un enfant dans une
  * bibliothèque destinée aux familles.
  *
  * ═══ LE CHEMIN OUVRE LA PORTE, LA PORTÉE DÉCIDE DU CONTENU ═══

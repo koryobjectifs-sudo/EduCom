@@ -73,7 +73,7 @@ export function generateCdpDeclarationDocument(school: SchoolCdpData) {
         items: [
           { label: "Données des élèves", value: "Nom, prénom, date et lieu de naissance, sexe, classe, matricule, historique de présence et notes" },
           { label: "Données des parents / tuteurs", value: "Nom, prénom, numéros de téléphone portable, statut de filiation ou de tutelle" },
-          { label: "Pièces justificatives", value: "Extrait de naissance, fiche de scolarité, certificat de transfert (exeat), carnet de vaccination" },
+          { label: "Pièces justificatives", value: "Extrait ou bulletin de naissance, fiche de scolarité, certificat de transfert (exeat), bulletins antérieurs" },
           { label: "Données financières", value: "Relevé des règlements, échéances d'écolage et reçus de caisse" },
         ]
       },

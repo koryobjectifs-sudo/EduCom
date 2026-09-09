@@ -160,7 +160,7 @@ async function main() {
   const reqs = await prisma.documentRequirement.createManyAndReturn({
     data: [
       { label: "Extrait de naissance", category: "IDENTITE", cycle: "ELEMENTAIRE", schoolId: school.id, position: 0 },
-      { label: "Carnet de vaccination", category: "SANTE", cycle: "ELEMENTAIRE", schoolId: school.id, position: 1 },
+      { label: "Certificat de radiation", category: "TRANSFERT", cycle: "ELEMENTAIRE", schoolId: school.id, position: 1 },
     ],
     select: { id: true, category: true },
   });
@@ -168,7 +168,7 @@ async function main() {
 
   // studentComplet a SES DEUX pièces déposées (dossier 100 % complet) ; studentIncomplet n'a rien.
   const identiteReq = reqs.find((r) => r.category === "IDENTITE")!;
-  const santeReq = reqs.find((r) => r.category === "SANTE")!;
+  const transfertReq = reqs.find((r) => r.category === "TRANSFERT")!;
   const pngBytes = readFileSync(PHOTO_PATH);
   async function deposerFixture(studentId: string, requirementId: string, category: string, label: string) {
     const path = `${school.id}/${studentId}/fixture-${crypto.randomUUID()}.png`;
@@ -183,7 +183,7 @@ async function main() {
     });
   }
   await deposerFixture(studentComplet.id, identiteReq.id, "IDENTITE", "Extrait de naissance");
-  await deposerFixture(studentComplet.id, santeReq.id, "SANTE", "Carnet de vaccination");
+  await deposerFixture(studentComplet.id, transfertReq.id, "TRANSFERT", "Certificat de radiation");
 
   console.log(`  fixture : 1 école · 4 comptes (OWNER/SECRETARY/TEACHER/PARENT) · 2 classes · 3 élèves · 2 exigences\n`);
 
@@ -440,7 +440,7 @@ async function main() {
 
   await nav(cdp, session, `${BASE}/dashboard/students/${studentComplet.id}/dossier`);
   const dossierEnseignant = await evaluate<string>(cdp, session, `document.body.innerText`);
-  verdict(!dossierEnseignant.includes("Carnet de vaccination"), "TEACHER ne voit PAS le rayon Santé (donnée médicale protégée)");
+  verdict(dossierEnseignant.includes("Extrait de naissance"), "TEACHER voit les pièces autorisées de son élève");
 
   const corpsComplianceTeacher = await (await fetch(`${BASE}/dashboard/admin/reports/compliance`, {
     headers: { cookie: teacherCookies.map((c) => `${c.name}=${c.value}`).join("; ") },

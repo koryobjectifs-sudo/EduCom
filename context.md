@@ -1,9 +1,32 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 9 septembre 2026 — **Lot 3 : Réinscription en Masse & Préparation de la Rentrée Livrés (`v4-reinscription`)**
-> Lot livré : Correctifs Lot 1 (Élève sans classe avec état explicite « Affectez cet élève à une classe pour connaître les pièces exigées » sans fausser les compteurs d'onglets, correction cohérence aperçu document validé sans faux message de pièce manquante), module de réinscription en masse et promotion de niveau sénégalaise (`src/lib/reinscription.ts`), assistant en 4 étapes (`/dashboard/settings/reinscription`), exécution idempotente transactionnelle par lot avec `prisma.enrollment.createMany` pour 1000 élèves sans timeout, annulation sécurisée avec contrôle de notes/évaluations et journalisation `AuditLog`, accès depuis réglages et carte transition dashboard.
+> Dernière mise à jour : 9 septembre 2026 — **Sécurité Espace Parent, Éradication Données de Santé & Perfectionnements Réinscription (`v5-securite-parent`)**
+> Lot livré :
+> 1. Éradication absolue et définitive de toute donnée de santé (loi 2008-12 CDP Sénégal), note explicite de tête dans `officialRequirements.ts`, nettoyage exhaustif des seeds, libellés et commentaires.
+> 2. Sécurisation intégrale de l'Espace Parent : refonte de `/dashboard/payments` en vue famille dédiée (`ParentPaymentsView.tsx`), solde par enfant, prochaine échéance et historique de versements avec reçus ; suppression de tout indicateur de pilotage d'école et boutons administratifs ; navigation famille desktop et mobile (barre inférieure sous 768px pour *Mes enfants*, *Dossiers*, *Notes*, *Paiements*, *Mon compte*) ; extension de la matrice de sécurité à 36 tests automatisés validés bloquant toutes les server actions administratives pour le rôle `PARENT`.
+> 3. Ajustements Lot 3 : Réinscription avec `upsert` (mise à jour effective des classes en cas de relance/correction), garde-fous d'annulation étendus (bulletins, notes, présences), statut automatique des élèves sortants hors fin de cycle (`INACTIVE` vs `GRADUATED`), confirmation de la restriction d'accès aux rôles `OWNER` et `ADMIN`.
 
-## 🏷️ Point de Sauvegarde & Rollback : `v4-reinscription`
+## 🏷️ Point de Sauvegarde & Rollback : `v5-securite-parent`
+
+- **Nom de l'étiquette Git** : `v5-securite-parent`
+- **Commande de Rollback / Restauration** : `git checkout v5-securite-parent`
+- **Contenu du jalon** :
+  1. **Bloc 1 — Données de santé (Éradication formelle & définitive)** :
+     - Principe de proportionnalité loi 2008-12 : suppression de toute mention médicale/vaccination dans les seeds, modèles officiels, et descriptions.
+     - Note d'interdiction formelle et définitive en tête de `src/lib/officialRequirements.ts`.
+     - Règle de dossier réécrite strictement sur les pièces scolaires et administratives (extrait de naissance, photos, certificats de scolarité).
+  2. **Bloc 2 — Espace Parent & Matrice de Permissions Étendue** :
+     - Refonte complète de `/dashboard/payments` pour les parents (`ParentPaymentsView.tsx`) : Solde par enfant, prochaine échéance, historique des versements avec reçus certifiés. Zéro KPI de pilotage d'école ("Prévisionnel", "À relancer"), zéro bouton d'action d'école ("Nouvelle facture", "Examiner").
+     - Navigation pensée mobile : barre supérieure sur desktop et barre inférieure sous 768px (*Mes enfants*, *Dossiers*, *Notes*, *Paiements*, *Mon compte* via `ParentLayout.tsx` et `ParentAccountView.tsx`).
+     - Sécurité côté serveur : Server actions d'émission de factures, d'encaissement et de gestion protégées avec rejet strict pour `PARENT`.
+     - Matrice `scripts/test-permissions-matrix.ts` étendue à 36 tests automatisés (100% passés).
+  3. **Bloc 3 — Réinscription en Masse & Préparation de la Rentrée** :
+     - Idempotence et corrections : `prisma.enrollment.upsert` pour que la correction de classe de destination d'un élève soit répercutée immédiatement lors d'une relance.
+     - Garde-fous d'annulation étendus : vérification des bulletins, notes et présences enregistrées sur l'année cible.
+     - Règle de statut : un élève non réinscrit passe en `GRADUATED` en fin de cycle (CM2, 3ème, Terminale) ou en `INACTIVE` (départ/radiation hors fin de cycle).
+     - Restriction de rôle stricte aux seuls `OWNER` et `ADMIN`.
+
+## 🏷️ Point de Sauvegarde Précédent : `v4-reinscription`
 
 - **Nom de l'étiquette Git** : `v4-reinscription`
 - **Commande de Rollback / Restauration** : `git checkout v4-reinscription`

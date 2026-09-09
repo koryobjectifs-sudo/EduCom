@@ -1,10 +1,12 @@
 import { prisma } from "./_env";
 import { signedUrlFor } from "../src/lib/studentFile";
 import { validateMagicBytes } from "../src/lib/studentFileLimits";
+import { hasAccess } from "../src/lib/permissions";
+import { requireActionContext } from "../src/lib/actionContext";
 
 async function main() {
   console.log("╔════════════════════════════════════════════════════════════════════╗");
-  console.log("║ TEST SUITE : MATRICE DE SÉCURITÉ & PERMISSIONS ADMISSIONS / PARENT ║");
+  console.log("║ TEST SUITE : MATRICE DE SÉCURITÉ & PERMISSIONS PARENT & ACTIONS    ║");
   console.log("╚════════════════════════════════════════════════════════════════════╝\n");
 
   const school = await prisma.school.findFirst({ where: { name: "École Pilote Dakar - Admissions" } });
@@ -193,6 +195,54 @@ async function main() {
 
   const finalNotifCount = await prisma.staffNotification.count({ where: { userId: parentA.id } });
   assert(finalNotifCount === initialNotifCount + 1, "Notification in-app générée avec succès pour le parent");
+
+  console.log("\n── RÈGLE 6 : SÉCURITÉ DES ROUTES & SERVER ACTIONS (ROLE PARENT)");
+  
+  // 6a. Toutes les routes d'administration et d'émission doivent être STRICTEMENT REFUSÉES à PARENT
+  const ADMIN_AND_ISSUER_PATHS = [
+    "/dashboard/payments/new",
+    "/dashboard/payments/invoice",
+    "/dashboard/payments/receipt",
+    "/dashboard/payments/statement",
+    "/dashboard/payments/review",
+    "/dashboard/payments/expenses",
+    "/dashboard/payments/tarifs",
+    "/dashboard/grades/saisie",
+    "/dashboard/grades/report-card",
+    "/dashboard/grades/difficultes",
+    "/dashboard/settings/pedagogie",
+    "/dashboard/settings/reinscription",
+    "/dashboard/settings/documents",
+    "/dashboard/settings/fees",
+    "/dashboard/settings/academic-years",
+    "/dashboard/students/dossiers/review",
+    "/dashboard/students/new",
+    "/dashboard/students/import",
+    "/dashboard/students/export",
+    "/dashboard/classes",
+    "/dashboard/team",
+    "/dashboard/attendance",
+    "/dashboard/documents/validation",
+    "/dashboard/documents/reminder",
+    "/dashboard/documents/centre/gestion",
+  ];
+
+  for (const path of ADMIN_AND_ISSUER_PATHS) {
+    assert(!hasAccess("PARENT", path), `PARENT est strictement refusé sur ${path}`);
+  }
+
+  // 6b. Seules les 5 destinations parent sont autorisées
+  const PARENT_ALLOWED_DESTINATIONS = [
+    "/dashboard/students",
+    "/dashboard/documents",
+    "/dashboard/grades",
+    "/dashboard/payments",
+    "/dashboard/settings",
+  ];
+
+  for (const path of PARENT_ALLOWED_DESTINATIONS) {
+    assert(hasAccess("PARENT", path), `PARENT a accès à sa destination ${path}`);
+  }
 
   console.log(`\n🎉 TOUS LES ${testsPassed}/${testsTotal} TESTS DE LA MATRICE DE SÉCURITÉ SONT PASSÉS SANS ERREUR !`);
 }

@@ -473,7 +473,7 @@ function ListeFactures({ factures }: { factures: Student360["finance"]["factures
   );
 }
 
-export function SectionFinance({ d, studentId }: { d: Student360; studentId: string }) {
+export function SectionFinance({ d, studentId, canManageFinance }: { d: Student360; studentId: string; canManageFinance?: boolean }) {
   return (
     <div className="space-y-6">
       <Bloc title="Situation financière">
@@ -496,12 +496,14 @@ export function SectionFinance({ d, studentId }: { d: Student360; studentId: str
       <Bloc
         title="Toutes les factures"
         action={
-          <Link
-            href={`/dashboard/payments/invoice?studentId=${studentId}`}
-            className="inline-flex items-center rounded-control px-2 py-1 text-role-label font-medium text-primary transition-colors hover:bg-sunk pointer-coarse:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-          >
-            Créer
-          </Link>
+          canManageFinance ? (
+            <Link
+              href={`/dashboard/payments/invoice?studentId=${studentId}`}
+              className="inline-flex items-center rounded-control px-2 py-1 text-role-label font-medium text-primary transition-colors hover:bg-sunk pointer-coarse:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              Créer
+            </Link>
+          ) : undefined
         }
       >
         <ListeFactures factures={d.finance.factures} />

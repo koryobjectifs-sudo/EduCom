@@ -55,7 +55,7 @@ export const DOCUMENT_KINDS: DocumentKind[] = [
     id: "info-sheet",
     slug: "info-sheet",
     name: "Fiche d'information",
-    description: "Fiche de renseignements et données médicales d'un élève.",
+    description: "Fiche de renseignements administratifs et d'urgence d'un élève.",
     icon: Contact2,
     subject: "élève",
     primary: false,

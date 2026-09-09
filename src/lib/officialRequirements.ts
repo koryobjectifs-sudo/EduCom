@@ -3,11 +3,31 @@ import type { DocCategory, EducationalCycle, StudentKind, RequirementSource } fr
 /**
  * Référentiel réglementaire et officiel des pièces d'inscription — Sénégal, par cycle.
  * 
- * Contexte réglementaire sénégalais :
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * ⚠️ RÈGLE STRICTE ET DÉFINITIVE : AUCUNE DONNÉE DE SANTÉ DANS LE RÉFÉRENTIEL
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * En application du principe de proportionnalité de la loi n° 2008-12 du 25 janvier 2008
+ * (Protection des données à caractère personnel au Sénégal), il est STRICTEMENT INTERDIT
+ * de collecter ou d'exiger des pièces que l'établissement scolaire n'utilise pas.
+ * 
+ * Les données de santé des mineurs (carnet de santé, carnet de vaccination, certificats
+ * médicaux, aptitudes physiques) constituent la catégorie de données la plus sensible.
+ * 
+ * EduCom SaaS :
+ * 1. N'en seed AUCUNE par défaut.
+ * 2. N'en propose AUCUNE dans ses modèles officiels.
+ * 3. N'en documente AUCUNE dans ses règles par défaut.
+ * 
+ * Si un établissement a un besoin légal spécifique (ex: internat médicalisé), il l'ajoute
+ * lui-même sous sa propre responsabilité depuis « Configurer les pièces exigées ».
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * Contexte réglementaire officiel sénégalais :
  * - Inscription au CI : extrait ou bulletin de naissance. Si < 6 ans, certificat de scolarité préscolaire.
  * - Entrée en 6e (décret n° 90-1463 du 28 décembre 1990) : demande d'inscription, acte d'état civil, fiche scolaire.
  * - Inscription au CFEE : bulletin ou extrait de naissance, fiche scolaire ou certificat de scolarité.
- * - Protection des données de santé (Loi 2008-12) : PAS de carnet de vaccination seedé par défaut.
+ * - Inscription au BFEM / Baccalauréat : acte d'état civil, relevés et certificats de scolarité.
  */
 
 export type OfficialRequirementDef = {

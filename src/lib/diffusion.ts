@@ -276,7 +276,7 @@ async function prepareSchoolDocument(
  *
  * ⚠️ **Une pièce d'élève ne part jamais vers un groupe.** Le seul destinataire
  * possible est le parent de CET enfant. Ce n'est pas une commodité, c'est une
- * borne structurelle : un extrait de naissance ou un certificat médical n'a
+ * borne structurelle : un extrait de naissance ou un justificatif de domicile n'a
  * aucune raison d'atteindre une liste de diffusion, et une erreur de sélection
  * n'est pas rattrapable une fois le message parti.
  *

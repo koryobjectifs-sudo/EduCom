@@ -83,13 +83,13 @@ export function resolveStudentKind(
  * ⚠️ **Aucune durée n'est supposée.** Sans `validityMonths` sur l'exigence, la
  * fonction renvoie `null` : la pièce ne périme pas. C'est la règle de
  * l'établissement qui décide, jamais ce fichier — un extrait de naissance ne
- * périme nulle part, un certificat médical périme dans certaines écoles et pas
+ * périme nulle part, un justificatif de domicile périme dans certaines écoles et pas
  * dans d'autres.
  *
  * ⚠️ **Débordement de fin de mois.** `setMonth()` fait glisser le 31 janvier
  * + 1 mois au 3 mars, parce que février n'a pas de 31. On ramène alors au
  * dernier jour du mois visé : trois jours de validité offerts sur une pièce
- * d'identité, c'est peu ; sur un certificat médical de sept jours, c'est 40 %.
+ * d'identité, c'est peu ; sur une attestation de trois mois, c'est significatif.
  */
 export function expiryFor(receivedAt: Date, validityMonths: number | null | undefined): Date | null {
   if (validityMonths == null || validityMonths <= 0) return null;

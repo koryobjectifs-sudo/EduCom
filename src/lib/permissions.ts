@@ -113,10 +113,13 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
     "/dashboard/admin/reports",
   ],
 
-  // Un parent ne voit que ce qui le concerne. Pas d'accès à l'accueil ni aux rapports admin.
+  // Un parent accède à ses 5 modules dédiés (chacun filtré strictement par sa famille).
   PARENT: [
-    "/dashboard/payments",
+    "/dashboard/students",
     "/dashboard/documents",
+    "/dashboard/grades",
+    "/dashboard/payments",
+    "/dashboard/settings",
   ],
 
   // Le comptable édite factures et reçus : ils vivent dans `/dashboard/documents`,
@@ -252,13 +255,21 @@ export const ROLE_DENIALS: Partial<Record<RoleType, string[]>> = {
     "/dashboard/documents/centre/gestion",
 
     // ═══ Lot 12.2 — consultation de la grille tarifaire ═══
-    //
-    // ⚠️ `/dashboard/payments/tarifs` expose la grille officielle de
-    // l'établissement (tous les frais, toutes les classes) et le formulaire de
-    // demande de modification. Un parent possède `/dashboard/payments` pour
-    // consulter SES factures : sans ce refus il héritait de l'écran par préfixe,
-    // exactement comme il héritait de l'atelier financier au lot 11.1.
     "/dashboard/payments/tarifs",
+
+    // ═══ Espace Parent — Exclusion de toute action ou écran d'administration ═══
+    "/dashboard/grades/saisie",
+    "/dashboard/grades/bulletin",
+    "/dashboard/grades/difficultes",
+    "/dashboard/settings/pedagogie",
+    "/dashboard/settings/documents",
+    "/dashboard/settings/reinscription",
+    "/dashboard/settings/fees",
+    "/dashboard/settings/academic-years",
+    "/dashboard/students/dossiers/review",
+    "/dashboard/students/new",
+    "/dashboard/students/import",
+    "/dashboard/students/export",
   ],
 
   // Le comptable prépare et transmet ; il n'approuve pas son propre travail.

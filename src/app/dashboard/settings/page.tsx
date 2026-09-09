@@ -37,6 +37,33 @@ export default async function SettingsPage() {
     return <div>École non trouvée</div>;
   }
 
+  // ═══ ESPACE MON COMPTE PARENT ═══
+  if (dbUser.role === "PARENT") {
+    const childrenCount = await prisma.student.count({
+      where: { schoolId: school.id, parentId: dbUser.id },
+    });
+
+    const ParentAccountView = (await import("./ParentAccountView")).default;
+    return (
+      <ParentAccountView
+        user={{
+          firstName: dbUser.firstName,
+          lastName: dbUser.lastName,
+          email: dbUser.email,
+          phone: dbUser.phone,
+          role: dbUser.role,
+        }}
+        school={{
+          name: school.name,
+          phone: school.phone,
+          email: school.email,
+          address: school.address,
+        }}
+        childrenCount={childrenCount}
+      />
+    );
+  }
+
   const activeYear = currentAcademicYear(school);
 
   const [enrollmentYears, feeYears] = await Promise.all([

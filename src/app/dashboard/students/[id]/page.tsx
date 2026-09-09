@@ -239,21 +239,26 @@ export default async function StudentProfilePage({
             </div>
           </div>
 
-          {/* Mêmes quatre destinations qu'avant. Le dossier est la principale :
-              c'est le point d'entrée du lot 13, le plus utilisé au quotidien. */}
+          {/* Actions contextuelles : conditionnées aux droits réels du rôle */}
           <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
             <Link href={`/dashboard/students/${student.id}/dossier`} className={ACTION_PRINCIPALE}>
               <FolderOpen aria-hidden="true" className="h-4 w-4" /> Dossier
             </Link>
-            <Link href={`/dashboard/documents/certificate?studentId=${student.id}`} className={ACTION_NEUTRE}>
-              <FileBadge aria-hidden="true" className="h-4 w-4" /> Certificat
-            </Link>
-            <Link href={`/dashboard/grades/report-card?studentId=${student.id}`} className={ACTION_NEUTRE}>
-              <FileText aria-hidden="true" className="h-4 w-4" /> Bulletin
-            </Link>
-            <Link href={`/dashboard/payments/invoice?studentId=${student.id}`} className={ACTION_NEUTRE}>
-              <ReceiptText aria-hidden="true" className="h-4 w-4" /> Facturer
-            </Link>
+            {hasAccess(actor.role, "/dashboard/documents/certificate") && (
+              <Link href={`/dashboard/documents/certificate?studentId=${student.id}`} className={ACTION_NEUTRE}>
+                <FileBadge aria-hidden="true" className="h-4 w-4" /> Certificat
+              </Link>
+            )}
+            {hasAccess(actor.role, "/dashboard/grades/report-card") && (
+              <Link href={`/dashboard/grades/report-card?studentId=${student.id}`} className={ACTION_NEUTRE}>
+                <FileText aria-hidden="true" className="h-4 w-4" /> Bulletin
+              </Link>
+            )}
+            {hasAccess(actor.role, "/dashboard/payments/new") && (
+              <Link href={`/dashboard/payments/invoice?studentId=${student.id}`} className={ACTION_NEUTRE}>
+                <ReceiptText aria-hidden="true" className="h-4 w-4" /> Facturer
+              </Link>
+            )}
           </div>
         </div>
 
@@ -305,7 +310,7 @@ export default async function StudentProfilePage({
           {active === "scolarite" && <SectionScolarite d={d} />}
           {active === "presence" && <SectionPresence d={d} />}
           {active === "notes" && <SectionNotes d={d} />}
-          {active === "finance" && <SectionFinance d={d} studentId={student.id} />}
+          {active === "finance" && <SectionFinance d={d} studentId={student.id} canManageFinance={hasAccess(actor.role, "/dashboard/payments/new")} />}
           {active === "famille" && <SectionFamille d={d} health={health} />}
           {active === "documents" && <SectionDocuments d={d} studentId={student.id} />}
         </main>

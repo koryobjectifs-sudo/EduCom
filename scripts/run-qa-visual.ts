@@ -95,7 +95,7 @@ async function main() {
     data: [
       { schoolId: school.id, cycle: "ELEMENTAIRE", label: "Extrait de naissance", shortLabel: "Extrait", required: true, position: 1 },
       { schoolId: school.id, cycle: "ELEMENTAIRE", label: "Certificat de radiation", shortLabel: "Radiation", required: true, position: 2 },
-      { schoolId: school.id, cycle: "ELEMENTAIRE", label: "Carnet de vaccination", shortLabel: "Vaccins", required: false, position: 3 },
+      { schoolId: school.id, cycle: "ELEMENTAIRE", label: "Photos d'identité", shortLabel: "Photos", required: false, position: 3 },
       { schoolId: school.id, cycle: "COLLEGE", label: "Extrait de naissance", shortLabel: "Extrait", required: true, position: 1 },
       { schoolId: school.id, cycle: "COLLEGE", label: "Bulletins année précédente", shortLabel: "Bulletins N-1", required: true, position: 2 },
     ],

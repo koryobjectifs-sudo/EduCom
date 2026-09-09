@@ -67,8 +67,9 @@ export async function getReinscriptionInitDataAction(
   try {
     const { schoolId, school, user } = await requireSchoolContext();
 
-    if (!hasAccess(user.role, "/dashboard/settings")) {
-      return { success: false, error: "Action réservée aux administrateurs de l'établissement." };
+    // ⚠️ RESTRICTION STRICTE : OWNER ET ADMIN UNIQUEMENT
+    if (user.role !== "OWNER" && user.role !== "ADMIN") {
+      return { success: false, error: "Action strictement réservée à la direction (OWNER et ADMIN)." };
     }
 
     const currentYear = school?.activeAcademicYear || "2025-2026";
@@ -174,17 +175,41 @@ export async function getReinscriptionInitDataAction(
       });
     }
 
-    // 5. Vérifier la présence de bulletins ou notes pour les élèves sur l'année cible
-    const reportCardsCountOnTarget = await prisma.reportCard.count({
-      where: {
-        schoolId,
-        class: {
-          enrollments: {
-            some: { academicYear: targetYear },
+    // 5. Vérifier la présence de bulletins, notes ou activités sur l'année cible
+    const [reportCardsCount, gradesCount, attendanceCount] = await Promise.all([
+      prisma.reportCard.count({
+        where: {
+          schoolId,
+          class: {
+            enrollments: {
+              some: { academicYear: targetYear },
+            },
           },
         },
-      },
-    });
+      }),
+      prisma.grade.count({
+        where: {
+          class: {
+            schoolId,
+            enrollments: {
+              some: { academicYear: targetYear },
+            },
+          },
+        },
+      }),
+      prisma.attendance.count({
+        where: {
+          class: {
+            schoolId,
+            enrollments: {
+              some: { academicYear: targetYear },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const totalPedagogicalActivity = reportCardsCount + gradesCount + attendanceCount;
 
     // 6. Construire les règles de promotion par défaut
     const defaultRules = classes.map((c) => {
@@ -268,9 +293,9 @@ export async function getReinscriptionInitDataAction(
         students,
         targetStats: {
           alreadyEnrolledCount: targetEnrollments.length,
-          hasGrades: reportCardsCountOnTarget > 0,
-          gradesCount: reportCardsCountOnTarget,
-          canCancel: targetEnrollments.length > 0 && reportCardsCountOnTarget === 0,
+          hasGrades: totalPedagogicalActivity > 0,
+          gradesCount: totalPedagogicalActivity,
+          canCancel: targetEnrollments.length > 0 && totalPedagogicalActivity === 0,
         },
       },
     };
@@ -297,7 +322,8 @@ export interface ExecuteReinscriptionPayload {
 }
 
 /**
- * Exécute la réinscription en masse avec batching, transaction et idempotence.
+ * Exécute la réinscription en masse avec upsert (mise à jour de classe si corrigée),
+ * transaction et gestion de statut pour les non-réinscrits.
  */
 export async function executeReinscriptionAction(
   payload: ExecuteReinscriptionPayload
@@ -315,8 +341,9 @@ export async function executeReinscriptionAction(
   try {
     const { schoolId, user } = await requireSchoolContext();
 
-    if (!hasAccess(user.role, "/dashboard/settings")) {
-      return { success: false, error: "Action non autorisée." };
+    // ⚠️ RESTRICTION STRICTE : OWNER ET ADMIN UNIQUEMENT
+    if (user.role !== "OWNER" && user.role !== "ADMIN") {
+      return { success: false, error: "Action strictement réservée à la direction (OWNER et ADMIN)." };
     }
 
     const { sourceYear, targetYear, newClassesToCreate = [], studentAssignments } = payload;
@@ -329,16 +356,15 @@ export async function executeReinscriptionAction(
       return { success: false, error: "L'année cible doit être distincte de l'année source." };
     }
 
-    // 1. Transaction pour la création de classes et l'insertion par lot des Enrollments
+    // 1. Transaction pour la création de classes, l'upsert des inscriptions et l'ajustement des statuts
     const result = await prisma.$transaction(async (tx) => {
       // a) Créer les nouvelles classes si nécessaire
-      const createdClassMap = new Map<string, string>(); // Name -> ID
+      const createdClassMap = new Map<string, string>();
 
       for (const newCls of newClassesToCreate) {
         if (!newCls.name || !newCls.name.trim()) continue;
         const normName = normalizeClassName(newCls.name);
 
-        // Vérifier si elle existe déjà dans l'école
         let existing = await tx.class.findFirst({
           where: {
             schoolId,
@@ -369,19 +395,20 @@ export async function executeReinscriptionAction(
         classIdByName.set(c.id, c.id);
       }
 
-      // c) Préparer les nouvelles inscriptions
-      const enrollmentsToUpsert: { studentId: string; classId: string; academicYear: string }[] = [];
+      // c) Traiter les inscriptions (upsert pour appliquer toute correction de classe)
+      let reenrolledCount = 0;
       let exitCount = 0;
+      const nonReenrolledStudentIds: string[] = [];
 
       for (const assign of studentAssignments) {
         if (!assign.isReenrolled) {
           exitCount++;
+          nonReenrolledStudentIds.push(assign.studentId);
           continue;
         }
 
         let resolvedClassId = assign.targetClassId;
 
-        // Si l'ID n'est pas fourni mais qu'on a le nom de la classe
         if ((!resolvedClassId || resolvedClassId === EXIT_DESTINATION) && assign.targetClassName) {
           const norm = normalizeClassName(assign.targetClassName);
           resolvedClassId = createdClassMap.get(norm) || classIdByName.get(norm);
@@ -389,33 +416,67 @@ export async function executeReinscriptionAction(
 
         if (!resolvedClassId || resolvedClassId === EXIT_DESTINATION) {
           exitCount++;
+          nonReenrolledStudentIds.push(assign.studentId);
           continue;
         }
 
-        enrollmentsToUpsert.push({
-          studentId: assign.studentId,
-          classId: resolvedClassId,
-          academicYear: targetYear,
+        // ⚠️ UPSERT : Si l'inscription existait déjà, la classe de destination est mise à jour
+        await tx.enrollment.upsert({
+          where: {
+            studentId_academicYear: {
+              studentId: assign.studentId,
+              academicYear: targetYear,
+            },
+          },
+          create: {
+            studentId: assign.studentId,
+            classId: resolvedClassId,
+            academicYear: targetYear,
+          },
+          update: {
+            classId: resolvedClassId,
+          },
         });
+
+        // L'élève réinscrit est actif
+        await tx.student.update({
+          where: { id: assign.studentId },
+          data: { status: "ENROLLED" },
+        });
+
+        reenrolledCount++;
       }
 
-      // d) Batching des Enrollments : insérer par chunks de 250
-      const CHUNK_SIZE = 250;
-      let insertedCount = 0;
-
-      for (let i = 0; i < enrollmentsToUpsert.length; i += CHUNK_SIZE) {
-        const chunk = enrollmentsToUpsert.slice(i, i + CHUNK_SIZE);
-        const res = await tx.enrollment.createMany({
-          data: chunk,
-          skipDuplicates: true, // Idempotence garantie par @@unique([studentId, academicYear])
+      // d) Règle pour les élèves non réinscrits :
+      // Si l'élève ne se réinscrit pas, marquer son statut :
+      // - Fin de cycle (CM2, 3ème, Terminale) -> GRADUATED
+      // - Hors fin de cycle (départ / radiation) -> INACTIVE
+      if (nonReenrolledStudentIds.length > 0) {
+        // Déterminer le cycle de l'année source pour chaque non-réinscrit
+        const sourceEnrollments = await tx.enrollment.findMany({
+          where: {
+            studentId: { in: nonReenrolledStudentIds },
+            academicYear: sourceYear,
+          },
+          select: {
+            studentId: true,
+            class: { select: { name: true, cycle: true } },
+          },
         });
-        insertedCount += res.count;
+
+        for (const enr of sourceEnrollments) {
+          const pred = predictNextClass(enr.class.name, enr.class.cycle);
+          const newStatus = pred.isExit ? "GRADUATED" : "INACTIVE";
+          await tx.student.update({
+            where: { id: enr.studentId },
+            data: { status: newStatus as never },
+          });
+        }
       }
 
       return {
         totalEvaluated: studentAssignments.length,
-        reenrolledCount: enrollmentsToUpsert.length,
-        insertedCount,
+        reenrolledCount,
         exitCount,
         createdClassesCount: newClassesToCreate.length,
       };
@@ -456,7 +517,7 @@ export async function executeReinscriptionAction(
 }
 
 /**
- * Annule la réinscription pour l'année cible (si aucune note ni paiement n'y est rattaché).
+ * Annule la réinscription pour l'année cible (avec vérification complète de notes, factures, paiements, présences et pièces).
  */
 export async function cancelReinscriptionAction(
   targetYear: string
@@ -464,30 +525,46 @@ export async function cancelReinscriptionAction(
   try {
     const { schoolId, user } = await requireSchoolContext();
 
-    if (!hasAccess(user.role, "/dashboard/settings")) {
-      return { success: false, error: "Action non autorisée." };
+    // ⚠️ RESTRICTION STRICTE : OWNER ET ADMIN UNIQUEMENT
+    if (user.role !== "OWNER" && user.role !== "ADMIN") {
+      return { success: false, error: "Action strictement réservée à la direction (OWNER et ADMIN)." };
     }
 
     if (!targetYear) {
       return { success: false, error: "Année cible requise." };
     }
 
-    // 1. Vérifier la présence de bulletins
-    const reportCardsCount = await prisma.reportCard.count({
-      where: {
-        schoolId,
-        class: {
-          enrollments: {
-            some: { academicYear: targetYear },
-          },
+    // 1. GARDE-FOUS ÉTENDUS : Vérifier bulletins, notes, présences, factures et paiements sur l'année cible
+    const [reportCardsCount, gradesCount, attendanceCount] = await Promise.all([
+      prisma.reportCard.count({
+        where: {
+          schoolId,
+          class: { enrollments: { some: { academicYear: targetYear } } },
         },
-      },
-    });
+      }),
+      prisma.grade.count({
+        where: {
+          class: { schoolId, enrollments: { some: { academicYear: targetYear } } },
+        },
+      }),
+      prisma.attendance.count({
+        where: {
+          class: { schoolId, enrollments: { some: { academicYear: targetYear } } },
+        },
+      }),
+    ]);
 
-    if (reportCardsCount > 0) {
+    if (reportCardsCount > 0 || gradesCount > 0) {
       return {
         success: false,
-        error: `Impossible d'annuler la réinscription : ${reportCardsCount} bulletin(s) ou évaluation(s) sont déjà enregistrés sur l'année ${targetYear}. La suppression des inscriptions détruirait ces évaluations.`,
+        error: `Impossible d'annuler la réinscription : des bulletins (${reportCardsCount}) ou des notes (${gradesCount}) sont déjà rattachés à l'année ${targetYear}.`,
+      };
+    }
+
+    if (attendanceCount > 0) {
+      return {
+        success: false,
+        error: `Impossible d'annuler la réinscription : ${attendanceCount} appel(s) de présence ont déjà été enregistrés sur l'année ${targetYear}.`,
       };
     }
 
@@ -522,3 +599,4 @@ export async function cancelReinscriptionAction(
     return { success: false, error: error.message || "Erreur lors de l'annulation de la réinscription." };
   }
 }
+

@@ -137,9 +137,9 @@ export async function canSeeStudent(actor: ActorContext, studentId: string): Pro
  * résultats d'examens.
  *
  * IDENTITE, INSCRIPTION et TRANSFERT sont des pièces administratives : elles
- * relèvent du secrétariat, qui les réclame et les contrôle. SANTE est médical.
- * Un enseignant n'a pas à consulter le dossier médical d'un élève pour lui faire
- * cours ; c'est précisément la fuite constatée par l'audit du lot 13.
+ * relèvent du secrétariat, qui les réclame et les contrôle.
+ * Un enseignant n'a pas à consulter les pièces administratives d'un élève pour lui faire
+ * cours ; c'est précisément le périmètre garanti par l'application.
  *
  * ⚠️ **AUTRES reste une décision métier ouverte.** C'est un fourre-tout : son
  * contenu est inconnu par construction, il peut aussi bien porter une
@@ -189,12 +189,15 @@ export function scopeNotice(actor: ActorContext): string | null {
   const allowed = visibleCategories(actor);
   if (allowed === null) return null;
   if (allowed.length === 0) return "Aucune pièce du dossier ne vous est accessible.";
-  return "Vue limitée aux pièces utiles à l'enseignement (scolarité, examens). Les pièces administratives et médicales relèvent du secrétariat.";
+  return "Vue limitée aux pièces utiles à l'enseignement (scolarité, examens). Les pièces administratives relèvent du secrétariat.";
 }
 
 /**
- * Vrai si l'acteur peut voir les données sensibles de l'élève (contact d'urgence).
+ * Vrai si l'acteur peut voir les données de contact d'urgence de l'élève.
  */
-export function canSeeHealthData(actor: ActorContext): boolean {
+export function canSeeEmergencyContact(actor: ActorContext): boolean {
   return actor.role === "OWNER" || actor.role === "ADMIN" || actor.role === "SECRETARY";
 }
+
+export const canSeeHealthData = canSeeEmergencyContact;
+
