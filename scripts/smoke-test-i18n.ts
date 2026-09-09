@@ -67,8 +67,8 @@ async function main() {
   assert(dictPt.parent.title === "Pagamentos & Propinas", "PT parent.title correct");
 
   assert(dictFr.reinscription.title === "Préparer la rentrée", "FR reinscription.title correct");
-  assert(dictEn.reinscription.title === "New School Year Preparation", "EN reinscription.title correct");
-  assert(dictPt.reinscription.title === "Preparação do Novo Ano Letivo", "PT reinscription.title correct");
+  assert(dictEn.reinscription.title === "Prepare New School Year", "EN reinscription.title correct");
+  assert(dictPt.reinscription.title === "Preparar o Novo Ano", "PT reinscription.title correct");
 
   console.log(`\nTOTAL: ${pass}/${total} assertions réussies.`);
   if (pass === total) {
