@@ -167,7 +167,7 @@ export default function AppTopBar({
           <LanguageSwitcher compact />
 
           <Link
-            href="/public"
+            href="/"
             target="_blank"
             rel="noopener noreferrer"
             title="Ouvrir le site public de l'établissement"

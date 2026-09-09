@@ -260,8 +260,9 @@ export default function CommunicationCenterClient({
                 <FileText className="h-5 w-5 text-dim" /> Formulaires
               </h3>
               <div className="space-y-4">
-                <Link href="/dashboard/communications/forms/new" className="flex items-center justify-center w-full p-2 rounded-lg bg-surface hover:bg-sunk border border-rule transition-colors text-sm font-medium text-text">
-                  <Plus className="h-4 w-4 mr-1" /> Créer un formulaire
+                <Link href="#" className="flex items-center justify-center w-full p-2 rounded-lg bg-surface hover:bg-sunk border border-rule transition-colors text-sm font-medium text-text">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouveau Formulaire
                 </Link>
                 <div className="text-center py-6 text-xs text-dim">
                   Gérez les inscriptions et les collectes d'informations.

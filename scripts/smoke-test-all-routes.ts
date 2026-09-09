@@ -222,6 +222,7 @@ async function main() {
   }
 
   const failures: { route: string; error: string }[] = [];
+  const extractedLinks = new Set<string>();
 
   try {
     // 5.1 Test approfondi du Tableau de Bord /dashboard avec résolution Suspense complète
@@ -442,6 +443,15 @@ async function main() {
         const isBlank = !text || text.trim().length < 200;
         const hasPositiveMarker = text.includes("<!DOCTYPE html>") || text.includes("<html") || text.includes("<main") || text.includes("dashboard");
 
+        // Extraction des liens pour le test de liens morts
+        const linkRegex = /(?:href|action)="(\/[^"]+)"/g;
+        let match;
+        while ((match = linkRegex.exec(text)) !== null) {
+          const url = match[1].split('?')[0].split('#')[0]; // Remove query and hash
+          if (url.startsWith('/_next') || url.startsWith('/favicon.ico')) continue;
+          extractedLinks.add(url);
+        }
+
         if (status >= 500 || contentError || isBlank || !hasPositiveMarker) {
           const reason = contentError || (isBlank ? "Page blanche (contenu < 200 car.)" : (!hasPositiveMarker ? "Marqueur positif manquant" : "CRASH"));
           console.error(`❌ [${count}/${concreteRoutes.length}] ${route.url.padEnd(50)} -> STATUT ${status} (${reason})`);
@@ -455,6 +465,29 @@ async function main() {
       }
     }
 
+    // 5.2 Test des Liens Morts
+    console.log("\n--- TEST DES LIENS MORTS (DEAD LINKS) ---");
+    console.log(`${extractedLinks.size} liens uniques extraits du DOM.`);
+    let deadLinksCount = 0;
+    for (const link of extractedLinks) {
+      // Ignorer les routes dynamiques non résolues s'il y en a (bien qu'elles devraient être résolues par Next.js)
+      if (link.includes('[') || link.includes(']')) continue;
+      
+      const res = await fetch(`${BASE}${link}`, {
+        headers: { cookie: ownerCookieHeader },
+        redirect: "manual",
+      });
+      // 405 (Method Not Allowed) is fine for POST routes like /auth/signout
+      if (res.status === 404) {
+        console.error(`❌ LIEN MORT DÉTECTÉ : ${link}`);
+        failures.push({ route: `Lien mort: ${link}`, error: "404 Not Found" });
+        deadLinksCount++;
+      }
+    }
+    if (deadLinksCount === 0) {
+      console.log("✓ Aucun lien mort (404) détecté parmi les liens internes.");
+    }
+    
     // 5.2b Test des redirections 308 (Phase 2 - Fusion Annuaire / Registre)
     console.log("\n--- TEST DES REDIRECTIONS 308 PERMANENTES ---");
     const redirectsToTest = [
@@ -544,6 +577,71 @@ async function main() {
         failures.push({ route: `${role}:${targetUrl}`, error: roleError || `Status ${res.status}` });
       } else {
         console.log(`✓ Rôle ${role.padEnd(12)} -> OK (Status: ${res.status})`);
+      }
+
+      // Test de Déconnexion en exécution réelle (CDP)
+      try { await cdp.send("Network.clearBrowserCookies", {}, session); } catch {}
+      for (const c of roleCookies) {
+        await cdp.send("Network.setCookie", { name: c.name, value: c.value, domain: "localhost", path: "/" }, session);
+      }
+      
+      await cdp.send("Page.navigate", { url: targetUrl }, session);
+      await new Promise((r) => setTimeout(r, 1000));
+      
+      let logoutResult = await evaluate<{ success: boolean; error: string }>(
+        cdp, session,
+        `(() => {
+          let form = document.querySelector('form[action="/auth/signout"]');
+          if (form) {
+            form.submit();
+            return { success: true, error: "" };
+          }
+          const profileBtns = Array.from(document.querySelectorAll('button'));
+          const btn = profileBtns.find(b => b.innerHTML.includes('bg-primary/10') && b.innerHTML.includes('rounded-full'));
+          if (btn) {
+            btn.click();
+            return { success: false, error: "retry" };
+          }
+          return { success: false, error: "Bouton de déconnexion introuvable" };
+        })()`
+      );
+
+      if (logoutResult.error === "retry") {
+        await new Promise((r) => setTimeout(r, 500));
+        logoutResult = await evaluate<{ success: boolean; error: string }>(
+          cdp, session,
+          `(() => {
+            const form = document.querySelector('form[action="/auth/signout"]');
+            if (form) {
+              form.submit();
+              return { success: true, error: "" };
+            }
+            return { success: false, error: "Bouton de déconnexion introuvable après ouverture du menu" };
+          })()`
+        );
+      }
+
+      if (!logoutResult.success) {
+        console.error(`❌ Échec déconnexion ${role} : ${logoutResult.error}`);
+        failures.push({ route: `Déconnexion ${role}`, error: logoutResult.error });
+      } else {
+        await new Promise((r) => setTimeout(r, 1500)); // Attente redirection
+        
+        // Retour arrière : on tente de recharger la page protégée
+        await cdp.send("Page.navigate", { url: targetUrl }, session);
+        await new Promise((r) => setTimeout(r, 1000));
+        
+        const redirectedToLogin = await evaluate<boolean>(
+          cdp, session,
+          `(() => window.location.pathname.includes("/login"))()`
+        );
+        
+        if (!redirectedToLogin) {
+          console.error(`❌ Échec déconnexion ${role} : Retour arrière possible, accès protégé autorisé après déconnexion.`);
+          failures.push({ route: `Déconnexion ${role}`, error: "Session non détruite ou page mise en cache" });
+        } else {
+          console.log(`✓ Déconnexion ${role.padEnd(10)} -> Succès (Session détruite, redirection forcée)`);
+        }
       }
     }
 
