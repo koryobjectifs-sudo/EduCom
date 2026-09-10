@@ -1,17 +1,20 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 10 septembre 2026 — **Chantier TopBar Unifiée & Shell Slack-Style (v15-topbar-unifiee)**
+> Dernière mise à jour : 10 septembre 2026 — **Chantier TopBar Unifiée & Rail Compact 54px (v15-topbar-unifiee)**
 > Lots livrés :
-> 1. TopBar Unifiée Continue :
->    - Fusion en une seule barre horizontale supérieure (42px) s'étendant du rail 72px au bord droit.
+> 1. Rail Navy Compact (#0E2541) :
+>    - Largeur réduite de 25% : de 72px à 54px (`w-[54px]`) pour aérer l'interface.
+>    - Déplacement en pied de rail : lien Site Public (`Globe`), Sélecteur de Rôle de Test (`Shield`, restreint à dev), Avatar de Profil (`initiales` + menu popover avec nom, rôle, densité, déconnexion).
+> 2. TopBar Unifiée Continue :
+>    - Fusion en une seule barre horizontale supérieure (42px) s'étendant du rail au bord droit.
 >    - Suppression du double niveau / ancien en-tête de sidebar contextuelle.
->    - Gauche : Nom de l'établissement (au-dessus de la sidebar), flèches historique (Précédent / Suivant), fil d'Ariane compact.
+>    - Gauche : Nom de l'établissement, flèches historique (`window.history.back()/forward()`), fil d'Ariane compact.
 >    - Centre : Barre de recherche globale `GlobalSearch` (`⌘K`).
->    - Droite : Avatar du profil seul avec menu popover (site public, affichage, déconnexion).
->    - Retrait de la date inutile de la barre supérieure.
-> 2. Pied de Sidebar Contextuelle :
->    - Déplacement en bas de la sidebar des contrôles secondaires : lien Site public, sélecteur de rôle de test (réservé exclusivement à `process.env.NODE_ENV !== "production"`), profil et déconnexion.
-> 3. Tests & Intégrité validés : `verify-design-tokens` (100%), `verify-navigation-integrity` (55/55), `test-unconfirmed-block` (21/21), `test-permissions-matrix` (43/43), `tsc --noEmit` (0 erreur).
+>    - Droite : Avatar du profil seul.
+>    - Retrait de la date superflue de la barre supérieure.
+> 3. Sidebar Contextuelle Simplifiée :
+>    - Allégée des contrôles déplacés en bas du rail, dédiée exclusivement à la navigation interne du sous-espace et au redimensionnement dynamique Slack-style.
+> 4. Tests & Intégrité validés : `verify-design-tokens` (100%), `verify-navigation-integrity` (55/55), `test-unconfirmed-block` (21/21), `test-permissions-matrix` (43/43), `tsc --noEmit` (0 erreur).
 
 ## 🏷️ Point de Sauvegarde & Rollback : `v15-topbar-unifiee`
 

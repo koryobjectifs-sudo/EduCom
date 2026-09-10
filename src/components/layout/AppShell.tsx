@@ -33,12 +33,14 @@ export default function AppShell({
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-ground print:bg-white print:h-auto print:overflow-visible">
-      {/* 1. Rail Principal Fixe (72px) */}
+      {/* 1. Rail Principal Fixe (54px) */}
       <AppRail
         spaces={spaces}
         schoolName={schoolName}
         schoolLogo={schoolLogo}
         activeSpaceId={activeSpaceId}
+        userRole={userRole}
+        userName={userName}
       />
 
       {/* 2. Zone Droite Complète (TopBar Unique Pleine Largeur + Sous-espace Sidebar & Contenu) */}
