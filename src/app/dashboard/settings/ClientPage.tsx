@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { updateSchoolSettings, updateActiveAcademicYear } from "./actions";
-import { Save, Building2, Phone, Mail, MapPin, Image as ImageIcon, ChevronRight, UploadCloud, Calendar, ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
+import { updateSchoolSettings, updateActiveAcademicYear, updateSchoolPrimaryColor } from "./actions";
+import { Save, Building2, Phone, Mail, MapPin, Image as ImageIcon, ChevronRight, UploadCloud, Calendar, ArrowRight, CheckCircle2, ShieldCheck, Check, Loader2, Palette, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { getContrastRatioAgainstWhite, isValidHexColor } from "@/lib/theme";
+import { getContrastRatioAgainstWhite, isValidHexColor, PRESET_SCHOOL_COLORS } from "@/lib/theme";
 
 export default function SettingsClient({
   school,
@@ -18,6 +18,8 @@ export default function SettingsClient({
 }) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
+  const [isApplyingColor, setIsApplyingColor] = useState(false);
+  const [selectedColorCategory, setSelectedColorCategory] = useState<string>("Tous");
   const [isUpdatingYear, setIsUpdatingYear] = useState(false);
   const [activeYear, setActiveYear] = useState(school.activeAcademicYear || "2026-2027");
   const [selectedYear, setSelectedYear] = useState(activeYear);
@@ -67,6 +69,33 @@ export default function SettingsClient({
     setIsUpdatingYear(false);
   };
 
+  const handleApplyColor = async (colorOverride?: string) => {
+    const color = (colorOverride || formData.primaryColor)?.trim();
+    if (!color || !isValidHexColor(color)) {
+      toast.error("Couleur invalide", {
+        description: "Veuillez entrer ou sélectionner un code hexadécimal valide (#RRGGBB).",
+      });
+      return;
+    }
+
+    setIsApplyingColor(true);
+    // Application instantanée aux variables CSS pour retour visuel 0-délai
+    document.documentElement.style.setProperty("--color-primary", color);
+
+    const res = await updateSchoolPrimaryColor(color);
+    if (res.success) {
+      toast.success("Couleur d'accent appliquée !", {
+        description: `La teinte ${color.toUpperCase()} est désormais enregistrée pour votre établissement.`,
+      });
+      router.refresh();
+    } else {
+      toast.error("Erreur lors de l'application de la couleur", {
+        description: res.error || "Impossible d'appliquer la couleur.",
+      });
+    }
+    setIsApplyingColor(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -77,9 +106,10 @@ export default function SettingsClient({
       toast.success("Réglages mis à jour avec succès", {
         description: "Vos modifications ont bien été enregistrées."
       });
+      router.refresh();
     } else {
       toast.error("Erreur lors de l'enregistrement", {
-        description: "Veuillez réessayer plus tard."
+        description: res.error || "Veuillez vérifier les informations renseignées."
       });
     }
     
@@ -425,13 +455,13 @@ export default function SettingsClient({
 
           </div>
 
-          {/* Couleur d'Accent Établissement (8 Teintes + Champ Hex Libre + Test de contraste) */}
-          <div className="mt-4 pt-4 border-t border-border p-4 bg-secondary/20 rounded-2xl space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          {/* Couleur d'Accent Établissement (Palette enrichie 24 teintes + Pipette libre + Application instantanée) */}
+          <div className="mt-4 pt-4 border-t border-border p-4 bg-secondary/20 rounded-2xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
                   <span
-                    className="h-3.5 w-3.5 rounded-full inline-block shadow-2xs border border-black/10"
+                    className="h-3.5 w-3.5 rounded-full inline-block shadow-2xs border border-black/10 transition-colors duration-200"
                     style={{ backgroundColor: formData.primaryColor }}
                   />
                   Couleur d&apos;accent de l&apos;établissement
@@ -441,36 +471,76 @@ export default function SettingsClient({
                 </p>
               </div>
 
-              {/* Prévisualisation directe */}
-              <div className="flex items-center gap-2">
+              {/* Prévisualisation directe & Bouton Valider / Appliquer */}
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[11px] font-medium text-text-muted">Aperçu :</span>
                 <span
                   style={{ backgroundColor: formData.primaryColor }}
-                  className="px-2.5 py-1 rounded-control text-xs font-semibold text-white shadow-2xs"
+                  className="px-2.5 py-1 rounded-control text-xs font-semibold text-white shadow-2xs transition-colors duration-200"
                 >
                   Bouton Principal
                 </span>
                 <span
                   style={{ color: formData.primaryColor, backgroundColor: `${formData.primaryColor}15`, borderColor: `${formData.primaryColor}30` }}
-                  className="px-2 py-0.5 rounded-control text-[11px] font-semibold border"
+                  className="px-2 py-0.5 rounded-control text-[11px] font-semibold border transition-colors duration-200"
                 >
                   Actif
                 </span>
+
+                {/* Bouton d'application directe très accessible */}
+                <button
+                  type="button"
+                  onClick={() => handleApplyColor()}
+                  disabled={isApplyingColor}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 ml-1"
+                  style={{ backgroundColor: isValidHexColor(formData.primaryColor) ? formData.primaryColor : "#0E2541" }}
+                  title="Valider et appliquer cette couleur immédiatement à tout l'espace"
+                >
+                  {isApplyingColor ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Application...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Appliquer la couleur</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
 
-            {/* 8 Couleurs Prédéfinies */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2 pt-1">
-              {[
-                { hex: "#9C0F15", label: "Bordeaux" },
-                { hex: "#0E7490", label: "Océan" },
-                { hex: "#1D4ED8", label: "Bleu Royal" },
-                { hex: "#047857", label: "Émeraude" },
-                { hex: "#B45309", label: "Ambre" },
-                { hex: "#6D28D9", label: "Violet" },
-                { hex: "#0F766E", label: "Sarcelle" },
-                { hex: "#334155", label: "Ardoise" },
-              ].map((c) => {
+            {/* Filtres par Catégorie de Palettes */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+              <span className="text-[11px] font-medium text-text-muted mr-1 flex items-center gap-1">
+                <Palette className="w-3 h-3" /> Palettes :
+              </span>
+              {(["Tous", "Classiques", "Nature & Frais", "Chauds & Solaires", "Distinction & Prune"] as const).map((cat) => {
+                const isActive = selectedColorCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedColorCategory(cat)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                      isActive
+                        ? "bg-slate-900 text-white font-semibold shadow-xs"
+                        : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    {cat} {cat === "Tous" ? `(${PRESET_SCHOOL_COLORS.length})` : ""}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Grille de Couleurs Prédéfinies */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 pt-1">
+              {(selectedColorCategory === "Tous"
+                ? PRESET_SCHOOL_COLORS
+                : PRESET_SCHOOL_COLORS.filter((c) => c.group === selectedColorCategory)
+              ).map((c) => {
                 const isSelected = formData.primaryColor?.toLowerCase() === c.hex.toLowerCase();
                 return (
                   <button
@@ -480,8 +550,8 @@ export default function SettingsClient({
                     title={`${c.label} (${c.hex})`}
                     className={`flex items-center gap-2 p-1.5 rounded-xl border text-left transition-all ${
                       isSelected
-                        ? "bg-white border-slate-900 shadow-xs ring-2 ring-slate-900/10 font-bold"
-                        : "bg-white/60 border-border hover:bg-white hover:border-slate-300"
+                        ? "bg-white border-slate-900 shadow-xs ring-2 ring-slate-900/15 font-bold"
+                        : "bg-white/70 border-border hover:bg-white hover:border-slate-300 hover:shadow-2xs"
                     }`}
                   >
                     <span
@@ -496,20 +566,21 @@ export default function SettingsClient({
               })}
             </div>
 
-            {/* Champ Libre Hexadécimal + Color Picker natif */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-              <div className="flex items-center gap-2">
-                <label htmlFor="primaryColorHex" className="text-xs font-medium text-text-secondary">
-                  Code hexadécimal libre :
+            {/* Pipette & Champ Libre Hexadécimal + Validation WCAG + Bouton de confirmation */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/60">
+              <div className="flex items-center gap-3 flex-wrap">
+                <label htmlFor="primaryColorHex" className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-text-muted" />
+                  Sélecteur libre (millions de teintes) :
                 </label>
                 <div className="flex items-center gap-1.5 bg-white border border-border rounded-xl px-2 py-1 shadow-2xs">
                   <input
                     type="color"
                     id="primaryColorPicker"
-                    value={formData.primaryColor?.startsWith("#") ? formData.primaryColor : "#9C0F15"}
+                    value={formData.primaryColor?.startsWith("#") && formData.primaryColor.length === 7 ? formData.primaryColor : "#9C0F15"}
                     onChange={(e) => setFormData((prev) => ({ ...prev, primaryColor: e.target.value }))}
-                    className="h-5 w-5 rounded cursor-pointer border-0 bg-transparent p-0"
-                    title="Pipette de couleur"
+                    className="h-6 w-6 rounded-md cursor-pointer border-0 bg-transparent p-0"
+                    title="Pipette libre"
                   />
                   <input
                     type="text"
@@ -522,27 +593,38 @@ export default function SettingsClient({
                     className="w-24 border-0 bg-transparent text-xs font-mono font-semibold text-text uppercase focus:ring-0 focus:outline-none p-0"
                   />
                 </div>
-              </div>
 
-              {/* Avertissement de Contraste WCAG si < 4.5:1 contre blanc */}
-              {(() => {
-                const hex = formData.primaryColor;
-                if (!hex || !isValidHexColor(hex)) return null;
-                const ratio = getContrastRatioAgainstWhite(hex);
+                {/* Avertissement de Contraste WCAG si < 4.5:1 contre blanc */}
+                {(() => {
+                  const hex = formData.primaryColor;
+                  if (!hex || !isValidHexColor(hex)) return null;
+                  const ratio = getContrastRatioAgainstWhite(hex);
 
-                if (ratio < 4.5) {
+                  if (ratio < 4.5) {
+                    return (
+                      <div className="flex items-center gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-xl">
+                        <span>⚠️ Contraste : <strong>{ratio}:1</strong> (recommandé ≥ 4.5:1)</span>
+                      </div>
+                    );
+                  }
                   return (
-                    <div className="flex items-center gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-xl">
-                      <span>⚠️ Contraste avec le blanc : <strong>{ratio}:1</strong> (recommandé ≥ 4.5:1). Le texte sur vos boutons pourrait être moins lisible.</span>
+                    <div className="flex items-center gap-1 text-[11px] text-emerald-700 font-medium bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-xl">
+                      <span>✓ Contraste optimal ({ratio}:1)</span>
                     </div>
                   );
-                }
-                return (
-                  <div className="flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
-                    <span>✓ Contraste optimal ({ratio}:1)</span>
-                  </div>
-                );
-              })()}
+                })()}
+              </div>
+
+              {/* Bouton secondaire de validation directe */}
+              <button
+                type="button"
+                onClick={() => handleApplyColor()}
+                disabled={isApplyingColor}
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 active:scale-95 transition-all shadow-2xs disabled:opacity-50"
+              >
+                {isApplyingColor ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                <span>Valider cette couleur</span>
+              </button>
             </div>
           </div>
         </div>

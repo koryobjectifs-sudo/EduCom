@@ -16,6 +16,10 @@
 >    - Allégée des contrôles déplacés en bas du rail, dédiée exclusivement à la navigation interne du sous-espace et au redimensionnement dynamique Slack-style.
 > 4. Tests & Intégrité validés : `verify-design-tokens` (100%), `verify-navigation-integrity` (55/55), `test-unconfirmed-block` (21/21), `test-permissions-matrix` (43/43), `tsc --noEmit` (0 erreur).
 > 5. Correctif SSR/Actions : Remplacement de l'import de `react-phone-number-input` par `libphonenumber-js` dans `src/lib/validations.ts` pour éliminer le TypeError "Super expression must either be null or a function" lors de l'évaluation serveur.
+> 6. Correctif Enregistrement Identité & Palette Couleurs Étendue :
+>    - Déblocage d'enregistrement de l'école : remplacement du validateur de personne par `schoolNameSchema` (support des points, abréviations, tirets), tolérance sur les téléphones et logos nullables, et remontée précise de `res.error` dans les toasts.
+>    - Action dédiée `updateSchoolPrimaryColor` : sauvegarde de la couleur d'école indépendamment du reste du formulaire.
+>    - Palette enrichie (24 couleurs réparties en 4 catégories : Classiques, Nature, Chauds, Distinction) + pipette libre universelle (millions de nuances) + contraste WCAG + boutons d'application directe "Appliquer la couleur".
 
 ## 🏷️ Point de Sauvegarde & Rollback : `v15-topbar-unifiee`
 

@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requireActionContext } from "@/lib/actionContext";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { phoneSchema, emailSchema, nameSchema } from "@/lib/validations";
+import { emailSchema, schoolNameSchema } from "@/lib/validations";
+import { isValidHexColor } from "@/lib/theme";
 
 /**
  * Met à jour l'identité de l'établissement.
@@ -38,13 +39,13 @@ export async function updateSchoolSettings(data: {
   if (!auth.ok) return { error: auth.error };
 
   const schema = z.object({
-    name: nameSchema,
-    email: z.union([emailSchema, z.literal("")]).optional(),
-    phone: z.union([phoneSchema, z.literal("")]).optional(),
-    address: z.string().optional(),
-    logo: z.string(),
-    stamp: z.string().optional(),
-    signature: z.string().optional(),
+    name: schoolNameSchema,
+    email: z.union([emailSchema, z.literal(""), z.null()]).optional(),
+    phone: z.string().optional().nullable(),
+    address: z.string().optional().nullable(),
+    logo: z.string().optional().nullable(),
+    stamp: z.string().optional().nullable(),
+    signature: z.string().optional().nullable(),
     primaryColor: z.string().optional().nullable(),
   });
 
@@ -59,11 +60,11 @@ export async function updateSchoolSettings(data: {
       data: {
         name: parsed.data.name,
         email: parsed.data.email || "",
-        phone: parsed.data.phone || "",
+        phone: parsed.data.phone?.trim() || "",
         address: parsed.data.address || "",
-        logo: parsed.data.logo,
-        stamp: parsed.data.stamp,
-        signature: parsed.data.signature,
+        logo: parsed.data.logo || null,
+        stamp: parsed.data.stamp || null,
+        signature: parsed.data.signature || null,
         primaryColor: parsed.data.primaryColor?.trim() || null,
       },
     });
@@ -73,6 +74,35 @@ export async function updateSchoolSettings(data: {
   } catch (error) {
     console.error("Failed to update school settings:", error);
     return { error: "Échec de la mise à jour des paramètres de l'école." };
+  }
+}
+
+/**
+ * Met à jour directement la couleur d'accent de l'établissement sans nécessiter
+ * la validation complète de l'identité de l'école.
+ */
+export async function updateSchoolPrimaryColor(primaryColor: string) {
+  const auth = await requireActionContext("/dashboard/settings");
+  if (!auth.ok) return { error: auth.error };
+
+  const trimmed = primaryColor?.trim();
+  if (!trimmed || !isValidHexColor(trimmed)) {
+    return { error: "Code hexadécimal invalide. Format attendu : #RRGGBB (ex: #9C0F15)." };
+  }
+
+  try {
+    await prisma.school.update({
+      where: { id: auth.ctx.schoolId },
+      data: {
+        primaryColor: trimmed,
+      },
+    });
+
+    revalidatePath("/", "layout"); // Revalide la TopBar, Rail et tout le shell
+    return { success: true, primaryColor: trimmed };
+  } catch (error) {
+    console.error("Failed to update school primary color:", error);
+    return { error: "Échec de l'application de la couleur." };
   }
 }
 

@@ -15,16 +15,39 @@ import type { CSSProperties } from "react";
 
 const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
-/** Palette de 8 teintes d'accent prédéfinies et harmonieuses pour l'éducation */
+/** Palette enrichie de teintes d'accent prédéfinies et harmonieuses pour l'éducation */
 export const PRESET_SCHOOL_COLORS = [
-  { hex: "#9C0F15", label: "Bordeaux EduCom (Défaut)", default: true },
-  { hex: "#0E7490", label: "Bleu Océan" },
-  { hex: "#1D4ED8", label: "Bleu Royal" },
-  { hex: "#047857", label: "Vert Émeraude" },
-  { hex: "#B45309", label: "Ambre Cuivré" },
-  { hex: "#6D28D9", label: "Violet Impérial" },
-  { hex: "#0F766E", label: "Sarcelle Profonde" },
-  { hex: "#334155", label: "Ardoise Sombre" },
+  // Classiques & Institutionnels
+  { hex: "#9C0F15", label: "Bordeaux EduCom", group: "Classiques" },
+  { hex: "#0B2B4A", label: "Marine Profond", group: "Classiques" },
+  { hex: "#1E3A8A", label: "Bleu Nuit", group: "Classiques" },
+  { hex: "#1D4ED8", label: "Bleu Royal", group: "Classiques" },
+  { hex: "#2563EB", label: "Bleu Cobalt", group: "Classiques" },
+  { hex: "#4338CA", label: "Indigo Majestueux", group: "Classiques" },
+
+  // Océan, Nature & Émeraude
+  { hex: "#0E7490", label: "Bleu Océan", group: "Nature & Frais" },
+  { hex: "#0284C7", label: "Azur Céleste", group: "Nature & Frais" },
+  { hex: "#0F766E", label: "Sarcelle Profonde", group: "Nature & Frais" },
+  { hex: "#0D9488", label: "Sarcelle Vive", group: "Nature & Frais" },
+  { hex: "#047857", label: "Vert Émeraude", group: "Nature & Frais" },
+  { hex: "#15803D", label: "Vert Forêt", group: "Nature & Frais" },
+
+  // Chauds & Dynamiques
+  { hex: "#B45309", label: "Ambre Cuivré", group: "Chauds & Solaires" },
+  { hex: "#D97706", label: "Ocre Doré", group: "Chauds & Solaires" },
+  { hex: "#EA580C", label: "Orange Solaire", group: "Chauds & Solaires" },
+  { hex: "#C2410C", label: "Terracotta", group: "Chauds & Solaires" },
+  { hex: "#DC2626", label: "Rouge Vif", group: "Chauds & Solaires" },
+  { hex: "#B91C1C", label: "Grenat Intense", group: "Chauds & Solaires" },
+
+  // Modernes & Distinction
+  { hex: "#6D28D9", label: "Violet Impérial", group: "Distinction & Prune" },
+  { hex: "#7E22CE", label: "Pourpre Royal", group: "Distinction & Prune" },
+  { hex: "#86198F", label: "Prune Velours", group: "Distinction & Prune" },
+  { hex: "#BE185D", label: "Framboise", group: "Distinction & Prune" },
+  { hex: "#78350F", label: "Moka Chaud", group: "Distinction & Prune" },
+  { hex: "#334155", label: "Ardoise Sombre", group: "Distinction & Prune" },
 ] as const;
 
 /** Vrai si la chaîne est un hexadécimal CSS sûr (`#abc` ou `#aabbcc`). */
