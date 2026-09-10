@@ -2,10 +2,12 @@
 
 import { useActionState, useState } from "react";
 import { createInvoice } from "../actions";
+import { toast } from "sonner";
 import Link from "next/link";
 import { ArrowLeft, Building2, User, Receipt, Plus, Trash2, Download, Send, Save, CreditCard } from "lucide-react";
 import { SignaturePad } from "./SignaturePad";
 import writtenNumber from "written-number";
+import { formatDate } from "@/lib/dateUtils";
 
 type Student = {
   id: string;
@@ -112,7 +114,7 @@ export function NewInvoiceForm({ students, school }: { students: Student[], scho
 
   // WhatsApp Share
   const handleWhatsApp = () => {
-    alert("Pour envoyer par WhatsApp, veuillez d'abord cliquer sur 'Télécharger' pour enregistrer la facture, puis partagez le fichier PDF généré avec le parent sur WhatsApp.");
+    toast.info("Pour envoyer par WhatsApp, veuillez d'abord cliquer sur 'Télécharger' pour enregistrer la facture, puis partagez le fichier PDF généré avec le parent sur WhatsApp.", { duration: 6000 });
     setIsSendMenuOpen(false);
   };
 
@@ -427,13 +429,13 @@ export function NewInvoiceForm({ students, school }: { students: Student[], scho
                   <div className="flex justify-end gap-3">
                     <span className={`text-gray-500 text-right uppercase tracking-wider font-semibold ${paperFormat === "A4-half" ? "w-16 text-[8px]" : "w-24 text-[10px]"}`}>ÉMISE LE :</span>
                     <span className={`font-medium text-gray-900 text-right ${paperFormat === "A4-half" ? "w-16" : "w-24"}`}>
-                      {issueDate ? new Date(issueDate).toLocaleDateString("fr-FR") : <span className="text-gray-300 italic">Non définie</span>}
+                      {issueDate ? formatDate(issueDate) : <span className="text-gray-300 italic">Non définie</span>}
                     </span>
                   </div>
                   <div className="flex justify-end gap-3">
                     <span className={`text-gray-500 text-right uppercase tracking-wider font-semibold ${paperFormat === "A4-half" ? "w-16 text-[8px]" : "w-24 text-[10px]"}`}>ÉCHÉANCE :</span>
                     <span className={`font-medium text-gray-900 text-right ${paperFormat === "A4-half" ? "w-16" : "w-24"}`}>
-                      {dueDate ? new Date(dueDate).toLocaleDateString("fr-FR") : <span className="text-gray-300 italic">Non définie</span>}
+                      {dueDate ? formatDate(dueDate) : <span className="text-gray-300 italic">Non définie</span>}
                     </span>
                   </div>
                 </div>

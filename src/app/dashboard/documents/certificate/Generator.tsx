@@ -8,6 +8,7 @@ import {
   ListTodo, AlertTriangle, Trash2
 } from "lucide-react";
 import { SignaturePad } from "@/app/dashboard/payments/new/SignaturePad";
+import { formatDate } from "@/lib/dateUtils";
 
 const getEmptyState = () => ({
   issueDate: new Date().toISOString().split('T')[0],
@@ -361,7 +362,7 @@ export default function CertificateGenerator({ students, school, initialStudentI
                   <p contentEditable suppressContentEditableWarning className="text-2xl font-semibold text-gray-900 uppercase outline-none focus:bg-white rounded px-1">{student.firstName} {student.lastName}</p>
                   {student.dateOfBirth && (
                     <p contentEditable suppressContentEditableWarning className="text-base text-gray-600 mt-2 outline-none focus:bg-white rounded px-1">
-                      Né(e) le {new Date(student.dateOfBirth).toLocaleDateString("fr-FR")}
+                      Né(e) le {formatDate(student.dateOfBirth)}
                     </p>
                   )}
                 </div>
@@ -387,7 +388,7 @@ export default function CertificateGenerator({ students, school, initialStudentI
             </div>
             <div className="text-center w-64">
               <p className="text-sm text-gray-600 mb-6">
-                Fait à <span contentEditable suppressContentEditableWarning className="outline-none focus:bg-gray-100 px-1 rounded">Dakar</span>, le {new Date(issueDate).toLocaleDateString("fr-FR")}
+                Fait à <span contentEditable suppressContentEditableWarning className="outline-none focus:bg-gray-100 px-1 rounded">Dakar</span>, le {formatDate(issueDate)}
               </p>
               <p className="font-semibold text-gray-900 uppercase text-sm">Le Directeur</p>
               <div className="mt-4 h-24 flex items-center justify-center border border-dashed border-gray-200 rounded-lg print:border-none">

@@ -7,6 +7,7 @@ import {
 import { StatusBadge } from "@/components/ui/Badge";
 import { formatAmount } from "@/lib/moneyFormat";
 import type { Student360 } from "./data";
+import { formatDate } from "@/lib/dateUtils";
 
 /* ═══════════════════ briques communes ═══════════════════ */
 
@@ -111,7 +112,7 @@ function Vide({ icon: Icon, children }: { icon: ComponentType<{ className?: stri
   );
 }
 
-const jour = (d: Date) => new Date(d).toLocaleDateString("fr-FR");
+const jour = (d: Date) => formatDate(d);
 
 const PRESENCE_LIBELLE: Record<string, { texte: string; icone: ComponentType<{ className?: string }>; classe: string }> = {
   PRESENT: { texte: "Présent", icone: CheckCircle2, classe: "text-success" },
@@ -512,7 +513,7 @@ export function SectionFinance({ d, studentId, canManageFinance }: { d: Student3
   );
 }
 
-/* ═══════════════════ 6. FAMILLE & SANTÉ ═══════════════════ */
+/* ═══════════════════ 6. FAMILLE & URGENCE ═══════════════════ */
 
 export function SectionFamille({ d, health }: { d: Student360; health: boolean }) {
   const p = d.student.parent;
@@ -545,7 +546,7 @@ export function SectionFamille({ d, health }: { d: Student360; health: boolean }
         )}
       </Bloc>
 
-      <Bloc title="Dossier médical &amp; urgence">
+      <Bloc title="Contact d&apos;urgence &amp; Groupe sanguin">
         {/* ⚠️ Le bloc médical n'est pas caché en CSS : il n'est pas rendu du tout.
             Un `hidden` laisserait la donnée dans la source de la page, donc
             lisible par qui n'y a pas droit. Le contact d'urgence, lui, reste
@@ -558,16 +559,10 @@ export function SectionFamille({ d, health }: { d: Student360; health: boolean }
                 <p className="text-role-meta text-text-faint">Groupe sanguin</p>
                 <p className="text-role-body font-semibold text-text">{d.student.bloodGroup || "Non renseigné"}</p>
               </div>
-              <div>
-                <p className="mb-1 text-role-meta text-text-faint">Notes médicales (allergies, PAI)</p>
-                <p className="text-role-body text-text break-words">
-                  {d.student.medicalNotes || "Aucune note médicale ou allergie signalée."}
-                </p>
-              </div>
             </>
           ) : (
             <p className="rounded-control border border-rule bg-sunk p-3 text-role-body text-text-soft">
-              Les informations médicales relèvent du secrétariat et ne sont pas affichées ici.
+              Le groupe sanguin relève du secrétariat et n'est pas affiché ici.
             </p>
           )}
 
@@ -714,7 +709,7 @@ export function VoletEleve({ d, health }: { d: Student360; health: boolean }) {
               donc avec le volet, et pas seulement dans « Famille & santé ». */}
           {!health && (
             <p className="mt-1.5 text-role-meta text-text-faint">
-              Les informations médicales relèvent du secrétariat.
+              Le groupe sanguin relève du secrétariat.
             </p>
           )}
         </div>

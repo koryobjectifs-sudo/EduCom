@@ -158,14 +158,14 @@ export function StudentForm({ classes, academicYear }: { classes: Class[]; acade
           </div>
         </div>
 
-        {/* SECTION 3: DOSSIER MÉDICAL & URGENCE */}
+        {/* SECTION 3: URGENCE & GROUPE SANGUIN */}
         <div className="rounded-3xl border border-border bg-white shadow-sm p-6 sm:p-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="h-10 w-10 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M12 5 9.04 7.96a2.17 2.17 0 0 0 0 3.08v0c.82.82 2.13.85 3 .07l2.07-1.9a2.82 2.82 0 0 1 3.79 0l2.96 2.66"/></svg>
             </div>
             <h2 className="text-lg font-semibold text-text-primary">
-              Médical & Urgence
+              Contact d&apos;urgence &amp; Groupe sanguin
             </h2>
           </div>
           
@@ -186,14 +186,6 @@ export function StudentForm({ classes, academicYear }: { classes: Class[]; acade
                 <option value="O+">O+</option>
                 <option value="O-">O-</option>
             </Select>
-            <Input
-              label="Allergies / Notes médicales"
-              type="text"
-              name="medicalNotes"
-              id="medicalNotes"
-              placeholder="Optionnel"
-              defaultValue={state?.formData?.medicalNotes}
-            />
             <div className="sm:col-span-2 pt-2 border-t border-gray-100 mt-2">
               <h3 className="text-sm font-semibold text-text-primary mb-4">Contact en cas d'urgence</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">

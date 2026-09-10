@@ -10,7 +10,10 @@ export async function createClass(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non autorisé" };
 
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  const dbUser = await prisma.user.findUnique({ 
+    where: { id: user.id },
+    include: { school: true }
+  });
   if (!dbUser) return { error: "Utilisateur introuvable" };
 
   const name = formData.get("name") as string;
@@ -32,6 +35,7 @@ export async function createClass(formData: FormData) {
         cycle: cycle as any,
         schoolId: dbUser.schoolId,
         teacherId: teacherId || null,
+        academicYear: dbUser.school.activeAcademicYear,
       }
     });
   } catch (error) {
@@ -48,7 +52,10 @@ export async function createClassInline(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non autorisé" };
 
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  const dbUser = await prisma.user.findUnique({ 
+    where: { id: user.id },
+    include: { school: true }
+  });
   if (!dbUser) return { error: "Utilisateur introuvable" };
 
   const name = formData.get("name") as string;
@@ -66,6 +73,7 @@ export async function createClassInline(formData: FormData) {
         cycle: cycle || "AUTRE",
         schoolId: dbUser.schoolId,
         teacherId: teacherId || null,
+        academicYear: dbUser.school.activeAcademicYear,
       }
     });
   } catch (error) {

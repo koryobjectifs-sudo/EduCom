@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Printer, AlertCircle } from "lucide-react";
 import { SignaturePad } from "@/app/dashboard/payments/new/SignaturePad";
+import { formatDate } from "@/lib/dateUtils";
 
 export default function ReminderGenerator({
   overdueInvoices,
@@ -125,7 +126,7 @@ export default function ReminderGenerator({
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-gray-600 text-sm mb-4">Dakar, le {new Date(issueDate).toLocaleDateString("fr-FR")}</p>
+                  <p className="text-gray-600 text-sm mb-4">Dakar, le {formatDate(issueDate)}</p>
                 </div>
               </div>
 
@@ -159,7 +160,7 @@ export default function ReminderGenerator({
                       <p className="text-sm text-gray-600 uppercase font-semibold tracking-wider mb-2">Montant restant dû à ce jour :</p>
                       <p className="text-3xl font-black text-red-700 print:text-gray-900">{invoice.totalAmount.toLocaleString("fr-FR")} FCFA</p>
                       <p className="text-sm text-gray-600 mt-2">
-                        <em>(Date d'échéance dépassée : {new Date(invoice.dueDate).toLocaleDateString("fr-FR")})</em>
+                        <em>(Date d'échéance dépassée : {formatDate(invoice.dueDate)})</em>
                       </p>
                     </div>
                     <p>

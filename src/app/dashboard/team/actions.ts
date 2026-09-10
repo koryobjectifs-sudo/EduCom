@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { emailSchema, nameSchema, passwordSchema } from "@/lib/validations";
 
 export async function inviteTeamMember(formData: FormData) {
   const email = formData.get("email") as string;
@@ -13,6 +14,9 @@ export async function inviteTeamMember(formData: FormData) {
   if (!email || !role) {
     return { error: "L'email et le rôle sont requis." };
   }
+
+  const emailVal = emailSchema.safeParse(email);
+  if (!emailVal.success) return { error: emailVal.error.issues[0]?.message || "Email invalide." };
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -61,7 +65,7 @@ export async function inviteTeamMember(formData: FormData) {
   // Since we don't have email sending, we return the magic link to the UI
   // In production, we would use the actual deployed URL
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const link = `${baseUrl}/invite?token=${invite.token}`;
+  const link = `${baseUrl}/invitation/${invite.token}`;
 
   return { success: true, link };
 }
@@ -77,6 +81,15 @@ export async function createStaffMember(formData: FormData) {
   if (!firstName || !lastName || !email || !role || !password) {
     return { error: "Tous les champs sont requis." };
   }
+
+  const fnVal = nameSchema.safeParse(firstName);
+  if (!fnVal.success) return { error: `Prénom : ${fnVal.error.issues[0]?.message || "invalide"}` };
+  const lnVal = nameSchema.safeParse(lastName);
+  if (!lnVal.success) return { error: `Nom : ${lnVal.error.issues[0]?.message || "invalide"}` };
+  const emailVal = emailSchema.safeParse(email);
+  if (!emailVal.success) return { error: `Email : ${emailVal.error.issues[0]?.message || "invalide"}` };
+  const pwdVal = passwordSchema.safeParse(password);
+  if (!pwdVal.success) return { error: pwdVal.error.issues[0]?.message || "invalide" };
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

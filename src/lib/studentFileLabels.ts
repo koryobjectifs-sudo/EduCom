@@ -48,3 +48,22 @@ export function formatSize(bytes: number): string {
   if (bytes < 1048576) return `${Math.round(bytes / 1024)} Ko`;
   return `${(bytes / 1048576).toFixed(1)} Mo`;
 }
+
+/**
+ * Traduit une condition brute de base de données en texte lisible pour l'interface.
+ */
+export function translateRequirementCondition(conditional: string | null | undefined): string | null {
+  if (!conditional) return null;
+  const cond = conditional.toLowerCase().trim();
+
+  if (cond.includes("âge < 6") || cond.includes("age < 6") || cond.includes("age_lt_6") || cond.includes("prescolaire")) {
+    return "Moins de 6 ans en CI (Préscolaire)";
+  }
+
+  if (cond.includes("transfer") || cond.includes("exeat")) {
+    return "En cas de transfert";
+  }
+
+  return conditional;
+}
+

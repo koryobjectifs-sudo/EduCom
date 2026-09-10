@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { formatDate } from "@/lib/dateUtils";
 import { 
   ArrowLeft, Printer, Save, Download, FileText, X,
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, LayoutTemplate,
@@ -371,7 +372,7 @@ export default function TimetableGenerator({ classes }: { classes: any[] }) {
 
               <div className="mt-6 flex justify-between">
                 <div className="text-sm text-gray-600 italic">
-                  Document généré le {new Date().toLocaleDateString("fr-FR")}
+                  Document généré le {formatDate(new Date())}
                 </div>
                 {notes && (
                   <div className="text-sm font-medium text-gray-800">

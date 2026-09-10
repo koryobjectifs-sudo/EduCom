@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Role } from "@/generated/prisma/client";
 import { WhatsAppConnectionWidget, WhatsAppSchoolInfo } from "@/components/dashboard/WhatsAppConnectionWidget";
+import { formatDate } from "@/lib/dateUtils";
 
 type ConversationPreview = {
   id: string;
@@ -185,7 +186,7 @@ export default function CommunicationCenterClient({
                     <div>
                       <div className="font-medium text-text">{camp.name}</div>
                       <div className="text-sm text-dim">
-                        {camp.type === "AUTOMATED_WORKFLOW" ? "Automatisée" : "Manuelle"} • {new Date(camp.createdAt).toLocaleDateString("fr-FR")}
+                        {camp.type === "AUTOMATED_WORKFLOW" ? "Automatisée" : "Manuelle"} • {formatDate(camp.createdAt)}
                       </div>
                     </div>
                     {/* ⚠️ Le statut brut de la base ne s'affiche PLUS tel quel :
@@ -260,10 +261,10 @@ export default function CommunicationCenterClient({
                 <FileText className="h-5 w-5 text-dim" /> Formulaires
               </h3>
               <div className="space-y-4">
-                <Link href="#" className="flex items-center justify-center w-full p-2 rounded-lg bg-surface hover:bg-sunk border border-rule transition-colors text-sm font-medium text-text">
+                <button disabled className="flex items-center justify-center w-full p-2 rounded-lg bg-surface/50 border border-rule transition-colors text-sm font-medium text-text-faint cursor-not-allowed" title="Bientôt disponible">
                   <Plus className="w-4 h-4 mr-2" />
-                  Nouveau Formulaire
-                </Link>
+                  Nouveau Formulaire (Bientôt)
+                </button>
                 <div className="text-center py-6 text-xs text-dim">
                   Gérez les inscriptions et les collectes d'informations.
                 </div>

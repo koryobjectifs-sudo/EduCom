@@ -12,19 +12,8 @@ import { hasAccess, RoleType } from "@/lib/permissions";
  * être considéré comme fiable — en particulier un `schoolId`, qui déterminerait
  * alors *quel établissement* la requête écrit.
  *
- * Ce helper renvoie le `schoolId` **de la session**, jamais celui des
- * arguments, et vérifie que le rôle de l'appelant couvre bien le chemin
- * concerné. Le contrôle de rôle réutilise `hasAccess()` : les permissions
- * restent définies à un seul endroit (`src/lib/permissions.ts`), et l'action
- * autorise exactement ce que la navigation autorise déjà — ni plus, ni moins.
- *
- * Le motif de référence est `src/app/dashboard/grades/actions.ts`, qui
- * authentifiait déjà correctement ; ce fichier ne fait que le factoriser pour
- * que les autres actions n'aient plus à le réécrire.
- *
- * Contrairement à `requireSchoolContext()` (qui redirige, et convient aux
- * pages), ce helper **renvoie une erreur** : une server action doit répondre
- * `{ error }` à son appelant plutôt que tenter une redirection.
+ * SÉCURITÉ ABSOLUE :
+ * - Bloque toute action si l'adresse e-mail de l'utilisateur n'est pas confirmée.
  */
 
 export type ActionContext = {
@@ -39,13 +28,21 @@ export type ActionAuth =
   | { ok: true; ctx: ActionContext }
   | { ok: false; error: string };
 
+export type ActionContextOptions = {
+  allowUnverifiedEmail?: boolean;
+};
+
 /**
  * Authentifie l'appelant et résout son établissement.
  *
  * @param requiredPath Chemin dont l'accès est exigé (ex. `/dashboard/settings`).
  *   Si omis, seule l'authentification est vérifiée.
+ * @param options Options d'autorisation (ex. allowUnverifiedEmail pour renvoi d'e-mail).
  */
-export const requireActionContext = cache(async function requireActionContext(requiredPath?: string): Promise<ActionAuth> {
+export const requireActionContext = cache(async function requireActionContext(
+  requiredPath?: string,
+  options?: ActionContextOptions
+): Promise<ActionAuth> {
   // Support Local Test Mode (Dev uniquement)
   if (process.env.NODE_ENV === "development") {
     const { cookies } = await import("next/headers");
@@ -62,6 +59,9 @@ export const requireActionContext = cache(async function requireActionContext(re
         const role = dbUser.role as RoleType;
         if (requiredPath && !hasAccess(role, requiredPath)) {
           return { ok: false, error: "Vous n'avez pas les droits nécessaires pour cette action (Dev Mode)." };
+        }
+        if (!options?.allowUnverifiedEmail && !dbUser.emailVerified) {
+          return { ok: false, error: "Confirmation d'e-mail requise. Veuillez vérifier votre boîte mail avant d'effectuer cette action." };
         }
         return {
           ok: true,
@@ -85,6 +85,7 @@ export const requireActionContext = cache(async function requireActionContext(re
     where: { id: user.id },
     select: {
       id: true,
+      email: true,
       schoolId: true,
       role: true,
       emailVerified: true,
@@ -93,6 +94,11 @@ export const requireActionContext = cache(async function requireActionContext(re
   });
   if (!dbUser) return { ok: false, error: "Utilisateur introuvable." };
   if (!dbUser.schoolId) return { ok: false, error: "Aucun établissement rattaché à ce compte." };
+
+  // ⚠️ SÉCURITÉ : Blocage des actions serveurs si e-mail non vérifié
+  if (!options?.allowUnverifiedEmail && !dbUser.emailVerified) {
+    return { ok: false, error: "Confirmation d'e-mail requise. Veuillez vérifier votre boîte mail avant d'effectuer cette action." };
+  }
 
   const role = dbUser.role as RoleType;
 

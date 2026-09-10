@@ -5,49 +5,32 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
-
-/**
- * Création d'un compte et de son établissement.
- *
- * ═══ QUATRE DÉFAUTS RÉELS, TROUVÉS À L'AUDIT DU 19 AOÛT 2026 ═══
- *
- * ⚠️ **1. DES ÉCOLES ORPHELINES.** L'école était créée, PUIS l'utilisateur, en
- * deux écritures indépendantes. Quand la seconde échouait — le journal du
- * serveur en porte deux occurrences, « Unique constraint failed on the fields:
- * (`email`) » — **l'école restait en base, vide et sans propriétaire**. Cinq
- * écoles fantômes existaient ainsi (« Kory », « SABA ACADEMY » ×2, « gomis »
- * ×2). Les deux écritures sont désormais dans une **transaction** : soit les
- * deux existent, soit aucune.
- *
- * ⚠️ **2. UN COMPTE EXISTANT CRÉAIT UNE ÉCOLE DE PLUS.** Quand l'adresse est
- * déjà inscrite, Supabase ne renvoie PAS d'erreur : il renvoie un utilisateur
- * factice avec `identities: []`, exprès, pour qu'on ne puisse pas savoir de
- * l'extérieur quelles adresses sont enregistrées. Le code lisait `data.user.id`
- * et fabriquait une école. C'était la principale usine à écoles fantômes.
- *
- * ⚠️ **3. LA CONFIRMATION PAR E-MAIL N'ÉTAIT PAS GÉRÉE.** Le projet Supabase a
- * `mailer_autoconfirm: false` : `signUp()` renvoie alors un utilisateur **sans
- * session**. Le code redirigeait quand même vers `/onboarding`, qui exige une
- * session et renvoie donc vers `/login` — sans un mot d'explication. La
- * personne venait de créer son compte et se retrouvait devant un formulaire de
- * connexion, persuadée que l'inscription avait échoué. L'action renvoie
- * maintenant un état explicite que l'écran sait afficher.
- *
- * ⚠️ **4. AUCUNE ADRESSE DE RETOUR.** `signUp()` n'envoyait pas
- * `emailRedirectTo` : le lien de confirmation ramenait vers l'URL de site
- * configurée chez Supabase, pas vers le parcours. Il pointe désormais sur
- * `/auth/callback`, qui ouvre la session puis renvoie au tableau de bord — lui
- * même dirigeant vers l'installation tant qu'elle n'est pas faite.
- *
- * ⚠️ **CE QUI N'A PAS ÉTÉ FAIT** : aucune protection n'a été désactivée pour
- * faire passer un test. La confirmation par e-mail reste exigée ; c'est un
- * réglage de projet, pas une décision de code (`rappel.md` §57).
- */
+import { 
+  emailSchema, 
+  passwordSchema, 
+  personNameSchema, 
+  schoolNameSchema, 
+  phoneSchema 
+} from '@/lib/validations'
+import { checkRegisterRateLimit, logSecurityFailure } from '@/lib/rateLimit'
+import { z } from 'zod'
 
 export type RegisterResult =
-  | { error: string; dejaInscrit?: boolean }
+  | { error: string; dejaInscrit?: boolean; fieldErrors?: Record<string, string> }
   /** Compte créé, mais la session n'ouvrira qu'après confirmation de l'adresse. */
   | { confirmationRequise: true; email: string }
+
+const registerFormSchema = z.object({
+  schoolName: schoolNameSchema,
+  firstName: personNameSchema,
+  lastName: personNameSchema,
+  phone: phoneSchema,
+  email: emailSchema,
+  password: passwordSchema,
+  termsAccepted: z.literal(true, {
+    message: "Veuillez accepter les CGU et la politique de confidentialité.",
+  }),
+})
 
 /** Messages Supabase → français, sans jamais inventer une cause. */
 function messageFr(code: string | undefined, brut: string): string {
@@ -57,7 +40,7 @@ function messageFr(code: string | undefined, brut: string): string {
     case 'email_address_invalid':
       return "Cette adresse e-mail est refusée par notre service d'authentification. Utilisez une adresse courante (Gmail, Outlook, l'adresse de votre établissement…)."
     case 'weak_password':
-      return "Mot de passe trop court : il faut au moins 6 caractères."
+      return "Mot de passe trop court : il faut au moins 8 caractères."
     case 'signup_disabled':
       return "Les inscriptions sont momentanément fermées."
     default:
@@ -66,26 +49,63 @@ function messageFr(code: string | undefined, brut: string): string {
 }
 
 export async function register(formData: FormData): Promise<RegisterResult | void> {
-  const email = (formData.get('email') as string ?? '').trim().toLowerCase()
-  const password = formData.get('password') as string
-  const termsAccepted = formData.get('termsAccepted') === 'on' || formData.get('termsAccepted') === 'true'
-
-  if (!email || !password) {
-    return { error: 'Tous les champs sont requis.' }
-  }
-
-  if (!termsAccepted) {
-    return { error: "Veuillez accepter les conditions générales d'utilisation et la politique de confidentialité pour créer votre compte." }
-  }
-
-  // L'origine réelle de la requête : en développement `localhost:3000`, en
-  // production le domaine servi. Écrire l'URL en dur ici enverrait les
-  // utilisateurs du pilote vers la machine de développement.
   const entetes = await headers()
   const clientIp = entetes.get('x-forwarded-for')?.split(',')[0]?.trim() || entetes.get('x-real-ip') || '127.0.0.1'
-  const origine =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    `${entetes.get('x-forwarded-proto') ?? 'http'}://${entetes.get('host')}`
+
+  // ── Protection contre les bots : limiteur de débit IP ──
+  const rateLimit = checkRegisterRateLimit(clientIp)
+  if (!rateLimit.allowed) {
+    logSecurityFailure({
+      action: 'RATE_LIMIT_EXCEEDED',
+      ip: clientIp,
+      reason: 'Trop de tentatives d\'inscription (max 5 par heure)',
+    })
+    return {
+      error: `Trop de tentatives depuis cette adresse. Veuillez patienter ${Math.ceil((rateLimit.retryAfterSeconds || 3600) / 60)} minute(s).`,
+    }
+  }
+
+  const rawData = {
+    schoolName: (formData.get('schoolName') as string ?? '').trim(),
+    firstName: (formData.get('firstName') as string ?? '').trim(),
+    lastName: (formData.get('lastName') as string ?? '').trim(),
+    phone: (formData.get('phone') as string ?? '').trim(),
+    email: (formData.get('email') as string ?? '').trim().toLowerCase(),
+    password: formData.get('password') as string ?? '',
+    termsAccepted: formData.get('termsAccepted') === 'on' || formData.get('termsAccepted') === 'true',
+  }
+
+  // ── Validation stricte côté serveur ──
+  const parsed = registerFormSchema.safeParse(rawData)
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {}
+    parsed.error.issues.forEach((issue) => {
+      const field = issue.path[0] as string
+      if (!fieldErrors[field]) {
+        fieldErrors[field] = issue.message
+      }
+    })
+    const firstErrorMessage = parsed.error.issues[0]?.message || "Veuillez vérifier les informations saisies."
+
+    logSecurityFailure({
+      action: 'INVALID_FORMAT',
+      ip: clientIp,
+      email: rawData.email,
+      reason: firstErrorMessage,
+    })
+
+    return {
+      error: firstErrorMessage,
+      fieldErrors,
+    }
+  }
+
+  const { schoolName, firstName, lastName, phone, email, password } = parsed.data
+
+  const host = entetes.get('host') || 'localhost:3000'
+  const proto = entetes.get('x-forwarded-proto') || 'http'
+  const defaultOrigin = `${proto}://${host}`
+  const origine = process.env.NEXT_PUBLIC_SITE_URL?.trim() || defaultOrigin
 
   let user, session
   try {
@@ -94,24 +114,34 @@ export async function register(formData: FormData): Promise<RegisterResult | voi
       email,
       password,
       options: {
-        data: { firstName: "Responsable", lastName: "EduCom" },
+        data: { firstName, lastName, phone, schoolName },
         emailRedirectTo: `${origine}/auth/callback?next=/welcome`,
       },
     })
     if (error) {
+      logSecurityFailure({
+        action: 'REGISTER_FAILED',
+        ip: clientIp,
+        email,
+        reason: error.message,
+      })
       return { error: messageFr((error as { code?: string }).code, error.message) }
     }
     user = data.user
     session = data.session
-  } catch {
+  } catch (err: any) {
+    logSecurityFailure({
+      action: 'REGISTER_FAILED',
+      ip: clientIp,
+      email,
+      reason: err?.message || 'Exception Supabase',
+    })
     return { error: "Impossible de joindre le service d'authentification." }
   }
 
   if (!user?.id) return { error: "L'inscription a échoué." }
 
-  // ⚠️ Adresse déjà inscrite : Supabase renvoie un utilisateur factice avec
-  // `identities: []` plutôt qu'une erreur, pour ne pas révéler quelles adresses
-  // existent. On s'arrête ici — sans quoi on créerait une école de plus.
+  // ⚠️ Adresse déjà inscrite : Supabase renvoie un utilisateur factice avec `identities: []`
   if (Array.isArray(user.identities) && user.identities.length === 0) {
     return {
       error: "Un compte existe déjà avec cette adresse. Connectez-vous, ou utilisez « mot de passe oublié ».",
@@ -120,21 +150,20 @@ export async function register(formData: FormData): Promise<RegisterResult | voi
   }
 
   try {
-    // ⚠️ UNE SEULE TRANSACTION. Voir le défaut n°1 en tête de fichier.
     await prisma.$transaction(async (tx) => {
       const existant = await tx.user.findUnique({
         where: { id: user!.id },
         select: { id: true, schoolId: true },
       })
-      // Reprise d'une inscription interrompue : le compte Auth existe déjà et
-      // son école aussi. On ne recrée rien.
       if (existant?.schoolId) return
 
       const school = await tx.school.create({
         data: {
-          name: "École en configuration",
+          name: schoolName,
           email,
+          phone,
           schoolActivated: false,
+          onboardingCompleted: false,
           setupProgress: {
             classes: false,
             curriculum: false,
@@ -147,10 +176,11 @@ export async function register(formData: FormData): Promise<RegisterResult | voi
       })
       await tx.user.create({
         data: {
-          id: user!.id, // même identifiant que Supabase Auth : c'est la jointure
+          id: user!.id,
           email,
-          firstName: "Responsable",
-          lastName: "EduCom",
+          firstName,
+          lastName,
+          phone,
           role: 'ADMIN',
           schoolId: school.id,
           emailVerified: Boolean(user!.email_confirmed_at),
@@ -161,13 +191,25 @@ export async function register(formData: FormData): Promise<RegisterResult | voi
     })
   } catch (dbError) {
     console.error('Configuration de l\'espace — échec :', dbError)
+    logSecurityFailure({
+      action: 'REGISTER_FAILED',
+      ip: clientIp,
+      email,
+      reason: 'Transaction BD échouée',
+    })
     return { error: "Votre compte a été créé, mais la configuration de votre espace a échoué. Écrivez-nous : nous la terminons manuellement." }
   }
 
   revalidatePath('/', 'layout')
 
-  // ⚠️ Sans session, rediriger serait un aller simple vers `/login`.
-  if (!session) return { confirmationRequise: true, email }
+  // Redirection systématique vers l'écran de confirmation e-mail tant que le compte n'est pas confirmé
+  if (!user.email_confirmed_at) {
+    return { confirmationRequise: true, email }
+  }
 
-  redirect('/onboarding')
+  if (!session) {
+    return { confirmationRequise: true, email }
+  }
+
+  redirect('/welcome')
 }

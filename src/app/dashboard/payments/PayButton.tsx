@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { toast } from "sonner";
 import { markInvoiceAsPaid } from "./actions";
 import { CheckCircle } from "lucide-react";
 
@@ -11,7 +12,7 @@ export function PayButton({ invoiceId }: { invoiceId: string }) {
     startTransition(async () => {
       const result = await markInvoiceAsPaid(invoiceId);
       if (result?.error) {
-        alert(result.error);
+        toast.error(result.error);
       }
     });
   };

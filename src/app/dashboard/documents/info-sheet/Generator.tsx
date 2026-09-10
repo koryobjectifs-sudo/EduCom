@@ -2,17 +2,14 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { formatDate } from "@/lib/dateUtils";
 import { 
   ArrowLeft, Printer, Save, Download, FileText, X,
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, LayoutTemplate,
-  ListTodo, AlertTriangle, Trash2, HeartPulse, Syringe
+  ListTodo, AlertTriangle, Trash2
 } from "lucide-react";
 
-const getEmptyState = () => ({
-  bloodType: "O+",
-  allergies: "Aucune",
-  notes: ""
-});
+const getEmptyState = () => ({});
 
 export default function InfoSheetGenerator({
   students,
@@ -25,11 +22,6 @@ export default function InfoSheetGenerator({
 }) {
   const [selectedStudentId, setSelectedStudentId] = useState("");
   
-  // State for document data
-  const [bloodType, setBloodType] = useState("O+");
-  const [allergies, setAllergies] = useState("Aucune");
-  const [notes, setNotes] = useState("");
-
   // Modals state
   const [showEditorModal, setShowEditorModal] = useState(false);
 
@@ -81,36 +73,18 @@ export default function InfoSheetGenerator({
           
           const draftKey = `draft_infosheet_${studentIdFromUrl}`;
           const savedData = localStorage.getItem(draftKey);
-          if (savedData) {
-            try {
-              const parsed = JSON.parse(savedData);
-              setBloodType(parsed.bloodType || "O+");
-              setAllergies(parsed.allergies || "Aucune");
-              setNotes(parsed.notes || "");
-              setSavedSnapshot(savedData);
-            } catch (e) {
-              setSavedSnapshot(JSON.stringify(getEmptyState()));
-            }
-          }
-          setShowEditorModal(true);
+          // Draft state removed since medical data is removed
           window.history.replaceState({}, '', '/dashboard/documents/info-sheet');
         }, 50);
       }
     }
   }, []);
 
-  const currentStateStr = JSON.stringify({ bloodType, allergies, notes });
-  const hasChanges = isClient && currentStateStr !== savedSnapshot;
+  const currentStateStr = JSON.stringify({});
+  const hasChanges = false;
 
   const applyState = (state: any) => {
-    setBloodType(state.bloodType || "O+");
-    setAllergies(state.allergies || "Aucune");
-    setNotes(state.notes || "");
-    setSavedSnapshot(JSON.stringify({
-      bloodType: state.bloodType || "O+",
-      allergies: state.allergies || "Aucune",
-      notes: state.notes || ""
-    }));
+    setSavedSnapshot(JSON.stringify({}));
   };
 
   const loadDraftOrEmpty = (studentId: string) => {
@@ -131,11 +105,7 @@ export default function InfoSheetGenerator({
   };
 
   const saveDraft = () => {
-    if (selectedStudentId) {
-      const stateToSave = { bloodType, allergies, notes };
-      localStorage.setItem(`draft_infosheet_${selectedStudentId}`, JSON.stringify(stateToSave));
-      setSavedSnapshot(JSON.stringify(stateToSave));
-    }
+    // No-op since we removed the editable fields
   };
 
   // Présélection depuis le profil élève (?studentId=...). On passe par
@@ -334,7 +304,7 @@ export default function InfoSheetGenerator({
                   <div>
                     <p className="text-xs text-gray-400 uppercase">Date de naissance</p>
                     <p className="font-medium text-gray-700" contentEditable suppressContentEditableWarning>
-                      {student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString("fr-FR") : "Non renseignée"}
+                      {student.dateOfBirth ? formatDate(student.dateOfBirth) : "Non renseignée"}
                     </p>
                   </div>
                   <div>
@@ -363,35 +333,7 @@ export default function InfoSheetGenerator({
                 </div>
               </div>
 
-              {/* Section Médicale (Configurable) */}
-              <div className="rounded-xl border border-red-100 bg-red-50/30 p-5">
-                <div className="flex items-center gap-2 mb-4 border-b border-red-100 pb-2">
-                  <HeartPulse className="w-4 h-4 text-red-500" />
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-red-800">3. Fiche Médicale d'Urgence</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1 text-red-800/70">
-                      <Syringe className="w-3.5 h-3.5" />
-                      <p className="text-xs uppercase font-semibold">Groupe Sanguin</p>
-                    </div>
-                    <p className="font-bold text-lg text-red-900" contentEditable suppressContentEditableWarning>{bloodType}</p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1 text-red-800/70">
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      <p className="text-xs uppercase font-semibold">Allergies connues</p>
-                    </div>
-                    <p className="font-medium text-red-900" contentEditable suppressContentEditableWarning>{allergies}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-xs text-red-800/70 uppercase font-semibold mb-1">Notes médicales ou recommandations</p>
-                    <p className="text-sm text-gray-800 italic p-3 bg-white rounded-lg border border-red-100 min-h-[60px]" contentEditable suppressContentEditableWarning>
-                      {notes || "Aucune note particulière signalée."}
-                    </p>
-                  </div>
-                </div>
-              </div>
+
 
               <div className="pt-8 flex justify-between items-end">
                 <div className="w-1/2">
@@ -414,71 +356,7 @@ export default function InfoSheetGenerator({
         </div>
       </div>
 
-      {/* Editor Modal */}
-      {showEditorModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm print:hidden">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <ListTodo className="w-5 h-5 text-blue-600" />
-                Éditeur de Fiche
-              </h3>
-              <button onClick={() => setShowEditorModal(false)} className="text-gray-400 hover:bg-gray-200 hover:text-gray-600 p-1.5 rounded-lg transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div className="p-6 overflow-y-auto space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Groupe Sanguin</label>
-                <select 
-                  value={bloodType}
-                  onChange={(e) => setBloodType(e.target.value)}
-                  className="block w-full rounded-xl border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-600 sm:text-sm"
-                >
-                  <option value="Non renseigné">Non renseigné</option>
-                  <option value="A+">A+</option>
-                  <option value="A-">A-</option>
-                  <option value="B+">B+</option>
-                  <option value="B-">B-</option>
-                  <option value="AB+">AB+</option>
-                  <option value="AB-">AB-</option>
-                  <option value="O+">O+</option>
-                  <option value="O-">O-</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Allergies</label>
-                <input 
-                  type="text"
-                  value={allergies}
-                  onChange={(e) => setAllergies(e.target.value)}
-                  placeholder="Ex: Arachides, Pénicilline, Aucune"
-                  className="block w-full rounded-xl border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-600 sm:text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Notes médicales ou recommandations</label>
-                <textarea 
-                  rows={4}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Remarques particulières..."
-                  className="block w-full rounded-xl border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-600 sm:text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
-              <button onClick={() => setShowEditorModal(false)} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors shadow-sm">
-                Fermer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Unsaved Changes Warning Modal */}
       {pendingStudentId !== null && (

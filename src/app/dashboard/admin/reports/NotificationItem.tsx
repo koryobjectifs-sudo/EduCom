@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { BellDot, Check } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { markNotificationRead } from "../../settings/fees/actions";
+import { formatDateShort } from "@/lib/dateUtils";
 
 /**
  * Une notification non lue, avec son bouton de lecture. Lot 12.2.
@@ -39,7 +40,7 @@ export function NotificationItem({
 
   if (dismissed) return null;
 
-  const when = new Date(createdAtIso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+  const when = formatDateShort(createdAtIso);
 
   function markRead() {
     start(async () => {

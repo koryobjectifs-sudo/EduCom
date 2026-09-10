@@ -5,18 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { hasAccess, firstAllowedPath, type RoleType } from "@/lib/permissions";
 
 /**
- * Contexte commun aux générateurs de documents : l'utilisateur connecté et SON
- * école.
+ * Contexte commun aux pages et générateurs de documents : l'utilisateur connecté et SON école.
  *
- * Toute requête d'un générateur doit être filtrée par le `schoolId` renvoyé
- * ici. Sans ce filtre, `prisma.student.findMany()` ramène les élèves de tous
- * les établissements de la base — fuite entre locataires. Et
- * `prisma.school.findFirst()` sans `orderBy` ne garantit pas quelle école
- * remonte : un document pouvait sortir avec le nom, le cachet et la signature
- * d'un autre établissement.
- *
- * Mémoïsé par requête via React `cache()` pour éviter les allers-retours Supabase
- * et SQL redondants entre layouts et pages.
+ * SÉCURITÉ ABSOLUE :
+ * - Bloque tout accès au dashboard si l'adresse e-mail de l'utilisateur n'est pas confirmée.
  */
 export const requireSchoolContext = cache(async function requireSchoolContext() {
   if (process.env.NODE_ENV === "development") {
@@ -29,6 +21,9 @@ export const requireSchoolContext = cache(async function requireSchoolContext() 
       const dbUser = await prisma.user.findUnique({ where: { id: testUserId } });
       const school = await prisma.school.findUnique({ where: { id: testSchoolId } });
       if (dbUser && school) {
+        if (!dbUser.emailVerified) {
+          redirect(`/verify-email?email=${encodeURIComponent(dbUser.email)}`);
+        }
         return { user: dbUser, schoolId: testSchoolId, school };
       }
     }
@@ -41,6 +36,11 @@ export const requireSchoolContext = cache(async function requireSchoolContext() 
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
   if (!dbUser) redirect("/login");
 
+  // ⚠️ SÉCURITÉ : Redirection immédiate si e-mail non vérifié
+  if (!dbUser.emailVerified) {
+    redirect(`/verify-email?email=${encodeURIComponent(dbUser.email)}`);
+  }
+
   const school = await prisma.school.findUnique({ where: { id: dbUser.schoolId } });
 
   return { user: dbUser, schoolId: dbUser.schoolId, school };
@@ -52,4 +52,3 @@ export const requirePathAccess = cache(async function requirePathAccess(path: st
   if (!hasAccess(role, path)) redirect(firstAllowedPath(role));
   return ctx;
 });
-

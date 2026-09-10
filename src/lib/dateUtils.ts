@@ -134,3 +134,55 @@ export function formatDate(date: Date | string | number | null | undefined, loca
     year: "numeric"
   }).format(parsed);
 }
+
+/**
+ * Formatage verbeux (ex: "24 septembre 2026")
+ */
+export function formatDateVerbose(date: Date | string | number | null | undefined, locale: string = "fr"): string {
+  const parsed = parseFlexibleDate(date);
+  if (!parsed) return "";
+  
+  const intlLocale = locale === "en" ? "en-US" : locale === "pt" ? "pt-PT" : "fr-FR";
+  return new Intl.DateTimeFormat(intlLocale, {
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  }).format(parsed);
+}
+
+/**
+ * Formatage court (ex: "24 sept.")
+ */
+export function formatDateShort(date: Date | string | number | null | undefined, locale: string = "fr"): string {
+  const parsed = parseFlexibleDate(date);
+  if (!parsed) return "";
+  
+  const intlLocale = locale === "en" ? "en-US" : locale === "pt" ? "pt-PT" : "fr-FR";
+  return new Intl.DateTimeFormat(intlLocale, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(parsed);
+}
+
+/**
+ * Formatage date et heure (ex: "24/09/2026 à 14:30")
+ */
+export function formatDateTime(date: Date | string | number | null | undefined, locale: string = "fr"): string {
+  const parsed = parseFlexibleDate(date);
+  if (!parsed) return "";
+  
+  const intlLocale = locale === "en" ? "en-US" : locale === "pt" ? "pt-PT" : "fr-FR";
+  const dateStr = new Intl.DateTimeFormat(intlLocale, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  }).format(parsed);
+
+  const timeStr = new Intl.DateTimeFormat(intlLocale, {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(parsed);
+
+  return `${dateStr} à ${timeStr}`;
+}

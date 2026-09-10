@@ -8,6 +8,7 @@ import {
   ListTodo, AlertTriangle, Trash2
 } from "lucide-react";
 import { SignaturePad } from "@/app/dashboard/payments/new/SignaturePad";
+import { formatDate } from "@/lib/dateUtils";
 
 const getEmptyState = () => ({
   receiptNumber: `REC-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000) + 1000}`,
@@ -339,7 +340,7 @@ export default function ReceiptGenerator({ students, school, initialStudentId }:
               <div className="text-right">
                 <h2 className="text-2xl font-black text-gray-900 uppercase tracking-widest border-2 border-gray-900 px-4 py-2 inline-block">Reçu</h2>
                 <p className="text-sm font-semibold text-gray-500 mt-3 tracking-wider">N° {receiptNumber}</p>
-                <p className="text-sm text-gray-500 font-medium">Date: {new Date(issueDate).toLocaleDateString("fr-FR")}</p>
+                <p className="text-sm text-gray-500 font-medium">Date: {formatDate(issueDate)}</p>
               </div>
             </div>
 

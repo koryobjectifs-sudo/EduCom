@@ -480,6 +480,59 @@
   }
 }
 
+/* Utilities (Animations) */
+.animate-enter {
+  animation: enter 0.2s ease-out;
+}
+
+/* react-phone-number-input custom styles */
+.PhoneInput-custom {
+  display: flex;
+  align-items: center;
+}
+.PhoneInput-custom .PhoneInputCountry {
+  display: flex;
+  align-items: center;
+  margin-right: 0.5rem;
+}
+.PhoneInput-custom .PhoneInputCountryIcon {
+  width: 1.5rem;
+  height: 1rem;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
+}
+.PhoneInput-custom .PhoneInputCountrySelect {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 2.5rem;
+  z-index: 1;
+  opacity: 0;
+  cursor: pointer;
+}
+.PhoneInput-custom .PhoneInputCountrySelectArrow {
+  display: block;
+  content: '';
+  width: 0.3rem;
+  height: 0.3rem;
+  margin-left: 0.35rem;
+  border-style: solid;
+  border-color: currentColor;
+  border-width: 0 1px 1px 0;
+  transform: rotate(45deg);
+  opacity: 0.45;
+}
+.PhoneInput-custom input.PhoneInputInput {
+  flex: 1;
+  background: transparent;
+  outline: none;
+  border: none;
+  min-width: 0;
+  color: inherit;
+}
+
 /* Respect de `prefers-reduced-motion`. Le traitement complet des animations
    est l'objet du lot 11 ; cette règle de base coûte trois lignes et évite
    d'imposer les 153 `transition-all` du dépôt à qui a demandé le contraire. */

@@ -6,6 +6,7 @@ import { MessageCircle, Link2, Unlink } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
 import { simulateConnectWhatsApp, disconnectWhatsApp, finalizeWhatsAppConnection } from "@/app/dashboard/settings/actions";
+import { formatDate } from "@/lib/dateUtils";
 
 export type WhatsAppSchoolInfo = {
   whatsappConnectionStatus: string | null;
@@ -228,7 +229,7 @@ export function WhatsAppConnectionWidget({ school }: { school: WhatsAppSchoolInf
                 <div className="flex justify-between text-xs">
                   <span className="text-dim">Connecté le</span>
                   <span className="font-medium text-text">
-                    {school.whatsappConnectedAt ? new Date(school.whatsappConnectedAt).toLocaleDateString("fr-FR") : "Inconnu"}
+                    {school.whatsappConnectedAt ? formatDate(school.whatsappConnectedAt) : "Inconnu"}
                   </span>
                 </div>
               </div>

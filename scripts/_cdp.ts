@@ -89,8 +89,8 @@ export class CDP {
       this.waiting.set(id, { resolve: resolve as (v: unknown) => void, reject });
       this.ws.send(JSON.stringify(cmd));
       setTimeout(() => {
-        if (this.waiting.delete(id)) reject(new Error(`${method} sans réponse après 30 s`));
-      }, 30_000);
+        if (this.waiting.delete(id)) reject(new Error(`${method} sans réponse après 60 s`));
+      }, 60_000);
     });
   }
 

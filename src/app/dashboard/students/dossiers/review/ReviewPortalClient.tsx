@@ -42,6 +42,7 @@ import { Card } from "@/components/ui/Card";
 import { Input, Select } from "@/components/ui/Field";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal } from "@/components/ui/Modal";
+import { toast } from "sonner";
 import {
   approveStudentAdmissionAction,
   bulkApproveStudentAdmissionsAction,
@@ -527,7 +528,7 @@ export default function ReviewPortalClient({
       setProcessingId(null);
       setConfirmAdmissionStudent(null);
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
         router.refresh();
       }
@@ -556,7 +557,7 @@ export default function ReviewPortalClient({
       setConfirmBulkAdmission(null);
       setSelectedIds(new Set());
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
         router.refresh();
       }
@@ -575,7 +576,7 @@ export default function ReviewPortalClient({
       });
       setProcessingId(null);
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
         advanceDrawerDoc(1);
         router.refresh();
@@ -586,7 +587,7 @@ export default function ReviewPortalClient({
   const handleDrawerReject = () => {
     if (!drawerStudent || !activeDrawerDoc) return;
     if (!rejectReason.trim()) {
-      alert("Veuillez indiquer le motif du refus pour la famille.");
+      toast.error("Veuillez indiquer le motif du refus pour la famille.");
       return;
     }
     setProcessingId(activeDrawerDoc.requirementId);
@@ -601,7 +602,7 @@ export default function ReviewPortalClient({
       setShowRejectInput(false);
       setRejectReason("");
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
         advanceDrawerDoc(1);
         router.refresh();
@@ -653,13 +654,13 @@ export default function ReviewPortalClient({
       setDepositFile(null);
 
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
         router.refresh();
       }
     } catch (e: any) {
       setDepositSubmitting(false);
-      alert("Erreur lors de l'envoi du fichier.");
+      toast.error("Erreur lors de l'envoi du fichier.");
     }
   };
 
@@ -679,13 +680,13 @@ export default function ReviewPortalClient({
       const res = await uploadStudentDocumentDirectAction(fd);
       setSignedDocLoading(false);
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
         router.refresh();
       }
     } catch (err: any) {
       setSignedDocLoading(false);
-      alert("Erreur lors de l'envoi.");
+      toast.error("Erreur lors de l'envoi.");
     }
   };
 
@@ -2155,7 +2156,7 @@ export default function ReviewPortalClient({
                       note: regularisationNote,
                     });
                     setRegularisationModal(null);
-                    if (res.error) alert(res.error);
+                    if (res.error) toast.error(res.error);
                     else router.refresh();
                   });
                 }}
@@ -2224,7 +2225,7 @@ export default function ReviewPortalClient({
                       bulkRegNote
                     );
                     setBulkRegModal(false);
-                    if (res.error) alert(res.error);
+                    if (res.error) toast.error(res.error);
                     else router.refresh();
                   });
                 }}
@@ -2303,7 +2304,7 @@ export default function ReviewPortalClient({
                     const res = await bulkUploadStudentDocumentAction(fd);
                     setBulkUploadModal(false);
                     setBulkUploadFile(null);
-                    if (res.error) alert(res.error);
+                    if (res.error) toast.error(res.error);
                     else router.refresh();
                   });
                 }}
@@ -2463,7 +2464,7 @@ export default function ReviewPortalClient({
                       phone: parentFormData.phone,
                     });
                     setEditParentStudent(null);
-                    if (res.error) alert(res.error);
+                    if (res.error) toast.error(res.error);
                     else router.refresh();
                   });
                 }}

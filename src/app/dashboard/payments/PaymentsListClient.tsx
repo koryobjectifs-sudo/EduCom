@@ -13,6 +13,7 @@ import { PayButton } from "./PayButton";
 import { toast } from "sonner";
 import { quickCollect } from "./actions"; // We will create this
 import Link from "next/link";
+import { formatDate } from "@/lib/dateUtils";
 
 type Invoice = {
   id: string;
@@ -324,7 +325,7 @@ export default function PaymentsListClient({
 
                         <DataTable.Cell className="hidden md:table-cell whitespace-nowrap">
                           <span className={late ? "font-medium text-danger" : "text-text-soft"}>
-                            {due.toLocaleDateString("fr-FR")}
+                            {formatDate(due)}
                           </span>
                         </DataTable.Cell>
 
@@ -332,7 +333,7 @@ export default function PaymentsListClient({
                           <StatusBadge domain="invoice" status={invoice.status} />
                           {late && (
                             <span className="block text-role-meta text-danger md:hidden">
-                              échue le {due.toLocaleDateString("fr-FR")}
+                              échue le {formatDate(due)}
                             </span>
                           )}
                         </DataTable.Cell>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { formatDate } from "@/lib/dateUtils";
 import { 
   ArrowLeft, Printer, Save, Download, FileText, X,
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, LayoutTemplate,
@@ -393,12 +394,12 @@ export default function InvoiceGenerator({ students, school, initialStudentId }:
                     <div className="grid grid-cols-2 gap-y-2 text-sm">
                       <span className="text-gray-500">Date de facturation :</span>
                       <span className="font-medium text-gray-900 text-right" contentEditable suppressContentEditableWarning>
-                        {issueDate ? new Date(issueDate).toLocaleDateString("fr-FR") : ""}
+                        {issueDate ? formatDate(issueDate) : ""}
                       </span>
                       
                       <span className="text-gray-500">Date d'échéance :</span>
                       <span className="font-medium text-gray-900 text-right" contentEditable suppressContentEditableWarning>
-                        {dueDate ? new Date(dueDate).toLocaleDateString("fr-FR") : ""}
+                        {dueDate ? formatDate(dueDate) : ""}
                       </span>
                       
                       <span className="text-gray-500">Mode de paiement :</span>

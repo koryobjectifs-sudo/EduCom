@@ -1,4 +1,5 @@
 import type { Bulletin, BulletinStudent } from "@/lib/bulletin";
+import { formatDate } from "@/lib/dateUtils";
 
 /**
  * **Le bulletin — une seule feuille, un seul rendu.**
@@ -104,7 +105,7 @@ export function BulletinSheet({
             </p>
             {student.dateOfBirth && (
               <p className="mt-1 text-xs text-gray-600 sm:text-sm print:text-sm">
-                Né(e) le {new Date(student.dateOfBirth).toLocaleDateString("fr-FR")}
+                Né(e) le {formatDate(student.dateOfBirth)}
               </p>
             )}
           </div>

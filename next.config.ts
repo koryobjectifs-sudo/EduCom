@@ -118,6 +118,11 @@ const nextConfig: NextConfig = {
         destination: "/dashboard/students?view=classes",
         permanent: true,
       },
+      {
+        source: "/communications",
+        destination: "/dashboard/communications",
+        permanent: true,
+      },
     ];
   },
 };

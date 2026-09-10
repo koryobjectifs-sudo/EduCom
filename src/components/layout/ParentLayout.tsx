@@ -13,11 +13,13 @@ import {
 
 import { useTranslation } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import EmailVerificationBanner from "./EmailVerificationBanner";
 
 export interface ParentLayoutProps {
   schoolName?: string;
   schoolLogo?: string | null;
   userName?: string;
+  emailVerified?: boolean;
   children: React.ReactNode;
 }
 
@@ -25,6 +27,7 @@ export default function ParentLayout({
   schoolName = "EduCom",
   schoolLogo,
   userName,
+  emailVerified = false,
   children,
 }: ParentLayoutProps) {
   const pathname = usePathname();
@@ -52,6 +55,7 @@ export default function ParentLayout({
 
   return (
     <div className="min-h-screen bg-ground flex flex-col selection:bg-primary/20">
+      <EmailVerificationBanner emailVerified={emailVerified} />
       {/* Entête Simple Espace Famille */}
       <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-rule bg-surface/95 backdrop-blur-md px-4 sm:px-6">
         <div className="flex items-center gap-3">

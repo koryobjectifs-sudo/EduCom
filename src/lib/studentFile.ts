@@ -186,8 +186,8 @@ export function evaluateRequirementCondition(
 
   const cond = conditional.toLowerCase().trim();
 
-  // Condition "age < 6 in CI" pour le certificat préscolaire
-  if (cond.includes("age < 6") || cond.includes("age_lt_6") || cond.includes("prescolaire")) {
+  // Condition "Âge < 6 ans en CI" pour le certificat préscolaire
+  if (cond.includes("âge < 6") || cond.includes("age < 6") || cond.includes("age_lt_6") || cond.includes("prescolaire")) {
     const isCI = context.className ? context.className.toUpperCase().includes("CI") : true;
     if (!isCI) return false;
     
@@ -204,6 +204,24 @@ export function evaluateRequirementCondition(
   }
 
   return true;
+}
+
+/**
+ * Traduit une condition brute de base de données en texte lisible pour l'interface.
+ */
+export function translateRequirementCondition(conditional: string | null | undefined): string | null {
+  if (!conditional) return null;
+  const cond = conditional.toLowerCase().trim();
+
+  if (cond.includes("âge < 6") || cond.includes("age < 6") || cond.includes("age_lt_6") || cond.includes("prescolaire")) {
+    return "Moins de 6 ans en CI (Préscolaire)";
+  }
+
+  if (cond.includes("transfer") || cond.includes("exeat")) {
+    return "En cas de transfert";
+  }
+
+  return conditional; // fallback au texte brut si non reconnu
 }
 
 /**

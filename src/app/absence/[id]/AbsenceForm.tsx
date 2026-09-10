@@ -72,7 +72,7 @@ export default function AbsenceForm({ attendanceId, studentName, dateStr }: { at
             className="w-full rounded-control border border-rule bg-surface px-3 py-2 text-role-body text-text placeholder-text-faint transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             required
           >
-            <option value="Maladie">Maladie / Santé</option>
+            <option value="Maladie">Maladie</option>
             <option value="Raison familiale">Raison familiale</option>
             <option value="Transport / Intempérie">Transport / Intempérie</option>
             <option value="Autre">Autre motif</option>

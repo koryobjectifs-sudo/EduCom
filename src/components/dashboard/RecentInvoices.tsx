@@ -3,6 +3,7 @@ import { ArrowRight, CreditCard } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import { DataState } from "./DataState";
+import { formatDate } from "@/lib/dateUtils";
 
 /**
  * « Dernières factures » — volontairement **rétrogradé**.
@@ -68,7 +69,7 @@ export default function RecentInvoices({
                   {inv.student ?? "Destinataire non défini"}
                   {" · "}
                   <time dateTime={inv.createdAt.toISOString()}>
-                    {inv.createdAt.toLocaleDateString("fr-FR")}
+                    {formatDate(inv.createdAt)}
                   </time>
                 </p>
               </div>

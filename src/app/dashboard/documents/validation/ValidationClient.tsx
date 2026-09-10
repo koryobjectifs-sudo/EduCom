@@ -7,6 +7,7 @@ import {
   Undo2, Printer, Check, Loader2, X, TriangleAlert,
   Inbox, User, Clock, ChevronRight, Layers, ArrowLeft
 } from "lucide-react";
+import { CYCLE_LABELS } from "@/lib/schoolDocumentLabels";
 import { returnReportCardsToTeacher, approveReportCards } from "../../grades/actions";
 
 export type Submission = {
@@ -23,13 +24,6 @@ export type Submission = {
   returnedReason: string | null;
   counts: Record<string, number>;
   total: number;
-};
-
-const CYCLE_LABELS: Record<string, string> = {
-  ELEMENTAIRE: "Élémentaire",
-  COLLEGE: "Collège",
-  LYCEE: "Lycée",
-  AUTRE: "Autre",
 };
 
 function StatusBadge({ s }: { s: Submission }) {
@@ -168,7 +162,7 @@ export default function ValidationClient({ submissions }: { submissions: Submiss
                           <Layers className="w-5 h-5" />
                         </div>
                         <h3 className="text-[16px] font-semibold text-gray-900 group-hover:text-[#539BEB] transition-colors">
-                          {CYCLE_LABELS[cycle] || cycle}
+                          {CYCLE_LABELS[cycle as keyof typeof CYCLE_LABELS] || cycle}
                         </h3>
                       </div>
                       <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-[#539BEB] transition-colors" />
@@ -198,7 +192,7 @@ export default function ValidationClient({ submissions }: { submissions: Submiss
                   <ArrowLeft className="w-4 h-4" /> Retour aux cycles
                 </button>
                 <h3 className="text-[15px] font-semibold text-gray-900 bg-gray-100 px-3 py-1 rounded-lg">
-                  {CYCLE_LABELS[selectedCycle] || selectedCycle}
+                  {CYCLE_LABELS[selectedCycle as keyof typeof CYCLE_LABELS] || selectedCycle}
                 </h3>
               </div>
 

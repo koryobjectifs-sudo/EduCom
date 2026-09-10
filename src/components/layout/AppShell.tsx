@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import AppRail from "./AppRail";
 import ContextualSidebar from "./ContextualSidebar";
 import AppTopBar from "./AppTopBar";
+import EmailVerificationBanner from "./EmailVerificationBanner";
 import { type NavSpace, getActiveSpaceId } from "@/lib/navigation";
 
 export interface AppShellProps {
@@ -13,6 +14,7 @@ export interface AppShellProps {
   schoolLogo?: string | null;
   userRole?: string;
   userName?: string;
+  emailVerified?: boolean;
   children: React.ReactNode;
 }
 
@@ -23,6 +25,7 @@ export default function AppShell({
   schoolLogo,
   userRole = "OWNER",
   userName,
+  emailVerified = false,
   children,
 }: AppShellProps) {
   const pathname = usePathname();
@@ -51,6 +54,7 @@ export default function AppShell({
 
       {/* 3. Zone de Travail Principale (TopBar + Workspace) */}
       <div className="flex min-w-0 flex-1 flex-col print:overflow-visible">
+        <EmailVerificationBanner emailVerified={emailVerified} />
         <AppTopBar
           schoolName={schoolName}
           schoolLogo={schoolLogo}

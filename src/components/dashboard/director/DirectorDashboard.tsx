@@ -221,18 +221,18 @@ export default function DirectorDashboard({
 
       {/* ── 7. SUIVI PÉDAGOGIQUE (DIFFÉRÉ VIA SUSPENSE) ── */}
       {academicSlot ? (
-        academicSlot
+        <div key="academic-slot-wrapper">{academicSlot}</div>
       ) : academic ? (
-        <Reveal delay={0.24}>
+        <Reveal key="academic-reveal" delay={0.24}>
           <AcademicProgressSection academic={academic} />
         </Reveal>
       ) : null}
 
       {/* ── 8. ACTIVITÉ RÉCENTE (DIFFÉRÉE VIA SUSPENSE) ── */}
       {recentActivitySlot ? (
-        recentActivitySlot
+        <div key="recent-activity-slot-wrapper">{recentActivitySlot}</div>
       ) : recentActivity ? (
-        <Reveal delay={0.28}>
+        <Reveal key="activity-reveal" delay={0.28}>
           <RecentActivityFeed activity={recentActivity} />
         </Reveal>
       ) : null}

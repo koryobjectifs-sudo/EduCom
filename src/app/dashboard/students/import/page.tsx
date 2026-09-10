@@ -34,8 +34,9 @@ import {
   type ImportPreviewResult,
 } from "./actions";
 import Link from "next/link";
+import { MappingWizard } from "./MappingWizard";
 
-type ImportState = "UPLOAD" | "PREVIEW" | "IMPORTING" | "SUCCESS";
+type ImportState = "UPLOAD" | "MAPPING" | "PREVIEW" | "IMPORTING" | "SUCCESS";
 type InputMode = "FILE" | "PASTE" | "MANUAL";
 type ClassSummary = { name: string; count: number };
 
@@ -53,6 +54,8 @@ export default function ImportStudentsPage() {
   const [inputMode, setInputMode] = useState<InputMode>("FILE");
   const [currentState, setCurrentState] = useState<ImportState>("UPLOAD");
   const [file, setFile] = useState<File | null>(null);
+  const [rawHeaders, setRawHeaders] = useState<string[]>([]);
+  const [rawRows, setRawRows] = useState<any[]>([]);
   const [parsedData, setParsedData] = useState<ImportRow[]>([]);
   const [previewResult, setPreviewResult] = useState<ImportPreviewResult | null>(null);
   const [classSummary, setClassSummary] = useState<ClassSummary[]>([]);
@@ -109,7 +112,8 @@ export default function ImportStudentsPage() {
 
   const handleFileParse = async (selectedFile: File) => {
     setError(null);
-    setParsedData([]);
+    setRawHeaders([]);
+    setRawRows([]);
     setFile(selectedFile);
     setCurrentState("UPLOAD");
 
@@ -126,15 +130,14 @@ export default function ImportStudentsPage() {
         Papa.parse(selectedFile, {
           header: true,
           skipEmptyLines: true,
-          transformHeader: normalizeHeaders,
           complete: async (results) => {
             if (results.errors.length > 0) {
               setError("Erreur lors de la lecture du CSV.");
               return;
             }
-            const rows = results.data as ImportRow[];
-            setParsedData(rows);
-            await fetchPreview(rows);
+            setRawHeaders(results.meta.fields || []);
+            setRawRows(results.data);
+            setCurrentState("MAPPING");
           },
         });
       } else if (isExcel) {
@@ -144,23 +147,22 @@ export default function ImportStudentsPage() {
           return;
         }
 
-        const headers = rows[0].map((h: any) => normalizeHeaders(String(h || "")));
-        const dataRows: ImportRow[] = [];
+        const headers = rows[0].map((h: any) => String(h || "").trim());
+        const dataRows: any[] = [];
 
         for (let i = 1; i < rows.length; i++) {
           const rowData = rows[i];
           const obj: any = {};
           headers.forEach((header: string, index: number) => {
             if (header) {
-              obj[header] = rowData[index] ? String(rowData[index]) : undefined;
+              obj[header] = rowData[index] !== null && rowData[index] !== undefined ? String(rowData[index]) : "";
             }
           });
-          if (obj.firstName || obj.lastName) {
-            dataRows.push(obj as ImportRow);
-          }
+          dataRows.push(obj);
         }
-        setParsedData(dataRows);
-        await fetchPreview(dataRows);
+        setRawHeaders(headers);
+        setRawRows(dataRows);
+        setCurrentState("MAPPING");
       }
     } catch (err) {
       console.error(err);
@@ -260,6 +262,8 @@ export default function ImportStudentsPage() {
 
   const reset = () => {
     setFile(null);
+    setRawHeaders([]);
+    setRawRows([]);
     setParsedData([]);
     setPreviewResult(null);
     setError(null);
@@ -388,6 +392,20 @@ export default function ImportStudentsPage() {
           </Link>
         </div>
       </div>
+    );
+  }
+
+  // --- RENDER MAPPING ---
+  if (currentState === "MAPPING") {
+    return (
+      <MappingWizard
+        rawHeaders={rawHeaders}
+        rawRows={rawRows}
+        onMappingComplete={async (mappedData) => {
+          setParsedData(mappedData);
+          await fetchPreview(mappedData);
+        }}
+      />
     );
   }
 

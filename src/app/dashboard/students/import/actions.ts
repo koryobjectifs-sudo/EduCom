@@ -66,6 +66,56 @@ export async function acceptDpaAction() {
   return { success: true };
 }
 
+export async function normalizeRawRow(row: Record<string, any>): Promise<ImportRow> {
+  return parseRawRow(row);
+}
+
+function parseRawRow(row: Record<string, any>): ImportRow {
+  const normalized: Record<string, any> = {};
+  
+  for (const [rawKey, val] of Object.entries(row)) {
+    if (val === undefined || val === null) continue;
+    const strVal = String(val).trim();
+    if (!strVal) continue;
+
+    const k = rawKey.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+    if (!normalized.firstName && (k === "firstname" || k.includes("prenom") || k === "first name" || k === "first_name")) {
+      normalized.firstName = strVal;
+    } else if (!normalized.lastName && (k === "lastname" || (k.includes("nom") && !k.includes("prenom") && !k.includes("tuteur") && !k.includes("parent")) || k === "last name" || k === "last_name" || k === "nom de famille")) {
+      normalized.lastName = strVal;
+    } else if (!normalized.className && (k.includes("classe") || k.includes("class") || k.includes("niveau") || k.includes("division"))) {
+      normalized.className = strVal;
+    } else if (!normalized.dateOfBirth && (k.includes("naissance") || k.includes("dob") || k.includes("birth") || k === "date")) {
+      normalized.dateOfBirth = strVal;
+    } else if (!normalized.gender && (k.includes("sexe") || k.includes("gender") || k.includes("genre"))) {
+      normalized.gender = strVal;
+    } else if (!normalized.emergencyContact && (k.includes("tuteur") || k.includes("parent") || k.includes("responsable") || k === "emergencycontact")) {
+      if (!k.includes("tel") && !k.includes("phone")) {
+        normalized.emergencyContact = strVal;
+      }
+    } else if (!normalized.emergencyPhone && (k.includes("tel") || k.includes("phone") || k.includes("mobile") || k.includes("cellulaire") || k === "emergencyphone")) {
+      normalized.emergencyPhone = strVal;
+    } else if (!normalized.matricule && (k.includes("matricule") || k.includes("identifiant") || k === "id")) {
+      normalized.matricule = strVal;
+    } else if (!normalized.status && (k.includes("statut") || k.includes("status"))) {
+      normalized.status = strVal;
+    }
+  }
+
+  return {
+    firstName: normalized.firstName || row.firstName || "",
+    lastName: normalized.lastName || row.lastName || "",
+    className: normalized.className || row.className || "",
+    dateOfBirth: normalized.dateOfBirth || row.dateOfBirth || "",
+    gender: normalized.gender || row.gender || "",
+    emergencyContact: normalized.emergencyContact || row.emergencyContact || "",
+    emergencyPhone: normalized.emergencyPhone || row.emergencyPhone || "",
+    matricule: normalized.matricule || row.matricule || "",
+    status: normalized.status || row.status || "",
+  };
+}
+
 export async function previewImport(rows: ImportRow[]): Promise<{ data?: ImportPreviewResult; error?: string }> {
   const auth = await requireActionContext("/dashboard/students");
   if (!auth.ok) return { error: auth.error };
@@ -75,8 +125,9 @@ export async function previewImport(rows: ImportRow[]): Promise<{ data?: ImportP
     return { error: "Le fichier ne contient aucune donnée." };
   }
 
-  const validRows = rows.filter(r => r.firstName && r.lastName);
-  const invalidRows = rows.length - validRows.length;
+  const normalizedRows = rows.map((r) => parseRawRow(r));
+  const validRows = normalizedRows.filter(r => r.firstName?.trim() && r.lastName?.trim());
+  const invalidRows = normalizedRows.length - validRows.length;
 
   const uniqueClassNames = Array.from(new Set(validRows.map(r => r.className?.trim()).filter(Boolean))) as string[];
 
@@ -103,7 +154,7 @@ export async function previewImport(rows: ImportRow[]): Promise<{ data?: ImportP
 
   return {
     data: {
-      totalRows: rows.length,
+      totalRows: normalizedRows.length,
       validRows: validRows.length,
       invalidRows,
       classesCount: uniqueClassNames.length,
@@ -135,6 +186,8 @@ export async function importStudents(rows: ImportRow[], skipDuplicates: boolean 
     return { error: "Le fichier ne contient aucune donnée valide." };
   }
 
+  const normalizedRows = rows.map((r) => parseRawRow(r));
+
   try {
     const year = currentAcademicYear(schoolDb);
     let importedCount = 0;
@@ -143,7 +196,7 @@ export async function importStudents(rows: ImportRow[], skipDuplicates: boolean 
 
     // Filter valid rows with first & last name
     const validRows: (ImportRow & { originalIndex: number })[] = [];
-    rows.forEach((r, idx) => {
+    normalizedRows.forEach((r, idx) => {
       if (!r.firstName?.trim() || !r.lastName?.trim()) {
         partialErrors.push({ row: idx + 1, reason: "Nom ou prénom manquant" });
       } else {

@@ -107,7 +107,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       source: "OFFICIEL",
       required: true,
       pinned: false,
-      conditional: "age < 6 in CI",
+      conditional: "Âge < 6 ans en CI",
       order: 2,
     },
     {

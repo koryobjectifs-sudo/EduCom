@@ -1,3 +1,4 @@
+import { formatDateVerbose } from "@/lib/dateUtils";
 /**
  * Périodes — abstraction commune de fenêtre temporelle.
  *
@@ -73,7 +74,7 @@ const MONTHS = [
   "juillet", "août", "septembre", "octobre", "novembre", "décembre",
 ];
 
-const fmtDay = (d: Date) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+const fmtDay = (d: Date) => formatDateVerbose(d);
 
 /* ──────────────────────────────── fabriques ──────────────────────────────── */
 

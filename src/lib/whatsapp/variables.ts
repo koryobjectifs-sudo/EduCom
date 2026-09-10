@@ -1,3 +1,4 @@
+import { formatDate } from "@/lib/dateUtils";
 export type VariableContext = {
   parent?: { firstName: string; lastName: string };
   student?: { firstName: string; lastName: string };
@@ -42,7 +43,7 @@ export function resolveVariable(varId: VariableId, context: VariableContext): st
       return context.invoice?.amount ? `${context.invoice.amount} FCFA` : "";
     case "INVOICE_DUE_DATE":
       return context.invoice?.dueDate 
-        ? new Date(context.invoice.dueDate).toLocaleDateString("fr-FR") 
+        ? formatDate(context.invoice.dueDate) 
         : "";
     case "ACTION_LINK":
       return context.actionLinkToken ?? "";

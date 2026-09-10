@@ -2,6 +2,7 @@ import { CreditCard, UserPlus, MessageSquare, FileText, GraduationCap, Activity,
 import { Card } from "@/components/ui/Card";
 import { DataState } from "./DataState";
 import type { ActivityEvent, ActivityKind } from "@/lib/dashboard";
+import { formatDate } from "@/lib/dateUtils";
 
 /**
  * « Activité récente » — priorité 3 du tableau de bord.
@@ -55,7 +56,7 @@ function relative(at: Date, now: number): string {
   const d = Math.floor(h / 24);
   if (d === 1) return "hier";
   if (d < 30) return `il y a ${d} jours`;
-  return at.toLocaleDateString("fr-FR");
+  return formatDate(at);
 }
 
 export default function ActivityFeed({ events }: { events: ActivityEvent[] }) {

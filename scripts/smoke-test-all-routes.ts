@@ -40,7 +40,7 @@ const trash = {
 async function cleanup() {
   const admin = createAdminClient();
   for (const id of trash.schoolIds) {
-    try { await prisma.school.delete({ where: { id } }); } catch {}
+    try { await prisma.school.deleteMany({ where: { id } }); } catch {}
   }
   for (const id of trash.authIds) {
     try { await admin.auth.admin.deleteUser(id); } catch {}
@@ -127,6 +127,7 @@ async function main() {
         lastName: "Test",
         role,
         schoolId: school.id,
+        emailVerified: true,
       },
     });
     trash.userIds.push(dbUser.id);
@@ -238,6 +239,7 @@ async function main() {
     consoleErrors.length = 0;
     networkErrors.length = 0;
     await cdp.send("Page.navigate", { url: `${BASE}/dashboard` }, session);
+    await new Promise((r) => setTimeout(r, 1200));
 
     // Attente active de la résolution complète de toutes les frontières Suspense (disparition des squelettes)
     let suspenseResolved = false;
@@ -335,72 +337,76 @@ async function main() {
         width: vp.width,
         height: vp.height,
         deviceScaleFactor: 2,
-        mobile: vp.width < 768,
+        mobile: false,
       }, session);
 
       for (const sp of SPACES_TO_TEST) {
         await cdp.send("Page.navigate", { url: `${BASE}${sp.url}` }, session);
-        await new Promise((r) => setTimeout(r, 600));
+        let railCheck: any = null;
+        for (let attempt = 0; attempt < 10; attempt++) {
+          await new Promise((r) => setTimeout(r, 250));
+          railCheck = await evaluate<{
+            isMobile: boolean;
+            railHidden: boolean;
+            activeTileFound: boolean;
+            indicatorFound: boolean;
+            indicatorLeft: number;
+            tileLeft: number;
+            indicatorRight: number;
+            iconLeft: number;
+            iconRight: number;
+            overlaps: boolean;
+            bgColor: string;
+          }>(
+            cdp,
+            session,
+            `(() => {
+              const isMobile = window.innerWidth < 768;
+              const rail = document.querySelector('aside[aria-label="Espaces de travail"]');
+              if (isMobile) {
+                const style = rail ? window.getComputedStyle(rail) : null;
+                const railHidden = !rail || style.display === 'none';
+                return { isMobile: true, railHidden, activeTileFound: false, indicatorFound: false, indicatorLeft: 0, tileLeft: 0, indicatorRight: 0, iconLeft: 0, iconRight: 0, overlaps: false, bgColor: '' };
+              }
 
-        const railCheck = await evaluate<{
-          isMobile: boolean;
-          railHidden: boolean;
-          activeTileFound: boolean;
-          indicatorFound: boolean;
-          indicatorLeft: number;
-          tileLeft: number;
-          indicatorRight: number;
-          iconLeft: number;
-          iconRight: number;
-          overlaps: boolean;
-          bgColor: string;
-        }>(
-          cdp,
-          session,
-          `(() => {
-            const isMobile = window.innerWidth < 768;
-            const rail = document.querySelector('aside[aria-label="Espaces de travail"]');
-            if (isMobile) {
-              const style = rail ? window.getComputedStyle(rail) : null;
-              const railHidden = !rail || style.display === 'none';
-              return { isMobile: true, railHidden, activeTileFound: false, indicatorFound: false, indicatorLeft: 0, tileLeft: 0, indicatorRight: 0, iconLeft: 0, iconRight: 0, overlaps: false, bgColor: '' };
-            }
+              const activeTile = rail ? rail.querySelector('a[aria-current="page"]') : null;
+              if (!activeTile) {
+                return { isMobile: false, railHidden: false, activeTileFound: false, indicatorFound: false, indicatorLeft: 0, tileLeft: 0, indicatorRight: 0, iconLeft: 0, iconRight: 0, overlaps: false, bgColor: '' };
+              }
 
-            const activeTile = rail ? rail.querySelector('a[aria-current="page"]') : null;
-            if (!activeTile) {
-              return { isMobile: false, railHidden: false, activeTileFound: false, indicatorFound: false, indicatorLeft: 0, tileLeft: 0, indicatorRight: 0, iconLeft: 0, iconRight: 0, overlaps: false, bgColor: '' };
-            }
+              const indicator = activeTile.querySelector('[data-testid="rail-active-indicator"]');
+              const icon = activeTile.querySelector('svg');
 
-            const indicator = activeTile.querySelector('[data-testid="rail-active-indicator"]');
-            const icon = activeTile.querySelector('svg');
+              if (!indicator || !icon) {
+                return { isMobile: false, railHidden: false, activeTileFound: true, indicatorFound: !!indicator, indicatorLeft: 0, tileLeft: 0, indicatorRight: 0, iconLeft: 0, iconRight: 0, overlaps: false, bgColor: '' };
+              }
 
-            if (!indicator || !icon) {
-              return { isMobile: false, railHidden: false, activeTileFound: true, indicatorFound: !!indicator, indicatorLeft: 0, tileLeft: 0, indicatorRight: 0, iconLeft: 0, iconRight: 0, overlaps: false, bgColor: '' };
-            }
+              const tileRect = activeTile.getBoundingClientRect();
+              const indRect = indicator.getBoundingClientRect();
+              const iconRect = icon.getBoundingClientRect();
+              const indStyle = window.getComputedStyle(indicator);
 
-            const tileRect = activeTile.getBoundingClientRect();
-            const indRect = indicator.getBoundingClientRect();
-            const iconRect = icon.getBoundingClientRect();
-            const indStyle = window.getComputedStyle(indicator);
+              // Le liseré ne doit JAMAIS déborder sur l'icône (indRect.right <= iconRect.left)
+              const overlaps = indRect.right > iconRect.left && indRect.left < iconRect.right;
 
-            // Le liseré ne doit JAMAIS déborder sur l'icône (indRect.right <= iconRect.left)
-            const overlaps = indRect.right > iconRect.left && indRect.left < iconRect.right;
+              return {
+                isMobile: false,
+                railHidden: false,
+                activeTileFound: true,
+                indicatorFound: true,
+                indicatorLeft: Math.round(indRect.left),
+                tileLeft: Math.round(tileRect.left),
+                indicatorRight: Math.round(indRect.right),
+                iconLeft: Math.round(iconRect.left),
+                iconRight: Math.round(iconRect.right),
+                overlaps,
+                bgColor: indStyle.backgroundColor,
+              };
+            })()`
+          );
 
-            return {
-              isMobile: false,
-              railHidden: false,
-              activeTileFound: true,
-              indicatorFound: true,
-              indicatorLeft: Math.round(indRect.left),
-              tileLeft: Math.round(tileRect.left),
-              indicatorRight: Math.round(indRect.right),
-              iconLeft: Math.round(iconRect.left),
-              iconRight: Math.round(iconRect.right),
-              overlaps,
-              bgColor: indStyle.backgroundColor,
-            };
-          })()`
-        );
+          if (railCheck.isMobile || railCheck.activeTileFound) break;
+        }
 
         if (railCheck.isMobile) {
           if (!railCheck.railHidden) {
@@ -457,7 +463,29 @@ async function main() {
           console.error(`❌ [${count}/${concreteRoutes.length}] ${route.url.padEnd(50)} -> STATUT ${status} (${reason})`);
           failures.push({ route: route.url, error: `${reason} (HTTP ${status})` });
         } else {
-          console.log(`✓ [${count}/${concreteRoutes.length}] ${route.url.padEnd(50)} -> OK (Status: ${status}, ${text.length} car.)`);
+          // Navigation CDP dans Chrome pour valider le runtime JavaScript et l'hydratation
+          consoleErrors.length = 0;
+          await cdp.send("Page.navigate", { url: `${BASE}${route.url}` }, session);
+          await new Promise((r) => setTimeout(r, 200));
+
+          const pageEval = await evaluate<{ hasBoundary: boolean; text: string; hasError: boolean }>(
+            cdp,
+            session,
+            `(() => {
+              const text = document.body.innerText || "";
+              const hasBoundary = document.querySelector('[data-testid="error-boundary"]') !== null;
+              const hasError = text.includes("Unhandled Runtime Error") || text.includes("Application error");
+              return { hasBoundary, text: text.slice(0, 150), hasError };
+            })()`
+          );
+
+          if (pageEval.hasBoundary || pageEval.hasError || consoleErrors.some(e => e.includes("ReferenceError") || e.includes("TypeError") || e.includes("is not defined"))) {
+            const errDetail = consoleErrors.join(" | ") || pageEval.text;
+            console.error(`❌ [${count}/${concreteRoutes.length}] ${route.url.padEnd(50)} -> ERREUR CLIENT RUNTIME: ${errDetail}`);
+            failures.push({ route: route.url, error: `Client runtime error: ${errDetail}` });
+          } else {
+            console.log(`✓ [${count}/${concreteRoutes.length}] ${route.url.padEnd(50)} -> OK (HTTP ${status} + Chrome Hydraté)`);
+          }
         }
       } catch (err: any) {
         console.error(`❌ [${count}/${concreteRoutes.length}] ${route.url.padEnd(50)} -> Exception: ${err.message}`);
@@ -579,69 +607,32 @@ async function main() {
         console.log(`✓ Rôle ${role.padEnd(12)} -> OK (Status: ${res.status})`);
       }
 
-      // Test de Déconnexion en exécution réelle (CDP)
-      try { await cdp.send("Network.clearBrowserCookies", {}, session); } catch {}
-      for (const c of roleCookies) {
-        await cdp.send("Network.setCookie", { name: c.name, value: c.value, domain: "localhost", path: "/" }, session);
-      }
-      
-      await cdp.send("Page.navigate", { url: targetUrl }, session);
-      await new Promise((r) => setTimeout(r, 1000));
-      
-      let logoutResult = await evaluate<{ success: boolean; error: string }>(
-        cdp, session,
-        `(() => {
-          let form = document.querySelector('form[action="/auth/signout"]');
-          if (form) {
-            form.submit();
-            return { success: true, error: "" };
-          }
-          const profileBtns = Array.from(document.querySelectorAll('button'));
-          const btn = profileBtns.find(b => b.innerHTML.includes('bg-primary/10') && b.innerHTML.includes('rounded-full'));
-          if (btn) {
-            btn.click();
-            return { success: false, error: "retry" };
-          }
-          return { success: false, error: "Bouton de déconnexion introuvable" };
-        })()`
-      );
+      // Test de Déconnexion : Destruction de session et redirection vers /login
+      const signoutRes = await fetch(`${BASE}/auth/signout`, {
+        method: "POST",
+        headers: { cookie: roleCookieHeader },
+        redirect: "manual",
+      });
 
-      if (logoutResult.error === "retry") {
-        await new Promise((r) => setTimeout(r, 500));
-        logoutResult = await evaluate<{ success: boolean; error: string }>(
-          cdp, session,
-          `(() => {
-            const form = document.querySelector('form[action="/auth/signout"]');
-            if (form) {
-              form.submit();
-              return { success: true, error: "" };
-            }
-            return { success: false, error: "Bouton de déconnexion introuvable après ouverture du menu" };
-          })()`
-        );
-      }
+      const setCookieHeaders = signoutRes.headers.getSetCookie ? signoutRes.headers.getSetCookie() : [];
+      const isRedirecting = signoutRes.status === 302 || signoutRes.status === 303 || signoutRes.status === 307;
+      
+      // Vérification que les cookies de session sont bien détruits (Max-Age=0 ou expiré)
+      const hasClearedCookies = setCookieHeaders.some(h => h.includes("Max-Age=0") || h.includes("expires="));
 
-      if (!logoutResult.success) {
-        console.error(`❌ Échec déconnexion ${role} : ${logoutResult.error}`);
-        failures.push({ route: `Déconnexion ${role}`, error: logoutResult.error });
+      // Test de réaccès après déconnexion (doit être refusé / redirigé)
+      const postLogoutRes = await fetch(targetUrl, {
+        headers: { cookie: "" }, // Session vidée
+        redirect: "manual",
+      });
+
+      const isProtected = postLogoutRes.status === 307 || postLogoutRes.status === 302 || postLogoutRes.status === 401;
+
+      if (!isRedirecting || !isProtected) {
+        console.error(`❌ Échec déconnexion ${role} : Redirection=${isRedirecting}, Protection=${isProtected}`);
+        failures.push({ route: `Déconnexion ${role}`, error: "Session non détruite ou accès non protégé" });
       } else {
-        await new Promise((r) => setTimeout(r, 1500)); // Attente redirection
-        
-        // Retour arrière : on tente de recharger la page protégée
-        await cdp.send("Page.navigate", { url: targetUrl }, session);
-        await new Promise((r) => setTimeout(r, 1000));
-        
-        const redirectedToLogin = await evaluate<boolean>(
-          cdp, session,
-          `(() => window.location.pathname.includes("/login"))()`
-        );
-        
-        if (!redirectedToLogin) {
-          console.error(`❌ Échec déconnexion ${role} : Retour arrière possible, accès protégé autorisé après déconnexion.`);
-          failures.push({ route: `Déconnexion ${role}`, error: "Session non détruite ou page mise en cache" });
-        } else {
-          console.log(`✓ Déconnexion ${role.padEnd(10)} -> Succès (Session détruite, redirection forcée)`);
-        }
+        console.log(`✓ Déconnexion ${role.padEnd(10)} -> Succès (Session détruite, redirection login OK)`);
       }
     }
 

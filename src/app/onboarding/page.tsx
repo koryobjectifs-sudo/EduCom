@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { Suspense } from "react";
 import Wizard from "./Wizard";
 
 export default async function OnboardingPage() {
@@ -21,20 +22,24 @@ export default async function OnboardingPage() {
     redirect("/login");
   }
 
+  // SÉCURITÉ : confirmation obligatoire avant d'accéder au wizard d'installation
+  if (!dbUser.emailVerified) {
+    redirect(`/verify-email?email=${encodeURIComponent(dbUser.email)}`);
+  }
+
   if (dbUser.school.onboardingCompleted) {
     redirect("/dashboard");
   }
 
   return (
-    // ⚠️ Les trois halos flous de 600 px ont été retirés : ils ne portaient
-    // aucune information, coûtaient du rendu sur les appareils modestes, et
-    // signaient une maquette générée plutôt qu'un outil scolaire.
-    <div className="flex min-h-[100dvh] flex-col items-center bg-sunk p-4 sm:p-6 overflow-y-auto">
+    <div className="relative flex min-h-[100dvh] flex-col items-center bg-white px-4 py-12 sm:py-16 overflow-y-auto">
       <div className="w-full max-w-[420px] my-auto">
-        <Wizard
-          schoolName={dbUser.school.name}
-          userName={dbUser.firstName}
-        />
+        <Suspense fallback={<div className="h-40 w-full animate-pulse rounded-2xl bg-sunk/50"></div>}>
+          <Wizard
+            schoolName={dbUser.school.name}
+            userName={dbUser.firstName}
+          />
+        </Suspense>
       </div>
     </div>
   );

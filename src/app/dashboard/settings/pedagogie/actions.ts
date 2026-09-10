@@ -6,6 +6,7 @@ import { requireActionContext } from "@/lib/actionContext";
 import { recordAudit } from "@/lib/audit";
 import { applyCurriculum } from "@/lib/pedagogy";
 import { recordPlanningChange } from "@/lib/planningNotice";
+import { formatDateVerbose } from "@/lib/dateUtils";
 
 /**
  * Actions de la configuration pédagogique.
@@ -150,7 +151,7 @@ export async function setEvaluationDate(evaluationId: string, date: string | nul
    */
   const { startDate, endDate } = evaluation.term;
   if (next && startDate && endDate && (next < startDate || next > endDate)) {
-    const fmt = (d: Date) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+    const fmt = (d: Date) => formatDateVerbose(d);
     return {
       error: `Cette date sort de « ${evaluation.term.name} » (${fmt(startDate)} — ${fmt(endDate)}).`,
     };

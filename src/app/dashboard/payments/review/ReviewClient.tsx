@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/DataTable";
 import { approveExpense, returnExpense } from "../expenses/actions";
 import { approveStatement, returnStatement } from "../statement/actions";
+import { formatDateShort } from "@/lib/dateUtils";
 
 /**
  * Bureau de la direction — approuver ou renvoyer.
@@ -70,7 +71,7 @@ export function ReviewClient({
 
   const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR");
   const fmtDate = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+    iso ? formatDateShort(iso) : "—";
 
   async function run(id: string, fn: () => Promise<{ error: string } | { success: true }>) {
     setBusyId(id);

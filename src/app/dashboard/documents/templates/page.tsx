@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DocumentsTabs } from "../DocumentsTabs";
 import RequestDocumentDialog from "../RequestDocumentDialog";
+import { formatDate } from "@/lib/dateUtils";
 
 export const metadata = {
   title: "Modèles de l'école | EduCom",
@@ -79,7 +80,7 @@ export default async function TemplatesHub() {
                     <p className="mt-1 text-[13px] text-gray-600 line-clamp-2">{r.description}</p>
                   )}
                   <p className="mt-2 text-[12px] font-medium text-gray-400">
-                    Demandé le {new Date(r.createdAt).toLocaleDateString("fr-FR")}
+                    Demandé le {formatDate(r.createdAt)}
                   </p>
                 </div>
                 

@@ -1,13 +1,72 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 9 septembre 2026 — **Diagnostic Google Auth & Audit Onboarding (`v7-onboarding-fixes`)**
-> Lot livré :
-> 1. Diagnostic de l'échec silencieux du bouton Google OAuth (problème de configuration des Redirect URLs sur Supabase pour l'IP locale).
-> 2. Sécurisation anti-double-clic sur le formulaire d'inscription.
-> 3. Gestion propre des erreurs de redirection OAuth (e-mail existant, refus) avec affichage d'un message en français dans `/login`.
-> 4. Audit e2e du parcours d'inscription et d'onboarding : détection de doublons (école/tuteur), HTML5 validation, fermeture navigateur, espace vierge au premier jour, et gestion du back browser tous validés avec succès.
+> Dernière mise à jour : 10 septembre 2026 — **Chantier Sécurité de l'Inscription & Validation Stricte (v13-securite-inscription)**
+> Lots livrés :
+> 1. Confirmation obligatoire de l'e-mail : Annulation de la vérification différée. Blocage strict de tout compte non vérifié au niveau Middleware, `requireSchoolContext`, `requireActionContext`, et écrans d'onboarding/dashboard.
+> 2. Validation stricte Client/Serveur (Zod) :
+>    - E-mail : Rejet des domaines jetables (yopmail, mailinator, temp-mail...), format RFC conforme, validation serveur synchrone.
+>    - Téléphone : `libphonenumber-js` + sélecteur de pays avec indicatif dynamique, Sénégal (+221, commence par 7) par défaut, message d'erreur nommant le pays et son format attendu.
+>    - Noms / Prénoms : Min 2 caractères, lettres/accents/tirets/espaces/apostrophes uniquement (**0 chiffre**).
+>    - Nom d'école : Min 3 caractères.
+>    - Mot de passe : Min 8 caractères avec indicateur visuel dynamique de robustesse.
+>    - Erreurs en rouge à la perte de focus (`onBlur`) sans désactiver le bouton de soumission.
+> 3. Écran `/verify-email` : Rappel de l'adresse e-mail saisie, bouton de renvoi avec compte à rebours 60s, lien modification d'adresse, conseils antispam, responsive 390px.
+> 4. Protection Anti-Bots & Rate Limiting : Sliding-window rate limit (5 inscriptions/heure/IP, renvoi e-mail 1/min et 5/heure/IP), journalisation structurée des échecs d'inscription.
+> 5. Modèles d'e-mails EduCom HTML pour Supabase Dashboard : 4 templates rédigés en HTML compatible table/inline-styles (Confirmation, Réinitialisation mot de passe, Invitation, Changement d'e-mail) avec `{{ .ConfirmationURL }}`.
+> 6. Tests & Intégrité : Suite dédiée `test-unconfirmed-block.ts` (21/21), Matrice permissions (43/43), Navigation (55/55), Base vierge (10/10), TypeCheck 0 erreur.
 
-## 🏷️ Point de Sauvegarde & Rollback : `v7-onboarding-fixes`
+## 🏷️ Point de Sauvegarde & Rollback : `v13-securite-inscription`
+
+- **Nom de l'étiquette Git** : `v13-securite-inscription`
+- **Commande de Rollback / Restauration** : `git checkout v13-securite-inscription`
+- **Contenu du jalon** :
+  1. **Validation stricte (Client + Serveur)** : `src/lib/validations.ts` avec Zod, regex sans chiffres sur les noms, validation pays pour téléphone (`libphonenumber-js`), liste noire domaines jetables.
+  2. **Confirmation obligatoire** : Blocage serveur absolu via `middleware.ts`, `requireSchoolContext`, `requireActionContext`.
+  3. **Tunnel `/verify-email`** : Écran dédié avec compte à rebours 60 secondes, rappel e-mail, responsive mobile.
+  4. **Rate limiting** : Protection anti-abus sur `/register` (5/h/IP) et renvoi de mail (1/min, 5/h).
+  5. **Modèles HTML** : 4 templates prêts à coller pour Supabase Auth.
+  6. **Validation** : 4 suites de tests passées sans erreur.
+
+## 🏷️ Point de Sauvegarde Précédent : `v12-onboarding-cycles-email-stable`
+
+- **Nom de l'étiquette Git** : `v12-onboarding-cycles-email-stable`
+- **Commande de Rollback / Restauration** : `git checkout v12-onboarding-cycles-email-stable`
+- **Contenu du jalon** :
+  1. **Fix React Hooks** : Correction de l'ordre des hooks dans `EmailVerificationBanner.tsx` pour éliminer l'erreur de rendu.
+  2. **Audit Auth / E-mail** : Réconciliation bidirectionnelle Supabase Auth / PostgreSQL, journalisation serveur des erreurs SMTP/Auth, fin des faux positifs.
+  3. **Bloc A (Réinscription)** : Diagnostic complet smoke test (navigation CDP intégrale sur 55 routes).
+  4. **Bloc B (Onboarding)** : Type d'établissement & cycles à l'étape 1, aperçu direct des classes décochables, génération multi-cycles propre.
+  5. **Bloc C1 (Sécurité)** : Mots de passe éliminés, destruction cookies à la déconnexion, validation serveur stricte (Zod), éradication mentions santé.
+  6. **Bloc C2 (Import CSV)** : Test automatisé 100% sans perte du modèle EduCom.
+  7. **Bloc C3 (Bandeau e-mail)** : Bouton de renvoi avec confirmation, fermeture temporaire par session, aucun décalage de layout.
+  8. **Bloc C4 (Audit Production)** : Commit de production identifié (`5991754`), diff 7 commits + migrations.
+  9. **Bloc C5 (Doublons)** : Détection temps réel établissement et utilisateur (email & téléphone).
+
+## 🏷️ Point de Sauvegarde Précédent : `v11-sec-audit-import-stable`
+
+- **Nom de l'étiquette Git** : `v11-sec-audit-import-stable`
+- **Commande de Rollback / Restauration** : `git checkout v11-sec-audit-import-stable`
+- **Contenu du jalon** :
+  1. **Sécurité (Bloc 1)** : Mots de passe en clair éliminés, `/invitation/[token]`, cookies nettoyés sur signout/register.
+  2. **Import (Bloc 2)** : Parser CSV universel avec auto-détection sans friction.
+  3. **Audit Production (Bloc 5)** : Cartographie exacte de `educom.school`.
+  4. **Validation Tests** : Navigation (55/55), Permissions (43/43), Base vierge (10/10), Smoke test complet.
+  5. **Architecture (Bloc 6)** : Spécification `roles Role[]`.
+
+## 🏷️ Point de Sauvegarde Précédent : `v10-sec-onboarding-ui`
+
+## 🏷️ Point de Sauvegarde Précédent : `v8-onboarding-team`
+
+- **Nom de l'étiquette Git** : `v8-onboarding-team`
+- **Commande de Rollback / Restauration** : `git checkout v8-onboarding-team`
+- **Contenu du jalon** :
+  1. **UX Inscription** : Suppression des bordures de cartes pour un layout 100% pleine page. 
+  2. **Alertes natives** : Disparition de toute UI système (`alert/confirm/prompt`) sur la plateforme.
+  3. **Menu Communications** : Re-positionnement au niveau racine.
+  4. **Onboarding École (Wizard)** : `useState(1)` remplacé par `useSearchParams()` pour persister l'étape courante. UI de sélection des cycles compactée. Redirection vers l'Assistant Équipe à la fin.
+  5. **Onboarding Équipe (Nouveau Wizard)** : Saisie multi-lignes des futurs collaborateurs (Prénom, Nom, E-mail, Rôle), avec une étape d'affectation optionnelle des professeurs à des classes. Création synchrone via l'action Supabase Admin (`createStaffMember`) et restitution de mots de passe aléatoires générés pour distribution immédiate (accélère le déploiement interne par rapport au magic link).
+
+## 🏷️ Point de Sauvegarde Précédent : `v7-onboarding-fixes`
 
 - **Nom de l'étiquette Git** : `v7-onboarding-fixes`
 - **Commande de Rollback / Restauration** : `git checkout v7-onboarding-fixes`

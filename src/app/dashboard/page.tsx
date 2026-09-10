@@ -42,13 +42,13 @@ export default async function DashboardHome() {
   );
 
   const academicSlot = snapshot.scope.pedagogie ? (
-    <Suspense fallback={<AcademicProgressSkeleton />}>
+    <Suspense key="academic-progress-slot" fallback={<AcademicProgressSkeleton />}>
       <AcademicProgressSectionServer schoolId={schoolId} />
     </Suspense>
   ) : undefined;
 
   const recentActivitySlot = (
-    <Suspense fallback={<RecentActivitySkeleton />}>
+    <Suspense key="recent-activity-slot" fallback={<RecentActivitySkeleton />}>
       <RecentActivityFeedServer schoolId={schoolId} scopeMoney={snapshot.scope.money} />
     </Suspense>
   );

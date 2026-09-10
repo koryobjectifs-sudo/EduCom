@@ -164,7 +164,7 @@ export default async function DossierReviewPage({
         applicable = false;
       } else if (req.conditional) {
         const cond = req.conditional.toLowerCase().trim();
-        if (cond.includes("age < 6") || cond.includes("age_lt_6") || cond.includes("prescolaire")) {
+        if (cond.includes("âge < 6") || cond.includes("age < 6") || cond.includes("age_lt_6") || cond.includes("prescolaire")) {
           const isCI = currentEnrollment?.name ? currentEnrollment.name.toUpperCase().includes("CI") : false;
           if (!isCI || (age !== null && age >= 6)) applicable = false;
         } else if (cond.includes("transfer") || cond.includes("exeat")) {
@@ -342,7 +342,7 @@ export default async function DossierReviewPage({
         nonApplicableReason = `Non exigé pour les ${kind.toLowerCase()}s`;
       } else if (req.conditional) {
         const cond = req.conditional.toLowerCase().trim();
-        if (cond.includes("age < 6") || cond.includes("age_lt_6") || cond.includes("prescolaire")) {
+        if (cond.includes("âge < 6") || cond.includes("age < 6") || cond.includes("age_lt_6") || cond.includes("prescolaire")) {
           const isCI = currentEnrollment?.name ? currentEnrollment.name.toUpperCase().includes("CI") : false;
           if (!isCI) {
             applicable = false;

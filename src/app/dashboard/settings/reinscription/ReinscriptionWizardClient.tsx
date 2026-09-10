@@ -24,6 +24,7 @@ import {
   Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { toast } from "sonner";
 import {
   type ReinscriptionInitData,
@@ -116,11 +117,13 @@ export default function ReinscriptionWizardClient({
   const [filterClassId, setFilterClassId] = useState<string>("ALL");
   const [filterStatus, setFilterStatus] = useState<"ALL" | "REINSCRIBED" | "EXIT">("ALL");
 
-  // Annulation
-  const [isCancelling, setIsCancelling] = useState(false);
-
-  // Exécution
+  // Annulation & Exécution
+  const [isFinishing, setIsFinishing] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [confirmCancelModal, setConfirmCancelModal] = useState(false);
+  const [newClassPrompt, setNewClassPrompt] = useState<{ id: string, name: string, cycle: string, defaultVal: string } | null>(null);
+  const [newClassName, setNewClassName] = useState("");
   const [executionProgress, setExecutionProgress] = useState<number | null>(null);
   const [executionSummary, setExecutionSummary] = useState<any>(null);
 
@@ -301,14 +304,7 @@ export default function ReinscriptionWizardClient({
 
   // Gestion de l'annulation
   const handleCancelReinscription = async () => {
-    if (
-      !confirm(
-        `Êtes-vous certain de vouloir annuler toutes les réinscriptions pour l'année ${targetYear} ?\nCette opération effacera les inscriptions créées pour cette session.`
-      )
-    ) {
-      return;
-    }
-
+    setConfirmCancelModal(false);
     setIsCancelling(true);
     const res = await cancelReinscriptionAction(targetYear);
     if (res.success) {
@@ -410,7 +406,7 @@ export default function ReinscriptionWizardClient({
                 variant="ghost"
                 size="sm"
                 loading={isCancelling}
-                onClick={handleCancelReinscription}
+                onClick={() => setConfirmCancelModal(true)}
                 className="text-xs text-red-700 hover:text-red-800 hover:bg-red-100/50 h-7 px-2"
               >
                 <RotateCcw className="w-3.5 h-3.5 mr-1" />
@@ -648,20 +644,8 @@ export default function ReinscriptionWizardClient({
                             );
                           } else if (val === "__NEW__") {
                             // Demander le nom de la classe
-                            const customName = prompt(
-                              `Nom de la nouvelle classe pour les élèves de ${cls.name} :`,
-                              `${cls.name} (Suivante)`
-                            );
-                            if (customName && customName.trim()) {
-                              handleClassRuleChange(
-                                cls.id,
-                                EXIT_DESTINATION,
-                                customName.trim(),
-                                cls.cycle,
-                                false,
-                                true
-                              );
-                            }
+                            setNewClassName(`${cls.name} (Suivante)`);
+                            setNewClassPrompt({ id: cls.id, name: cls.name, cycle: cls.cycle, defaultVal: `${cls.name} (Suivante)` });
                           } else {
                             const matched = data.classes.find((c) => c.id === val);
                             handleClassRuleChange(
@@ -1109,6 +1093,85 @@ export default function ReinscriptionWizardClient({
           )}
         </div>
       )}
+      {/* ── MODALS ── */}
+      <Modal
+        open={confirmCancelModal}
+        onClose={() => setConfirmCancelModal(false)}
+        title="Annuler la réinscription"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmCancelModal(false)}>Non</Button>
+            <Button variant="danger" loading={isCancelling} onClick={handleCancelReinscription}>
+              Oui, annuler tout
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-text-soft">
+          Êtes-vous certain de vouloir annuler toutes les réinscriptions pour l'année {targetYear} ?
+          <br /><br />
+          Cette opération effacera toutes les inscriptions créées pour cette session.
+        </p>
+      </Modal>
+
+      <Modal
+        open={newClassPrompt !== null}
+        onClose={() => setNewClassPrompt(null)}
+        title="Nouvelle classe"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setNewClassPrompt(null)}>Annuler</Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (newClassPrompt && newClassName.trim()) {
+                  handleClassRuleChange(
+                    newClassPrompt.id,
+                    EXIT_DESTINATION,
+                    newClassName.trim(),
+                    newClassPrompt.cycle,
+                    false,
+                    true
+                  );
+                  setNewClassPrompt(null);
+                }
+              }}
+            >
+              Confirmer
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text-soft">
+            Nom de la nouvelle classe pour les élèves de <strong>{newClassPrompt?.name}</strong> :
+          </p>
+          <input
+            type="text"
+            className="w-full rounded-control border border-rule bg-ground px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            value={newClassName}
+            onChange={(e) => setNewClassName(e.target.value)}
+            placeholder="Ex: CM1 B"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newClassPrompt && newClassName.trim()) {
+                e.preventDefault();
+                handleClassRuleChange(
+                  newClassPrompt.id,
+                  EXIT_DESTINATION,
+                  newClassName.trim(),
+                  newClassPrompt.cycle,
+                  false,
+                  true
+                );
+                setNewClassPrompt(null);
+              }
+            }}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }

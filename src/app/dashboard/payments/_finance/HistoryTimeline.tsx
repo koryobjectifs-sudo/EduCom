@@ -3,6 +3,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { roleLabel } from "@/lib/permissions";
 import { isSystemActor } from "@/lib/audit";
 import { statusLabel, type StatusDomain } from "@/lib/status";
+import { formatDateShort } from "@/lib/dateUtils";
 
 /**
  * « Qui a fait quoi, quand ? » — rendu de `WorkflowTransition`.
@@ -69,7 +70,7 @@ export function HistoryTimeline({
             dateTime={r.createdAt.toISOString()}
             className="shrink-0 text-role-meta tabular-nums text-text-faint sm:w-40"
           >
-            {r.createdAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
+            {formatDateShort(r.createdAt)}
             {" à "}
             {r.createdAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
           </time>

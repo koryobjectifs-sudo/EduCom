@@ -4,6 +4,7 @@ import { LogOut, Globe, ChevronDown, Shield } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { changeTestRole } from "@/app/dashboard/actions";
+import { toast } from "sonner";
 import MobileNav from "../MobileNav";
 
 /**
@@ -151,7 +152,7 @@ export default function TopNav({
                         setRoleMenuOpen(false);
                         const res = await changeTestRole(r);
                         if (res.success) window.location.reload();
-                        else alert("Erreur de changement de rôle : " + res.error);
+                        else toast.error("Erreur de changement de rôle : " + res.error);
                       }}
                       className={`flex w-full items-center rounded-control px-2.5 py-1.5 text-xs font-medium transition-colors ${
                         userRole === r

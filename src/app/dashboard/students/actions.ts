@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireActionContext } from "@/lib/actionContext";
 import { currentAcademicYear } from "@/lib/studentFile";
+import { nameSchema, phoneSchema, emailSchema } from "@/lib/validations";
 
 /**
  * Admission d'un élève.
@@ -36,7 +37,6 @@ export async function createStudent(formData: FormData) {
   
   const address = formData.get("address") as string;
   const bloodGroup = formData.get("bloodGroup") as string;
-  const medicalNotes = formData.get("medicalNotes") as string;
   const emergencyContact = formData.get("emergencyContact") as string;
   const emergencyPhone = formData.get("emergencyPhone") as string;
 
@@ -54,11 +54,34 @@ export async function createStudent(formData: FormData) {
 
   const submittedData = {
     firstName, lastName, dateOfBirth, classId, parentFirstName, parentLastName, parentPhone, parentEmail,
-    address, bloodGroup, medicalNotes, emergencyContact, emergencyPhone
+    address, bloodGroup, emergencyContact, emergencyPhone
   };
 
   if (!firstName || !lastName || !classId || !parentFirstName || !parentLastName || !parentPhone) {
     return { error: "Les champs marqués d'un * sont obligatoires.", formData: submittedData };
+  }
+
+  // Zod Validations
+  const fnVal = nameSchema.safeParse(firstName);
+  if (!fnVal.success) return { error: `Prénom de l'élève : ${fnVal.error.issues[0]?.message || "invalide"}`, formData: submittedData };
+  const lnVal = nameSchema.safeParse(lastName);
+  if (!lnVal.success) return { error: `Nom de l'élève : ${lnVal.error.issues[0]?.message || "invalide"}`, formData: submittedData };
+  const pfnVal = nameSchema.safeParse(parentFirstName);
+  if (!pfnVal.success) return { error: `Prénom du parent : ${pfnVal.error.issues[0]?.message || "invalide"}`, formData: submittedData };
+  const plnVal = nameSchema.safeParse(parentLastName);
+  if (!plnVal.success) return { error: `Nom du parent : ${plnVal.error.issues[0]?.message || "invalide"}`, formData: submittedData };
+  
+  const pPhoneVal = phoneSchema.safeParse(parentPhone);
+  if (!pPhoneVal.success) return { error: `Téléphone parent : ${pPhoneVal.error.issues[0]?.message || "invalide"}`, formData: submittedData };
+  
+  if (parentEmail) {
+    const pEmailVal = emailSchema.safeParse(parentEmail);
+    if (!pEmailVal.success) return { error: `Email parent : ${pEmailVal.error.issues[0]?.message || "invalide"}`, formData: submittedData };
+  }
+  
+  if (emergencyPhone) {
+    const ePhoneVal = phoneSchema.safeParse(emergencyPhone);
+    if (!ePhoneVal.success) return { error: `Téléphone urgence : ${ePhoneVal.error.issues[0]?.message || "invalide"}`, formData: submittedData };
   }
 
   try {
@@ -132,7 +155,7 @@ export async function createStudent(formData: FormData) {
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
         address,
         bloodGroup,
-        medicalNotes,
+        
         emergencyContact,
         emergencyPhone,
         schoolId,

@@ -89,8 +89,8 @@ for (const route of dashboardRoutes) {
     } else if (route.startsWith("/dashboard/documents") && spaceId !== "documents") {
       misassignedRoutes.push({ route, expected: "documents", got: spaceId });
       failCount++;
-    } else if (route.startsWith("/dashboard/communications") && spaceId !== "documents") {
-      misassignedRoutes.push({ route, expected: "documents", got: spaceId });
+    } else if (route.startsWith("/dashboard/communications") && spaceId !== "comms") {
+      misassignedRoutes.push({ route, expected: "comms", got: spaceId });
       failCount++;
     }
 

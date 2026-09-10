@@ -9,9 +9,9 @@ export default function WelcomePage() {
   const router = useRouter();
 
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center bg-sunk p-4 sm:p-6 overflow-y-auto">
-      <div className="w-full max-w-[380px] my-auto rounded-[20px] border border-rule/40 bg-surface p-6 sm:p-7 shadow-sm relative z-10 text-center">
-        <div className="mb-6 flex flex-col items-center justify-center relative">
+    <div className="relative flex min-h-[100dvh] flex-col items-center bg-white px-4 py-12 sm:py-16 overflow-y-auto">
+      <div className="w-full max-w-[400px] my-auto text-center">
+        <div className="mb-6 flex justify-center">
           <img src="/brand/educom-logo-officiel.jpg" alt="EduCom" className="h-6 w-auto object-contain" />
         </div>
 

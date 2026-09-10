@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { requireActionContext } from "@/lib/actionContext";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { phoneSchema, emailSchema, nameSchema } from "@/lib/validations";
 
 /**
  * Met à jour l'identité de l'établissement.
@@ -34,17 +36,32 @@ export async function updateSchoolSettings(data: {
   const auth = await requireActionContext("/dashboard/settings");
   if (!auth.ok) return { error: auth.error };
 
+  const schema = z.object({
+    name: nameSchema,
+    email: z.union([emailSchema, z.literal("")]).optional(),
+    phone: z.union([phoneSchema, z.literal("")]).optional(),
+    address: z.string().optional(),
+    logo: z.string(),
+    stamp: z.string().optional(),
+    signature: z.string().optional(),
+  });
+
+  const parsed = schema.safeParse(data);
+  if (!parsed.success) {
+    return { error: "Données invalides : " + parsed.error.issues[0].message };
+  }
+
   try {
     await prisma.school.update({
       where: { id: auth.ctx.schoolId },
       data: {
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        address: data.address,
-        logo: data.logo,
-        stamp: data.stamp,
-        signature: data.signature,
+        name: parsed.data.name,
+        email: parsed.data.email || "",
+        phone: parsed.data.phone || "",
+        address: parsed.data.address || "",
+        logo: parsed.data.logo,
+        stamp: parsed.data.stamp,
+        signature: parsed.data.signature,
       },
     });
 

@@ -9,6 +9,7 @@ import { recentTransitions } from "@/lib/workflowHistory";
 import { pendingReview, expenseCategoryLabel } from "@/lib/finance";
 import { HistoryTimeline } from "../_finance/HistoryTimeline";
 import { ReviewClient } from "./ReviewClient";
+import { formatDateShort } from "@/lib/dateUtils";
 
 const PATH = "/dashboard/payments/review";
 
@@ -123,7 +124,7 @@ export default async function FinanceReviewPage() {
                   dateTime={r.createdAt.toISOString()}
                   className="shrink-0 text-role-meta tabular-nums text-text-faint sm:w-40"
                 >
-                  {r.createdAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+                  {formatDateShort(r.createdAt)}
                   {" à "}
                   {r.createdAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                 </time>

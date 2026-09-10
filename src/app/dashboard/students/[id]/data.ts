@@ -33,7 +33,7 @@ export const SECTIONS = [
   { cle: "presence", label: "Présence" },
   { cle: "notes", label: "Notes" },
   { cle: "finance", label: "Finance" },
-  { cle: "famille", label: "Famille & santé" },
+  { cle: "famille", label: "Famille & urgence" },
   { cle: "documents", label: "Documents" },
 ] as const;
 

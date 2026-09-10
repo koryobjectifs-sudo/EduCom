@@ -26,6 +26,7 @@ export default async function DashboardLayout({
   const userRole = dbUser.role || "PARENT";
   const primaryColor = school.primaryColor;
   const userName = [dbUser.firstName, dbUser.lastName].filter(Boolean).join(" ") || undefined;
+  const emailVerified = dbUser.emailVerified;
 
   // Lecture de la largeur de la sidebar côté serveur pour éliminer tout saut de layout
   const cookieStore = await cookies();
@@ -47,7 +48,7 @@ export default async function DashboardLayout({
   if (userRole === "PARENT") {
     return (
       <div style={themeStyle} className="contents">
-        <ParentLayout schoolName={schoolName} schoolLogo={schoolLogo} userName={userName}>
+        <ParentLayout schoolName={schoolName} schoolLogo={schoolLogo} userName={userName} emailVerified={emailVerified}>
           {children}
         </ParentLayout>
       </div>
@@ -66,6 +67,7 @@ export default async function DashboardLayout({
         schoolLogo={schoolLogo}
         userRole={userRole}
         userName={userName}
+        emailVerified={emailVerified}
       >
         {children}
       </AppShell>

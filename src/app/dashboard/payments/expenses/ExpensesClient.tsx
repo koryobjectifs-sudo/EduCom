@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/DataTable";
 import { availableTransitions, expenseWorkflow, type FinanceState } from "@/lib/workflow";
 import { createExpense, updateExpense, submitExpense, cancelExpense } from "./actions";
+import { formatDateShort } from "@/lib/dateUtils";
 
 /**
  * Saisie et suivi des dépenses de la période.
@@ -105,7 +106,7 @@ export function ExpensesClient({
 
   const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR");
   const fmtDate = (iso: string) =>
-    new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+    formatDateShort(iso);
 
   return (
     <>

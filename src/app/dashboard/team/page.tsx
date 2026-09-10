@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import InviteLink from "./InviteLink";
 import OrgChartClient from "./OrgChartClient";
 import TeamActions from "./TeamActions";
+import { formatDate } from "@/lib/dateUtils";
 
 export default async function TeamPage() {
   const supabase = await createClient();
@@ -101,7 +102,7 @@ export default async function TeamPage() {
                   <span className="text-role-body font-semibold text-text">{invite.email}</span>
                   <Badge variant="warning">{roleLabel(invite.role)}</Badge>
                   <span className="text-role-meta text-text-faint">
-                    créée le {new Date(invite.createdAt).toLocaleDateString("fr-FR")}
+                    créée le {formatDate(invite.createdAt)}
                   </span>
                 </div>
                 <InviteLink token={invite.token} />

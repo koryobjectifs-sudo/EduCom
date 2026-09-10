@@ -138,6 +138,8 @@ model School {
 
   campaigns   CommunicationCampaign[]
   actionLinks ActionLink[]
+  timeSlots   TimeSlot[]
+  lessons     Lesson[]
 
   /// Credentials for Meta WhatsApp API integration
   whatsappAccessToken       String?
@@ -182,6 +184,7 @@ model User {
   classesTaught       Class[]              @relation("ClassTeacher")
   gradesGiven         Grade[]
   assignments         TeachingAssignment[] @relation("TeacherAssignments")
+  lessons             Lesson[]             @relation("TeacherLessons")
   recordedAttendances Attendance[]         @relation("RecordedAttendances")
 
   managerId    String?
@@ -288,7 +291,6 @@ model Student {
   dateOfBirth      DateTime?
   address          String?
   bloodGroup       String?
-  medicalNotes     String?
   emergencyContact String?
   emergencyPhone   String?
 
@@ -350,6 +352,8 @@ model Class {
   teacherId String?
   teacher   User?   @relation("ClassTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
 
+  academicYear String?
+
   isDemo    Boolean @default(false)
 
   createdAt DateTime @default(now())
@@ -364,10 +368,13 @@ model Class {
   docRequirements DocumentRequirement[]
   schoolDocuments SchoolDocument[]
   attendances     Attendance[]
+  lessons         Lesson[]
 
   @@index([schoolId])
   @@index([teacherId])
   @@index([schoolId, name])
+  @@index([academicYear])
+  @@unique([schoolId, name, academicYear])
 }
 
 model Enrollment {
@@ -833,6 +840,7 @@ model Subject {
   grades      Grade[]
   classes     ClassSubject[]
   assignments TeachingAssignment[]
+  lessons     Lesson[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1718,4 +1726,80 @@ model ActionLink {
   @@index([token])
   @@index([schoolId])
   @@index([parentId])
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ * LOT 5 — EMPLOI DU TEMPS
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+/// Créneau horaire défini par l'école (ex: 08:00 - 08:55).
+/// Ces créneaux sont configurables car chaque école a son propre rythme.
+model TimeSlot {
+  id        String @id @default(uuid())
+  name      String // ex: "M1", "P1", "1ère heure"
+  startTime String // format "HH:mm"
+  endTime   String // format "HH:mm"
+  order     Int    // pour le tri à l'affichage
+
+  schoolId  String
+  school    School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  
+  lessons   Lesson[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@index([schoolId, order])
+}
+
+/// Un cours placé dans la grille hebdomadaire.
+model Lesson {
+  id        String @id @default(uuid())
+
+  dayOfWeek DayOfWeek
+  
+  slotId    String
+  slot      TimeSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  
+  classId   String
+  class     Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  
+  teacherId String?
+  teacher   User? @relation("TeacherLessons", fields: [teacherId], references: [id], onDelete: SetNull)
+  
+  room      String? // Salle en texte libre (gestion fine hors périmètre)
+
+  schoolId  String
+  school    School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Contrainte forte: une classe n'a qu'un seul cours sur un créneau donné.
+  @@unique([classId, dayOfWeek, slotId])
+  /// Contrainte forte: un enseignant ne peut pas donner deux cours sur le même créneau.
+  /// (Les nulls sont considérés distincts par Postgres, donc un cours sans enseignant ne crée pas de conflit).
+  @@unique([teacherId, dayOfWeek, slotId])
+  
+  @@index([schoolId])
+  @@index([classId])
+  @@index([teacherId])
+  @@index([schoolId, dayOfWeek])
 }

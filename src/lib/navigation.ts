@@ -29,7 +29,7 @@ export type NavSection = {
   items: NavItem[];
 };
 
-export type NavSpaceKey = "students" | "documents" | "pedagogy" | "finance" | "admin";
+export type NavSpaceKey = "students" | "documents" | "comms" | "pedagogy" | "finance" | "admin";
 
 export type NavSpace = {
   id: NavSpaceKey;
@@ -78,12 +78,11 @@ export const NAV_SPACES: NavSpace[] = [
   {
     id: "documents",
     label: "Documents",
-    fullLabel: "Documents & Communication",
+    fullLabel: "Centre documentaire",
     icon: "FileText",
     defaultHref: "/dashboard/documents",
     matchPrefixes: [
       "/dashboard/documents",
-      "/dashboard/communications",
     ],
     sections: [
       {
@@ -92,6 +91,18 @@ export const NAV_SPACES: NavSpace[] = [
           { id: "documents", name: "Centre documentaire", href: "/dashboard/documents", icon: "FileText", short: "Documents" },
         ],
       },
+    ],
+  },
+  {
+    id: "comms",
+    label: "Messages",
+    fullLabel: "Communications",
+    icon: "MessageSquare",
+    defaultHref: "/dashboard/communications",
+    matchPrefixes: [
+      "/dashboard/communications",
+    ],
+    sections: [
       {
         title: "Échanges & Messages",
         items: [

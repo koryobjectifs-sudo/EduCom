@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
+import { toast } from "sonner";
 
 interface GoogleAuthButtonProps {
   mode: "signup" | "login";
@@ -31,7 +32,7 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
       }
     } catch (error) {
       console.error("Erreur de connexion Google:", error);
-      alert("La connexion via Google a échoué. Veuillez réessayer.");
+      toast.error("La connexion via Google a échoué. Veuillez réessayer.");
       setLoading(false);
     }
   };

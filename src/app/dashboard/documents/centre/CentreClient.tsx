@@ -16,6 +16,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input, Select, Textarea } from "@/components/ui/Field";
 import { formatSize } from "@/lib/studentFileLabels";
 import { checkFile } from "@/lib/studentFileLimits";
+import { formatDateShort } from "@/lib/dateUtils";
 import {
   DOC_STATUS_LABELS, AUDIENCE_LABELS, SCOPE_LABELS, CYCLE_LABELS, previewKind,
 } from "@/lib/schoolDocumentLabels";
@@ -104,6 +105,8 @@ export function CentreClient({
   const [diffusion, setDiffusion] = useState<{ doc: Doc; prep: Prep } | null>(null);
   const [diffusionChannel, setDiffusionChannel] = useState<string>(channels[0]?.id ?? "whatsapp");
   const [diffusionBusy, setDiffusionBusy] = useState(false);
+  const [promptModal, setPromptModal] = useState<{ doc: Doc, to: string } | null>(null);
+  const [promptValue, setPromptValue] = useState("");
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [confirmStep, setConfirmStep] = useState(false);
   const [deliveryNote, setDeliveryNote] = useState("");
@@ -131,7 +134,7 @@ export function CentreClient({
     [folders, params],
   );
 
-  const date = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+  const date = (iso: string) => formatDateShort(iso);
 
   /**
    * §6 — « Diffuser » n'est écrit que si un canal envoie réellement. Aujourd'hui
@@ -172,8 +175,16 @@ export function CentreClient({
   }
 
   function move(doc: Doc, to: string, needsComment?: boolean) {
-    const comment = needsComment ? (window.prompt("Motif (obligatoire) :") ?? "") : undefined;
-    if (needsComment && !comment?.trim()) { toast.error("Un motif est obligatoire pour cette action."); return; }
+    if (needsComment) {
+      setPromptValue("");
+      setPromptModal({ doc, to });
+      return;
+    }
+    executeMove(doc, to, undefined);
+  }
+
+  function executeMove(doc: Doc, to: string, comment?: string) {
+    if (promptModal) setPromptModal(null);
     start(async () => {
       const r = await transitionSchoolDocument({ id: doc.id, to: to as never, comment });
       if (r.error) { toast.error(r.error); return; }
@@ -835,6 +846,55 @@ export function CentreClient({
             )}
           </div>
         )}
+      </Modal>
+
+      {/* ── MODAL MOTIF OBLIGATOIRE (REMPLACE PROMPT) ── */}
+      <Modal
+        open={promptModal !== null}
+        onClose={() => setPromptModal(null)}
+        title="Motif obligatoire"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setPromptModal(null)}>
+              Annuler
+            </Button>
+            <Button
+              loading={pending}
+              onClick={() => {
+                if (!promptValue.trim()) {
+                  toast.error("Un motif est obligatoire pour cette action.");
+                  return;
+                }
+                if (promptModal) executeMove(promptModal.doc, promptModal.to, promptValue);
+              }}
+            >
+              Confirmer
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-[14px] leading-relaxed text-text-soft">Veuillez indiquer le motif de cette action :</p>
+          <input
+            type="text"
+            className="w-full rounded-control border border-rule bg-ground px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            value={promptValue}
+            onChange={(e) => setPromptValue(e.target.value)}
+            placeholder="Motif..."
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (!promptValue.trim()) {
+                  toast.error("Un motif est obligatoire pour cette action.");
+                  return;
+                }
+                if (promptModal) executeMove(promptModal.doc, promptModal.to, promptValue);
+              }
+            }}
+          />
+        </div>
       </Modal>
 
     </div>

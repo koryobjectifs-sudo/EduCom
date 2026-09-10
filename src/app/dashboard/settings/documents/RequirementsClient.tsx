@@ -21,7 +21,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
-import { categoryLabel, STUDENT_KIND_LABELS, DOC_CATEGORY_LABELS } from "@/lib/studentFileLabels";
+import { categoryLabel, STUDENT_KIND_LABELS, DOC_CATEGORY_LABELS, translateRequirementCondition } from "@/lib/studentFileLabels";
 import {
   upsertRequirement,
   setRequirementActive,
@@ -82,6 +82,7 @@ export function RequirementsClient({
 
   // Modal d'avertissement pour suppression de pièce officielle
   const [officialWarningItem, setOfficialWarningItem] = useState<ReqItem | null>(null);
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState<ReqItem | null>(null);
 
   // Formulaire d'ajout
   const [showAddForm, setShowAddForm] = useState(false);
@@ -213,16 +214,19 @@ export function RequirementsClient({
       setOfficialWarningItem(r);
       return;
     }
-    if (confirm(`Voulez-vous vraiment supprimer définitivement « ${r.label} » ?`)) {
-      startTransition(async () => {
-        const res = await deleteRequirement(r.id);
-        if (res.error) {
-          toast.error(res.error);
-          return;
-        }
-        toast.success("Pièce supprimée.");
-      });
-    }
+    setConfirmDeleteItem(r);
+  }
+
+  function confirmDelete(r: ReqItem) {
+    setConfirmDeleteItem(null);
+    startTransition(async () => {
+      const res = await deleteRequirement(r.id);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Pièce supprimée.");
+    });
   }
 
   function handleMove(index: number, direction: "up" | "down") {
@@ -527,7 +531,7 @@ export function RequirementsClient({
                         <>
                           <span>·</span>
                           <span className="text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded text-[10px]">
-                            Condition : {r.conditional}
+                            Condition : {translateRequirementCondition(r.conditional)}
                           </span>
                         </>
                       )}
@@ -602,29 +606,8 @@ export function RequirementsClient({
           open={true}
           onClose={() => setOfficialWarningItem(null)}
           title="Pièce réglementaire officielle"
-        >
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 rounded-xl bg-amber-50 p-3.5 border border-amber-200 text-amber-900">
-              <ShieldAlert className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-              <div className="text-xs space-y-1">
-                <p className="font-semibold">
-                  « {officialWarningItem.label} » est une exigence réglementaire sénégalaise.
-                </p>
-                <p className="text-amber-800 leading-relaxed">
-                  Cette pièce fait partie des documents officiels requis par le Ministère de l'Éducation nationale pour l'inscription et la présentation aux examens. Elle ne peut pas être supprimée du référentiel.
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-600 leading-relaxed">
-              <strong>Conséquence :</strong> Si votre établissement ne souhaite pas exiger cette pièce à l'inscription, vous pouvez :
-            </p>
-            <ul className="text-xs text-slate-600 list-disc list-inside space-y-1 pl-1">
-              <li>La <strong>rendre optionnelle</strong> : elle n'impactera plus la complétude des dossiers.</li>
-              <li>La <strong>désactiver</strong> : elle disparaîtra de la checklist active sans effacer les documents déjà reçus.</li>
-            </ul>
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+          footer={
+            <>
               <Button size="sm" variant="ghost" onClick={() => setOfficialWarningItem(null)}>
                 Compris
               </Button>
@@ -648,10 +631,58 @@ export function RequirementsClient({
               >
                 Désactiver la pièce
               </Button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 rounded-xl bg-amber-50 p-3.5 border border-amber-200 text-amber-900">
+              <ShieldAlert className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-xs space-y-1">
+                <p className="font-semibold">
+                  « {officialWarningItem.label} » est une exigence réglementaire sénégalaise.
+                </p>
+                <p className="text-amber-800 leading-relaxed">
+                  Cette pièce fait partie des documents officiels requis par le Ministère de l'Éducation nationale pour l'inscription et la présentation aux examens. Elle ne peut pas être supprimée du référentiel.
+                </p>
+              </div>
             </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              <strong>Conséquence :</strong> Si votre établissement ne souhaite pas exiger cette pièce à l'inscription, vous pouvez :
+            </p>
+            <ul className="text-xs text-slate-600 list-disc list-inside space-y-1 pl-1">
+              <li>La <strong>rendre optionnelle</strong> : elle n'impactera plus la complétude des dossiers.</li>
+              <li>La <strong>désactiver</strong> : elle disparaîtra de la checklist active sans effacer les documents déjà reçus.</li>
+            </ul>
           </div>
         </Modal>
       )}
+
+      {/* ── MODAL DE SUPPRESSION ── */}
+      <Modal
+        open={confirmDeleteItem !== null}
+        onClose={() => setConfirmDeleteItem(null)}
+        title="Supprimer la pièce ?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmDeleteItem(null)}>
+              Annuler
+            </Button>
+            <Button
+              variant="danger"
+              loading={pending}
+              onClick={() => confirmDeleteItem && confirmDelete(confirmDeleteItem)}
+            >
+              Supprimer
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[14px] leading-relaxed text-text-soft">
+          Voulez-vous vraiment supprimer définitivement « <strong>{confirmDeleteItem?.label}</strong> » ?
+        </p>
+      </Modal>
     </div>
   );
 }

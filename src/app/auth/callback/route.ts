@@ -81,6 +81,7 @@ export async function GET(request: Request) {
               lastName,
               role: 'ADMIN',
               schoolId: school.id,
+              emailVerified: true,
             },
           })
         })
@@ -90,6 +91,12 @@ export async function GET(request: Request) {
         if (next === '/dashboard') {
           return NextResponse.redirect(`${origin}/welcome`)
         }
+      } else {
+        // Confirmation d'e-mail d'un utilisateur existant : valider l'adresse en base
+        await prisma.user.update({
+          where: { id: data.user.id },
+          data: { emailVerified: true },
+        })
       }
     } catch (err) {
       console.error('Erreur lors de la création automatique OAuth:', err)

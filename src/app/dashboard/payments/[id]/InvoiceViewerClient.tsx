@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Printer, Download, User } from "lucide-react";
 import writtenNumber from "written-number";
+import { formatDate } from "@/lib/dateUtils";
 
 type InvoiceItem = {
   id: string;
@@ -108,13 +109,13 @@ export default function InvoiceViewerClient({ invoice, school }: { invoice: any,
               <div className="flex justify-end gap-3">
                 <span className={`text-gray-500 text-right uppercase tracking-wider font-semibold ${paperFormat === "A4-half" ? "w-16 text-[8px]" : "w-24 text-[10px]"}`}>ÉMISE LE :</span>
                 <span className={`font-medium text-gray-900 text-right ${paperFormat === "A4-half" ? "w-16" : "w-24"}`}>
-                  {new Date(invoice.createdAt).toLocaleDateString("fr-FR")}
+                  {formatDate(invoice.createdAt)}
                 </span>
               </div>
               <div className="flex justify-end gap-3">
                 <span className={`text-gray-500 text-right uppercase tracking-wider font-semibold ${paperFormat === "A4-half" ? "w-16 text-[8px]" : "w-24 text-[10px]"}`}>ÉCHÉANCE :</span>
                 <span className={`font-medium text-gray-900 text-right ${paperFormat === "A4-half" ? "w-16" : "w-24"}`}>
-                  {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString("fr-FR") : <span className="text-gray-300 italic">Non définie</span>}
+                  {invoice.dueDate ? formatDate(invoice.dueDate) : <span className="text-gray-300 italic">Non définie</span>}
                 </span>
               </div>
             </div>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { inviteTeamMember, createStaffMember } from "./actions";
-import { Copy, Check, MessageCircle, Mail, Smartphone, UserPlus, Wand2 } from "lucide-react";
+import { inviteTeamMember } from "./actions";
+import { Copy, Check, MessageCircle, Mail, Smartphone, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
 import { ROLE_LABELS, type RoleType } from "@/lib/permissions";
@@ -13,38 +13,23 @@ export default function TeamAddForm({ managers, onSuccess }: { managers: any[], 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successLink, setSuccessLink] = useState<string | null>(null);
-  const [successManual, setSuccessManual] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [isManualCreate, setIsManualCreate] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSuccessLink(null);
-    setSuccessManual(false);
     setCopied(false);
 
     const formData = new FormData(e.currentTarget);
-
-    if (isManualCreate) {
-      const res = await createStaffMember(formData);
-      if (res.error) {
-        setError(res.error);
-      } else {
-        setSuccessManual(true);
-        e.currentTarget.reset();
-        if (onSuccess) onSuccess();
-      }
-    } else {
-      const res = await inviteTeamMember(formData);
-      if (res.error) {
-        setError(res.error);
-      } else if (res.link) {
-        setSuccessLink(res.link);
-        e.currentTarget.reset();
-        if (onSuccess) onSuccess();
-      }
+    const res = await inviteTeamMember(formData);
+    if (res.error) {
+      setError(res.error);
+    } else if (res.link) {
+      setSuccessLink(res.link);
+      e.currentTarget.reset();
+      if (onSuccess) onSuccess();
     }
     setLoading(false);
   };
@@ -85,50 +70,9 @@ export default function TeamAddForm({ managers, onSuccess }: { managers: any[], 
         ))}
       </Select>
 
-      <div className="py-2">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input 
-            type="checkbox" 
-            className="rounded border-rule text-primary focus:ring-primary h-4 w-4"
-            checked={isManualCreate}
-            onChange={(e) => setIsManualCreate(e.target.checked)}
-          />
-          <span className="text-role-body font-medium text-text">Saisir manuellement le profil complet</span>
-        </label>
-        <p className="text-[12px] text-text-soft ml-6 mt-0.5">
-          {isManualCreate 
-            ? "Le collaborateur sera créé immédiatement avec un mot de passe provisoire."
-            : "Recommandé : Générez un lien et laissez le collaborateur configurer son profil."}
-        </p>
-      </div>
-
-      {isManualCreate && (
-        <div className="space-y-4 pt-2 border-t border-rule/50">
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Prénom" required type="text" id="firstName" name="firstName" placeholder="Jean" />
-            <Input label="Nom" required type="text" id="lastName" name="lastName" placeholder="Dupont" />
-          </div>
-          <Input
-            label="Mot de passe provisoire"
-            required
-            type="text"
-            id="password"
-            name="password"
-            defaultValue="educom2026"
-            hint="Le collaborateur pourra le modifier plus tard."
-          />
-        </div>
-      )}
-
       {error && (
         <div className="rounded-control border border-danger/20 bg-danger/10 p-3 text-role-body font-medium text-danger">
           {error}
-        </div>
-      )}
-
-      {successManual && (
-        <div className="p-3 rounded-control bg-success/10 border border-success/20 text-role-body font-medium text-success">
-          Compte créé avec succès !
         </div>
       )}
 
@@ -189,9 +133,9 @@ export default function TeamAddForm({ managers, onSuccess }: { managers: any[], 
         type="submit" 
         block 
         loading={loading}
-        icon={isManualCreate ? <UserPlus className="w-4 h-4" /> : <Wand2 className="w-4 h-4" />}
+        icon={<Wand2 className="w-4 h-4" />}
       >
-        {isManualCreate ? "Créer le compte" : "Générer le lien magique"}
+        Générer le lien d&apos;invitation
       </Button>
     </form>
   );

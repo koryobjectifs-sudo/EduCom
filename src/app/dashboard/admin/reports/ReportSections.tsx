@@ -12,6 +12,7 @@ import { formatAmount } from "@/lib/moneyFormat";
 import type { Metric, ReportGroup, ReportSection, TraceRow, Unavailable } from "@/lib/reports";
 import { NotificationItem } from "./NotificationItem";
 import { RevenueChart, PaymentMethodsChart } from "./Charts";
+import { formatDateShort } from "@/lib/dateUtils";
 
 /**
  * Rendu d'un rapport — composants **serveur**.
@@ -114,7 +115,7 @@ function UnavailableList({ items }: { items: Unavailable[] }) {
 /* ──────────────────────────── traçabilité ──────────────────────────── */
 
 const dateTime = (d: Date) =>
-  d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) +
+  formatDateShort(d) +
   " · " +
   d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 

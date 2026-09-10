@@ -12,6 +12,7 @@ import { DataTable } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal } from "@/components/ui/Modal";
 import { deleteStudent, deleteStudents, assignStudentToClass } from "./actions";
+import { formatDate } from "@/lib/dateUtils";
 
 /**
  * Annuaire des élèves — écran quotidien du secrétariat.
@@ -313,7 +314,7 @@ export default function StudentListClient({
                           </Link>
                           <span className="block text-role-meta text-text-faint">
                             {student.dateOfBirth
-                              ? `Né(e) le ${new Date(student.dateOfBirth).toLocaleDateString("fr-FR")}`
+                              ? `Né(e) le ${formatDate(student.dateOfBirth)}`
                               : "Date de naissance non renseignée"}
                           </span>
                           {/* Sous md, le tuteur se replie ici au lieu de sortir du cadre. */}

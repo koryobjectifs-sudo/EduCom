@@ -21,6 +21,7 @@ import {
   prepareStudentDocumentDiffusion, confirmStudentDocumentDiffusion, createStudentDocFolder,
 } from "./actions";
 import { ScanDialog } from "./ScanDialog";
+import { formatDateShort } from "@/lib/dateUtils";
 
 /**
  * Dossier élève — interface. Lot 13.
@@ -161,7 +162,7 @@ export function DossierClient({
   const inputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const date = (iso: string) =>
-    new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+    formatDateShort(iso);
 
   function send(file: File, opts: { requirementId: string | null; label: string; category: string; folderId?: string | null; dossier?: string }) {
     const fd = new FormData();
