@@ -7,6 +7,7 @@ import { Save, Building2, Phone, Mail, MapPin, Image as ImageIcon, ChevronRight,
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { getContrastRatioAgainstWhite, isValidHexColor } from "@/lib/theme";
 
 export default function SettingsClient({
   school,
@@ -34,6 +35,7 @@ export default function SettingsClient({
     logo: school.logo || "",
     stamp: school.stamp || "",
     signature: school.signature || "",
+    primaryColor: school.primaryColor || "#9C0F15",
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -323,12 +325,13 @@ export default function SettingsClient({
         </div>
       </div>
 
-      {/* SECTION 2: Identité Visuelle */}
+      {/* SECTION 2: Identité Visuelle & Couleur de marque */}
       <div>
-        <h2 className="text-sm font-medium text-text-secondary ml-4 mb-2 uppercase tracking-wider">Identité Visuelle</h2>
-        <div className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden p-2">
+        <h2 className="text-sm font-medium text-text-secondary ml-4 mb-2 uppercase tracking-wider">Identité Visuelle & Charte</h2>
+        <div className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden p-4 space-y-4">
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          {/* Grille 3 colonnes : Logo, Cachet, Signature */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             
             {/* Logo */}
             <div className="p-4 rounded-2xl bg-secondary/30 border border-transparent hover:border-border transition-colors group flex flex-col items-center justify-center text-center">
@@ -421,9 +424,130 @@ export default function SettingsClient({
             </div>
 
           </div>
+
+          {/* Couleur d'Accent Établissement (8 Teintes + Champ Hex Libre + Test de contraste) */}
+          <div className="mt-4 pt-4 border-t border-border p-4 bg-secondary/20 rounded-2xl space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                  <span
+                    className="h-3.5 w-3.5 rounded-full inline-block shadow-2xs border border-black/10"
+                    style={{ backgroundColor: formData.primaryColor }}
+                  />
+                  Couleur d&apos;accent de l&apos;établissement
+                </h3>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  Personnalise les boutons d&apos;action, liserés actifs et pastilles sur tout votre espace.
+                </p>
+              </div>
+
+              {/* Prévisualisation directe */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-medium text-text-muted">Aperçu :</span>
+                <span
+                  style={{ backgroundColor: formData.primaryColor }}
+                  className="px-2.5 py-1 rounded-control text-xs font-semibold text-white shadow-2xs"
+                >
+                  Bouton Principal
+                </span>
+                <span
+                  style={{ color: formData.primaryColor, backgroundColor: `${formData.primaryColor}15`, borderColor: `${formData.primaryColor}30` }}
+                  className="px-2 py-0.5 rounded-control text-[11px] font-semibold border"
+                >
+                  Actif
+                </span>
+              </div>
+            </div>
+
+            {/* 8 Couleurs Prédéfinies */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2 pt-1">
+              {[
+                { hex: "#9C0F15", label: "Bordeaux" },
+                { hex: "#0E7490", label: "Océan" },
+                { hex: "#1D4ED8", label: "Bleu Royal" },
+                { hex: "#047857", label: "Émeraude" },
+                { hex: "#B45309", label: "Ambre" },
+                { hex: "#6D28D9", label: "Violet" },
+                { hex: "#0F766E", label: "Sarcelle" },
+                { hex: "#334155", label: "Ardoise" },
+              ].map((c) => {
+                const isSelected = formData.primaryColor?.toLowerCase() === c.hex.toLowerCase();
+                return (
+                  <button
+                    key={c.hex}
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, primaryColor: c.hex }))}
+                    title={`${c.label} (${c.hex})`}
+                    className={`flex items-center gap-2 p-1.5 rounded-xl border text-left transition-all ${
+                      isSelected
+                        ? "bg-white border-slate-900 shadow-xs ring-2 ring-slate-900/10 font-bold"
+                        : "bg-white/60 border-border hover:bg-white hover:border-slate-300"
+                    }`}
+                  >
+                    <span
+                      className="h-5 w-5 shrink-0 rounded-lg shadow-2xs border border-black/10 flex items-center justify-center text-white text-[10px]"
+                      style={{ backgroundColor: c.hex }}
+                    >
+                      {isSelected && "✓"}
+                    </span>
+                    <span className="text-xs text-text truncate">{c.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Champ Libre Hexadécimal + Color Picker natif */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+              <div className="flex items-center gap-2">
+                <label htmlFor="primaryColorHex" className="text-xs font-medium text-text-secondary">
+                  Code hexadécimal libre :
+                </label>
+                <div className="flex items-center gap-1.5 bg-white border border-border rounded-xl px-2 py-1 shadow-2xs">
+                  <input
+                    type="color"
+                    id="primaryColorPicker"
+                    value={formData.primaryColor?.startsWith("#") ? formData.primaryColor : "#9C0F15"}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, primaryColor: e.target.value }))}
+                    className="h-5 w-5 rounded cursor-pointer border-0 bg-transparent p-0"
+                    title="Pipette de couleur"
+                  />
+                  <input
+                    type="text"
+                    id="primaryColorHex"
+                    name="primaryColor"
+                    value={formData.primaryColor}
+                    onChange={handleChange}
+                    placeholder="#9C0F15"
+                    maxLength={7}
+                    className="w-24 border-0 bg-transparent text-xs font-mono font-semibold text-text uppercase focus:ring-0 focus:outline-none p-0"
+                  />
+                </div>
+              </div>
+
+              {/* Avertissement de Contraste WCAG si < 4.5:1 contre blanc */}
+              {(() => {
+                const hex = formData.primaryColor;
+                if (!hex || !isValidHexColor(hex)) return null;
+                const ratio = getContrastRatioAgainstWhite(hex);
+
+                if (ratio < 4.5) {
+                  return (
+                    <div className="flex items-center gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-xl">
+                      <span>⚠️ Contraste avec le blanc : <strong>{ratio}:1</strong> (recommandé ≥ 4.5:1). Le texte sur vos boutons pourrait être moins lisible.</span>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
+                    <span>✓ Contraste optimal ({ratio}:1)</span>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
         </div>
-        <p className="text-xs text-text-muted ml-4 mt-3">
-          Ces éléments visuels apparaîtront sur les factures, bulletins et certificats générés par EduCom.
+        <p className="text-xs text-text-muted ml-4 mt-2">
+          Ces éléments visuels et votre couleur d&apos;accent s&apos;appliquent immédiatement à votre espace et sur vos documents officiels.
         </p>
       </div>
 

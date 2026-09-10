@@ -20,7 +20,7 @@ export interface AppShellProps {
 
 export default function AppShell({
   spaces,
-  initialWidth = 220,
+  initialWidth = 200,
   schoolName = "EduCom",
   schoolLogo,
   userRole = "OWNER",

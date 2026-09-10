@@ -1,12 +1,13 @@
 "use client";
 
-import { LogOut, Globe, ChevronDown, Shield } from "lucide-react";
+import { LogOut, Globe, ChevronDown, Shield, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { changeTestRole } from "@/app/dashboard/actions";
 import MobileNav from "./MobileNav";
 import { type NavSpace } from "@/lib/navigation";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import GlobalSearch from "./GlobalSearch";
 
 const ALL_TEST_ROLES = ["OWNER", "ADMIN", "SECRETARY", "ACCOUNTANT", "TEACHER", "ASSISTANT", "PARENT"];
 
@@ -84,10 +85,32 @@ export default function AppTopBar({
   const roleLabel = userRole.charAt(0) + userRole.slice(1).toLowerCase();
 
   return (
-    <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center border-b border-rule bg-surface print:hidden select-none">
-      <div className="flex w-full items-center justify-between gap-3 px-3 sm:px-4 lg:px-5">
-        {/* Gauche : Tiroir mobile + Fil d'Ariane contextuel */}
-        <div className="flex min-w-0 items-center gap-2.5">
+    <header className="sticky top-0 z-30 flex h-10.5 shrink-0 items-center border-b border-rule bg-surface print:hidden select-none">
+      <div className="flex w-full items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4">
+        {/* Gauche : Navigation Historique + Tiroir mobile + Fil d'Ariane contextuel */}
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+          {/* Flèches Précédent / Suivant (Historique Navigateur) */}
+          <div className="hidden sm:flex items-center gap-0.5 text-slate-500">
+            <button
+              type="button"
+              onClick={() => window.history.back()}
+              title="Page précédente"
+              aria-label="Page précédente"
+              className="flex h-6.5 w-6.5 items-center justify-center rounded-control hover:bg-sunk text-text-soft hover:text-text transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => window.history.forward()}
+              title="Page suivante"
+              aria-label="Page suivante"
+              className="flex h-6.5 w-6.5 items-center justify-center rounded-control hover:bg-sunk text-text-soft hover:text-text transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
           <MobileNav schoolName={schoolName} schoolLogo={schoolLogo} userRole={userRole} />
 
           <span
@@ -100,21 +123,24 @@ export default function AppTopBar({
 
           <div className="hidden md:flex items-center gap-2 text-xs">
             {activeSpace ? (
-              <span className="font-semibold text-text">
+              <span className="font-semibold text-text truncate max-w-[140px] lg:max-w-[200px]">
                 {activeSpace.fullLabel ?? activeSpace.label}
               </span>
             ) : (
               <span className="font-semibold text-text">Tableau de bord</span>
             )}
             <span className="text-text-faint">·</span>
-            <span className="text-role-meta capitalize text-text-soft">
+            <span className="text-role-meta capitalize text-text-soft truncate max-w-[150px]">
               {today}
             </span>
           </div>
         </div>
 
-        {/* Droite : Rôle Dev + Site public + Menu Profil */}
-        <div className="flex shrink-0 items-center gap-1.5">
+        {/* Centre : Recherche Globale Slack-style (Cmd+K) */}
+        <GlobalSearch />
+
+        {/* Droite : Rôle Dev + Site public + Langue + Menu Profil */}
+        <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
           {process.env.NODE_ENV !== "production" && (
             <div className="relative" ref={roleMenuRef}>
               <button
@@ -123,13 +149,13 @@ export default function AppTopBar({
                 aria-expanded={roleMenuOpen}
                 aria-haspopup="menu"
                 title="Changer de rôle (développement)"
-                className="inline-flex h-7.5 items-center gap-1.5 rounded-control border border-warning/30 bg-warning/10 px-2 text-role-meta font-medium text-warning transition-colors hover:bg-warning/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="inline-flex h-6.5 items-center gap-1 rounded-control border border-warning/30 bg-warning/10 px-1.5 text-role-meta font-medium text-warning transition-colors hover:bg-warning/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
-                <Shield aria-hidden="true" className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{roleLabel}</span>
+                <Shield aria-hidden="true" className="h-3 w-3" />
+                <span className="hidden sm:inline text-[11px]">{roleLabel}</span>
                 <ChevronDown
                   aria-hidden="true"
-                  className={`h-3 w-3 transition-transform ${roleMenuOpen ? "rotate-180" : ""}`}
+                  className={`h-2.5 w-2.5 transition-transform ${roleMenuOpen ? "rotate-180" : ""}`}
                 />
               </button>
 

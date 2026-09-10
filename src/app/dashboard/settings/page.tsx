@@ -98,6 +98,7 @@ export default async function SettingsPage() {
           logo: school.logo || "",
           stamp: school.stamp || "",
           signature: school.signature || "",
+          primaryColor: school.primaryColor || "#9C0F15",
           activeAcademicYear: activeYear,
         }}
         availableYears={availableYears}

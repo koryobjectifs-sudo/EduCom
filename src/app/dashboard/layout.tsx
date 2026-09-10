@@ -32,10 +32,10 @@ export default async function DashboardLayout({
   const cookieStore = await cookies();
   const widthCookie = cookieStore.get("educom_sidebar_width")?.value;
   const legacyCollapsedCookie = cookieStore.get("educom_sidebar_collapsed")?.value === "true";
-  let initialWidth = 220;
+  let initialWidth = 200;
   if (widthCookie) {
     const parsed = parseInt(widthCookie, 10);
-    if (!isNaN(parsed) && ((parsed >= 180 && parsed <= 320) || parsed === 52)) {
+    if (!isNaN(parsed) && ((parsed >= 160 && parsed <= 320) || parsed === 52)) {
       initialWidth = parsed;
     }
   } else if (legacyCollapsedCookie) {

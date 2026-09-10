@@ -124,13 +124,13 @@
   --text-label:         12px;   /* libellés, en-têtes de colonne */
   --text-meta:          11px;   /* métadonnées et précisions */
 
-  /* Rétrocompatibilité tokens précédents */
-  --text-role-page:    var(--text-page-title);
-  --text-role-section: var(--text-section-title);
-  --text-role-card:    var(--text-card-title);
-  --text-role-body:    var(--text-body);
-  --text-role-label:   var(--text-label);
-  --text-role-meta:    var(--text-meta);
+  /* Rôles typographiques */
+  --text-role-page:    22px;
+  --text-role-section: 16px;
+  --text-role-card:    14px;
+  --text-role-body:    14px;
+  --text-role-label:   12px;
+  --text-role-meta:    12px;
 
   /* ─── Shell bi-étagé EduCom (Workspace & Rail) ───────────────────────────*/
   --color-rail-bg:          #0E2541;  /* Navy standard EduCom */
@@ -141,9 +141,9 @@
   --color-rail-accent:      #9C0F15;  /* Accent liseré rouge EduCom */
 
   --width-rail:              72px;
-  --width-sidebar-expanded: 208px;
+  --width-sidebar-expanded: 200px;
   --width-sidebar-collapsed: 52px;
-  --height-topbar:           48px;
+  --height-topbar:           42px;
 
   /* ─── Alias de compatibilité ─────────────────────────────────────────────
      Noms attendus par le code existant. Ils pointent vers les tokens de rôle

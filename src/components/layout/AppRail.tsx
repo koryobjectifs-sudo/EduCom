@@ -70,7 +70,7 @@ export default function AppRail({
               <span
                 aria-hidden="true"
                 data-testid="rail-active-indicator"
-                className="absolute left-0 top-1/2 -translate-y-1/2 h-[26px] w-[3px] rounded-r-full bg-[#9C0F15]"
+                className="absolute left-0 top-1/2 -translate-y-1/2 h-[26px] w-[3px] rounded-r-full bg-[var(--color-rail-accent,#9C0F15)]"
               />
             )}
 
@@ -117,7 +117,7 @@ export default function AppRail({
                   <span
                     aria-hidden="true"
                     data-testid="rail-active-indicator"
-                    className="absolute left-0 top-1/2 -translate-y-1/2 h-[26px] w-[3px] rounded-r-full bg-[#9C0F15]"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 h-[26px] w-[3px] rounded-r-full bg-[var(--color-rail-accent,#9C0F15)]"
                   />
                 )}
 

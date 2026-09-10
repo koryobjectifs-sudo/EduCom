@@ -53,7 +53,7 @@ function NavLink({
       href={item.href}
       aria-current={active ? "page" : undefined}
       className={[
-        "group flex items-center gap-2.5 rounded-control px-2.5 py-1.5 text-xs transition-colors",
+        "group flex items-center gap-2 rounded-control px-2 py-1 text-xs transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
         active
           ? "bg-primary/10 font-semibold text-primary"
@@ -63,7 +63,7 @@ function NavLink({
       <Icon
         aria-hidden="true"
         strokeWidth={active ? 2.2 : 1.8}
-        className={`h-4 w-4 shrink-0 ${active ? "text-primary" : "text-slate-500 group-hover:text-slate-800"}`}
+        className={`h-3.5 w-3.5 shrink-0 ${active ? "text-primary" : "text-slate-500 group-hover:text-slate-800"}`}
       />
       <span className="truncate">{item.name}</span>
     </Link>
@@ -73,7 +73,7 @@ function NavLink({
 export default function ContextualSidebar({
   space,
   schoolName = "EduCom",
-  initialWidth = 220,
+  initialWidth = 200,
   currentPath,
 }: ContextualSidebarProps) {
   const [currentWidth, setCurrentWidth] = useState(initialWidth);
@@ -85,33 +85,33 @@ export default function ContextualSidebar({
       style={{ width: `${currentWidth}px` }}
       className="relative hidden shrink-0 flex-col border-r border-slate-200/90 bg-[#F4F6F8] transition-[width] duration-75 ease-out md:flex print:hidden select-none z-20"
     >
-      {/* 1. En-tête : Nom de l'établissement & Espace actif (Aligné sur la TopBar à 48px / h-12) */}
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-rule px-3">
+      {/* 1. En-tête : Nom de l'établissement & Espace actif (Aligné sur la TopBar à 42px / h-10.5) */}
+      <div className="flex h-10.5 shrink-0 items-center justify-between border-b border-rule px-2.5">
         {!collapsed ? (
           <div className="flex flex-col min-w-0 pr-1">
             <h2
               title={schoolName}
-              className="line-clamp-2 text-xs font-bold text-slate-800 leading-tight tracking-tight"
+              className="truncate text-xs font-bold text-slate-800 leading-tight tracking-tight"
             >
               {schoolName}
             </h2>
-            <span className="mt-0.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+            <span className="text-[9.5px] font-semibold text-slate-500 uppercase tracking-wider truncate">
               {space.fullLabel ?? space.label}
             </span>
           </div>
         ) : (
-          <div className="mx-auto flex h-7 w-7 items-center justify-center rounded-control bg-slate-200/80 text-[11px] font-bold text-slate-700">
+          <div className="mx-auto flex h-6 w-6 items-center justify-center rounded-control bg-slate-200/80 text-[10.5px] font-bold text-slate-700">
             {schoolName.charAt(0).toUpperCase()}
           </div>
         )}
       </div>
 
-      {/* 2. Liste des sections et sous-destinations */}
-      <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+      {/* 2. Liste des sections et sous-destinations (Espacements resserrés) */}
+      <div className="flex-1 overflow-y-auto px-1.5 py-2 space-y-3">
         {space.sections.map((section, idx) => (
-          <div key={section.title ?? `sec-${idx}`} className="space-y-1">
+          <div key={section.title ?? `sec-${idx}`} className="space-y-0.5">
             {!collapsed && section.title && (
-              <h3 className="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <h3 className="px-2 pb-0.5 text-[9.5px] font-bold uppercase tracking-wider text-slate-400">
                 {section.title}
               </h3>
             )}

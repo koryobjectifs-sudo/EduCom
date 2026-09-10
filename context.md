@@ -1,21 +1,33 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 10 septembre 2026 — **Chantier Sécurité de l'Inscription & Validation Stricte (v13-securite-inscription)**
+> Dernière mise à jour : 10 septembre 2026 — **Chantier Shell & Couleur d'École (v14-shell-couleur)**
 > Lots livrés :
-> 1. Confirmation obligatoire de l'e-mail : Annulation de la vérification différée. Blocage strict de tout compte non vérifié au niveau Middleware, `requireSchoolContext`, `requireActionContext`, et écrans d'onboarding/dashboard.
-> 2. Validation stricte Client/Serveur (Zod) :
->    - E-mail : Rejet des domaines jetables (yopmail, mailinator, temp-mail...), format RFC conforme, validation serveur synchrone.
->    - Téléphone : `libphonenumber-js` + sélecteur de pays avec indicatif dynamique, Sénégal (+221, commence par 7) par défaut, message d'erreur nommant le pays et son format attendu.
->    - Noms / Prénoms : Min 2 caractères, lettres/accents/tirets/espaces/apostrophes uniquement (**0 chiffre**).
->    - Nom d'école : Min 3 caractères.
->    - Mot de passe : Min 8 caractères avec indicateur visuel dynamique de robustesse.
->    - Erreurs en rouge à la perte de focus (`onBlur`) sans désactiver le bouton de soumission.
-> 3. Écran `/verify-email` : Rappel de l'adresse e-mail saisie, bouton de renvoi avec compte à rebours 60s, lien modification d'adresse, conseils antispam, responsive 390px.
-> 4. Protection Anti-Bots & Rate Limiting : Sliding-window rate limit (5 inscriptions/heure/IP, renvoi e-mail 1/min et 5/heure/IP), journalisation structurée des échecs d'inscription.
-> 5. Modèles d'e-mails EduCom HTML pour Supabase Dashboard : 4 templates rédigés en HTML compatible table/inline-styles (Confirmation, Réinitialisation mot de passe, Invitation, Changement d'e-mail) avec `{{ .ConfirmationURL }}`.
-> 6. Tests & Intégrité : Suite dédiée `test-unconfirmed-block.ts` (21/21), Matrice permissions (43/43), Navigation (55/55), Base vierge (10/10), TypeCheck 0 erreur.
+> 1. Couleur d'accent par établissement (`School.primaryColor`) :
+>    - Sélecteur complet dans `/dashboard/settings` (Identité visuelle) avec palette de 8 teintes prédéfinies + saisie hexadécimale libre + pipette native.
+>    - Calculateur de contraste WCAG en temps réel contre le blanc avec avertissement si < 4.5:1.
+>    - Injection serveur sans saut visuel via `schoolThemeStyle(primaryColor)` (`--color-primary` et `--color-rail-accent`).
+>    - Liseré actif du rail, boutons primaires, liens et pastilles branchés dynamiquement. Le socle navy `#0E2541` reste intact.
+> 2. Affinement de la TopBar :
+>    - Hauteur abaissée à 42px (`h-10.5` / `--height-topbar: 42px`) tout en préservant les cibles tactiles.
+>    - Boutons d'historique navigateur (Précédent / Suivant) ajoutés à gauche avant le fil d'Ariane.
+>    - Recherche globale unifiée Slack-style (Palette de commande `Cmd+K` / `Ctrl+K`) : recherche rapide par nom, matricule, classe, document, équipe, finance avec filtrage par rôle.
+> 3. Sidebar contextuelle :
+>    - Largeur par défaut abaissée à 200px (au lieu de 220px), repli minimum à 160px (au lieu de 180px).
+>    - Espacement vertical resserré (`space-y-0.5`, `py-1`), typographie et alignement de l'en-tête synchronisé à 42px.
+> 4. Tests validés : `verify-design-tokens` (100%), `verify-navigation-integrity` (55/55), `test-unconfirmed-block` (21/21), `test-permissions-matrix` (43/43), `tsc --noEmit` (0 erreur).
 
-## 🏷️ Point de Sauvegarde & Rollback : `v13-securite-inscription`
+## 🏷️ Point de Sauvegarde & Rollback : `v14-shell-couleur`
+
+- **Nom de l'étiquette Git** : `v14-shell-couleur`
+- **Commande de Rollback / Restauration** : `git checkout v14-shell-couleur`
+- **Contenu du jalon** :
+  1. **Couleur d'école (Settings & Server Injection)** : Sélecteur 8 couleurs, hex libre, test de contraste WCAG, injection serveur instantanée dans le layout.
+  2. **TopBar compacte & Navigation** : Hauteur 42px, flèches historique `window.history.back()/forward()`.
+  3. **Recherche Globale Cmd+K** : Barre centrale Slack-style avec palette de commande multi-entités sécurisée par rôle.
+  4. **Sidebar compacte** : Largeur par défaut 200px, seuil de repli 160px, padding vertical resserré.
+  5. **Validation intégrale** : 4 suites de tests validées.
+
+## 🏷️ Point de Sauvegarde Précédent : `v13-securite-inscription`
 
 - **Nom de l'étiquette Git** : `v13-securite-inscription`
 - **Commande de Rollback / Restauration** : `git checkout v13-securite-inscription`

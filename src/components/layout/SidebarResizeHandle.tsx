@@ -7,10 +7,10 @@ export interface SidebarResizeHandleProps {
   onWidthChange: (width: number) => void;
 }
 
-const MIN_EXPANDED_WIDTH = 180;
+const MIN_EXPANDED_WIDTH = 160;
 const MAX_WIDTH = 320;
 const COLLAPSED_WIDTH = 52;
-const DEFAULT_EXPANDED_WIDTH = 220;
+const DEFAULT_EXPANDED_WIDTH = 200;
 
 export default function SidebarResizeHandle({
   initialWidth,

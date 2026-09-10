@@ -29,6 +29,7 @@ export async function updateSchoolSettings(data: {
   logo: string;
   stamp?: string;
   signature?: string;
+  primaryColor?: string | null;
   whatsappAccessToken?: string;
   whatsappPhoneNumberId?: string;
   whatsappBusinessAccountId?: string;
@@ -44,6 +45,7 @@ export async function updateSchoolSettings(data: {
     logo: z.string(),
     stamp: z.string().optional(),
     signature: z.string().optional(),
+    primaryColor: z.string().optional().nullable(),
   });
 
   const parsed = schema.safeParse(data);
@@ -62,10 +64,11 @@ export async function updateSchoolSettings(data: {
         logo: parsed.data.logo,
         stamp: parsed.data.stamp,
         signature: parsed.data.signature,
+        primaryColor: parsed.data.primaryColor?.trim() || null,
       },
     });
 
-    revalidatePath("/"); // Revalidate all dashboard pages
+    revalidatePath("/", "layout"); // Revalidate all dashboard pages & shell layout
     return { success: true };
   } catch (error) {
     console.error("Failed to update school settings:", error);
