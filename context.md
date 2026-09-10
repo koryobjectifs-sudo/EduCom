@@ -15,6 +15,7 @@
 > 3. Sidebar Contextuelle Simplifiée :
 >    - Allégée des contrôles déplacés en bas du rail, dédiée exclusivement à la navigation interne du sous-espace et au redimensionnement dynamique Slack-style.
 > 4. Tests & Intégrité validés : `verify-design-tokens` (100%), `verify-navigation-integrity` (55/55), `test-unconfirmed-block` (21/21), `test-permissions-matrix` (43/43), `tsc --noEmit` (0 erreur).
+> 5. Correctif SSR/Actions : Remplacement de l'import de `react-phone-number-input` par `libphonenumber-js` dans `src/lib/validations.ts` pour éliminer le TypeError "Super expression must either be null or a function" lors de l'évaluation serveur.
 
 ## 🏷️ Point de Sauvegarde & Rollback : `v15-topbar-unifiee`
 

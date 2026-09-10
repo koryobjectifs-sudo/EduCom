@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isValidPhoneNumber, parsePhoneNumber } from "react-phone-number-input";
+import { isValidPhoneNumber, parsePhoneNumber } from "libphonenumber-js";
 
 // ── 1. DOMAINES JETABLES / TEMPORAIRES INTERDITS ──
 export const DISPOSABLE_EMAIL_DOMAINS = new Set([
