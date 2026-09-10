@@ -25,7 +25,10 @@
 >    - **Cadres Unifiés (Rail + TopBar)** : La TopBar et le Rail partagent exactement la même teinte `--color-frame-bg` pour former un cadre homogène et continu. La recherche `GlobalSearch` s'adapte en pilule translucide Slack-style.
 >    - **Sidebar Contextuelle Légère** : Déclinaison à 7% en `color-mix` (`--color-sidebar-bg`), offrant une teinte douce et claire en harmonie avec la couleur principale.
 >    - **Canvas Arrondi** : Le conteneur principal reçoit `rounded-tl-2xl` avec bordure subtile, créant le découpage en canevas caractéristique de Slack.
->    - **Rétablissement EduCom Initial** : Bouton « Rétablir initial » et support de la valeur `null` pour revenir à tout instant au Navy `#0E2541` officiel.
+> 8. Agrandissement et mise en valeur de l'aperçu du Shell :
+>    - Remplacement de la miniature exiguë par un panneau d'aperçu haute-fidélité pleine largeur (220px de hauteur) directement intégré dans la section couleur.
+>    - Rendu en direct de la TopBar unifiée, du Rail, de la Sidebar contextuelle adoucie (7%), et du canevas arrondi avec bouton d'action bleu protégé pour une lisibilité immédiate.
+>    - Mise à jour instantanée en temps réel lors du clic sur les palettes ou de la saisie d'un code hexadécimal.
 
 ## 🏷️ Point de Sauvegarde & Rollback : `v15-topbar-unifiee`
 

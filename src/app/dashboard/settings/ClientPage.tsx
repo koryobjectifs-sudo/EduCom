@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { updateSchoolSettings, updateActiveAcademicYear, updateSchoolPrimaryColor } from "./actions";
-import { Save, Building2, Phone, Mail, MapPin, Image as ImageIcon, ChevronRight, UploadCloud, Calendar, ArrowRight, CheckCircle2, ShieldCheck, Check, Loader2, Palette, Sparkles, RotateCcw } from "lucide-react";
+import { Save, Building2, Phone, Mail, MapPin, Image as ImageIcon, ChevronRight, UploadCloud, Calendar, ArrowRight, CheckCircle2, ShieldCheck, Check, Loader2, Palette, Sparkles, RotateCcw, Eye, Search, LayoutDashboard, Users, GraduationCap, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -504,52 +504,14 @@ export default function SettingsClient({
                 </p>
               </div>
 
-              {/* Prévisualisation Shell Slack-style & Actions */}
+              {/* Actions de couleur */}
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Mini mockup du shell */}
-                <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
-                  <span className="text-[10.5px] font-medium text-text-muted px-1">Aperçu :</span>
-                  <div className="flex flex-col h-9 w-24 rounded-md overflow-hidden border border-black/15 shadow-2xs">
-                    {/* Topbar */}
-                    <div
-                      className="h-2.5 w-full flex items-center justify-between px-1 transition-colors"
-                      style={{ backgroundColor: isValidHexColor(formData.primaryColor) ? formData.primaryColor : "#0E2541" }}
-                    >
-                      <div className="h-1 w-5 rounded-full bg-white/40" />
-                      <div className="h-1 w-1 rounded-full bg-white/60" />
-                    </div>
-                    {/* Body */}
-                    <div className="flex flex-1">
-                      {/* Rail */}
-                      <div
-                        className="w-3 h-full flex flex-col items-center py-0.5 gap-0.5 transition-colors border-r border-black/10"
-                        style={{ backgroundColor: isValidHexColor(formData.primaryColor) ? formData.primaryColor : "#0E2541" }}
-                      >
-                        <div className="h-0.5 w-1 rounded-full bg-white/80" />
-                        <div className="h-0.5 w-1 rounded-full bg-white/40" />
-                      </div>
-                      {/* Contextual Sidebar */}
-                      <div
-                        className="w-6 h-full flex flex-col justify-center px-0.5 transition-colors border-r border-slate-200/80"
-                        style={{ backgroundColor: `color-mix(in srgb, ${isValidHexColor(formData.primaryColor) ? formData.primaryColor : "#0E2541"} 8%, #F8FAFC)` }}
-                      >
-                        <div className="h-0.5 w-3 rounded-full bg-slate-400/50 mb-0.5" />
-                        <div className="h-0.5 w-2 rounded-full bg-slate-400/40" />
-                      </div>
-                      {/* Canvas arrondi */}
-                      <div className="flex-1 bg-white rounded-tl border-t border-l border-slate-200/60 p-0.5">
-                        <div className="h-0.5 w-2.5 rounded-full bg-slate-200" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Bouton Rétablir la couleur initiale EduCom */}
                 <button
                   type="button"
                   onClick={() => handleResetColor()}
                   disabled={isApplyingColor}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 active:scale-95 transition-all shadow-2xs disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 active:scale-95 transition-all shadow-2xs disabled:opacity-50"
                   title="Rétablir la couleur EduCom Navy par défaut (#0E2541)"
                 >
                   <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
@@ -561,8 +523,8 @@ export default function SettingsClient({
                   type="button"
                   onClick={() => handleApplyColor()}
                   disabled={isApplyingColor}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
-                  style={{ backgroundColor: isValidHexColor(formData.primaryColor) ? formData.primaryColor : "#0E2541" }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+                  style={{ backgroundColor: isValidHexColor(formData.primaryColor) ? formData.primaryColor : DEFAULT_EDUCOM_NAVY }}
                   title="Valider et appliquer cette couleur immédiatement à tout l'espace"
                 >
                   {isApplyingColor ? (
@@ -579,6 +541,169 @@ export default function SettingsClient({
                 </button>
               </div>
             </div>
+
+            {/* GRAND APERÇU EN DIRECT DU SHELL (Slack-Style) */}
+            {(() => {
+              const activePreviewColor = isValidHexColor(formData.primaryColor) ? formData.primaryColor : DEFAULT_EDUCOM_NAVY;
+              return (
+                <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden p-3.5 sm:p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-xs font-bold shadow-2xs">
+                        <Eye className="w-3.5 h-3.5 text-slate-600" />
+                        <span>Aperçu en direct du Shell</span>
+                      </div>
+                      <span className="text-xs text-text-muted hidden sm:inline">
+                        — Mise à jour instantanée avec votre sélection
+                      </span>
+                    </div>
+
+                    {/* Légende rapide */}
+                    <div className="flex items-center gap-3 text-[11px] text-text-secondary flex-wrap">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full inline-block border border-black/15" style={{ backgroundColor: activePreviewColor }} />
+                        <span className="font-medium text-slate-700">TopBar & Rail</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full inline-block border border-black/15" style={{ backgroundColor: `color-mix(in srgb, ${activePreviewColor} 20%, #F8FAFC)` }} />
+                        <span className="font-medium text-slate-700">Sidebar douce</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full inline-block bg-primary border border-primary/30" />
+                        <span className="font-semibold text-primary">Boutons (Bleu fixe)</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Fenêtre maquette Slack-style haute-fidélité */}
+                  <div className="w-full rounded-xl border border-black/15 shadow-sm overflow-hidden flex flex-col h-[190px] sm:h-[220px] bg-slate-100 transition-colors duration-200">
+                    {/* TopBar unifiée */}
+                    <div
+                      className="h-8 sm:h-9 w-full flex items-center justify-between px-3 text-white transition-colors duration-200 select-none shrink-0"
+                      style={{ backgroundColor: activePreviewColor }}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <div className="flex items-center gap-1 text-white/50 text-[11px]">
+                          <span className="cursor-default">‹</span>
+                          <span className="cursor-default">›</span>
+                        </div>
+                        <span className="text-xs font-bold text-white tracking-tight truncate max-w-[140px] sm:max-w-[200px]">
+                          {formData.name || "EduCom Excellence"}
+                        </span>
+                        <span className="text-white/40 text-xs hidden sm:inline">/</span>
+                        <span className="text-white/80 text-[11px] hidden sm:inline font-medium">Tableau de bord</span>
+                      </div>
+
+                      {/* Barre de recherche Slack-style */}
+                      <div className="flex items-center justify-center flex-1 max-w-[180px] sm:max-w-[260px] mx-2">
+                        <div className="w-full flex items-center justify-between h-5.5 px-2 rounded-md bg-black/20 border border-white/15 text-[11px] text-white/80">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <Search className="h-3 w-3 text-white/60 shrink-0" />
+                            <span className="truncate text-white/70 text-[10.5px]">Rechercher un élève, classe...</span>
+                          </div>
+                          <kbd className="hidden sm:inline text-[9px] font-mono bg-white/10 px-1 rounded text-white/80">⌘K</kbd>
+                        </div>
+                      </div>
+
+                      {/* Avatar profil */}
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-5.5 w-5.5 rounded-full bg-white/20 border border-white/30 text-white flex items-center justify-center text-[10px] font-bold">
+                          AD
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Corps : Rail + Sidebar Contextuelle + Canvas principal */}
+                    <div className="flex flex-1 overflow-hidden">
+                      {/* 1. AppRail */}
+                      <div
+                        className="w-10 sm:w-11 h-full flex flex-col items-center py-2 gap-2 text-white/70 border-r border-black/15 transition-colors duration-200 select-none shrink-0"
+                        style={{ backgroundColor: activePreviewColor }}
+                      >
+                        <div className="h-6 w-6 rounded-md bg-white/20 text-white flex items-center justify-center shadow-2xs">
+                          <LayoutDashboard className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="h-6 w-6 rounded-md hover:bg-white/10 flex items-center justify-center text-white/60">
+                          <Users className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="h-6 w-6 rounded-md hover:bg-white/10 flex items-center justify-center text-white/60">
+                          <GraduationCap className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="h-6 w-6 rounded-md hover:bg-white/10 flex items-center justify-center text-white/60">
+                          <DollarSign className="h-3.5 w-3.5" />
+                        </div>
+                      </div>
+
+                      {/* 2. Contextual Sidebar */}
+                      <div
+                        className="w-36 sm:w-44 h-full flex flex-col p-2 space-y-1.5 border-r border-slate-200/80 transition-colors duration-200 select-none shrink-0"
+                        style={{ backgroundColor: `color-mix(in srgb, ${activePreviewColor} 7%, #F8FAFC)` }}
+                      >
+                        <div className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500 px-1.5 pt-0.5">
+                          Scolarité
+                        </div>
+                        <div className="space-y-0.5 text-xs">
+                          <div
+                            className="flex items-center gap-2 px-2 py-1 rounded-md bg-white text-slate-900 font-semibold shadow-2xs border-l-2"
+                            style={{ borderLeftColor: activePreviewColor }}
+                          >
+                            <span className="truncate text-[11px]">Tableau de bord</span>
+                          </div>
+                          <div className="flex items-center gap-2 px-2 py-1 rounded-md text-slate-600 hover:bg-black/5">
+                            <span className="truncate text-[11px]">Élèves & Inscriptions</span>
+                          </div>
+                          <div className="flex items-center gap-2 px-2 py-1 rounded-md text-slate-600 hover:bg-black/5">
+                            <span className="truncate text-[11px]">Classes & Bulletins</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 3. Canevas de Travail Principal (Arrondi Slack-style) */}
+                      <div className="flex-1 bg-white sm:rounded-tl-2xl border-t border-l border-black/10 shadow-xs p-3 sm:p-4 overflow-hidden flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <div className="text-[10px] text-text-muted font-medium">Session en cours : {activeYear}</div>
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-tight">
+                                Tableau de bord
+                              </h4>
+                            </div>
+
+                            {/* Démonstration Bouton d'action standard : BLEU FIXE ISOLE */}
+                            <button
+                              type="button"
+                              tabIndex={-1}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary text-white text-[11px] font-semibold shadow-xs cursor-default hover:bg-primary/95"
+                            >
+                              <span>+ Nouvel élève</span>
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 mt-1">
+                            <div className="p-2 rounded-lg bg-slate-50 border border-slate-200/80">
+                              <div className="text-[9.5px] text-text-muted uppercase">Effectif total</div>
+                              <div className="text-xs sm:text-sm font-bold text-slate-800">428 élèves</div>
+                            </div>
+                            <div className="p-2 rounded-lg bg-slate-50 border border-slate-200/80">
+                              <div className="text-[9.5px] text-text-muted uppercase">Taux de présence</div>
+                              <div className="text-xs sm:text-sm font-bold text-emerald-700">97.8 %</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Note informative de validation visuelle */}
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 bg-slate-50 border border-slate-200/80 px-2 py-1 rounded-md mt-1">
+                          <span className="truncate">
+                            🔒 <strong>Boutons protégés :</strong> restent bleus EduCom pour garantir accessibilité et lisibilité.
+                          </span>
+                          <span className="font-mono font-semibold text-slate-700 uppercase ml-2">{activePreviewColor}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Filtres par Catégorie de Palettes */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
