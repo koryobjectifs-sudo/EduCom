@@ -1,22 +1,29 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 10 septembre 2026 — **Chantier Shell & Couleur d'École (v14-shell-couleur)**
+> Dernière mise à jour : 10 septembre 2026 — **Chantier TopBar Unifiée & Shell Slack-Style (v15-topbar-unifiee)**
 > Lots livrés :
-> 1. Couleur d'accent par établissement (`School.primaryColor`) :
->    - Sélecteur complet dans `/dashboard/settings` (Identité visuelle) avec palette de 8 teintes prédéfinies + saisie hexadécimale libre + pipette native.
->    - Calculateur de contraste WCAG en temps réel contre le blanc avec avertissement si < 4.5:1.
->    - Injection serveur sans saut visuel via `schoolThemeStyle(primaryColor)` (`--color-primary` et `--color-rail-accent`).
->    - Liseré actif du rail, boutons primaires, liens et pastilles branchés dynamiquement. Le socle navy `#0E2541` reste intact.
-> 2. Affinement de la TopBar :
->    - Hauteur abaissée à 42px (`h-10.5` / `--height-topbar: 42px`) tout en préservant les cibles tactiles.
->    - Boutons d'historique navigateur (Précédent / Suivant) ajoutés à gauche avant le fil d'Ariane.
->    - Recherche globale unifiée Slack-style (Palette de commande `Cmd+K` / `Ctrl+K`) : recherche rapide par nom, matricule, classe, document, équipe, finance avec filtrage par rôle.
-> 3. Sidebar contextuelle :
->    - Largeur par défaut abaissée à 200px (au lieu de 220px), repli minimum à 160px (au lieu de 180px).
->    - Espacement vertical resserré (`space-y-0.5`, `py-1`), typographie et alignement de l'en-tête synchronisé à 42px.
-> 4. Tests validés : `verify-design-tokens` (100%), `verify-navigation-integrity` (55/55), `test-unconfirmed-block` (21/21), `test-permissions-matrix` (43/43), `tsc --noEmit` (0 erreur).
+> 1. TopBar Unifiée Continue :
+>    - Fusion en une seule barre horizontale supérieure (42px) s'étendant du rail 72px au bord droit.
+>    - Suppression du double niveau / ancien en-tête de sidebar contextuelle.
+>    - Gauche : Nom de l'établissement (au-dessus de la sidebar), flèches historique (Précédent / Suivant), fil d'Ariane compact.
+>    - Centre : Barre de recherche globale `GlobalSearch` (`⌘K`).
+>    - Droite : Avatar du profil seul avec menu popover (site public, affichage, déconnexion).
+>    - Retrait de la date inutile de la barre supérieure.
+> 2. Pied de Sidebar Contextuelle :
+>    - Déplacement en bas de la sidebar des contrôles secondaires : lien Site public, sélecteur de rôle de test (réservé exclusivement à `process.env.NODE_ENV !== "production"`), profil et déconnexion.
+> 3. Tests & Intégrité validés : `verify-design-tokens` (100%), `verify-navigation-integrity` (55/55), `test-unconfirmed-block` (21/21), `test-permissions-matrix` (43/43), `tsc --noEmit` (0 erreur).
 
-## 🏷️ Point de Sauvegarde & Rollback : `v14-shell-couleur`
+## 🏷️ Point de Sauvegarde & Rollback : `v15-topbar-unifiee`
+
+- **Nom de l'étiquette Git** : `v15-topbar-unifiee`
+- **Commande de Rollback / Restauration** : `git checkout v15-topbar-unifiee`
+- **Contenu du jalon** :
+  1. **TopBar unifiée 1 seul niveau (42px)** : Nom d'école, flèches historique, fil d'Ariane, recherche Cmd+K, avatar seul.
+  2. **Pied de sidebar contextuelle** : Site public, sélecteur dev rôle, identité et déconnexion.
+  3. **Suppression date chrome** : Interface allégée et respiration visuelle.
+  4. **Validation complète** : 4 suites de tests validées à 100%.
+
+## 🏷️ Point de Sauvegarde Précédent : `v14-shell-couleur`
 
 - **Nom de l'étiquette Git** : `v14-shell-couleur`
 - **Commande de Rollback / Restauration** : `git checkout v14-shell-couleur`

@@ -86,9 +86,20 @@ export default function AppTopBar({
 
   return (
     <header className="sticky top-0 z-30 flex h-10.5 shrink-0 items-center border-b border-rule bg-surface print:hidden select-none">
-      <div className="flex w-full items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4">
-        {/* Gauche : Navigation Historique + Tiroir mobile + Fil d'Ariane contextuel */}
-        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+      <div className="flex w-full items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4">
+        {/* Gauche : Nom d'école + Flèches historique + Fil d'Ariane */}
+        <div className="flex min-w-0 items-center gap-2 sm:gap-2.5 shrink-0">
+          <MobileNav schoolName={schoolName} schoolLogo={schoolLogo} userRole={userRole} />
+
+          {/* Nom de l'établissement au-dessus de la sidebar */}
+          <span
+            data-tronque-volontaire
+            title={schoolName ?? "EduCom"}
+            className="font-bold text-xs sm:text-sm text-text truncate max-w-[130px] sm:max-w-[180px] lg:max-w-[220px]"
+          >
+            {schoolName ?? "EduCom"}
+          </span>
+
           {/* Flèches Précédent / Suivant (Historique Navigateur) */}
           <div className="hidden sm:flex items-center gap-0.5 text-slate-500">
             <button
@@ -96,7 +107,7 @@ export default function AppTopBar({
               onClick={() => window.history.back()}
               title="Page précédente"
               aria-label="Page précédente"
-              className="flex h-6.5 w-6.5 items-center justify-center rounded-control hover:bg-sunk text-text-soft hover:text-text transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              className="flex h-6 w-6 items-center justify-center rounded-control hover:bg-sunk text-text-soft hover:text-text transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
             </button>
@@ -105,33 +116,17 @@ export default function AppTopBar({
               onClick={() => window.history.forward()}
               title="Page suivante"
               aria-label="Page suivante"
-              className="flex h-6.5 w-6.5 items-center justify-center rounded-control hover:bg-sunk text-text-soft hover:text-text transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              className="flex h-6 w-6 items-center justify-center rounded-control hover:bg-sunk text-text-soft hover:text-text transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             >
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
 
-          <MobileNav schoolName={schoolName} schoolLogo={schoolLogo} userRole={userRole} />
-
-          <span
-            data-tronque-volontaire
-            title={schoolName ?? "EduCom"}
-            className="truncate text-xs font-semibold text-text md:hidden"
-          >
-            {schoolName ?? "EduCom"}
-          </span>
-
-          <div className="hidden md:flex items-center gap-2 text-xs">
-            {activeSpace ? (
-              <span className="font-semibold text-text truncate max-w-[140px] lg:max-w-[200px]">
-                {activeSpace.fullLabel ?? activeSpace.label}
-              </span>
-            ) : (
-              <span className="font-semibold text-text">Tableau de bord</span>
-            )}
-            <span className="text-text-faint">·</span>
-            <span className="text-role-meta capitalize text-text-soft truncate max-w-[150px]">
-              {today}
+          {/* Fil d'Ariane compact */}
+          <div className="hidden md:flex items-center gap-1.5 text-xs">
+            <span className="text-text-faint">/</span>
+            <span className="font-semibold text-text-soft truncate max-w-[140px] lg:max-w-[180px]">
+              {activeSpace ? (activeSpace.fullLabel ?? activeSpace.label) : "Tableau de bord"}
             </span>
           </div>
         </div>
@@ -139,92 +134,27 @@ export default function AppTopBar({
         {/* Centre : Recherche Globale Slack-style (Cmd+K) */}
         <GlobalSearch />
 
-        {/* Droite : Rôle Dev + Site public + Langue + Menu Profil */}
-        <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
-          {process.env.NODE_ENV !== "production" && (
-            <div className="relative" ref={roleMenuRef}>
-              <button
-                type="button"
-                onClick={() => setRoleMenuOpen(!roleMenuOpen)}
-                aria-expanded={roleMenuOpen}
-                aria-haspopup="menu"
-                title="Changer de rôle (développement)"
-                className="inline-flex h-6.5 items-center gap-1 rounded-control border border-warning/30 bg-warning/10 px-1.5 text-role-meta font-medium text-warning transition-colors hover:bg-warning/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-              >
-                <Shield aria-hidden="true" className="h-3 w-3" />
-                <span className="hidden sm:inline text-[11px]">{roleLabel}</span>
-                <ChevronDown
-                  aria-hidden="true"
-                  className={`h-2.5 w-2.5 transition-transform ${roleMenuOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-
-              {roleMenuOpen && (
-                <div
-                  role="menu"
-                  className="absolute right-0 top-full z-50 mt-1.5 w-48 overflow-hidden rounded-surface border border-rule bg-surface p-1 shadow-overlay"
-                >
-                  <p className="px-2.5 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-text-faint">
-                    Tester en tant que
-                  </p>
-                  {ALL_TEST_ROLES.map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      role="menuitem"
-                      onClick={async () => {
-                        setRoleMenuOpen(false);
-                        await changeTestRole(r);
-                        window.location.reload();
-                      }}
-                      className={`flex w-full items-center justify-between rounded-control px-2.5 py-1.5 text-xs transition-colors hover:bg-sunk ${
-                        userRole === r ? "font-semibold text-primary" : "text-text"
-                      }`}
-                    >
-                      <span>{r.charAt(0) + r.slice(1).toLowerCase()}</span>
-                      {userRole === r && <span className="text-[10px] text-primary">Actif</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          <LanguageSwitcher compact />
-
-          <Link
-            href="/"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Ouvrir le site public de l'établissement"
-            className="hidden sm:inline-flex h-7.5 items-center gap-1.5 rounded-control border border-rule px-2 text-role-meta font-medium text-text-soft transition-colors hover:bg-sunk hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-          >
-            <Globe aria-hidden="true" className="h-3.5 w-3.5 text-text-faint" />
-            <span>Site public</span>
-          </Link>
-
-          {/* Menu Profil / Déconnexion */}
+        {/* Droite : Avatar Profil Seul */}
+        <div className="flex shrink-0 items-center">
           <div className="relative" ref={menuRef}>
             <button
               type="button"
               onClick={() => setProfileMenuOpen(!profileMenuOpen)}
               aria-expanded={profileMenuOpen}
               aria-haspopup="menu"
-              aria-label={`Menu de ${displayName}`}
-              className="flex h-7.5 items-center gap-2 rounded-control p-1 transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              aria-label={`Compte de ${displayName}`}
+              title={displayName}
+              className="flex h-7.5 items-center gap-1.5 rounded-control p-1 transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             >
               <div
                 aria-hidden="true"
-                className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary"
+                className="flex h-6.5 w-6.5 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary"
               >
                 {initials || "U"}
               </div>
-              <span className="hidden text-xs font-medium text-text sm:inline">
-                {displayName}
-              </span>
               <ChevronDown
                 aria-hidden="true"
-                className={`hidden h-3 w-3 text-text-faint transition-transform sm:inline ${
+                className={`h-3 w-3 text-text-faint transition-transform hidden sm:inline ${
                   profileMenuOpen ? "rotate-180" : ""
                 }`}
               />
@@ -233,44 +163,55 @@ export default function AppTopBar({
             {profileMenuOpen && (
               <div
                 role="menu"
-                className="absolute right-0 top-full z-50 mt-1.5 w-56 overflow-hidden rounded-surface border border-rule bg-surface p-1 shadow-overlay"
+                className="absolute right-0 top-full z-50 mt-1.5 w-56 overflow-hidden rounded-surface border border-rule bg-surface p-1 shadow-overlay animate-in fade-in zoom-in-95"
               >
                 <div className="border-b border-rule px-3 py-2">
                   <p className="truncate text-xs font-semibold text-text">{displayName}</p>
                   <p className="text-[10px] text-text-faint">{roleLabel}</p>
                 </div>
 
-                {/* Réglage de Densité / Zoom d'interface */}
+                {/* Liens utiles */}
+                <div className="border-b border-rule px-1 py-1">
+                  <Link
+                    href="/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Ouvrir le site public"
+                    className="flex w-full items-center gap-2 rounded-control px-2.5 py-1.5 text-xs text-text-soft hover:bg-sunk hover:text-text transition-colors"
+                  >
+                    <Globe aria-hidden="true" className="h-3.5 w-3.5 text-text-faint" />
+                    <span>Site public</span>
+                  </Link>
+                </div>
+
+                {/* Densité */}
                 <div className="border-b border-rule px-2 py-1.5">
-                  <p className="px-1 py-1 text-[10.5px] font-semibold uppercase tracking-wider text-text-faint">
-                    Affichage & Densité
+                  <p className="px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-text-faint">
+                    Affichage
                   </p>
-                  <div className="grid grid-cols-3 gap-1">
+                  <div className="grid grid-cols-3 gap-1 pt-1">
                     {[
-                      { id: "compact", label: "Compact", pct: "90%" },
-                      { id: "normal", label: "Normal", pct: "100%" },
-                      { id: "comfort", label: "Confort", pct: "115%" },
-                    ].map((d) => {
-                      const isActive = density === d.id;
-                      return (
-                        <button
-                          key={d.id}
-                          type="button"
-                          onClick={() => handleSetDensity(d.id)}
-                          className={`flex flex-col items-center justify-center rounded-control py-1 px-1.5 text-center transition-colors ${
-                            isActive
-                              ? "bg-primary/10 font-bold text-primary border border-primary/20"
-                              : "hover:bg-sunk text-text-soft"
-                          }`}
-                        >
-                          <span className="text-[11px] leading-tight">{d.label}</span>
-                          <span className="text-[9px] text-text-faint">{d.pct}</span>
-                        </button>
-                      );
-                    })}
+                      { id: "compact", label: "Compact" },
+                      { id: "normal", label: "Normal" },
+                      { id: "comfort", label: "Confort" },
+                    ].map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => handleSetDensity(d.id)}
+                        className={`rounded-control py-1 text-center text-[10.5px] transition-colors ${
+                          density === d.id
+                            ? "bg-primary/10 font-bold text-primary border border-primary/20"
+                            : "hover:bg-sunk text-text-soft"
+                        }`}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
+                {/* Déconnexion */}
                 <div className="p-1">
                   <form action="/auth/signout" method="post">
                     <button

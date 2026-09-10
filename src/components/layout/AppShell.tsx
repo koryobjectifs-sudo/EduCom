@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation";
 import AppRail from "./AppRail";
 import ContextualSidebar from "./ContextualSidebar";
 import AppTopBar from "./AppTopBar";
-import EmailVerificationBanner from "./EmailVerificationBanner";
 import { type NavSpace, getActiveSpaceId } from "@/lib/navigation";
 
 export interface AppShellProps {
@@ -34,7 +33,7 @@ export default function AppShell({
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-ground print:bg-white print:h-auto print:overflow-visible">
-      {/* 1. Rail Principal Fixe (72px) - RSC */}
+      {/* 1. Rail Principal Fixe (72px) */}
       <AppRail
         spaces={spaces}
         schoolName={schoolName}
@@ -42,19 +41,9 @@ export default function AppShell({
         activeSpaceId={activeSpaceId}
       />
 
-      {/* 2. Sidebar Contextuelle (Masquée sur /dashboard où aucun espace n'est actif) */}
-      {activeSpace && (
-        <ContextualSidebar
-          space={activeSpace}
-          schoolName={schoolName}
-          initialWidth={initialWidth}
-          currentPath={pathname}
-        />
-      )}
-
-      {/* 3. Zone de Travail Principale (TopBar + Workspace) */}
-      <div className="flex min-w-0 flex-1 flex-col print:overflow-visible">
-        <EmailVerificationBanner emailVerified={emailVerified} />
+      {/* 2. Zone Droite Complète (TopBar Unique Pleine Largeur + Sous-espace Sidebar & Contenu) */}
+      <div className="flex min-w-0 flex-1 flex-col h-screen overflow-hidden print:overflow-visible">
+        {/* TopBar Unique & Continue (42px) */}
         <AppTopBar
           schoolName={schoolName}
           schoolLogo={schoolLogo}
@@ -63,11 +52,25 @@ export default function AppShell({
           activeSpace={activeSpace ?? undefined}
         />
 
-        <main className="flex-1 w-full overflow-y-auto relative print:overflow-visible print:m-0 print:p-0">
-          <div className="mx-auto max-w-[1600px] p-3 sm:p-4 lg:p-5 print:max-w-none print:p-0 print:m-0">
-            {children}
-          </div>
-        </main>
+        {/* Espace de travail : Sidebar Contextuelle + Main View */}
+        <div className="flex min-w-0 flex-1 overflow-hidden print:overflow-visible">
+          {activeSpace && (
+            <ContextualSidebar
+              space={activeSpace}
+              schoolName={schoolName}
+              initialWidth={initialWidth}
+              currentPath={pathname}
+              userRole={userRole}
+              userName={userName}
+            />
+          )}
+
+          <main className="flex-1 w-full overflow-y-auto relative print:overflow-visible print:m-0 print:p-0">
+            <div className="mx-auto max-w-[1600px] p-3 sm:p-4 lg:p-5 print:max-w-none print:p-0 print:m-0">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );
