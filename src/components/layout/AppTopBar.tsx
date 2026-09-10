@@ -85,7 +85,10 @@ export default function AppTopBar({
   const roleLabel = userRole.charAt(0) + userRole.slice(1).toLowerCase();
 
   return (
-    <header className="sticky top-0 z-30 flex h-10.5 shrink-0 items-center border-b border-rule bg-surface print:hidden select-none">
+    <header
+      style={{ backgroundColor: "var(--color-topbar-bg, #0E2541)" }}
+      className="sticky top-0 z-30 flex h-10.5 shrink-0 items-center border-b border-black/20 text-white print:hidden select-none transition-colors duration-200"
+    >
       <div className="flex w-full items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4">
         {/* Gauche : Nom d'école + Flèches historique + Fil d'Ariane */}
         <div className="flex min-w-0 items-center gap-2 sm:gap-2.5 shrink-0">
@@ -95,19 +98,19 @@ export default function AppTopBar({
           <span
             data-tronque-volontaire
             title={schoolName ?? "EduCom"}
-            className="font-bold text-xs sm:text-sm text-text truncate max-w-[130px] sm:max-w-[180px] lg:max-w-[220px]"
+            className="font-bold text-xs sm:text-sm text-white truncate max-w-[130px] sm:max-w-[180px] lg:max-w-[220px]"
           >
             {schoolName ?? "EduCom"}
           </span>
 
           {/* Flèches Précédent / Suivant (Historique Navigateur) */}
-          <div className="hidden sm:flex items-center gap-0.5 text-slate-500">
+          <div className="hidden sm:flex items-center gap-0.5 text-white/70">
             <button
               type="button"
               onClick={() => window.history.back()}
               title="Page précédente"
               aria-label="Page précédente"
-              className="flex h-6 w-6 items-center justify-center rounded-control hover:bg-sunk text-text-soft hover:text-text transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              className="flex h-6 w-6 items-center justify-center rounded-control hover:bg-white/10 text-white/70 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
             </button>
@@ -116,7 +119,7 @@ export default function AppTopBar({
               onClick={() => window.history.forward()}
               title="Page suivante"
               aria-label="Page suivante"
-              className="flex h-6 w-6 items-center justify-center rounded-control hover:bg-sunk text-text-soft hover:text-text transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              className="flex h-6 w-6 items-center justify-center rounded-control hover:bg-white/10 text-white/70 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
             >
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
@@ -124,8 +127,8 @@ export default function AppTopBar({
 
           {/* Fil d'Ariane compact */}
           <div className="hidden md:flex items-center gap-1.5 text-xs">
-            <span className="text-text-faint">/</span>
-            <span className="font-semibold text-text-soft truncate max-w-[140px] lg:max-w-[180px]">
+            <span className="text-white/40">/</span>
+            <span className="font-semibold text-white/90 truncate max-w-[140px] lg:max-w-[180px]">
               {activeSpace ? (activeSpace.fullLabel ?? activeSpace.label) : "Tableau de bord"}
             </span>
           </div>
@@ -144,17 +147,17 @@ export default function AppTopBar({
               aria-haspopup="menu"
               aria-label={`Compte de ${displayName}`}
               title={displayName}
-              className="flex h-7.5 items-center gap-1.5 rounded-control p-1 transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              className="flex h-7.5 items-center gap-1.5 rounded-control p-1 transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
             >
               <div
                 aria-hidden="true"
-                className="flex h-6.5 w-6.5 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary"
+                className="flex h-6.5 w-6.5 items-center justify-center rounded-full bg-white/20 text-[11px] font-bold text-white shadow-2xs border border-white/20"
               >
                 {initials || "U"}
               </div>
               <ChevronDown
                 aria-hidden="true"
-                className={`h-3 w-3 text-text-faint transition-transform hidden sm:inline ${
+                className={`h-3 w-3 text-white/60 transition-transform hidden sm:inline ${
                   profileMenuOpen ? "rotate-180" : ""
                 }`}
               />

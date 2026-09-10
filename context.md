@@ -20,6 +20,12 @@
 >    - Déblocage d'enregistrement de l'école : remplacement du validateur de personne par `schoolNameSchema` (support des points, abréviations, tirets), tolérance sur les téléphones et logos nullables, et remontée précise de `res.error` dans les toasts.
 >    - Action dédiée `updateSchoolPrimaryColor` : sauvegarde de la couleur d'école indépendamment du reste du formulaire.
 >    - Palette enrichie (24 couleurs réparties en 4 catégories : Classiques, Nature, Chauds, Distinction) + pipette libre universelle (millions de nuances) + contraste WCAG + boutons d'application directe "Appliquer la couleur".
+> 7. Architecture Visuelle Cadres Slack-Style & Isolation des Boutons :
+>    - **Isolation absolue des boutons** : `--color-primary` n'est plus surchargé par la couleur d'école. Les boutons d'action conservent leur teinte bleue standard EduCom, garantissant lisibilité et cohérence ergonomique.
+>    - **Cadres Unifiés (Rail + TopBar)** : La TopBar et le Rail partagent exactement la même teinte `--color-frame-bg` pour former un cadre homogène et continu. La recherche `GlobalSearch` s'adapte en pilule translucide Slack-style.
+>    - **Sidebar Contextuelle Légère** : Déclinaison à 7% en `color-mix` (`--color-sidebar-bg`), offrant une teinte douce et claire en harmonie avec la couleur principale.
+>    - **Canvas Arrondi** : Le conteneur principal reçoit `rounded-tl-2xl` avec bordure subtile, créant le découpage en canevas caractéristique de Slack.
+>    - **Rétablissement EduCom Initial** : Bouton « Rétablir initial » et support de la valeur `null` pour revenir à tout instant au Navy `#0E2541` officiel.
 
 ## 🏷️ Point de Sauvegarde & Rollback : `v15-topbar-unifiee`
 

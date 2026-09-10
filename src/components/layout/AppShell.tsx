@@ -32,7 +32,10 @@ export default function AppShell({
   const activeSpace = activeSpaceId ? (spaces.find((s) => s.id === activeSpaceId) ?? null) : null;
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-ground print:bg-white print:h-auto print:overflow-visible">
+    <div
+      style={{ backgroundColor: "var(--color-frame-bg, #0E2541)" }}
+      className="flex h-screen w-full overflow-hidden print:bg-white print:h-auto print:overflow-visible transition-colors duration-200"
+    >
       {/* 1. Rail Principal Fixe (54px) */}
       <AppRail
         spaces={spaces}
@@ -67,7 +70,8 @@ export default function AppShell({
             />
           )}
 
-          <main className="flex-1 w-full overflow-y-auto relative print:overflow-visible print:m-0 print:p-0">
+          {/* Canvas principal avec coin supérieur gauche arrondi Slack-style */}
+          <main className="flex-1 w-full overflow-y-auto relative print:overflow-visible print:m-0 print:p-0 bg-ground md:rounded-tl-2xl border-t border-l border-black/10 shadow-xs">
             <div className="mx-auto max-w-[1600px] p-3 sm:p-4 lg:p-5 print:max-w-none print:p-0 print:m-0">
               {children}
             </div>

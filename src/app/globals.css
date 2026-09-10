@@ -132,16 +132,21 @@
   --text-role-label:   12px;
   --text-role-meta:    12px;
 
-  /* ─── Shell bi-étagé EduCom (Workspace & Rail) ───────────────────────────*/
-  --color-rail-bg:          #0E2541;  /* Navy standard EduCom */
-  --color-rail-hover:       #18365D;  /* Survol élément de rail */
-  --color-rail-active:      #1F4676;  /* Élément de rail actif */
-  --color-rail-text:        #94A3B8;  /* Texte/icône inactif */
-  --color-rail-text-active: #FFFFFF;  /* Texte/icône actif */
-  --color-rail-accent:      #9C0F15;  /* Accent liseré rouge EduCom */
+  /* ─── Shell bi-étagé EduCom (Cadres : Rail, TopBar & Sidebar Slack-style) ─*/
+  --color-frame-bg:          #0E2541;  /* Couleur des cadres (Rail & TopBar unifiés) */
+  --color-topbar-bg:         var(--color-frame-bg);
+  --color-rail-bg:           var(--color-frame-bg);
+  --color-sidebar-bg:        color-mix(in srgb, var(--color-frame-bg) 7%, #F8FAFC);
+  --color-sidebar-hover:     color-mix(in srgb, var(--color-frame-bg) 12%, #F1F5F9);
+  --color-sidebar-active:    color-mix(in srgb, var(--color-frame-bg) 16%, #FFFFFF);
+  --color-rail-hover:        #18365D;  /* Survol élément de rail */
+  --color-rail-active:       #1F4676;  /* Élément de rail actif */
+  --color-rail-text:         #94A3B8;  /* Texte/icône inactif */
+  --color-rail-text-active:  #FFFFFF;  /* Texte/icône actif */
+  --color-rail-accent:       #9C0F15;  /* Accent liseré rouge EduCom */
 
-  --width-rail:              72px;
-  --width-sidebar-expanded: 200px;
+  --width-rail:              54px;
+  --width-sidebar-expanded:  200px;
   --width-sidebar-collapsed: 52px;
   --height-topbar:           42px;
 

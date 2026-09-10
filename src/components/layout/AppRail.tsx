@@ -71,7 +71,8 @@ export default function AppRail({
   return (
     <aside
       aria-label="Espaces de travail"
-      className="hidden w-[54px] shrink-0 flex-col items-center justify-between border-inline-end border-[#1E3A5F] bg-[#0E2541] py-2 text-white md:flex print:hidden select-none z-30"
+      style={{ backgroundColor: "var(--color-rail-bg, #0E2541)" }}
+      className="hidden w-[54px] shrink-0 flex-col items-center justify-between border-r border-black/20 py-2 text-white md:flex print:hidden select-none z-30 transition-colors duration-200"
     >
       {/* Haut : Identité & Logo Établissement + Navigation */}
       <div className="flex flex-col items-center gap-2 w-full">
@@ -91,7 +92,7 @@ export default function AppRail({
           ) : (
             <div
               aria-hidden="true"
-              className="flex h-full w-full items-center justify-center rounded bg-[#0E2541] text-[10px] font-bold text-white"
+              className="flex h-full w-full items-center justify-center rounded bg-black/25 text-[10px] font-bold text-white"
             >
               {initial}
             </div>
@@ -99,7 +100,7 @@ export default function AppRail({
         </div>
 
         {/* Séparateur discret */}
-        <div className="h-[1px] w-6 bg-white/10" aria-hidden="true" />
+        <div className="h-[1px] w-6 bg-white/15" aria-hidden="true" />
 
         {/* Navigation : Tableau de bord en première position + Espaces métier */}
         <nav aria-label="Espaces de travail" className="flex flex-col items-center gap-0.5 w-full px-0.5">
@@ -111,8 +112,8 @@ export default function AppRail({
             className={[
               "relative group flex w-full min-h-[40px] flex-col items-center justify-center rounded-control py-1 px-0.5 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
               isDashboardActive
-                ? "bg-[#1E4676] text-white shadow-sm"
-                : "text-slate-400 hover:bg-[#18365D] hover:text-white",
+                ? "bg-white/20 text-white shadow-sm"
+                : "text-white/70 hover:bg-white/10 hover:text-white",
             ].join(" ")}
           >
             {isDashboardActive && (
@@ -126,14 +127,14 @@ export default function AppRail({
             <LayoutDashboard
               aria-hidden="true"
               className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-105 ${
-                isDashboardActive ? "text-white" : "text-slate-400 group-hover:text-white"
+                isDashboardActive ? "text-white" : "text-white/70 group-hover:text-white"
               }`}
               strokeWidth={isDashboardActive ? 2.2 : 1.8}
             />
 
             <span
               className={`mt-0.5 text-[10px] font-medium leading-none truncate max-w-[48px] text-center ${
-                isDashboardActive ? "text-white font-bold" : "text-slate-400 group-hover:text-slate-200"
+                isDashboardActive ? "text-white font-bold" : "text-white/70 group-hover:text-white"
               }`}
             >
               Accueil
@@ -141,7 +142,7 @@ export default function AppRail({
           </Link>
 
           {/* Filet séparateur entre Tableau de bord et les espaces métier */}
-          <div className="h-[1px] w-6 bg-white/10 my-0.5" aria-hidden="true" />
+          <div className="h-[1px] w-6 bg-white/15 my-0.5" aria-hidden="true" />
 
           {/* 2. Les 5 Espaces Métier */}
           {spaces.map((space) => {
@@ -157,8 +158,8 @@ export default function AppRail({
                 className={[
                   "relative group flex w-full min-h-[40px] flex-col items-center justify-center rounded-control py-1 px-0.5 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
                   isActive
-                    ? "bg-[#1E4676] text-white shadow-sm"
-                    : "text-slate-400 hover:bg-[#18365D] hover:text-white",
+                    ? "bg-white/20 text-white shadow-sm"
+                    : "text-white/70 hover:bg-white/10 hover:text-white",
                 ].join(" ")}
               >
                 {isActive && (
@@ -172,14 +173,14 @@ export default function AppRail({
                 <Icon
                   aria-hidden="true"
                   className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-105 ${
-                    isActive ? "text-white" : "text-slate-400 group-hover:text-white"
+                    isActive ? "text-white" : "text-white/70 group-hover:text-white"
                   }`}
                   strokeWidth={isActive ? 2.2 : 1.8}
                 />
 
                 <span
                   className={`mt-0.5 text-[10px] font-medium leading-none truncate max-w-[48px] text-center ${
-                    isActive ? "text-white font-bold" : "text-slate-400 group-hover:text-slate-200"
+                    isActive ? "text-white font-bold" : "text-white/70 group-hover:text-white"
                   }`}
                 >
                   {space.label}
@@ -191,7 +192,7 @@ export default function AppRail({
       </div>
 
       {/* Bas du rail : Site Public, Rôle test (dev) & Profil utilisateur */}
-      <div className="flex flex-col items-center gap-1.5 w-full px-1 pt-2 border-t border-white/10">
+      <div className="flex flex-col items-center gap-1.5 w-full px-1 pt-2 border-t border-white/15">
         {/* Site Public */}
         <Link
           href="/"
@@ -199,7 +200,7 @@ export default function AppRail({
           rel="noopener noreferrer"
           title="Site public"
           aria-label="Site public"
-          className="flex h-7.5 w-7.5 items-center justify-center rounded-control text-slate-400 hover:bg-[#18365D] hover:text-white transition-colors"
+          className="flex h-7.5 w-7.5 items-center justify-center rounded-control text-white/70 hover:bg-white/10 hover:text-white transition-colors"
         >
           <Globe className="h-4 w-4" />
         </Link>

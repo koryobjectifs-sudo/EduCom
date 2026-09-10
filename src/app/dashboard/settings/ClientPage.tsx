@@ -3,11 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { updateSchoolSettings, updateActiveAcademicYear, updateSchoolPrimaryColor } from "./actions";
-import { Save, Building2, Phone, Mail, MapPin, Image as ImageIcon, ChevronRight, UploadCloud, Calendar, ArrowRight, CheckCircle2, ShieldCheck, Check, Loader2, Palette, Sparkles } from "lucide-react";
+import { Save, Building2, Phone, Mail, MapPin, Image as ImageIcon, ChevronRight, UploadCloud, Calendar, ArrowRight, CheckCircle2, ShieldCheck, Check, Loader2, Palette, Sparkles, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { getContrastRatioAgainstWhite, isValidHexColor, PRESET_SCHOOL_COLORS } from "@/lib/theme";
+import { getContrastRatioAgainstWhite, isValidHexColor, PRESET_SCHOOL_COLORS, DEFAULT_EDUCOM_NAVY } from "@/lib/theme";
 
 export default function SettingsClient({
   school,
@@ -37,7 +37,7 @@ export default function SettingsClient({
     logo: school.logo || "",
     stamp: school.stamp || "",
     signature: school.signature || "",
-    primaryColor: school.primaryColor || "#9C0F15",
+    primaryColor: school.primaryColor || DEFAULT_EDUCOM_NAVY,
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,18 +79,51 @@ export default function SettingsClient({
     }
 
     setIsApplyingColor(true);
-    // Application instantanée aux variables CSS pour retour visuel 0-délai
-    document.documentElement.style.setProperty("--color-primary", color);
+    // Application instantanée aux variables CSS des cadres (TopBar, Rail & Sidebar) sans altérer les boutons
+    document.documentElement.style.setProperty("--color-frame-bg", color);
+    document.documentElement.style.setProperty("--color-topbar-bg", color);
+    document.documentElement.style.setProperty("--color-rail-bg", color);
+    document.documentElement.style.setProperty("--color-sidebar-bg", `color-mix(in srgb, ${color} 7%, #F8FAFC)`);
+    document.documentElement.style.setProperty("--color-sidebar-hover", `color-mix(in srgb, ${color} 12%, #F1F5F9)`);
+    document.documentElement.style.setProperty("--color-sidebar-active", `color-mix(in srgb, ${color} 16%, #FFFFFF)`);
+    document.documentElement.style.setProperty("--color-rail-accent", color);
 
     const res = await updateSchoolPrimaryColor(color);
     if (res.success) {
-      toast.success("Couleur d'accent appliquée !", {
-        description: `La teinte ${color.toUpperCase()} est désormais enregistrée pour votre établissement.`,
+      toast.success("Couleur des cadres appliquée !", {
+        description: `La teinte ${color.toUpperCase()} habille désormais le Rail et la TopBar de votre établissement.`,
       });
       router.refresh();
     } else {
       toast.error("Erreur lors de l'application de la couleur", {
         description: res.error || "Impossible d'appliquer la couleur.",
+      });
+    }
+    setIsApplyingColor(false);
+  };
+
+  const handleResetColor = async () => {
+    setIsApplyingColor(true);
+    const defaultNavy = DEFAULT_EDUCOM_NAVY;
+    document.documentElement.style.setProperty("--color-frame-bg", defaultNavy);
+    document.documentElement.style.setProperty("--color-topbar-bg", defaultNavy);
+    document.documentElement.style.setProperty("--color-rail-bg", defaultNavy);
+    document.documentElement.style.setProperty("--color-sidebar-bg", `color-mix(in srgb, ${defaultNavy} 7%, #F8FAFC)`);
+    document.documentElement.style.setProperty("--color-sidebar-hover", `color-mix(in srgb, ${defaultNavy} 12%, #F1F5F9)`);
+    document.documentElement.style.setProperty("--color-sidebar-active", `color-mix(in srgb, ${defaultNavy} 16%, #FFFFFF)`);
+    document.documentElement.style.setProperty("--color-rail-accent", "#9C0F15");
+
+    setFormData(prev => ({ ...prev, primaryColor: defaultNavy }));
+
+    const res = await updateSchoolPrimaryColor(null);
+    if (res.success) {
+      toast.success("Thème initial EduCom rétabli", {
+        description: "Les cadres ont retrouvé la teinte Navy officielle EduCom (#0E2541).",
+      });
+      router.refresh();
+    } else {
+      toast.error("Erreur lors de la réinitialisation", {
+        description: res.error || "Impossible de réinitialiser la couleur.",
       });
     }
     setIsApplyingColor(false);
@@ -455,44 +488,80 @@ export default function SettingsClient({
 
           </div>
 
-          {/* Couleur d'Accent Établissement (Palette enrichie 24 teintes + Pipette libre + Application instantanée) */}
+          {/* Couleur des Cadres Établissement (Rail & TopBar unifiés Slack-style + Sidebar plus légère) */}
           <div className="mt-4 pt-4 border-t border-border p-4 bg-secondary/20 rounded-2xl space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
                   <span
                     className="h-3.5 w-3.5 rounded-full inline-block shadow-2xs border border-black/10 transition-colors duration-200"
                     style={{ backgroundColor: formData.primaryColor }}
                   />
-                  Couleur d&apos;accent de l&apos;établissement
+                  Couleur des cadres (TopBar & Rail unifiés Slack-style)
                 </h3>
                 <p className="text-xs text-text-secondary mt-0.5">
-                  Personnalise les boutons d&apos;action, liserés actifs et pastilles sur tout votre espace.
+                  Habille le Rail et la TopBar avec la couleur de votre école, et la Sidebar contextuelle avec une teinte plus claire. Les boutons d&apos;action restent bleus, constants et accessibles.
                 </p>
               </div>
 
-              {/* Prévisualisation directe & Bouton Valider / Appliquer */}
+              {/* Prévisualisation Shell Slack-style & Actions */}
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-medium text-text-muted">Aperçu :</span>
-                <span
-                  style={{ backgroundColor: formData.primaryColor }}
-                  className="px-2.5 py-1 rounded-control text-xs font-semibold text-white shadow-2xs transition-colors duration-200"
-                >
-                  Bouton Principal
-                </span>
-                <span
-                  style={{ color: formData.primaryColor, backgroundColor: `${formData.primaryColor}15`, borderColor: `${formData.primaryColor}30` }}
-                  className="px-2 py-0.5 rounded-control text-[11px] font-semibold border transition-colors duration-200"
-                >
-                  Actif
-                </span>
+                {/* Mini mockup du shell */}
+                <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
+                  <span className="text-[10.5px] font-medium text-text-muted px-1">Aperçu :</span>
+                  <div className="flex flex-col h-9 w-24 rounded-md overflow-hidden border border-black/15 shadow-2xs">
+                    {/* Topbar */}
+                    <div
+                      className="h-2.5 w-full flex items-center justify-between px-1 transition-colors"
+                      style={{ backgroundColor: isValidHexColor(formData.primaryColor) ? formData.primaryColor : "#0E2541" }}
+                    >
+                      <div className="h-1 w-5 rounded-full bg-white/40" />
+                      <div className="h-1 w-1 rounded-full bg-white/60" />
+                    </div>
+                    {/* Body */}
+                    <div className="flex flex-1">
+                      {/* Rail */}
+                      <div
+                        className="w-3 h-full flex flex-col items-center py-0.5 gap-0.5 transition-colors border-r border-black/10"
+                        style={{ backgroundColor: isValidHexColor(formData.primaryColor) ? formData.primaryColor : "#0E2541" }}
+                      >
+                        <div className="h-0.5 w-1 rounded-full bg-white/80" />
+                        <div className="h-0.5 w-1 rounded-full bg-white/40" />
+                      </div>
+                      {/* Contextual Sidebar */}
+                      <div
+                        className="w-6 h-full flex flex-col justify-center px-0.5 transition-colors border-r border-slate-200/80"
+                        style={{ backgroundColor: `color-mix(in srgb, ${isValidHexColor(formData.primaryColor) ? formData.primaryColor : "#0E2541"} 8%, #F8FAFC)` }}
+                      >
+                        <div className="h-0.5 w-3 rounded-full bg-slate-400/50 mb-0.5" />
+                        <div className="h-0.5 w-2 rounded-full bg-slate-400/40" />
+                      </div>
+                      {/* Canvas arrondi */}
+                      <div className="flex-1 bg-white rounded-tl border-t border-l border-slate-200/60 p-0.5">
+                        <div className="h-0.5 w-2.5 rounded-full bg-slate-200" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                {/* Bouton d'application directe très accessible */}
+                {/* Bouton Rétablir la couleur initiale EduCom */}
+                <button
+                  type="button"
+                  onClick={() => handleResetColor()}
+                  disabled={isApplyingColor}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 active:scale-95 transition-all shadow-2xs disabled:opacity-50"
+                  title="Rétablir la couleur EduCom Navy par défaut (#0E2541)"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Rétablir initial</span>
+                </button>
+
+                {/* Bouton d'application directe */}
                 <button
                   type="button"
                   onClick={() => handleApplyColor()}
                   disabled={isApplyingColor}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 ml-1"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
                   style={{ backgroundColor: isValidHexColor(formData.primaryColor) ? formData.primaryColor : "#0E2541" }}
                   title="Valider et appliquer cette couleur immédiatement à tout l'espace"
                 >

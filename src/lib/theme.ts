@@ -18,6 +18,7 @@ const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 /** Palette enrichie de teintes d'accent prédéfinies et harmonieuses pour l'éducation */
 export const PRESET_SCHOOL_COLORS = [
   // Classiques & Institutionnels
+  { hex: "#0E2541", label: "EduCom Initial (Navy)", group: "Classiques" },
   { hex: "#9C0F15", label: "Bordeaux EduCom", group: "Classiques" },
   { hex: "#0B2B4A", label: "Marine Profond", group: "Classiques" },
   { hex: "#1E3A8A", label: "Bleu Nuit", group: "Classiques" },
@@ -82,19 +83,29 @@ export function getContrastRatioAgainstWhite(hex: string): number {
   return Number(((whiteLum + 0.05) / (lum + 0.05)).toFixed(2));
 }
 
+export const DEFAULT_EDUCOM_NAVY = "#0E2541";
+export const DEFAULT_EDUCOM_ACCENT = "#9C0F15";
+
 /**
- * Traduit la couleur d'une école en surcharge de variables CSS.
+ * Traduit la couleur d'une école en surcharge de variables CSS pour les cadres du shell (Slack-style).
  *
- * @returns Un objet `style` portant `--color-primary` et `--color-rail-accent`,
- *   ou `undefined` quand l'école n'a pas de couleur propre — auquel cas aucune
- *   surcharge n'est émise et la valeur par défaut de `:root` s'applique.
+ * ⚠️ Règle de design EduCom :
+ * 1. Les boutons d'action NE SONT PAS impactés (ils restent stables et lisibles).
+ * 2. La couleur s'applique exclusivement aux cadres : la TopBar et le Rail partagent exactement la même teinte.
+ * 3. La sidebar contextuelle (la plus grande) reçoit une déclinaison plus claire et douce (color-mix à 7%).
  */
 export function schoolThemeStyle(primaryColor?: string | null): CSSProperties | undefined {
   if (!isValidHexColor(primaryColor)) return undefined;
-  const color = primaryColor.trim();
+  const frameColor = primaryColor.trim();
+
   return {
-    "--color-primary": color,
-    "--color-rail-accent": color,
+    "--color-frame-bg": frameColor,
+    "--color-topbar-bg": frameColor,
+    "--color-rail-bg": frameColor,
+    "--color-sidebar-bg": `color-mix(in srgb, ${frameColor} 7%, #F8FAFC)`,
+    "--color-sidebar-hover": `color-mix(in srgb, ${frameColor} 12%, #F1F5F9)`,
+    "--color-sidebar-active": `color-mix(in srgb, ${frameColor} 16%, #FFFFFF)`,
+    "--color-rail-accent": frameColor,
   } as CSSProperties;
 }
 

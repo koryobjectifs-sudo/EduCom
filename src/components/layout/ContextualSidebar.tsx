@@ -37,14 +37,14 @@ function NavLink({
           "group relative flex h-8.5 w-8.5 items-center justify-center rounded-control transition-colors mx-auto",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
           active
-            ? "bg-primary/10 text-primary font-semibold"
-            : "text-slate-600 hover:bg-slate-200/70 hover:text-slate-900",
+            ? "bg-[var(--color-sidebar-active,white)] text-slate-900 font-semibold shadow-2xs"
+            : "text-slate-600 hover:bg-black/5 hover:text-slate-900",
         ].join(" ")}
       >
         <Icon
           aria-hidden="true"
           strokeWidth={active ? 2.2 : 1.8}
-          className={`h-4 w-4 shrink-0 ${active ? "text-primary" : "text-slate-500 group-hover:text-slate-800"}`}
+          className={`h-4 w-4 shrink-0 ${active ? "text-[var(--color-frame-bg,#0E2541)]" : "text-slate-500 group-hover:text-slate-800"}`}
         />
       </Link>
     );
@@ -58,14 +58,14 @@ function NavLink({
         "group flex items-center gap-2 rounded-control px-2.5 py-1.5 text-xs transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
         active
-          ? "bg-primary/10 font-semibold text-primary"
-          : "font-medium text-slate-700 hover:bg-slate-200/60 hover:text-slate-900",
+          ? "bg-[var(--color-sidebar-active,white)] font-semibold text-slate-900 shadow-2xs border-l-2 border-[var(--color-frame-bg,#0E2541)]"
+          : "font-medium text-slate-700 hover:bg-black/5 hover:text-slate-900",
       ].join(" ")}
     >
       <Icon
         aria-hidden="true"
         strokeWidth={active ? 2.2 : 1.8}
-        className={`h-3.5 w-3.5 shrink-0 ${active ? "text-primary" : "text-slate-500 group-hover:text-slate-800"}`}
+        className={`h-3.5 w-3.5 shrink-0 ${active ? "text-[var(--color-frame-bg,#0E2541)]" : "text-slate-500 group-hover:text-slate-800"}`}
       />
       <span className="truncate">{item.name}</span>
     </Link>
@@ -83,8 +83,11 @@ export default function ContextualSidebar({
   return (
     <aside
       aria-label={`Navigation ${space.label}`}
-      style={{ width: `${currentWidth}px` }}
-      className="relative hidden shrink-0 flex-col border-r border-slate-200/90 bg-[#F4F6F8] transition-[width] duration-75 ease-out md:flex print:hidden select-none z-20 h-[calc(100vh-42px)]"
+      style={{
+        width: `${currentWidth}px`,
+        backgroundColor: "var(--color-sidebar-bg, #F4F6F8)",
+      }}
+      className="relative hidden shrink-0 flex-col border-r border-slate-200/90 transition-[width,background-color] duration-150 ease-out md:flex print:hidden select-none z-20 h-[calc(100vh-42px)]"
     >
       {/* Liste des sections et sous-destinations */}
       <div className="flex-1 overflow-y-auto px-1.5 py-2.5 space-y-3">

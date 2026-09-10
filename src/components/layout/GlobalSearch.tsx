@@ -111,14 +111,14 @@ export default function GlobalSearch() {
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="group w-full flex items-center justify-between h-7.5 px-2.5 rounded-control bg-sunk/80 hover:bg-sunk border border-rule text-xs text-text-soft hover:text-text transition-all shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="group w-full flex items-center justify-between h-7 px-2.5 rounded-lg bg-black/20 hover:bg-black/30 border border-white/15 text-xs text-white/80 hover:text-white transition-all shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
           aria-label="Rechercher dans tout l'établissement"
         >
           <div className="flex items-center gap-2 truncate">
-            <Search className="h-3.5 w-3.5 text-text-faint group-hover:text-primary transition-colors shrink-0" />
-            <span className="truncate text-text-muted text-[11.5px]">Rechercher un élève, une classe...</span>
+            <Search className="h-3.5 w-3.5 text-white/60 group-hover:text-white transition-colors shrink-0" />
+            <span className="truncate text-white/70 text-[11.5px]">Rechercher un élève, une classe...</span>
           </div>
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded bg-surface border border-rule px-1.5 py-0.5 text-[10px] font-mono text-text-faint shrink-0 shadow-2xs">
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded bg-white/10 border border-white/20 px-1.5 py-0.5 text-[10px] font-mono text-white/80 shrink-0 shadow-2xs">
             <span className="text-[11px]">⌘</span>K
           </kbd>
         </button>
