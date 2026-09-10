@@ -87,7 +87,7 @@ export default function AppTopBar({
   return (
     <header
       style={{ backgroundColor: "var(--color-topbar-bg, #0E2541)" }}
-      className="sticky top-0 z-30 flex h-10.5 shrink-0 items-center border-b border-black/20 text-white print:hidden select-none transition-colors duration-200"
+      className="sticky top-0 z-30 flex h-10.5 shrink-0 items-center text-white print:hidden select-none transition-colors duration-200"
     >
       <div className="flex w-full items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4">
         {/* Gauche : Nom d'école + Flèches historique + Fil d'Ariane */}

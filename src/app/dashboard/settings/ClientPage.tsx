@@ -613,11 +613,11 @@ export default function SettingsClient({
                       </div>
                     </div>
 
-                    {/* Corps : Rail + Sidebar Contextuelle + Canvas principal */}
+                    {/* Corps : Rail + Espace de travail (Sidebar Contextuelle arrondie + Canvas) */}
                     <div className="flex flex-1 overflow-hidden">
                       {/* 1. AppRail */}
                       <div
-                        className="w-10 sm:w-11 h-full flex flex-col items-center py-2 gap-2 text-white/70 border-r border-black/15 transition-colors duration-200 select-none shrink-0"
+                        className="w-10 sm:w-11 h-full flex flex-col items-center py-2 gap-2 text-white/70 transition-colors duration-200 select-none shrink-0"
                         style={{ backgroundColor: activePreviewColor }}
                       >
                         <div className="h-6 w-6 rounded-md bg-white/20 text-white flex items-center justify-center shadow-2xs">
@@ -634,32 +634,34 @@ export default function SettingsClient({
                         </div>
                       </div>
 
-                      {/* 2. Contextual Sidebar */}
-                      <div
-                        className="w-36 sm:w-44 h-full flex flex-col p-2 space-y-1.5 border-r border-slate-200/80 transition-colors duration-200 select-none shrink-0"
-                        style={{ backgroundColor: `color-mix(in srgb, ${activePreviewColor} 7%, #F8FAFC)` }}
-                      >
-                        <div className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500 px-1.5 pt-0.5">
-                          Scolarité
+                      {/* Conteneur Espace de travail avec coin supérieur gauche arrondi Slack-style */}
+                      <div className="flex flex-1 overflow-hidden sm:rounded-tl-2xl border-t border-l border-black/15 shadow-xs">
+                        {/* 2. Contextual Sidebar (Arrondi au coin supérieur gauche contre TopBar & Rail) */}
+                        <div
+                          className="w-36 sm:w-44 h-full flex flex-col p-2 space-y-1.5 border-r border-slate-200/80 transition-colors duration-200 select-none shrink-0 sm:rounded-tl-2xl"
+                          style={{ backgroundColor: `color-mix(in srgb, ${activePreviewColor} 7%, #F8FAFC)` }}
+                        >
+                          <div className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500 px-1.5 pt-0.5">
+                            Scolarité
+                          </div>
+                          <div className="space-y-0.5 text-xs">
+                            <div
+                              className="flex items-center gap-2 px-2 py-1 rounded-md bg-white text-slate-900 font-semibold shadow-2xs border-l-2"
+                              style={{ borderLeftColor: activePreviewColor }}
+                            >
+                              <span className="truncate text-[11px]">Tableau de bord</span>
+                            </div>
+                            <div className="flex items-center gap-2 px-2 py-1 rounded-md text-slate-600 hover:bg-black/5">
+                              <span className="truncate text-[11px]">Élèves & Inscriptions</span>
+                            </div>
+                            <div className="flex items-center gap-2 px-2 py-1 rounded-md text-slate-600 hover:bg-black/5">
+                              <span className="truncate text-[11px]">Classes & Bulletins</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="space-y-0.5 text-xs">
-                          <div
-                            className="flex items-center gap-2 px-2 py-1 rounded-md bg-white text-slate-900 font-semibold shadow-2xs border-l-2"
-                            style={{ borderLeftColor: activePreviewColor }}
-                          >
-                            <span className="truncate text-[11px]">Tableau de bord</span>
-                          </div>
-                          <div className="flex items-center gap-2 px-2 py-1 rounded-md text-slate-600 hover:bg-black/5">
-                            <span className="truncate text-[11px]">Élèves & Inscriptions</span>
-                          </div>
-                          <div className="flex items-center gap-2 px-2 py-1 rounded-md text-slate-600 hover:bg-black/5">
-                            <span className="truncate text-[11px]">Classes & Bulletins</span>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* 3. Canevas de Travail Principal (Arrondi Slack-style) */}
-                      <div className="flex-1 bg-white sm:rounded-tl-2xl border-t border-l border-black/10 shadow-xs p-3 sm:p-4 overflow-hidden flex flex-col justify-between">
+                        {/* 3. Canevas de Travail Principal (Continu et affleurant) */}
+                        <div className="flex-1 bg-white p-3 sm:p-4 overflow-hidden flex flex-col justify-between">
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <div>
@@ -702,8 +704,9 @@ export default function SettingsClient({
                     </div>
                   </div>
                 </div>
-              );
-            })()}
+              </div>
+            );
+          })()}
 
             {/* Filtres par Catégorie de Palettes */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">

@@ -72,7 +72,7 @@ export default function AppRail({
     <aside
       aria-label="Espaces de travail"
       style={{ backgroundColor: "var(--color-rail-bg, #0E2541)" }}
-      className="hidden w-[54px] shrink-0 flex-col items-center justify-between border-r border-black/20 py-2 text-white md:flex print:hidden select-none z-30 transition-colors duration-200"
+      className="hidden w-[54px] shrink-0 flex-col items-center justify-between py-2 text-white md:flex print:hidden select-none z-30 transition-colors duration-200"
     >
       {/* Haut : Identité & Logo Établissement + Navigation */}
       <div className="flex flex-col items-center gap-2 w-full">

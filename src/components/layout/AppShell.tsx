@@ -57,8 +57,8 @@ export default function AppShell({
           activeSpace={activeSpace ?? undefined}
         />
 
-        {/* Espace de travail : Sidebar Contextuelle + Main View */}
-        <div className="flex min-w-0 flex-1 overflow-hidden print:overflow-visible">
+        {/* Espace de travail : Sidebar Contextuelle + Main View (Arrondi Slack-style appliqué au coin supérieur gauche) */}
+        <div className="flex min-w-0 flex-1 overflow-hidden print:overflow-visible md:rounded-tl-2xl border-t border-l border-black/15 shadow-xs">
           {activeSpace && (
             <ContextualSidebar
               space={activeSpace}
@@ -70,8 +70,8 @@ export default function AppShell({
             />
           )}
 
-          {/* Canvas principal avec coin supérieur gauche arrondi Slack-style */}
-          <main className="flex-1 w-full overflow-y-auto relative print:overflow-visible print:m-0 print:p-0 bg-ground md:rounded-tl-2xl border-t border-l border-black/10 shadow-xs">
+          {/* Canvas principal continu et aligné */}
+          <main className="flex-1 w-full overflow-y-auto relative print:overflow-visible print:m-0 print:p-0 bg-ground">
             <div className="mx-auto max-w-[1600px] p-3 sm:p-4 lg:p-5 print:max-w-none print:p-0 print:m-0">
               {children}
             </div>

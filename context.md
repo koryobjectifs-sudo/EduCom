@@ -27,8 +27,12 @@
 >    - **Canvas Arrondi** : Le conteneur principal reçoit `rounded-tl-2xl` avec bordure subtile, créant le découpage en canevas caractéristique de Slack.
 > 8. Agrandissement et mise en valeur de l'aperçu du Shell :
 >    - Remplacement de la miniature exiguë par un panneau d'aperçu haute-fidélité pleine largeur (220px de hauteur) directement intégré dans la section couleur.
->    - Rendu en direct de la TopBar unifiée, du Rail, de la Sidebar contextuelle adoucie (7%), et du canevas arrondi avec bouton d'action bleu protégé pour une lisibilité immédiate.
+>    - Rendu en direct de la TopBar unifiée, du Rail, de la Sidebar contextuelle adoucie (7%), et du canevas avec bouton d'action bleu protégé pour une lisibilité immédiate.
 >    - Mise à jour instantanée en temps réel lors du clic sur les palettes ou de la saisie d'un code hexadécimal.
+> 9. Repositionnement de l'Angle Arrondi Slack-Style (Capture 1) :
+>    - Déplacement de `md:rounded-tl-2xl` sur le conteneur de l'espace de travail et la Sidebar contextuelle (intersection Rail + TopBar).
+>    - Éradication de l'encoche rouge entre la Sidebar et le canevas principal : le canevas principal affleure de façon nette et continue contre la sidebar.
+>    - Retrait des bordures séparatrices dures de `AppTopBar` et `AppRail` pour garantir la continuité parfaite du cadre unifié autour de l'arrondi.
 
 ## 🏷️ Point de Sauvegarde & Rollback : `v15-topbar-unifiee`
 

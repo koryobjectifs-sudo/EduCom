@@ -87,7 +87,7 @@ export default function ContextualSidebar({
         width: `${currentWidth}px`,
         backgroundColor: "var(--color-sidebar-bg, #F4F6F8)",
       }}
-      className="relative hidden shrink-0 flex-col border-r border-slate-200/90 transition-[width,background-color] duration-150 ease-out md:flex print:hidden select-none z-20 h-[calc(100vh-42px)]"
+      className="relative hidden shrink-0 flex-col border-r border-slate-200/90 transition-[width,background-color] duration-150 ease-out md:flex md:rounded-tl-2xl print:hidden select-none z-20 h-[calc(100vh-42px)]"
     >
       {/* Liste des sections et sous-destinations */}
       <div className="flex-1 overflow-y-auto px-1.5 py-2.5 space-y-3">
