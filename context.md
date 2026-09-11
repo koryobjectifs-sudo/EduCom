@@ -1,6 +1,52 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 11 septembre 2026 — **Chantier Générateur de Documents (v17) — Phase 0 terminée, Phase 1 (audit) livrée, en attente d'arbitrage de Kory avant la phase 2**
+> **Petit chantier livré le 11 septembre — Palette "EduCom Aurora".** Ajout d'une
+> 26ᵉ teinte au sélecteur de couleur existant (`src/lib/theme.ts` →
+> `PRESET_SCHOOL_COLORS`, groupe `"Aurora"`, hex `#3B82F6`), sans toucher aux 25
+> teintes précédentes ni créer de second système de thème.
+> - **Shell** : `schoolThemeStyle()` gagne un cas spécial déclenché UNIQUEMENT par
+>   `AURORA_HEX` — Rail/TopBar/Sidebar passent en navy (`#0E2541`, même famille
+>   que la charte par défaut) au lieu de l'aplat de la teinte choisie ; l'accent
+>   d'élément actif du Rail (`--color-rail-accent`, déjà câblé dans
+>   `AppRail.tsx`) devient cyan (`#38D9FF`) ; le survol/actif de la Sidebar
+>   reçoit une touche violette (`#7C5CFC`) ponctuelle. Toutes les autres teintes
+>   traversent la branche par défaut, strictement inchangée.
+> - **Dashboard** : trois nouveaux tokens réactifs, `--color-palette-info`
+>   (cyan), `--color-palette-secondary` (violet), `--color-palette-exceptional`
+>   (rose) — définis dans `globals.css` avec un repli neutre (identique à des
+>   tokens déjà en usage) pour les 25 autres teintes, et exposés comme
+>   utilitaires Tailwind (`text-palette-secondary`, `bg-palette-exceptional/10`…)
+>   via `@theme inline`. Branchés en additif sur `Badge.tsx` (2 nouvelles
+>   variantes purement décoratives, `StatusBadge`/`describeStatus()` non
+>   touchés) et `ProgressBar.tsx` (3 nouvelles options de `color`). Les tons
+>   `success/warning/danger` des KPI (`Summaries.tsx`) et les charts n'ont PAS
+>   été reconnectés à la palette : ce sont des états métier réels
+>   (payé/en retard), pas des rôles décoratifs — leur donner une couleur de
+>   palette aurait inventé une sémantique qui n'existe pas dans les données.
+> - **Réglages** : l'aperçu du Shell (`ClientPage.tsx`) est passé de sa propre
+>   formule recopiée à une lecture directe de `schoolThemeStyle()` — repli
+>   identique pour les 25 teintes existantes (même chaîne de caractères),
+>   Aurora enfin représentée fidèlement dans l'aperçu. ⚠️ Le vérificateur de
+>   contraste WCAG affiché reste calculé sur la teinte STOCKÉE (#3B82F6, 3.68:1)
+>   et non sur le navy réellement rendu pour Aurora (qui, lui, contraste très
+>   largement au-dessus du seuil) — laissé tel quel (portée minimale), signalé
+>   ici pour ne pas laisser croire à un vrai déficit de contraste.
+> - **Piège corrigé en cours de route** : `scripts/verify-aurora-palette.ts`
+>   (outil de vérification visuelle, réutilisable) a d'abord laissé
+>   `School.primaryColor` de SENG.CO ACADEMY bloqué sur Aurora — `rmSync` du
+>   profil Chrome temporaire levait `ENOTEMPTY` et coupait le bloc `finally`
+>   AVANT la ligne de restauration. Corrigé : la restauration passe en premier
+>   et dans son propre `try/catch`, indépendante du nettoyage. Valeur d'origine
+>   (`#334155`) confirmée restaurée après coup.
+> - Captures dans `docs/aurora-verification/` (avant/après réels, non
+>   commitées comme référence officielle — juste la preuve de la vérification).
+> - Vérifié : `tsc --noEmit` 0 erreur, navigation 55/55, unconfirmed-block
+>   21/21, permissions-matrix 43/43 (même échec pré-existant et sans rapport
+>   sur `verify-design-tokens`, inchangé).
+>
+> ---
+>
+> Dernière mise à jour chantier précédent : 11 septembre 2026 — **Chantier Générateur de Documents (v17) — Phase 0 terminée, Phase 1 (audit) livrée, en attente d'arbitrage de Kory avant la phase 2**
 >
 > Chantier ouvert sur demande de Kory : un générateur universel, personnalisable sans compétence graphique, pour TOUS les documents produits par l'école. Jalonné en deux, frontière actée avant tout code : **Jalon A** (`v17-documents`) = mode blocs + PDF serveur + personnalisation complète (formats, affichages, marges de reliure, repères de coupe) + génération en masse + non-régression visuelle. **Jalon B** (`v17-documents-libre`) = éditeur de composition libre (drag/snap/undo/z-order/verrou/règles) + fidélité millimétrique éditeur↔PDF + vérification de débordement sur le cas le plus chargé. Deux choses du jalon B pré-posées dès le jalon A : coordonnées stockées en **millimètres** dès le mode blocs, et l'interrupteur de mode visible mais désactivé (« Composition libre — bientôt disponible »).
 >

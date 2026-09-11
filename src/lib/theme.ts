@@ -49,7 +49,27 @@ export const PRESET_SCHOOL_COLORS = [
   { hex: "#BE185D", label: "Framboise", group: "Distinction & Prune" },
   { hex: "#78350F", label: "Moka Chaud", group: "Distinction & Prune" },
   { hex: "#334155", label: "Ardoise Sombre", group: "Distinction & Prune" },
+
+  // EduCom Aurora — direction premium (17 sept.) : navy + accents bleu/cyan/violet,
+  // voir AURORA_ACCENTS ci-dessous. Seule cette teinte déclenche le traitement
+  // enrichi dans `schoolThemeStyle()` ; les 24 ci-dessus restent inchangées.
+  // ⚠️ Libellé volontairement SANS le préfixe "EduCom" : la grille tronque les
+  // libellés longs, et "EduCom Initial (Navy)" (première entrée) se réduisait
+  // à la même chaîne "EduCom…" que "EduCom Aurora" — impossible à distinguer
+  // au premier coup d'œil dans "Tous". Le nom du groupe (onglet de catégorie)
+  // porte déjà "Aurora" sans ambiguïté.
+  { hex: "#3B82F6", label: "Aurora", group: "Aurora" },
 ] as const;
+
+/**
+ * Identifie la sélection « EduCom Aurora » — comparaison insensible à la casse
+ * sur le hex stocké, jamais sur le libellé (qui peut varier selon l'écran).
+ */
+export const AURORA_HEX = "#3B82F6";
+
+export function isAuroraColor(primaryColor?: string | null): boolean {
+  return !!primaryColor && primaryColor.trim().toLowerCase() === AURORA_HEX.toLowerCase();
+}
 
 /** Vrai si la chaîne est un hexadécimal CSS sûr (`#abc` ou `#aabbcc`). */
 export function isValidHexColor(value: unknown): value is string {
@@ -87,16 +107,60 @@ export const DEFAULT_EDUCOM_NAVY = "#0E2541";
 export const DEFAULT_EDUCOM_ACCENT = "#9C0F15";
 
 /**
+ * Les six teintes Aurora (cahier des charges Kory, 17 sept.). `red` reste la
+ * couleur de marque déjà réservée aux alertes/erreurs (`DEFAULT_EDUCOM_ACCENT`)
+ * — Aurora ne lui donne aucun usage décoratif nouveau.
+ */
+export const AURORA_ACCENTS = {
+  navy: DEFAULT_EDUCOM_NAVY, // #0E2541 — base du Shell, même famille que la charte par défaut
+  primaryBlue: "#2563EB",
+  brightBlue: "#3B82F6",
+  cyan: "#38D9FF",
+  violet: "#7C5CFC",
+  pink: "#F05BCB",
+  red: DEFAULT_EDUCOM_ACCENT, // #9C0F15 — réservé au critique, jamais décoratif
+} as const;
+
+/**
  * Traduit la couleur d'une école en surcharge de variables CSS pour les cadres du shell (Slack-style).
  *
  * ⚠️ Règle de design EduCom :
  * 1. Les boutons d'action NE SONT PAS impactés (ils restent stables et lisibles).
  * 2. La couleur s'applique exclusivement aux cadres : la TopBar et le Rail partagent exactement la même teinte.
  * 3. La sidebar contextuelle (la plus grande) reçoit une déclinaison plus claire et douce (color-mix à 7%).
+ *
+ * ⚠️ **Cas spécial Aurora (17 sept.)** : une seule teinte, `AURORA_HEX`,
+ * bascule sur un traitement à plusieurs tons (navy + accents cyan/violet) au
+ * lieu de l'aplat uniforme ci-dessous. Les 24 autres teintes ne changent pas
+ * d'une ligne — la branche par défaut est strictement celle d'avant.
  */
 export function schoolThemeStyle(primaryColor?: string | null): CSSProperties | undefined {
   if (!isValidHexColor(primaryColor)) return undefined;
   const frameColor = primaryColor.trim();
+
+  if (isAuroraColor(frameColor)) {
+    const { navy, cyan, violet } = AURORA_ACCENTS;
+    return {
+      "--color-frame-bg": navy,
+      "--color-topbar-bg": navy,
+      "--color-rail-bg": navy,
+      "--color-sidebar-bg": `color-mix(in srgb, ${navy} 7%, #F8FAFC)`,
+      // Touches ponctuelles de violet : seuls le survol et l'état actif de la
+      // sidebar en portent la trace, jamais le fond au repos — pour rester
+      // « visible mais subtil », pas un bloc lumineux.
+      "--color-sidebar-hover": `color-mix(in srgb, ${violet} 10%, #F1F5F9)`,
+      "--color-sidebar-active": `color-mix(in srgb, ${violet} 16%, #FFFFFF)`,
+      // Le cyan est réservé à l'indicateur d'élément actif du Rail — c'est lui
+      // qui rend l'état actif « clairement visible » sur fond navy.
+      "--color-rail-accent": cyan,
+      // Rôles Dashboard (KPI, badges, progress bars) — voir Badge.tsx et
+      // ProgressBar.tsx. Non définis pour les 24 autres teintes : les
+      // composants retombent alors sur leurs tokens neutres actuels.
+      "--color-palette-info": cyan,
+      "--color-palette-secondary": violet,
+      "--color-palette-exceptional": AURORA_ACCENTS.pink,
+    } as CSSProperties;
+  }
 
   return {
     "--color-frame-bg": frameColor,

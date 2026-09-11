@@ -7,7 +7,7 @@ import { Save, Building2, Phone, Mail, MapPin, Image as ImageIcon, ChevronRight,
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { getContrastRatioAgainstWhite, isValidHexColor, PRESET_SCHOOL_COLORS, DEFAULT_EDUCOM_NAVY } from "@/lib/theme";
+import { getContrastRatioAgainstWhite, isValidHexColor, PRESET_SCHOOL_COLORS, DEFAULT_EDUCOM_NAVY, schoolThemeStyle } from "@/lib/theme";
 
 export default function SettingsClient({
   school,
@@ -545,6 +545,18 @@ export default function SettingsClient({
             {/* GRAND APERÇU EN DIRECT DU SHELL (Slack-Style) */}
             {(() => {
               const activePreviewColor = isValidHexColor(formData.primaryColor) ? formData.primaryColor : DEFAULT_EDUCOM_NAVY;
+              /**
+               * ⚠️ Lit exactement la fonction qui alimente le vrai Shell
+               * (`dashboard/layout.tsx`) plutôt que de recalculer sa propre
+               * formule : pour les 24 teintes existantes, chaque valeur est
+               * identique à l'ancien calcul local (même chaîne de caractères,
+               * zéro changement visuel). Pour EduCom Aurora, l'aperçu montre
+               * enfin le traitement navy + accents réellement appliqué.
+               */
+              const previewTheme = (schoolThemeStyle(activePreviewColor) ?? {}) as Record<string, string>;
+              const previewFrame = previewTheme["--color-topbar-bg"] ?? activePreviewColor;
+              const previewSidebar = previewTheme["--color-sidebar-bg"] ?? `color-mix(in srgb, ${activePreviewColor} 7%, #F8FAFC)`;
+              const previewAccent = previewTheme["--color-rail-accent"] ?? activePreviewColor;
               return (
                 <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden p-3.5 sm:p-4 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -580,7 +592,7 @@ export default function SettingsClient({
                     {/* TopBar unifiée */}
                     <div
                       className="h-8 sm:h-9 w-full flex items-center justify-between px-3 text-white transition-colors duration-200 select-none shrink-0"
-                      style={{ backgroundColor: activePreviewColor }}
+                      style={{ backgroundColor: previewFrame }}
                     >
                       <div className="flex items-center gap-2 truncate">
                         <div className="flex items-center gap-1 text-white/50 text-[11px]">
@@ -618,7 +630,7 @@ export default function SettingsClient({
                       {/* 1. AppRail (68px) */}
                       <div
                         className="w-12 sm:w-14 h-full flex flex-col items-center py-2 gap-2 text-white/70 transition-colors duration-200 select-none shrink-0"
-                        style={{ backgroundColor: activePreviewColor }}
+                        style={{ backgroundColor: previewFrame }}
                       >
                         <div className="h-6 w-6 rounded-md bg-white/20 text-white flex items-center justify-center shadow-2xs">
                           <LayoutDashboard className="h-3.5 w-3.5" />
@@ -639,7 +651,7 @@ export default function SettingsClient({
                         {/* 2. Contextual Sidebar (Arrondi au coin supérieur gauche contre TopBar & Rail) */}
                         <div
                           className="w-36 sm:w-44 h-full flex flex-col p-2 space-y-1.5 border-r border-slate-200/80 transition-colors duration-200 select-none shrink-0 sm:rounded-tl-2xl"
-                          style={{ backgroundColor: `color-mix(in srgb, ${activePreviewColor} 7%, #F8FAFC)` }}
+                          style={{ backgroundColor: previewSidebar }}
                         >
                           <div className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500 px-1.5 pt-0.5">
                             Scolarité
@@ -647,7 +659,7 @@ export default function SettingsClient({
                           <div className="space-y-0.5 text-xs">
                             <div
                               className="flex items-center gap-2 px-2 py-1 rounded-md bg-white text-slate-900 font-semibold shadow-2xs border-l-2"
-                              style={{ borderLeftColor: activePreviewColor }}
+                              style={{ borderLeftColor: previewAccent }}
                             >
                               <span className="truncate text-[11px]">Tableau de bord</span>
                             </div>
@@ -713,7 +725,7 @@ export default function SettingsClient({
               <span className="text-[11px] font-medium text-text-muted mr-1 flex items-center gap-1">
                 <Palette className="w-3 h-3" /> Palettes :
               </span>
-              {(["Tous", "Classiques", "Nature & Frais", "Chauds & Solaires", "Distinction & Prune"] as const).map((cat) => {
+              {(["Tous", "Aurora", "Classiques", "Nature & Frais", "Chauds & Solaires", "Distinction & Prune"] as const).map((cat) => {
                 const isActive = selectedColorCategory === cat;
                 return (
                   <button
