@@ -47,6 +47,9 @@
 >    - **Suppression du menu avatar dans la TopBar** (`AppTopBar.tsx`) : la barre supérieure est allégée, la recherche globale `GlobalSearch` est équilibrée et tout doublon est éliminé.
 >    - **Conservation exclusive en pied de Rail gauche** : le profil utilisateur (avatar avec téléversement photo en direct, nom, rôle, densité, déconnexion) réside exclusivement dans le rail de gauche.
 >    - **Sécurisation du rendu d'image avatar** : ajout du gestionnaire d'erreur `onError` pour basculer instantanément sur les initiales sans afficher d'icône d'image brisée.
+> 13. Remplacement des Boutons de Densité par le Stepper (- 100% +) :
+>    - **Contrôle pas-à-pas minimaliste** : remplacement des 3 boutons texte "Compact / Normal / Confort" par un stepper `[-]` `100%` `[+]` intégré dans la fiche profil du Rail.
+>    - **Ergonomie directe** : clic sur `[-]` pour 90% (compact), clic sur `[+]` pour 110% (confort), clic sur la valeur centrale pour réinitialiser instantanément à 100% (normal).
 >    - **Validation intégrale** : `npx tsc --noEmit` (0 erreur).
 
 ## 🏷️ Point de Sauvegarde & Rollback : `v15-topbar-unifiee`

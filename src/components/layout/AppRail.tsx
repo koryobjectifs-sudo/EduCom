@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
-import { LayoutDashboard, Globe, Shield, LogOut, ChevronUp, Camera, UploadCloud, Trash2, Loader2 } from "lucide-react";
+import { LayoutDashboard, Globe, Shield, LogOut, ChevronUp, Camera, UploadCloud, Trash2, Loader2, Minus, Plus } from "lucide-react";
 import { type NavSpace } from "@/lib/navigation";
 import { getNavIcon } from "./nav-icons";
 import { changeTestRole, updateUserAvatar } from "@/app/dashboard/actions";
@@ -427,30 +427,48 @@ export default function AppRail({
                 </div>
               </div>
 
-              {/* Densité d'affichage */}
-              <div className="border-b border-rule px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-text-faint mb-1.5">
-                  Densité d'affichage
-                </p>
-                <div className="grid grid-cols-3 gap-1">
-                  {[
-                    { id: "compact", label: "Compact" },
-                    { id: "normal", label: "Normal" },
-                    { id: "comfort", label: "Confort" },
-                  ].map((d) => (
-                    <button
-                      key={d.id}
-                      type="button"
-                      onClick={() => handleSetDensity(d.id)}
-                      className={`rounded-control py-1 text-center text-[10.5px] transition-colors ${
-                        density === d.id
-                          ? "bg-primary/10 font-bold text-primary border border-primary/20"
-                          : "hover:bg-sunk text-text-soft"
-                      }`}
-                    >
-                      {d.label}
-                    </button>
-                  ))}
+              {/* Zoom d'affichage (- 100% +) */}
+              <div className="border-b border-rule px-3.5 py-2.5 flex items-center justify-between">
+                <span className="text-[11px] font-medium text-text-muted">
+                  Zoom
+                </span>
+                <div className="inline-flex items-center rounded-lg border border-rule bg-sunk/70 p-0.5 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (density === "comfort") handleSetDensity("normal");
+                      else if (density === "normal") handleSetDensity("compact");
+                    }}
+                    disabled={density === "compact"}
+                    title="Réduire"
+                    aria-label="Réduire"
+                    className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-surface hover:shadow-xs disabled:opacity-25 disabled:pointer-events-none text-text transition-all font-bold text-xs"
+                  >
+                    <Minus className="h-3 w-3" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSetDensity("normal")}
+                    title="Réinitialiser à 100%"
+                    className="px-2.5 text-xs font-bold text-text hover:text-primary transition-colors min-w-[46px] text-center select-none"
+                  >
+                    {density === "compact" ? "90%" : density === "comfort" ? "110%" : "100%"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (density === "compact") handleSetDensity("normal");
+                      else if (density === "normal") handleSetDensity("comfort");
+                    }}
+                    disabled={density === "comfort"}
+                    title="Agrandir"
+                    aria-label="Agrandir"
+                    className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-surface hover:shadow-xs disabled:opacity-25 disabled:pointer-events-none text-text transition-all font-bold text-xs"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
                 </div>
               </div>
 
