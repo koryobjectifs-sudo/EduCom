@@ -16,6 +16,7 @@ export interface AppTopBarProps {
   schoolLogo?: string | null;
   userRole?: string;
   userName?: string;
+  userAvatar?: string | null;
   activeSpace?: NavSpace;
 }
 
@@ -24,6 +25,7 @@ export default function AppTopBar({
   schoolLogo,
   userRole = "OWNER",
   userName,
+  userAvatar,
   activeSpace,
 }: AppTopBarProps) {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -149,12 +151,20 @@ export default function AppTopBar({
               title={displayName}
               className="flex h-7.5 items-center gap-1.5 rounded-control p-1 transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
             >
-              <div
-                aria-hidden="true"
-                className="flex h-6.5 w-6.5 items-center justify-center rounded-full bg-white/20 text-[11px] font-bold text-white shadow-2xs border border-white/20"
-              >
-                {initials || "U"}
-              </div>
+              {userAvatar ? (
+                <img
+                  src={userAvatar}
+                  alt={displayName}
+                  className="h-6.5 w-6.5 rounded-full object-cover shadow-2xs border border-white/30 shrink-0"
+                />
+              ) : (
+                <div
+                  aria-hidden="true"
+                  className="flex h-6.5 w-6.5 items-center justify-center rounded-full bg-white/20 text-[11px] font-bold text-white shadow-2xs border border-white/20 shrink-0"
+                >
+                  {initials || "U"}
+                </div>
+              )}
               <ChevronDown
                 aria-hidden="true"
                 className={`h-3 w-3 text-white/60 transition-transform hidden sm:inline ${

@@ -615,9 +615,9 @@ export default function SettingsClient({
 
                     {/* Corps : Rail + Espace de travail (Sidebar Contextuelle arrondie + Canvas) */}
                     <div className="flex flex-1 overflow-hidden">
-                      {/* 1. AppRail */}
+                      {/* 1. AppRail (68px) */}
                       <div
-                        className="w-10 sm:w-11 h-full flex flex-col items-center py-2 gap-2 text-white/70 transition-colors duration-200 select-none shrink-0"
+                        className="w-12 sm:w-14 h-full flex flex-col items-center py-2 gap-2 text-white/70 transition-colors duration-200 select-none shrink-0"
                         style={{ backgroundColor: activePreviewColor }}
                       >
                         <div className="h-6 w-6 rounded-md bg-white/20 text-white flex items-center justify-center shadow-2xs">

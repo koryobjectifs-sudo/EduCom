@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
-import { LayoutDashboard, Globe, Shield, LogOut, ChevronUp } from "lucide-react";
+import { LayoutDashboard, Globe, Shield, LogOut, ChevronUp, Camera, UploadCloud, Trash2, Loader2 } from "lucide-react";
 import { type NavSpace } from "@/lib/navigation";
 import { getNavIcon } from "./nav-icons";
-import { changeTestRole } from "@/app/dashboard/actions";
+import { changeTestRole, updateUserAvatar } from "@/app/dashboard/actions";
+import { toast } from "sonner";
 
 export interface AppRailProps {
   spaces: NavSpace[];
@@ -14,6 +15,7 @@ export interface AppRailProps {
   activeSpaceId?: string | null;
   userRole?: string;
   userName?: string;
+  userAvatar?: string | null;
 }
 
 const ALL_TEST_ROLES = ["OWNER", "ADMIN", "SECRETARY", "ACCOUNTANT", "TEACHER", "ASSISTANT", "PARENT"];
@@ -25,6 +27,7 @@ export default function AppRail({
   activeSpaceId,
   userRole = "OWNER",
   userName,
+  userAvatar,
 }: AppRailProps) {
   const initial = schoolName?.trim() ? schoolName.trim().charAt(0).toUpperCase() : "E";
   const isDashboardActive = !activeSpaceId;
@@ -32,6 +35,14 @@ export default function AppRail({
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [density, setDensity] = useState<string>("normal");
+  const [currentAvatar, setCurrentAvatar] = useState<string | null>(userAvatar || null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  useEffect(() => {
+    if (userAvatar !== undefined) {
+      setCurrentAvatar(userAvatar);
+    }
+  }, [userAvatar]);
 
   const roleRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -68,11 +79,77 @@ export default function AppRail({
     .join("");
   const roleLabel = userRole.charAt(0) + userRole.slice(1).toLowerCase();
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 3 * 1024 * 1024) {
+      toast.error("La photo dépasse 2 Mo.");
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = async () => {
+          const canvas = document.createElement("canvas");
+          const maxDim = 320;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, width, height);
+          const base64 = canvas.toDataURL("image/jpeg", 0.88);
+
+          setCurrentAvatar(base64);
+          const res = await updateUserAvatar(base64);
+          setIsUploadingAvatar(false);
+          if (res.success) {
+            toast.success("Photo de profil mise à jour et liée à l'organigramme !");
+          } else {
+            toast.error(res.error || "Erreur lors de la mise à jour.");
+          }
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setIsUploadingAvatar(false);
+      toast.error("Erreur lors de la lecture du fichier.");
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    setIsUploadingAvatar(true);
+    setCurrentAvatar(null);
+    const res = await updateUserAvatar(null);
+    setIsUploadingAvatar(false);
+    if (res.success) {
+      toast.success("Photo de profil retirée.");
+    } else {
+      toast.error(res.error || "Erreur.");
+    }
+  };
+
   return (
     <aside
       aria-label="Espaces de travail"
       style={{ backgroundColor: "var(--color-rail-bg, #0E2541)" }}
-      className="hidden w-[54px] shrink-0 flex-col items-center justify-between py-2 text-white md:flex print:hidden select-none z-30 transition-colors duration-200"
+      className="hidden w-[68px] shrink-0 flex-col items-center justify-between py-2 text-white md:flex print:hidden select-none z-30 transition-colors duration-200"
     >
       {/* Haut : Identité & Logo Établissement + Navigation */}
       <div className="flex flex-col items-center gap-2 w-full">
@@ -80,7 +157,7 @@ export default function AppRail({
         <div
           title={schoolName}
           aria-label={schoolName}
-          className="relative flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-control bg-white p-0.5 shadow-2xs select-none"
+          className="relative flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-control bg-white p-0.5 shadow-2xs select-none"
         >
           {schoolLogo ? (
             <img
@@ -100,17 +177,17 @@ export default function AppRail({
         </div>
 
         {/* Séparateur discret */}
-        <div className="h-[1px] w-6 bg-white/15" aria-hidden="true" />
+        <div className="h-[1px] w-8 bg-white/15" aria-hidden="true" />
 
         {/* Navigation : Tableau de bord en première position + Espaces métier */}
-        <nav aria-label="Espaces de travail" className="flex flex-col items-center gap-0.5 w-full px-0.5">
+        <nav aria-label="Espaces de travail" className="flex flex-col items-center gap-0.5 w-full px-1">
           {/* 1. Tuile permanente Tableau de bord */}
           <Link
             href="/dashboard"
             aria-current={isDashboardActive ? "page" : undefined}
             title="Tableau de bord"
             className={[
-              "relative group flex w-full min-h-[40px] flex-col items-center justify-center rounded-control py-1 px-0.5 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+              "relative group flex w-full min-h-[44px] flex-col items-center justify-center rounded-control py-1 px-1 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
               isDashboardActive
                 ? "bg-white/20 text-white shadow-sm"
                 : "text-white/70 hover:bg-white/10 hover:text-white",
@@ -126,14 +203,14 @@ export default function AppRail({
 
             <LayoutDashboard
               aria-hidden="true"
-              className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-105 ${
+              className={`h-4.5 w-4.5 shrink-0 transition-transform group-hover:scale-105 ${
                 isDashboardActive ? "text-white" : "text-white/70 group-hover:text-white"
               }`}
               strokeWidth={isDashboardActive ? 2.2 : 1.8}
             />
 
             <span
-              className={`mt-0.5 text-[10px] font-medium leading-none truncate max-w-[48px] text-center ${
+              className={`mt-0.5 text-[10.5px] font-medium leading-tight truncate max-w-[62px] text-center ${
                 isDashboardActive ? "text-white font-bold" : "text-white/70 group-hover:text-white"
               }`}
             >
@@ -142,7 +219,7 @@ export default function AppRail({
           </Link>
 
           {/* Filet séparateur entre Tableau de bord et les espaces métier */}
-          <div className="h-[1px] w-6 bg-white/15 my-0.5" aria-hidden="true" />
+          <div className="h-[1px] w-8 bg-white/15 my-0.5" aria-hidden="true" />
 
           {/* 2. Les 5 Espaces Métier */}
           {spaces.map((space) => {
@@ -156,7 +233,7 @@ export default function AppRail({
                 aria-current={isActive ? "page" : undefined}
                 title={space.fullLabel ?? space.label}
                 className={[
-                  "relative group flex w-full min-h-[40px] flex-col items-center justify-center rounded-control py-1 px-0.5 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+                  "relative group flex w-full min-h-[44px] flex-col items-center justify-center rounded-control py-1 px-1 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
                   isActive
                     ? "bg-white/20 text-white shadow-sm"
                     : "text-white/70 hover:bg-white/10 hover:text-white",
@@ -172,14 +249,14 @@ export default function AppRail({
 
                 <Icon
                   aria-hidden="true"
-                  className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-105 ${
+                  className={`h-4.5 w-4.5 shrink-0 transition-transform group-hover:scale-105 ${
                     isActive ? "text-white" : "text-white/70 group-hover:text-white"
                   }`}
                   strokeWidth={isActive ? 2.2 : 1.8}
                 />
 
                 <span
-                  className={`mt-0.5 text-[10px] font-medium leading-none truncate max-w-[48px] text-center ${
+                  className={`mt-0.5 text-[10.5px] font-medium leading-tight truncate max-w-[62px] text-center ${
                     isActive ? "text-white font-bold" : "text-white/70 group-hover:text-white"
                   }`}
                 >
@@ -200,7 +277,7 @@ export default function AppRail({
           rel="noopener noreferrer"
           title="Site public"
           aria-label="Site public"
-          className="flex h-7.5 w-7.5 items-center justify-center rounded-control text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+          className="flex h-8 w-8 items-center justify-center rounded-control text-white/70 hover:bg-white/10 hover:text-white transition-colors"
         >
           <Globe className="h-4 w-4" />
         </Link>
@@ -213,9 +290,9 @@ export default function AppRail({
               onClick={() => setRoleMenuOpen(!roleMenuOpen)}
               aria-expanded={roleMenuOpen}
               title={`Rôle test : ${roleLabel}`}
-              className="flex h-7.5 w-7.5 items-center justify-center rounded-control text-amber-300 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 transition-colors"
+              className="flex h-8 w-8 items-center justify-center rounded-control text-amber-300 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 transition-colors"
             >
-              <Shield className="h-3.5 w-3.5" />
+              <Shield className="h-4 w-4" />
             </button>
 
             {roleMenuOpen && (
@@ -257,27 +334,89 @@ export default function AppRail({
             aria-expanded={profileMenuOpen}
             title={displayName}
             aria-label={displayName}
-            className="flex h-7.5 w-7.5 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white font-bold text-[11px] transition-colors border border-white/20"
+            className="flex h-8.5 w-8.5 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 text-white font-bold text-xs transition-colors border border-white/20 overflow-hidden shadow-2xs shrink-0"
           >
-            {initials || "U"}
+            {currentAvatar ? (
+              <img src={currentAvatar} alt={displayName} className="h-full w-full object-cover" />
+            ) : (
+              initials || "U"
+            )}
           </button>
 
           {profileMenuOpen && (
             <div
               role="menu"
-              className="absolute bottom-0 left-full ml-2 w-56 overflow-hidden rounded-surface border border-rule bg-surface p-1 shadow-overlay z-50 text-slate-800 animate-in fade-in zoom-in-95"
+              className="absolute bottom-0 left-full ml-2 w-64 overflow-hidden rounded-2xl border border-rule bg-surface shadow-overlay z-50 text-slate-800 animate-in fade-in zoom-in-95"
             >
-              <div className="border-b border-rule px-3 py-2">
-                <p className="truncate text-xs font-semibold text-text">{displayName}</p>
-                <p className="text-[10px] text-text-faint">{roleLabel}</p>
+              {/* En-tête profil interactif avec upload photo */}
+              <div className="border-b border-rule p-3 bg-secondary/15">
+                <div className="flex items-center gap-3">
+                  <div className="relative group/avatar shrink-0">
+                    <div className="h-12 w-12 rounded-full overflow-hidden border border-rule bg-surface flex items-center justify-center shadow-xs">
+                      {currentAvatar ? (
+                        <img src={currentAvatar} alt={displayName} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="text-sm font-bold text-text">{initials || "U"}</span>
+                      )}
+                    </div>
+                    {/* Overlay photo survol */}
+                    <label
+                      title="Modifier la photo"
+                      className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer"
+                    >
+                      <Camera className="h-4 w-4" />
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="sr-only"
+                        disabled={isUploadingAvatar}
+                        onChange={handleAvatarUpload}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-bold text-text leading-tight">{displayName}</p>
+                    <p className="text-[10.5px] text-text-muted mt-0.5">{roleLabel}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <label className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline cursor-pointer font-medium">
+                        {isUploadingAvatar ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <UploadCloud className="h-3 w-3" />
+                        )}
+                        <span>{isUploadingAvatar ? "Envoi..." : currentAvatar ? "Changer photo" : "Ajouter photo"}</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="sr-only"
+                          disabled={isUploadingAvatar}
+                          onChange={handleAvatarUpload}
+                        />
+                      </label>
+
+                      {currentAvatar && (
+                        <button
+                          type="button"
+                          onClick={handleRemoveAvatar}
+                          disabled={isUploadingAvatar}
+                          className="text-[11px] text-danger hover:underline"
+                          title="Supprimer la photo"
+                        >
+                          Retirer
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Densité d'affichage */}
-              <div className="border-b border-rule px-2 py-1.5">
-                <p className="px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-                  Affichage
+              <div className="border-b border-rule px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-text-faint mb-1.5">
+                  Densité d'affichage
                 </p>
-                <div className="grid grid-cols-3 gap-1 pt-1">
+                <div className="grid grid-cols-3 gap-1">
                   {[
                     { id: "compact", label: "Compact" },
                     { id: "normal", label: "Normal" },
@@ -300,7 +439,7 @@ export default function AppRail({
               </div>
 
               {/* Déconnexion */}
-              <div className="p-1">
+              <div className="p-1.5">
                 <form action="/auth/signout" method="post">
                   <button
                     type="submit"

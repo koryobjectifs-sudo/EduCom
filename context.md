@@ -33,6 +33,12 @@
 >    - Déplacement de `md:rounded-tl-2xl` sur le conteneur de l'espace de travail et la Sidebar contextuelle (intersection Rail + TopBar).
 >    - Éradication de l'encoche rouge entre la Sidebar et le canevas principal : le canevas principal affleure de façon nette et continue contre la sidebar.
 >    - Retrait des bordures séparatrices dures de `AppTopBar` et `AppRail` pour garantir la continuité parfaite du cadre unifié autour de l'arrondi.
+> 10. Élargissement du Rail (68px), Photo de Profil & Synchronisation Organigramme :
+>    - **Élargissement du Rail** : passage de 54px à 68px (`--width-rail: 68px`) pour éliminer toute troncature ("Documents" s'affiche désormais en entier), aérer les tuiles et espacer les contrôles de pied de rail.
+>    - **Modèle User enrichi** : ajout de `avatar String?` dans Prisma et synchronisation base avec `prisma db push`.
+>    - **Téléversement de photo** : intégré dans le popover de profil du Rail avec compression automatique 320x320 et action serveur `updateUserAvatar`.
+>    - **Liaison temps réel Organigramme** : affichage immédiat de la photo sur les nœuds de l'arbre d'équipe (`/dashboard/team/OrgChartClient.tsx`) et dans la modale de modification des accès.
+>    - **Validation intégrale** : `npx tsc --noEmit` (0 erreur), 43/43 tests de sécurité validés.
 
 ## 🏷️ Point de Sauvegarde & Rollback : `v15-topbar-unifiee`
 

@@ -13,6 +13,7 @@ export interface AppShellProps {
   schoolLogo?: string | null;
   userRole?: string;
   userName?: string;
+  userAvatar?: string | null;
   emailVerified?: boolean;
   children: React.ReactNode;
 }
@@ -24,6 +25,7 @@ export default function AppShell({
   schoolLogo,
   userRole = "OWNER",
   userName,
+  userAvatar,
   emailVerified = false,
   children,
 }: AppShellProps) {
@@ -36,7 +38,7 @@ export default function AppShell({
       style={{ backgroundColor: "var(--color-frame-bg, #0E2541)" }}
       className="flex h-screen w-full overflow-hidden print:bg-white print:h-auto print:overflow-visible transition-colors duration-200"
     >
-      {/* 1. Rail Principal Fixe (54px) */}
+      {/* 1. Rail Principal Fixe (68px) */}
       <AppRail
         spaces={spaces}
         schoolName={schoolName}
@@ -44,6 +46,7 @@ export default function AppShell({
         activeSpaceId={activeSpaceId}
         userRole={userRole}
         userName={userName}
+        userAvatar={userAvatar}
       />
 
       {/* 2. Zone Droite Complète (TopBar Unique Pleine Largeur + Sous-espace Sidebar & Contenu) */}
@@ -54,6 +57,7 @@ export default function AppShell({
           schoolLogo={schoolLogo}
           userRole={userRole}
           userName={userName}
+          userAvatar={userAvatar}
           activeSpace={activeSpace ?? undefined}
         />
 

@@ -15,6 +15,7 @@ interface User {
   role: string;
   managerId: string | null;
   email?: string;
+  avatar?: string | null;
 }
 
 const ASSIGNABLE: RoleType[] = ["TEACHER", "SECRETARY", "ACCOUNTANT", "ASSISTANT", "ADMIN"];
@@ -83,9 +84,17 @@ export default function OrgChartClient({
             
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ground border border-rule text-xs font-semibold text-text shadow-sm">
-                  {initials}
-                </span>
+                {node.avatar ? (
+                  <img
+                    src={node.avatar}
+                    alt={`${node.firstName} ${node.lastName}`}
+                    className="h-9 w-9 shrink-0 rounded-full object-cover border border-rule shadow-sm"
+                  />
+                ) : (
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ground border border-rule text-xs font-semibold text-text shadow-sm">
+                    {initials}
+                  </span>
+                )}
                 <div className="min-w-0">
                   <p className="font-semibold text-text text-xs truncate leading-tight">{node.firstName} {node.lastName}</p>
                   <p className="text-[10px] text-text-soft truncate mt-0.5">{info?.description || roleLabel(node.role)}</p>
@@ -219,9 +228,22 @@ export default function OrgChartClient({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-2xl bg-surface shadow-2xl">
             <div className="flex items-center justify-between border-b border-rule px-6 py-4">
-              <div>
-                <h2 className="text-lg font-bold text-text">Modifier l'accès</h2>
-                <p className="text-sm text-text-soft">{editingNode.firstName} {editingNode.lastName}</p>
+              <div className="flex items-center gap-3">
+                {editingNode.avatar ? (
+                  <img
+                    src={editingNode.avatar}
+                    alt=""
+                    className="h-10 w-10 shrink-0 rounded-full object-cover border border-rule shadow-sm"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ground border border-rule text-sm font-bold text-text">
+                    {editingNode.firstName?.charAt(0)}{editingNode.lastName?.charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <h2 className="text-lg font-bold text-text">Modifier l'accès</h2>
+                  <p className="text-sm text-text-soft">{editingNode.firstName} {editingNode.lastName}</p>
+                </div>
               </div>
               <button 
                 onClick={() => setEditingNode(null)}

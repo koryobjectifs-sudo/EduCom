@@ -26,6 +26,7 @@ export default async function DashboardLayout({
   const userRole = dbUser.role || "PARENT";
   const primaryColor = school.primaryColor;
   const userName = [dbUser.firstName, dbUser.lastName].filter(Boolean).join(" ") || undefined;
+  const userAvatar = dbUser.avatar || null;
   const emailVerified = dbUser.emailVerified;
 
   // Lecture de la largeur de la sidebar côté serveur pour éliminer tout saut de layout
@@ -67,6 +68,7 @@ export default async function DashboardLayout({
         schoolLogo={schoolLogo}
         userRole={userRole}
         userName={userName}
+        userAvatar={userAvatar}
         emailVerified={emailVerified}
       >
         {children}
