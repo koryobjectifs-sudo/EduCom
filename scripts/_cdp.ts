@@ -31,6 +31,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 // ⚠️ Ouvre de vraies sessions authentifiées : même exigence que la base.
 import "./_env";
+import { createAdminClient } from "../src/lib/supabase/admin";
 
 export const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
@@ -175,6 +176,48 @@ export async function sessionCookies(email: string, password: string) {
   return [...jar].map(([name, value]) => ({ name, value }));
 }
 
+/**
+ * Ouvre une session pour un compte EXISTANT, sans son mot de passe.
+ *
+ * ⚠️ Différent de `sessionCookies()` : ici, aucun compte n'est créé ni
+ * modifié. On mine un jeton magic-link via l'API Admin (clé service role) —
+ * `generateLink` ne délivre l'e-mail à personne, il renvoie le jeton
+ * directement — puis on le vérifie comme le ferait Supabase au clic. Zéro
+ * écriture sur les données de l'établissement visé : seule la mécanique
+ * interne d'auth de Supabase est sollicitée, pour se connecter en lecture
+ * seule sous une identité RÉELLE (ex. le propriétaire d'un établissement de
+ * travail) sans jamais connaître ni changer son mot de passe.
+ */
+export async function sessionCookiesForExistingUser(email: string) {
+  const URL_ = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email });
+  const hashedToken = (data as unknown as { properties?: { hashed_token?: string } } | null)?.properties?.hashed_token;
+  if (error || !hashedToken) throw new Error(error?.message ?? "jeton magic-link non généré");
+
+  // ⚠️ `verifyOtp` refuse `email` + `token_hash` ensemble ("Only the
+  // token_hash and type should be provided") : c'est l'overload à 6 chiffres
+  // (`email` + `token`) qui accepte `email`, pas celui-ci. `email` n'est
+  // donc plus nécessaire dès lors qu'on vérifie par `token_hash`.
+  const anon = createClient(URL_, ANON, { auth: { persistSession: false } });
+  const { data: verified, error: vErr } = await anon.auth.verifyOtp({
+    token_hash: hashedToken,
+    type: "magiclink",
+  });
+  if (vErr || !verified.session) throw new Error(vErr?.message ?? "session absente");
+
+  const jar = new Map<string, string>();
+  const ssr = createServerClient(URL_, ANON, {
+    cookies: {
+      getAll: () => [...jar].map(([name, value]) => ({ name, value })),
+      setAll: (l) => { for (const c of l) jar.set(c.name, c.value); },
+    },
+  });
+  await ssr.auth.setSession({ access_token: verified.session.access_token, refresh_token: verified.session.refresh_token });
+  return [...jar].map(([name, value]) => ({ name, value }));
+}
+
 /* ═══════════════════ mesures du DOM peint ═══════════════════ */
 
 /**
@@ -281,3 +324,54 @@ export async function shot(cdp: CDP, session: string, dir: string, name: string)
 
 export const MOBILE = { width: 390, height: 844, label: "mobile 390 × 844" };
 export const DESKTOP = { width: 1440, height: 900, label: "bureau 1440 × 900" };
+
+/* ═══════════════════ capture PDF (rendu serveur / headless) ═══════════════════ */
+
+/**
+ * A4 en pouces (unité attendue par `Page.printToPDF`). `src/app/globals.css`
+ * fixe `@page { margin: 10mm; size: auto }` — `size: auto` renvoie au réglage
+ * du poste, donc pas de dimension fiable à en tirer. On fixe ici explicitement
+ * le format que l'app suppose déjà elle-même (voir les calculs `210mm`/`297mm`
+ * dans les générateurs) plutôt que de dépendre du réglage local de la machine
+ * qui exécute le script.
+ */
+const A4_IN = { width: 8.27, height: 11.69 };
+const MARGIN_10MM_IN = 0.3937;
+
+/**
+ * Imprime la page courante en PDF via le moteur d'impression natif de
+ * Chromium (celui-là même que `window.print()` invoque) — pas de
+ * bibliothèque PDF, aucune brique de fidélité ajoutée. Sert à PHOTOGRAPHIER
+ * un document existant, pas à en produire un nouveau.
+ *
+ * ⚠️ `Page.printToPDF` émule nativement le média `print` : les règles
+ * `@media print` (dont les `print:hidden` Tailwind) s'appliquent comme au
+ * clic utilisateur sur Imprimer, sans configuration supplémentaire.
+ */
+export async function printPDF(
+  cdp: CDP,
+  session: string,
+  dir: string,
+  name: string,
+  opts: { landscape?: boolean } = {},
+): Promise<string> {
+  const { landscape = false } = opts;
+  const r = await cdp.send<{ data: string }>(
+    "Page.printToPDF",
+    {
+      printBackground: true,
+      landscape,
+      paperWidth: A4_IN.width,
+      paperHeight: A4_IN.height,
+      marginTop: MARGIN_10MM_IN,
+      marginBottom: MARGIN_10MM_IN,
+      marginLeft: MARGIN_10MM_IN,
+      marginRight: MARGIN_10MM_IN,
+      preferCSSPageSize: false,
+    },
+    session,
+  );
+  const file = join(dir, `${name}.pdf`);
+  writeFileSync(file, Buffer.from(r.data, "base64"));
+  return file;
+}

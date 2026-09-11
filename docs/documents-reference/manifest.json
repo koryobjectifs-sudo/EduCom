@@ -1,0 +1,59 @@
+{
+  "tag": "v17-documents-baseline",
+  "school": "SENG.CO ACADEMY",
+  "schoolId": "38fd0ddf-04ee-4984-94d3-da1bea9dac92",
+  "capturedWith": "koryobjectifs@gmail.com",
+  "generatedAt": "2026-09-11T16:32:03.941Z",
+  "items": [
+    {
+      "slug": "certificat-de-scolarite",
+      "title": "Certificat de scolarité",
+      "url": "http://localhost:3000/dashboard/documents/certificate?studentId=77db3d22-0fb3-4f16-a6b7-28df55cce015",
+      "note": "Élève : premier par ordre alphabétique sur SENG.CO ACADEMY.",
+      "capturedAt": "2026-09-11T16:31:16.287Z"
+    },
+    {
+      "slug": "fiche-de-renseignements",
+      "title": "Fiche de renseignements",
+      "url": "http://localhost:3000/dashboard/documents/info-sheet?studentId=77db3d22-0fb3-4f16-a6b7-28df55cce015",
+      "note": "Élève : premier par ordre alphabétique sur SENG.CO ACADEMY.",
+      "capturedAt": "2026-09-11T16:31:32.162Z"
+    },
+    {
+      "slug": "facture",
+      "title": "Facture",
+      "url": "http://localhost:3000/dashboard/payments/invoice?studentId=71fdad19-2536-4bdd-b499-193f93b59c31",
+      "note": "⚠️ Ce générateur compose un brouillon (numéro et lignes par défaut, stockage `localStorage`) — il ne lit pas un `Invoice` déjà émis. Détail dans l'audit phase 1.",
+      "capturedAt": "2026-09-11T16:31:41.646Z"
+    },
+    {
+      "slug": "recu-de-paiement",
+      "title": "Reçu de paiement",
+      "url": "http://localhost:3000/dashboard/payments/receipt?studentId=71fdad19-2536-4bdd-b499-193f93b59c31",
+      "note": "⚠️ Même limite que la facture : composeur de brouillon, pas une vue d'un `Payment` réel.",
+      "capturedAt": "2026-09-11T16:31:49.421Z"
+    },
+    {
+      "slug": "bulletin-de-notes",
+      "title": "Bulletin de notes",
+      "url": "http://localhost:3000/dashboard/grades/report-card?studentId=9664175e-2dab-4c91-910f-58bfc6139b4d&embed=1",
+      "note": "Élève avec le plus de notes enregistrées sur SENG.CO ACADEMY — le cas le plus chargé, comme demandé.",
+      "capturedAt": "2026-09-11T16:31:58.410Z"
+    },
+    {
+      "slug": "emploi-du-temps",
+      "title": "Emploi du temps",
+      "url": "http://localhost:3000/dashboard/documents/timetable",
+      "note": "Classe sélectionnée en pilotant le menu déroulant : cet écran n'accepte aucun paramètre d'URL.",
+      "capturedAt": "2026-09-11T16:32:03.941Z"
+    }
+  ],
+  "skipped": [
+    {
+      "slug": "lettre-de-relance",
+      "title": "Lettre de relance",
+      "reason": "0 facture en retard au moment de la capture. Baseline sur écran vide jugée inutile à la comparaison (décision Kory, phase 0). Aucune facture fabriquée pour combler le trou.",
+      "todo": "Relancer scripts/generate-documents-baseline.ts dès qu'une vraie facture OVERDUE existera sur SENG.CO ACADEMY."
+    }
+  ]
+}
