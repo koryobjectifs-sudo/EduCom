@@ -83,8 +83,9 @@ export default function AppRail({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 3 * 1024 * 1024) {
-      toast.error("La photo dépasse 2 Mo.");
+    // Plage élargie jusqu'à 10 Mo pour photos haute résolution
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("La photo dépasse 10 Mo. Veuillez choisir une image plus légère.");
       return;
     }
 
@@ -95,7 +96,8 @@ export default function AppRail({
         const img = new Image();
         img.onload = async () => {
           const canvas = document.createElement("canvas");
-          const maxDim = 320;
+          // Plage de résolution élargie à 640px pour une netteté parfaite
+          const maxDim = 640;
           let width = img.width;
           let height = img.height;
           if (width > height) {
@@ -113,7 +115,7 @@ export default function AppRail({
           canvas.height = height;
           const ctx = canvas.getContext("2d");
           ctx?.drawImage(img, 0, 0, width, height);
-          const base64 = canvas.toDataURL("image/jpeg", 0.88);
+          const base64 = canvas.toDataURL("image/jpeg", 0.90);
 
           setCurrentAvatar(base64);
           const res = await updateUserAvatar(base64);
@@ -334,7 +336,7 @@ export default function AppRail({
             aria-expanded={profileMenuOpen}
             title={displayName}
             aria-label={displayName}
-            className="flex h-8.5 w-8.5 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 text-white font-bold text-xs transition-colors border border-white/20 overflow-hidden shadow-2xs shrink-0"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 text-white font-bold text-xs transition-colors border border-white/25 overflow-hidden shadow-2xs shrink-0 ring-2 ring-white/10 hover:ring-white/30"
           >
             {currentAvatar ? (
               <img src={currentAvatar} alt={displayName} className="h-full w-full object-cover" />
@@ -346,28 +348,28 @@ export default function AppRail({
           {profileMenuOpen && (
             <div
               role="menu"
-              className="absolute bottom-0 left-full ml-2 w-64 overflow-hidden rounded-2xl border border-rule bg-surface shadow-overlay z-50 text-slate-800 animate-in fade-in zoom-in-95"
+              className="absolute bottom-0 left-full ml-2.5 w-72 overflow-hidden rounded-2xl border border-rule bg-surface shadow-overlay z-50 text-slate-800 animate-in fade-in zoom-in-95"
             >
               {/* En-tête profil interactif avec upload photo */}
-              <div className="border-b border-rule p-3 bg-secondary/15">
-                <div className="flex items-center gap-3">
+              <div className="border-b border-rule p-3.5 bg-secondary/15">
+                <div className="flex items-center gap-3.5">
                   <div className="relative group/avatar shrink-0">
-                    <div className="h-12 w-12 rounded-full overflow-hidden border border-rule bg-surface flex items-center justify-center shadow-xs">
+                    <div className="h-14 w-14 rounded-2xl overflow-hidden border-2 border-surface bg-surface shadow-md flex items-center justify-center">
                       {currentAvatar ? (
                         <img src={currentAvatar} alt={displayName} className="h-full w-full object-cover" />
                       ) : (
-                        <span className="text-sm font-bold text-text">{initials || "U"}</span>
+                        <span className="text-base font-bold text-text">{initials || "U"}</span>
                       )}
                     </div>
                     {/* Overlay photo survol */}
                     <label
                       title="Modifier la photo"
-                      className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer"
+                      className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/55 text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer"
                     >
-                      <Camera className="h-4 w-4" />
+                      <Camera className="h-5 w-5 drop-shadow" />
                       <input
                         type="file"
-                        accept="image/png,image/jpeg,image/webp"
+                        accept="image/*"
                         className="sr-only"
                         disabled={isUploadingAvatar}
                         onChange={handleAvatarUpload}
@@ -378,17 +380,17 @@ export default function AppRail({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-bold text-text leading-tight">{displayName}</p>
                     <p className="text-[10.5px] text-text-muted mt-0.5">{roleLabel}</p>
-                    <div className="flex items-center gap-2 mt-1.5">
+                    <div className="flex items-center gap-2.5 mt-2">
                       <label className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline cursor-pointer font-medium">
                         {isUploadingAvatar ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
                         ) : (
-                          <UploadCloud className="h-3 w-3" />
+                          <UploadCloud className="h-3.5 w-3.5" />
                         )}
-                        <span>{isUploadingAvatar ? "Envoi..." : currentAvatar ? "Changer photo" : "Ajouter photo"}</span>
+                        <span>{isUploadingAvatar ? "Envoi..." : currentAvatar ? "Changer" : "Ajouter"}</span>
                         <input
                           type="file"
-                          accept="image/png,image/jpeg,image/webp"
+                          accept="image/*"
                           className="sr-only"
                           disabled={isUploadingAvatar}
                           onChange={handleAvatarUpload}

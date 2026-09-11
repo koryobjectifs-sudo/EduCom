@@ -36,8 +36,13 @@
 > 10. Élargissement du Rail (68px), Photo de Profil & Synchronisation Organigramme :
 >    - **Élargissement du Rail** : passage de 54px à 68px (`--width-rail: 68px`) pour éliminer toute troncature ("Documents" s'affiche désormais en entier), aérer les tuiles et espacer les contrôles de pied de rail.
 >    - **Modèle User enrichi** : ajout de `avatar String?` dans Prisma et synchronisation base avec `prisma db push`.
->    - **Téléversement de photo** : intégré dans le popover de profil du Rail avec compression automatique 320x320 et action serveur `updateUserAvatar`.
+>    - **Téléversement de photo** : intégré dans le popover de profil du Rail avec compression automatique et action serveur `updateUserAvatar`.
 >    - **Liaison temps réel Organigramme** : affichage immédiat de la photo sur les nœuds de l'arbre d'équipe (`/dashboard/team/OrgChartClient.tsx`) et dans la modale de modification des accès.
+> 11. Élargissement Plage Photo HD & Résolution Cache Prisma Dev Server :
+>    - **Plage de photo élargie** : support des fichiers volumineux jusqu'à 10 Mo, sélection universelle `accept="image/*"`, échantillonnage haute résolution à 640px à 90% de qualité JPEG, et tolérance serveur jusqu'à 8 Mo base64.
+>    - **Aperçu visuel magnifié** : bouton avatar élargi à `h-10 w-10` avec anneau subtil dans le Rail, avatar agrandi à `h-14 w-14` avec bordure et icône caméra survol dans la carte profil.
+>    - **Résolution du cache Prisma en mémoire** : correction de l'erreur `PrismaClientValidationError: Unknown argument avatar` causée par le cache persistant de l'instance dev server (`globalForPrisma.prisma`) via redémarrage du processus dev après génération du client.
+>    - **Repositionnement indicateur dev Next.js** : configuration de `devIndicators: { position: "bottom-right" }` dans `next.config.ts` pour dégager l'avatar et le menu profil du pied de Rail.
 >    - **Validation intégrale** : `npx tsc --noEmit` (0 erreur), 43/43 tests de sécurité validés.
 
 ## 🏷️ Point de Sauvegarde & Rollback : `v15-topbar-unifiee`

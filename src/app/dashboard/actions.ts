@@ -69,20 +69,25 @@ export async function updateUserAvatar(avatar: string | null) {
     return { success: false, error: "Format d'image non supporté." };
   }
 
-  // Sécurité taille (max 3 Mo pour un avatar profil)
-  if (avatar.length > 3 * 1024 * 1024) {
-    return { success: false, error: "La photo est trop lourde (maximum 2 Mo)." };
+  // Plage de taille élargie (jusqu'à 8 Mo base64)
+  if (avatar.length > 8 * 1024 * 1024) {
+    return { success: false, error: "La photo est trop volumineuse (maximum 6 Mo)." };
   }
 
-  await prisma.user.update({
-    where: { id: targetUserId },
-    data: { avatar },
-  });
+  try {
+    await prisma.user.update({
+      where: { id: targetUserId },
+      data: { avatar },
+    });
 
-  const { revalidatePath } = await import("next/cache");
-  revalidatePath("/", "layout");
-  revalidatePath("/dashboard", "layout");
-  revalidatePath("/dashboard/team");
+    const { revalidatePath } = await import("next/cache");
+    revalidatePath("/", "layout");
+    revalidatePath("/dashboard", "layout");
+    revalidatePath("/dashboard/team");
 
-  return { success: true, avatar };
+    return { success: true, avatar };
+  } catch (err: any) {
+    console.error("Failed to update user avatar:", err);
+    return { success: false, error: err?.message || "Échec de l'enregistrement de la photo de profil." };
+  }
 }

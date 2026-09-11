@@ -85,6 +85,9 @@ const originesDevAutorisees = (process.env.DEV_ALLOWED_ORIGINS ?? "")
 
 const nextConfig: NextConfig = {
   distDir: surVercel ? ".next" : process.env.NEXT_DIST_DIR || ".next",
+  devIndicators: {
+    position: "bottom-right",
+  },
   ...(originesDevAutorisees.length > 0 ? { allowedDevOrigins: originesDevAutorisees } : {}),
   /**
    * ⚠️ Second garde-fou, distinct du précédent. Un Server Action compare
