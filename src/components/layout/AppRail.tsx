@@ -36,11 +36,13 @@ export default function AppRail({
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [density, setDensity] = useState<string>("normal");
   const [currentAvatar, setCurrentAvatar] = useState<string | null>(userAvatar || null);
+  const [imageError, setImageError] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   useEffect(() => {
     if (userAvatar !== undefined) {
       setCurrentAvatar(userAvatar);
+      setImageError(false);
     }
   }, [userAvatar]);
 
@@ -118,6 +120,7 @@ export default function AppRail({
           const base64 = canvas.toDataURL("image/jpeg", 0.90);
 
           setCurrentAvatar(base64);
+          setImageError(false);
           const res = await updateUserAvatar(base64);
           setIsUploadingAvatar(false);
           if (res.success) {
@@ -138,6 +141,7 @@ export default function AppRail({
   const handleRemoveAvatar = async () => {
     setIsUploadingAvatar(true);
     setCurrentAvatar(null);
+    setImageError(false);
     const res = await updateUserAvatar(null);
     setIsUploadingAvatar(false);
     if (res.success) {
@@ -338,8 +342,13 @@ export default function AppRail({
             aria-label={displayName}
             className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 text-white font-bold text-xs transition-colors border border-white/25 overflow-hidden shadow-2xs shrink-0 ring-2 ring-white/10 hover:ring-white/30"
           >
-            {currentAvatar ? (
-              <img src={currentAvatar} alt={displayName} className="h-full w-full object-cover" />
+            {currentAvatar && !imageError ? (
+              <img
+                src={currentAvatar}
+                alt=""
+                onError={() => setImageError(true)}
+                className="h-full w-full object-cover"
+              />
             ) : (
               initials || "U"
             )}
@@ -355,8 +364,13 @@ export default function AppRail({
                 <div className="flex items-center gap-3.5">
                   <div className="relative group/avatar shrink-0">
                     <div className="h-14 w-14 rounded-2xl overflow-hidden border-2 border-surface bg-surface shadow-md flex items-center justify-center">
-                      {currentAvatar ? (
-                        <img src={currentAvatar} alt={displayName} className="h-full w-full object-cover" />
+                      {currentAvatar && !imageError ? (
+                        <img
+                          src={currentAvatar}
+                          alt=""
+                          onError={() => setImageError(true)}
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
                         <span className="text-base font-bold text-text">{initials || "U"}</span>
                       )}

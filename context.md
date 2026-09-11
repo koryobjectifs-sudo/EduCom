@@ -43,7 +43,11 @@
 >    - **Aperçu visuel magnifié** : bouton avatar élargi à `h-10 w-10` avec anneau subtil dans le Rail, avatar agrandi à `h-14 w-14` avec bordure et icône caméra survol dans la carte profil.
 >    - **Résolution du cache Prisma en mémoire** : correction de l'erreur `PrismaClientValidationError: Unknown argument avatar` causée par le cache persistant de l'instance dev server (`globalForPrisma.prisma`) via redémarrage du processus dev après génération du client.
 >    - **Repositionnement indicateur dev Next.js** : configuration de `devIndicators: { position: "bottom-right" }` dans `next.config.ts` pour dégager l'avatar et le menu profil du pied de Rail.
->    - **Validation intégrale** : `npx tsc --noEmit` (0 erreur), 43/43 tests de sécurité validés.
+> 12. Retrait du Profil de la TopBar (Navbar) & Maintien Exclusif en Pied de Rail :
+>    - **Suppression du menu avatar dans la TopBar** (`AppTopBar.tsx`) : la barre supérieure est allégée, la recherche globale `GlobalSearch` est équilibrée et tout doublon est éliminé.
+>    - **Conservation exclusive en pied de Rail gauche** : le profil utilisateur (avatar avec téléversement photo en direct, nom, rôle, densité, déconnexion) réside exclusivement dans le rail de gauche.
+>    - **Sécurisation du rendu d'image avatar** : ajout du gestionnaire d'erreur `onError` pour basculer instantanément sur les initiales sans afficher d'icône d'image brisée.
+>    - **Validation intégrale** : `npx tsc --noEmit` (0 erreur).
 
 ## 🏷️ Point de Sauvegarde & Rollback : `v15-topbar-unifiee`
 
