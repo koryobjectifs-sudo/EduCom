@@ -103,18 +103,22 @@ export const NAV_SPACES: NavSpace[] = [
         ],
       },
       {
+        // ⚠️ Ordre aligné sur le flux réel de /dashboard/grades (chantier UX,
+        // 18 sept.) : Notes/Bulletins/Présences puis Difficultés y suivent
+        // exactement la numérotation 1→4 de la page. L'organisation
+        // (affectations) vient après : ce n'est pas le travail quotidien.
+        title: "Suivi des acquis",
+        items: [
+          { id: "difficulties", name: "Élèves en difficulté", href: "/dashboard/grades/difficultes", icon: "AlertTriangle", short: "Difficultés" },
+        ],
+      },
+      {
         title: "Organisation",
         items: [
           // ⚠️ Déplacé depuis Administration (id `pedagogy-settings`) : les
           // affectations classe/enseignant relèvent du parcours pédagogique,
           // pas de la configuration technique. Route inchangée.
           { id: "pedagogy-settings", name: "Classes / enseignants", href: "/dashboard/settings/pedagogie", icon: "BookOpen", short: "Affectations" },
-        ],
-      },
-      {
-        title: "Suivi des acquis",
-        items: [
-          { id: "difficulties", name: "Élèves en difficulté", href: "/dashboard/grades/difficultes", icon: "AlertTriangle", short: "Difficultés" },
         ],
       },
     ],

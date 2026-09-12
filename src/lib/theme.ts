@@ -126,13 +126,15 @@ export const AURORA_ACCENTS = {
  *
  * ⚠️ Règle de design EduCom :
  * 1. Les boutons d'action NE SONT PAS impactés (ils restent stables et lisibles).
- * 2. La couleur s'applique exclusivement aux cadres : la TopBar et le Rail partagent exactement la même teinte.
+ * 2. **Le socle du Rail et de la TopBar reste navy (18 sept.)** : la couleur de
+ *    l'école ne teinte plus leur fond. Elle reste réservée à l'ACCENT — liseré
+ *    actif du Rail, survol/actif de la sidebar. Avant ce correctif, une école
+ *    en violet obtenait un Rail entièrement violet ; ce n'était pas voulu.
  * 3. La sidebar contextuelle (la plus grande) reçoit une déclinaison plus claire et douce (color-mix à 7%).
  *
- * ⚠️ **Cas spécial Aurora (17 sept.)** : une seule teinte, `AURORA_HEX`,
- * bascule sur un traitement à plusieurs tons (navy + accents cyan/violet) au
- * lieu de l'aplat uniforme ci-dessous. Les 24 autres teintes ne changent pas
- * d'une ligne — la branche par défaut est strictement celle d'avant.
+ * ⚠️ Aurora suit exactement la même logique — elle en est simplement la
+ * version curée (violet/cyan choisis à la main plutôt que dérivés d'un seul
+ * hex) : les deux branches ci-dessous ont donc converti la même base navy.
  */
 export function schoolThemeStyle(primaryColor?: string | null): CSSProperties | undefined {
   if (!isValidHexColor(primaryColor)) return undefined;
@@ -157,9 +159,9 @@ export function schoolThemeStyle(primaryColor?: string | null): CSSProperties | 
   }
 
   return {
-    "--color-frame-bg": frameColor,
-    "--color-topbar-bg": frameColor,
-    "--color-rail-bg": frameColor,
+    "--color-frame-bg": DEFAULT_EDUCOM_NAVY,
+    "--color-topbar-bg": DEFAULT_EDUCOM_NAVY,
+    "--color-rail-bg": DEFAULT_EDUCOM_NAVY,
     "--color-sidebar-bg": `color-mix(in srgb, ${frameColor} 7%, #F8FAFC)`,
     "--color-sidebar-hover": `color-mix(in srgb, ${frameColor} 12%, #F1F5F9)`,
     "--color-sidebar-active": `color-mix(in srgb, ${frameColor} 16%, #FFFFFF)`,

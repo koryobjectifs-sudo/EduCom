@@ -98,12 +98,29 @@ export default async function ClassProfilePage({
             </div>
           </div>
           
-          <Link 
-            href={`/dashboard/classes/${classData.id}/edit`}
-            className="flex items-center gap-2 px-6 py-3 text-sm font-bold text-primary bg-white rounded-2xl hover:bg-gray-50 transition-all hover:scale-105 hover:shadow-lg"
-          >
-            <Edit className="h-4 w-4" /> Configurer
-          </Link>
+          {/* Raccourcis d'intention — chantier navigation UX (18 sept.) :
+              ferment le chemin vers les deux actions les plus fréquentes sur
+              une classe, sans déplacer les écrans eux-mêmes. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/dashboard/grades/bulletin"
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-white/15 border border-white/30 rounded-2xl hover:bg-white/25 transition-all backdrop-blur-md"
+            >
+              <GraduationCap className="h-4 w-4" /> Saisir les notes
+            </Link>
+            <Link
+              href={`/dashboard/attendance/take?classId=${classData.id}`}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-white/15 border border-white/30 rounded-2xl hover:bg-white/25 transition-all backdrop-blur-md"
+            >
+              <Users className="h-4 w-4" /> Faire l&apos;appel
+            </Link>
+            <Link
+              href={`/dashboard/classes/${classData.id}/edit`}
+              className="flex items-center gap-2 px-6 py-3 text-sm font-bold text-primary bg-white rounded-2xl hover:bg-gray-50 transition-all hover:scale-105 hover:shadow-lg"
+            >
+              <Edit className="h-4 w-4" /> Configurer
+            </Link>
+          </div>
         </div>
       </div>
 

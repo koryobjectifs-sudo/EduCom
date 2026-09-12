@@ -351,6 +351,17 @@ export default function PaymentsListClient({
                                 {describeStatus("invoice", "PAID").label}
                               </span>
                             )}
+                            {/* Raccourci d'intention — chantier navigation UX (18 sept.) :
+                                ferme le chemin facture impayée -> relance, sans nouvelle logique. */}
+                            {late && (
+                              <Link
+                                href="/dashboard/documents/reminder"
+                                title="Envoyer une relance"
+                                className="inline-flex items-center justify-center rounded-md text-sm font-medium text-danger transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring hover:bg-danger/10 h-8 w-8"
+                              >
+                                <Send className="w-4 h-4" />
+                              </Link>
+                            )}
                             <Link
                               href={`/dashboard/payments/${invoice.id}`}
                               title="Voir la facture"
