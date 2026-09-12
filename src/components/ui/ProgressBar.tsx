@@ -5,13 +5,8 @@ interface ProgressBarProps extends React.HTMLAttributes<HTMLDivElement> {
   progress: number;
   /** Pourcentage cible optionnel (affiche un trait de démarcation) */
   target?: number;
-  /**
-   * Couleur principale de la barre. `info` / `secondary` / `exceptional` sont
-   * des rôles décoratifs réactifs à la palette de l'école (neutres par
-   * défaut, cyan/violet/rose sous EduCom Aurora — voir `--color-palette-*`
-   * dans globals.css et `schoolThemeStyle()` dans theme.ts).
-   */
-  color?: "primary" | "success" | "warning" | "danger" | "purple" | "info" | "secondary" | "exceptional";
+  /** Couleur principale de la barre */
+  color?: "primary" | "success" | "warning" | "danger" | "purple";
   /** Afficher le pourcentage au-dessus de la barre */
   showLabel?: boolean;
   label?: React.ReactNode;
@@ -35,9 +30,6 @@ export function ProgressBar({
     warning: "bg-warning",
     danger: "bg-danger",
     purple: "bg-purple-600",
-    info: "bg-palette-info",
-    secondary: "bg-palette-secondary",
-    exceptional: "bg-palette-exceptional",
   };
 
   const trackColors = {
@@ -46,9 +38,6 @@ export function ProgressBar({
     warning: "bg-warning/10",
     danger: "bg-danger/10",
     purple: "bg-purple-600/10",
-    info: "bg-palette-info/10",
-    secondary: "bg-palette-secondary/10",
-    exceptional: "bg-palette-exceptional/10",
   };
 
   return (

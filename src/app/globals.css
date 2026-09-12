@@ -163,15 +163,6 @@
   --color-border:           var(--color-rule);
   --color-error:            var(--color-danger);
   --color-info:             var(--color-accent);
-
-  /* ─── Rôles d'accent réactifs à la palette (EduCom Aurora, 17 sept.) ─────
-     ⚠️ Repli neutre par défaut : identique à des tokens déjà utilisés, pour
-     qu'utiliser `text-palette-secondary` sans qu'Aurora soit choisi ne change
-     RIEN visuellement. Seul `schoolThemeStyle()` les surcharge (cas Aurora,
-     voir theme.ts) — les 24 autres teintes ne les définissent jamais. */
-  --color-palette-info:        var(--color-info);
-  --color-palette-secondary:   var(--color-text-soft);
-  --color-palette-exceptional: var(--color-info);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -322,10 +313,6 @@
   --color-danger:  var(--color-danger);
   --color-error:   var(--color-error);
   --color-info:    var(--color-info);
-
-  --color-palette-info:        var(--color-palette-info);
-  --color-palette-secondary:   var(--color-palette-secondary);
-  --color-palette-exceptional: var(--color-palette-exceptional);
 
   /* Marketing — refonte du 4 septembre 2026. Préfixe `m-` pour qu'on ne
      puisse pas les confondre avec les tokens produit en lisant une classe. */

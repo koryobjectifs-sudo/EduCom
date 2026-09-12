@@ -17,23 +17,12 @@ import { describeStatus, type StatusDomain, type StatusVariant } from "@/lib/sta
  * charte ne demande de toucher que `globals.css`.
  */
 
-/**
- * ⚠️ `secondary` et `exceptional` ne sont PAS des variantes de statut métier
- * (elles ne viennent pas de `describeStatus()` / `StatusVariant`) : ce sont
- * des rôles purement décoratifs, pour un badge qui n'exprime pas un état
- * réel (« Nouveau », un chiffre mis en avant…). `StatusBadge` continue de
- * n'utiliser que `StatusVariant` — aucune logique de statut n'y ajoute ces
- * deux rôles. Couleur : neutre par défaut, cyan/violet/rose sous la palette
- * EduCom Aurora (`--color-palette-*`, voir globals.css et theme.ts).
- */
-const VARIANT: Record<StatusVariant | "secondary" | "exceptional", { pill: string; dot: string }> = {
-  success:     { pill: "bg-success/10 text-success",             dot: "bg-success" },
-  warning:     { pill: "bg-warning/10 text-warning",             dot: "bg-warning" },
-  danger:      { pill: "bg-danger/10 text-danger",               dot: "bg-danger" },
-  info:        { pill: "bg-accent/10 text-accent",               dot: "bg-accent" },
-  neutral:     { pill: "bg-sunk text-text-soft",                 dot: "bg-text-faint" },
-  secondary:   { pill: "bg-palette-secondary/10 text-palette-secondary",     dot: "bg-palette-secondary" },
-  exceptional: { pill: "bg-palette-exceptional/10 text-palette-exceptional", dot: "bg-palette-exceptional" },
+const VARIANT: Record<StatusVariant, { pill: string; dot: string }> = {
+  success: { pill: "bg-success/10 text-success", dot: "bg-success" },
+  warning: { pill: "bg-warning/10 text-warning", dot: "bg-warning" },
+  danger:  { pill: "bg-danger/10 text-danger",   dot: "bg-danger" },
+  info:    { pill: "bg-accent/10 text-accent",   dot: "bg-accent" },
+  neutral: { pill: "bg-sunk text-text-soft",     dot: "bg-text-faint" },
 };
 
 const SIZE = {
@@ -44,7 +33,7 @@ const SIZE = {
 export type BadgeProps = {
   /** Libellé. Requis : une pastille sans texte n'est pas rendue. */
   children: ReactNode;
-  variant?: StatusVariant | "secondary" | "exceptional";
+  variant?: StatusVariant;
   size?: keyof typeof SIZE;
   /** Ajoute une puce colorée devant le texte. Décorative uniquement. */
   dot?: boolean;

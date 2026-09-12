@@ -153,12 +153,6 @@ export function schoolThemeStyle(primaryColor?: string | null): CSSProperties | 
       // Le cyan est réservé à l'indicateur d'élément actif du Rail — c'est lui
       // qui rend l'état actif « clairement visible » sur fond navy.
       "--color-rail-accent": cyan,
-      // Rôles Dashboard (KPI, badges, progress bars) — voir Badge.tsx et
-      // ProgressBar.tsx. Non définis pour les 24 autres teintes : les
-      // composants retombent alors sur leurs tokens neutres actuels.
-      "--color-palette-info": cyan,
-      "--color-palette-secondary": violet,
-      "--color-palette-exceptional": AURORA_ACCENTS.pink,
     } as CSSProperties;
   }
 
