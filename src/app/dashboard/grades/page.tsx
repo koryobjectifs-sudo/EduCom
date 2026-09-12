@@ -42,13 +42,23 @@ export default async function GradesEntryChoicePage() {
 
   return (
     <div className="space-y-4 pb-8 max-w-5xl">
-      <div>
-        <h1 className="text-role-page font-bold tracking-tight text-text">
-          Notes & Évaluations
-        </h1>
-        <p className="mt-1 text-role-body text-text-soft">
-          Sélectionnez le module d&apos;évaluation, l&apos;édition des bulletins ou le suivi pédagogique.
-        </p>
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-role-page font-bold tracking-tight text-text">
+            Notes & Évaluations
+          </h1>
+          <p className="mt-1 text-role-body text-text-soft">
+            Sélectionnez le module d&apos;évaluation, l&apos;édition des bulletins ou le suivi pédagogique.
+          </p>
+        </div>
+        {/* Action principale de l'écran — chantier navigation UX (18 sept.) */}
+        <Link
+          href="/dashboard/grades/bulletin?type=controle"
+          className="inline-flex h-8.5 shrink-0 items-center justify-center gap-1.5 rounded-control bg-primary px-3 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-primary-hover"
+        >
+          <ClipboardList aria-hidden="true" className="h-3.5 w-3.5" />
+          Saisir les notes
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mt-4">

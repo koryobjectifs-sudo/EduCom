@@ -47,7 +47,7 @@ export default async function AttendancePage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-text">{c.name}</h3>
-                  <p className="text-[13px] text-text-soft">Prendre l'appel</p>
+                  <p className="text-[13px] text-text-soft">Faire l'appel</p>
                 </div>
               </div>
             </Link>
@@ -138,7 +138,7 @@ export default async function AttendancePage() {
               <div key={c.id} className="flex items-center justify-between rounded-lg border border-rule/30 bg-surface/50 p-3">
                 <span className="text-[13px] font-semibold text-text">{c.name}</span>
                 <Link href={`/dashboard/attendance/take?classId=${c.id}`} className="text-[12px] font-medium text-primary hover:underline">
-                  Prendre l'appel
+                  Faire l'appel
                 </Link>
               </div>
             ))}
