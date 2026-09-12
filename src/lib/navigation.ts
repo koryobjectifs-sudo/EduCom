@@ -47,6 +47,13 @@ export type NavSpace = {
  * ⚠️ CHAQUE SOUS-DESTINATION EST UNE ROUTE RÉELLE ET EXISTANTE.
  * Aucun lien mort ni sous-fonctionnalité inventée.
  */
+/**
+ * ⚠️ ORDRE ET REGROUPEMENT — chantier navigation (18 sept.) : reflètent le
+ * parcours utilisateur (Scolarité → Pédagogie → Finance → Communication →
+ * Documents → Administration), pas l'ordre d'apparition historique des
+ * fonctionnalités. `Accueil` précède ce tableau, tuile fixe dans AppRail.tsx
+ * — non touchée ici, ce qui porte le total à 7 entrées de rail.
+ */
 export const NAV_SPACES: NavSpace[] = [
   {
     id: "students",
@@ -76,42 +83,6 @@ export const NAV_SPACES: NavSpace[] = [
     ],
   },
   {
-    id: "documents",
-    label: "Documents",
-    fullLabel: "Centre documentaire",
-    icon: "FileText",
-    defaultHref: "/dashboard/documents",
-    matchPrefixes: [
-      "/dashboard/documents",
-    ],
-    sections: [
-      {
-        title: "Gestion Documentaire",
-        items: [
-          { id: "documents", name: "Centre documentaire", href: "/dashboard/documents", icon: "FileText", short: "Documents" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "comms",
-    label: "Messages",
-    fullLabel: "Communications",
-    icon: "MessageSquare",
-    defaultHref: "/dashboard/communications",
-    matchPrefixes: [
-      "/dashboard/communications",
-    ],
-    sections: [
-      {
-        title: "Échanges & Messages",
-        items: [
-          { id: "comms", name: "Communications", href: "/dashboard/communications", icon: "MessageSquare", short: "Messages" },
-        ],
-      },
-    ],
-  },
-  {
     id: "pedagogy",
     label: "Pédagogie",
     icon: "GraduationCap",
@@ -124,8 +95,20 @@ export const NAV_SPACES: NavSpace[] = [
       {
         title: "Enseignement",
         items: [
-          { id: "grades", name: "Notes & bulletins", href: "/dashboard/grades", icon: "GraduationCap", short: "Notes" },
-          { id: "attendance", name: "Présences & appel", href: "/dashboard/attendance", icon: "ClipboardList", short: "Présences" },
+          { id: "grades", name: "Notes", href: "/dashboard/grades", icon: "GraduationCap", short: "Notes" },
+          // ⚠️ Route déjà réelle et existante (chantier documents, phase 1) :
+          // `/dashboard/grades/report-card` — aucun lien inventé.
+          { id: "report-card", name: "Bulletins", href: "/dashboard/grades/report-card", icon: "FileText", short: "Bulletins" },
+          { id: "attendance", name: "Présences", href: "/dashboard/attendance", icon: "ClipboardList", short: "Présences" },
+        ],
+      },
+      {
+        title: "Organisation",
+        items: [
+          // ⚠️ Déplacé depuis Administration (id `pedagogy-settings`) : les
+          // affectations classe/enseignant relèvent du parcours pédagogique,
+          // pas de la configuration technique. Route inchangée.
+          { id: "pedagogy-settings", name: "Classes / enseignants", href: "/dashboard/settings/pedagogie", icon: "BookOpen", short: "Affectations" },
         ],
       },
       {
@@ -148,14 +131,64 @@ export const NAV_SPACES: NavSpace[] = [
       {
         title: "Gestion Financière",
         items: [
-          { id: "payments", name: "Facturation & paiements", href: "/dashboard/payments", icon: "CreditCard", short: "Paiements" },
+          { id: "finance-overview", name: "Vue financière", href: "/dashboard/payments", icon: "CreditCard", short: "Vue" },
+          { id: "invoicing", name: "Facturation", href: "/dashboard/payments/new", icon: "FileText", short: "Facturation" },
+          { id: "payments", name: "Paiements", href: "/dashboard/payments/receipt", icon: "ClipboardList", short: "Paiements" },
+          // ⚠️ Pas de "Recouvrement" distinct : la lettre de relance vit sous
+          // `/dashboard/documents/reminder` (space "documents", invariant de
+          // `verify-navigation-integrity.ts`). La relocaliser sous Finance
+          // aurait cassé ce garde-fou pour un gain incertain — laissé de côté
+          // plutôt que déplacé sans certitude.
+        ],
+      },
+    ],
+  },
+  {
+    id: "comms",
+    label: "Communication",
+    fullLabel: "Communications",
+    icon: "MessageSquare",
+    defaultHref: "/dashboard/communications",
+    matchPrefixes: [
+      "/dashboard/communications",
+    ],
+    sections: [
+      {
+        title: "Échanges & Messages",
+        items: [
+          { id: "comms-inbox", name: "Messages", href: "/dashboard/communications/inbox", icon: "MessageSquare", short: "Messages" },
+          // ⚠️ Libellé honnête : la racine est le centre de communication
+          // (statistiques, campagnes), pas un composeur d'annonces dédié —
+          // aucune page distincte "Annonces" n'existe aujourd'hui.
+          { id: "comms-overview", name: "Vue d'ensemble", href: "/dashboard/communications", icon: "MessageSquare", short: "Vue" },
+          { id: "comms-surveys", name: "Sondages", href: "/dashboard/communications/surveys", icon: "ClipboardList", short: "Sondages" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "documents",
+    label: "Documents",
+    fullLabel: "Centre documentaire",
+    icon: "FileText",
+    defaultHref: "/dashboard/documents",
+    matchPrefixes: [
+      "/dashboard/documents",
+    ],
+    sections: [
+      {
+        title: "Gestion Documentaire",
+        items: [
+          { id: "documents", name: "Documents scolaires", href: "/dashboard/documents", icon: "FileText", short: "Documents" },
+          { id: "documents-admin", name: "Documents administratifs", href: "/dashboard/documents/centre", icon: "FileText", short: "Administratifs" },
+          { id: "documents-templates", name: "Modèles", href: "/dashboard/documents/templates", icon: "Layers", short: "Modèles" },
         ],
       },
     ],
   },
   {
     id: "admin",
-    label: "Admin",
+    label: "Administration",
     icon: "Settings",
     defaultHref: "/dashboard/admin",
     matchPrefixes: [
@@ -167,11 +200,10 @@ export const NAV_SPACES: NavSpace[] = [
       {
         title: "Établissement",
         items: [
-          { id: "admin-home", name: "Vue d'ensemble admin", href: "/dashboard/admin", icon: "Settings", short: "Admin" },
+          { id: "admin-home", name: "Vue d'ensemble", href: "/dashboard/admin", icon: "Settings", short: "Admin" },
           { id: "team", name: "Équipe & membres", href: "/dashboard/team", icon: "Users", short: "Équipe" },
           { id: "reports", name: "Rapports d'activité", href: "/dashboard/admin/reports", icon: "BarChart3", short: "Rapports" },
-          { id: "settings", name: "Paramètres généraux", href: "/dashboard/settings", icon: "Settings", short: "Paramètres" },
-          { id: "pedagogy-settings", name: "Config pédagogique", href: "/dashboard/settings/pedagogie", icon: "BookOpen", short: "Config Pédag." },
+          { id: "settings", name: "Paramètres", href: "/dashboard/settings", icon: "Settings", short: "Paramètres" },
           { id: "doc-settings", name: "Pièces exigées", href: "/dashboard/settings/documents", icon: "FileText", short: "Pièces" },
         ],
       },
