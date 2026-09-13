@@ -43,7 +43,12 @@ function ReturnedBanner({ items }: { items: any[] }) {
   );
 }
 
-export default async function GradesPage() {
+export default async function GradesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ classId?: string }>;
+}) {
+  const { classId: requestedClassId } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -97,10 +102,21 @@ export default async function GradesPage() {
    *
    * L'ordre des classes passé ici est celui de `sortClasses()`, donc le défaut
    * est bien la PREMIÈRE classe affichée, pas une autre.
+   *
+   * ⚠️ **`?classId=` (chantier navigation UX, 18 sept.)** : `defaultSelection()`
+   * retient la PREMIÈRE classe de la liste reçue — on fait donc simplement
+   * passer la classe demandée en tête, sans toucher à la fonction elle-même
+   * ni réinventer sa logique de résolution du trimestre/évaluation courants.
    */
+  const classIds = classes.map((c: { id: string }) => c.id);
+  const orderedClassIds =
+    requestedClassId && classIds.includes(requestedClassId)
+      ? [requestedClassId, ...classIds.filter((id: string) => id !== requestedClassId)]
+      : classIds;
+
   const defauts = await defaultSelection(
     { schoolId: dbUser.schoolId, userId: dbUser.id, role: dbUser.role },
-    classes.map((c: { id: string }) => c.id),
+    orderedClassIds,
   );
 
   return (

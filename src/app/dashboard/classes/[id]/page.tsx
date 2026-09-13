@@ -103,7 +103,7 @@ export default async function ClassProfilePage({
               une classe, sans déplacer les écrans eux-mêmes. */}
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href="/dashboard/grades/bulletin"
+              href={`/dashboard/grades/bulletin?classId=${classData.id}`}
               className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-white/15 border border-white/30 rounded-2xl hover:bg-white/25 transition-all backdrop-blur-md"
             >
               <GraduationCap className="h-4 w-4" /> Saisir les notes

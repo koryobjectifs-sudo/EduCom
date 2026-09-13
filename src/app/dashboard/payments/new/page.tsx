@@ -23,16 +23,21 @@ const PATH = "/dashboard/payments/new";
  *    exactement le motif corrigé au lot 00 sur d'autres écrans, resté ici.
  *    `requireSchoolContext()` garantit un `schoolId` non nul, ou redirige.
  */
-export default async function NewInvoicePage() {
+export default async function NewInvoicePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ studentId?: string }>;
+}) {
   const { user, schoolId, school } = await requireSchoolContext();
   if (!hasAccess(user.role, PATH)) redirect(firstAllowedPath(user.role));
+  const { studentId } = await searchParams;
 
   // On ne facture que des élèves inscrits, et uniquement ceux de l'établissement.
   const students = await prisma.student.findMany({
     where: { schoolId, status: "ENROLLED" },
-    select: { 
-      id: true, 
-      firstName: true, 
+    select: {
+      id: true,
+      firstName: true,
       lastName: true,
       enrollments: { include: { class: true } },
       invoices: { select: { status: true } }
@@ -40,5 +45,5 @@ export default async function NewInvoicePage() {
     orderBy: { lastName: "asc" },
   });
 
-  return <NewInvoiceForm students={students} school={school} />;
+  return <NewInvoiceForm students={students} school={school} initialStudentId={studentId ?? null} />;
 }

@@ -255,7 +255,7 @@ export default async function StudentProfilePage({
               </Link>
             )}
             {hasAccess(actor.role, "/dashboard/payments/new") && (
-              <Link href={`/dashboard/payments/invoice?studentId=${student.id}`} className={ACTION_NEUTRE}>
+              <Link href={`/dashboard/payments/new?studentId=${student.id}`} className={ACTION_NEUTRE}>
                 <ReceiptText aria-hidden="true" className="h-4 w-4" /> Facturer
               </Link>
             )}

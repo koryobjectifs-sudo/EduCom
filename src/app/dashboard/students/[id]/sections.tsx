@@ -229,7 +229,7 @@ export function SectionApercu({ d, studentId }: { d: Student360; studentId: stri
         title="Dernières factures"
         action={
           <Link
-            href={`/dashboard/payments/invoice?studentId=${studentId}`}
+            href={`/dashboard/payments/new?studentId=${studentId}`}
             className="inline-flex items-center rounded-control px-2 py-1 text-role-label font-medium text-primary transition-colors hover:bg-sunk pointer-coarse:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
             Créer
@@ -499,7 +499,7 @@ export function SectionFinance({ d, studentId, canManageFinance }: { d: Student3
         action={
           canManageFinance ? (
             <Link
-              href={`/dashboard/payments/invoice?studentId=${studentId}`}
+              href={`/dashboard/payments/new?studentId=${studentId}`}
               className="inline-flex items-center rounded-control px-2 py-1 text-role-label font-medium text-primary transition-colors hover:bg-sunk pointer-coarse:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             >
               Créer

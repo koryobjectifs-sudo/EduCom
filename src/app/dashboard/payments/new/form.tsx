@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { createInvoice } from "../actions";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -24,7 +24,7 @@ type InvoiceItem = {
   quantity: number;
 };
 
-export function NewInvoiceForm({ students, school }: { students: Student[], school?: any }) {
+export function NewInvoiceForm({ students, school, initialStudentId }: { students: Student[], school?: any, initialStudentId?: string | null }) {
   const [state, formAction, isPending] = useActionState(
     async (prevState: any, formData: FormData) => {
       const res = await createInvoice(formData);
@@ -69,6 +69,21 @@ export function NewInvoiceForm({ students, school }: { students: Student[], scho
   const [isSendMenuOpen, setIsSendMenuOpen] = useState(false);
   const [paperFormat, setPaperFormat] = useState<"A4" | "A5" | "A4-half">("A4");
   const [mobileTab, setMobileTab] = useState<"form" | "preview">("form");
+
+  // Ferme le chemin fiche élève -> facturation (chantier navigation UX,
+  // 18 sept.) : sans ceci, "Facturer" ouvrait un formulaire vierge et le
+  // paramètre d'URL ne servait à rien.
+  useEffect(() => {
+    if (!initialStudentId) return;
+    const student = students.find((s) => s.id === initialStudentId);
+    if (student) {
+      setSelectedStudent(student);
+      if (typeof document !== "undefined") {
+        document.title = `Facture Scolarité - ${student.firstName} ${student.lastName}`;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleStudentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const student = students.find(s => s.id === e.target.value);
@@ -251,7 +266,7 @@ export function NewInvoiceForm({ students, school }: { students: Student[], scho
                   </div>
                   <div>
                     <label htmlFor="studentId" className="block text-xs font-medium text-text-secondary ml-1 mb-1">Destinataire *</label>
-                    <select name="studentId" id="studentId" onChange={handleStudentChange} required
+                    <select name="studentId" id="studentId" onChange={handleStudentChange} defaultValue={initialStudentId ?? ""} required
                       className="block w-full rounded-xl border-none bg-secondary/50 py-2 pl-3 pr-8 text-base lg:text-xs text-text-primary placeholder:text-text-muted focus:bg-white focus:ring-2 focus:ring-primary/20 focus:outline-none shadow-none transition-all appearance-none">
                       <option value="">Sélectionner...</option>
                       {filteredStudents.map(s => {

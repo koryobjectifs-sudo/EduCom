@@ -124,17 +124,20 @@ export const AURORA_ACCENTS = {
 /**
  * Traduit la couleur d'une école en surcharge de variables CSS pour les cadres du shell (Slack-style).
  *
- * ⚠️ Règle de design EduCom :
+ * ⚠️ Règle de couleur DÉFINITIVE (18 sept., annule le correctif du 18 sept.
+ * précédent qui forçait le navy — ce n'était pas le comportement voulu) :
  * 1. Les boutons d'action NE SONT PAS impactés (ils restent stables et lisibles).
- * 2. **Le socle du Rail et de la TopBar reste navy (18 sept.)** : la couleur de
- *    l'école ne teinte plus leur fond. Elle reste réservée à l'ACCENT — liseré
- *    actif du Rail, survol/actif de la sidebar. Avant ce correctif, une école
- *    en violet obtenait un Rail entièrement violet ; ce n'était pas voulu.
- * 3. La sidebar contextuelle (la plus grande) reçoit une déclinaison plus claire et douce (color-mix à 7%).
+ * 2. Rail et TopBar prennent la couleur de l'école EN PLEIN.
+ * 3. La sidebar contextuelle reçoit une version CLAIRE de cette même couleur,
+ *    dérivée automatiquement (`color-mix`) — jamais une valeur en dur.
+ * 4. Le workspace (canevas) reste neutre, toujours.
+ * `DEFAULT_EDUCOM_NAVY` n'est qu'un REPLI : la teinte d'une école qui n'a rien
+ * choisi (`primaryColor` vide), pas un socle imposé — voir l'appelant
+ * (`dashboard/layout.tsx`), qui ne passe même pas par cette fonction dans ce cas.
  *
- * ⚠️ Aurora suit exactement la même logique — elle en est simplement la
- * version curée (violet/cyan choisis à la main plutôt que dérivés d'un seul
- * hex) : les deux branches ci-dessous ont donc converti la même base navy.
+ * ⚠️ Aurora (branche ci-dessous) reste l'exception délibérée : une identité
+ * multi-tons choisie à la main par Kory, pas une couleur unique — elle ne suit
+ * pas cette règle générique.
  */
 export function schoolThemeStyle(primaryColor?: string | null): CSSProperties | undefined {
   if (!isValidHexColor(primaryColor)) return undefined;
@@ -159,9 +162,9 @@ export function schoolThemeStyle(primaryColor?: string | null): CSSProperties | 
   }
 
   return {
-    "--color-frame-bg": DEFAULT_EDUCOM_NAVY,
-    "--color-topbar-bg": DEFAULT_EDUCOM_NAVY,
-    "--color-rail-bg": DEFAULT_EDUCOM_NAVY,
+    "--color-frame-bg": frameColor,
+    "--color-topbar-bg": frameColor,
+    "--color-rail-bg": frameColor,
     "--color-sidebar-bg": `color-mix(in srgb, ${frameColor} 7%, #F8FAFC)`,
     "--color-sidebar-hover": `color-mix(in srgb, ${frameColor} 12%, #F1F5F9)`,
     "--color-sidebar-active": `color-mix(in srgb, ${frameColor} 16%, #FFFFFF)`,
