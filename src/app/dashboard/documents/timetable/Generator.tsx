@@ -420,7 +420,7 @@ export default function TimetableGenerator({ classes }: { classes: any[] }) {
                   type="text"
                   value={period}
                   onChange={(e) => setPeriod(e.target.value)}
-                  placeholder="Ex: 1er Semestre"
+                  placeholder="Ex: 1er Trimestre"
                   className="block w-full rounded-xl border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-600 sm:text-sm"
                 />
               </div>

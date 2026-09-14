@@ -94,6 +94,11 @@ model School {
   waveTermsIp              String?
   /// Langue officielle d'édition des documents de l'école (ex. bulletins, certificats, reçus)
   documentLocale      String  @default("fr")
+  /// Rattachement administratif Sénégal — figure sur les bulletins officiels.
+  /// v18-notes-modele.
+  inspectionAcademique String? // ex. "Dakar"
+  inspectionIEF        String? // ex. "Plateau"
+  regionAcademique     String? // ex. "Dakar"
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -140,6 +145,11 @@ model School {
   actionLinks ActionLink[]
   timeSlots   TimeSlot[]
   lessons     Lesson[]
+
+  /// Lot 18 — socle de notes Sénégal (élémentaire à domaines, secondaire à coefficients).
+  gradeDomains        GradeDomain[]
+  gradeSubDisciplines GradeSubDiscipline[]
+  subjectCoefficients SubjectCoefficient[]
 
   /// Credentials for Meta WhatsApp API integration
   whatsappAccessToken       String?
@@ -309,6 +319,10 @@ model Student {
   status    StudentStatus @default(PENDING)
   schoolId  String
   school    School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  /// Identifiant Éducation Nationale (Sénégal) — obligatoire sur les bulletins
+  /// officiels, mais `null` tant que l'école ne l'a pas renseigné : beaucoup
+  /// d'élèves n'en ont pas encore. v18-notes-modele.
+  ien       String?
   parentId  String?
   parent    User?         @relation(fields: [parentId], references: [id], onDelete: SetNull)
   createdAt DateTime      @default(now())
@@ -354,6 +368,10 @@ model Class {
   teacher   User?   @relation("ClassTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
 
   academicYear String?
+
+  /// Série du secondaire — "L1", "L2", "S1", "S2"… `null` pour le collège et
+  /// l'élémentaire, qui n'en ont pas. v18-notes-modele.
+  serie String?
 
   isDemo    Boolean @default(false)
 
@@ -838,10 +856,11 @@ model Subject {
   schoolId String
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  grades      Grade[]
-  classes     ClassSubject[]
-  assignments TeachingAssignment[]
-  lessons     Lesson[]
+  grades       Grade[]
+  classes      ClassSubject[]
+  assignments  TeachingAssignment[]
+  lessons      Lesson[]
+  coefficients SubjectCoefficient[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1019,6 +1038,12 @@ model Grade {
   comment     String?
   date        DateTime  @default(now())
 
+  /// Réservé au lot 5 (niveau d'acquisition élémentaire — NA/PA/A/D — au lieu
+  /// d'une note chiffrée). Non exploité pour l'instant : `value` reste la seule
+  /// source lue. Posé dès maintenant pour que le lot 5 n'ait pas à migrer la
+  /// colonne `value` d'existant. v18-notes-modele.
+  acquisitionLevel String?
+
   studentId String
   student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
@@ -1048,6 +1073,101 @@ model Grade {
   @@index([teacherId])
   @@index([classId, termId])
   @@index([studentId, termId])
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ * LOT 18 — SOCLE DE NOTES SÉNÉGAL
+ * ═══════════════════════════════════════════════════════════════════════
+ * Ce lot ne pose QUE le modèle : aucun calcul, aucun écran, aucun bulletin
+ * n'en dépendent encore. Les lots suivants branchent la saisie et le calcul
+ * dessus.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+
+/// Domaine pédagogique de l'élémentaire (ex. "Mathématiques"). L'élémentaire
+/// n'a pas de coefficients : le poids d'un domaine vient du nombre de
+/// sous-disciplines qu'il contient.
+///
+/// Par école, pas global : l'énoncé exige que l'école puisse activer,
+/// désactiver ou ajouter des sous-disciplines — donc que la liste vive en
+/// base, jamais codée en dur dans l'application. Les 4 domaines officiels sont
+/// APPORTÉS par un script de seed (`scripts/seed-grade-domains.ts`), pas par
+/// ce schéma.
+model GradeDomain {
+  id       String  @id @default(uuid())
+  name     String // ex. "Langue et communication"
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+
+  schoolId String
+  school   School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  subDisciplines GradeSubDiscipline[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
+/// Sous-discipline notée d'un domaine (ex. "Dictée" dans "Langue et
+/// communication"). `scale` est le barème de notation de CETTE sous-discipline
+/// — configurable par école, jamais une constante nationale (cf. `ClassSubject.coefficient`
+/// pour le même arbitrage côté secondaire).
+model GradeSubDiscipline {
+  id       String  @id @default(uuid())
+  name     String // ex. "Dictée"
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+  /// Barème par défaut de la sous-discipline. 10 au seed (cahier des charges),
+  /// modifiable par l'école.
+  scale    Float   @default(10)
+
+  domainId String
+  domain   GradeDomain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+
+  schoolId String
+  school   School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([domainId, name])
+  @@index([domainId])
+  @@index([schoolId])
+}
+
+/// Coefficient d'une matière du secondaire, par (niveau, série). Distinct de
+/// `ClassSubject.coefficient` (poids appliqué dans UNE classe précise) : cette
+/// table est le RÉFÉRENTIEL — niveau + série + matière — d'où
+/// `ClassSubject.coefficient` peut être proposé par défaut à la création d'une
+/// classe. Modifiable par l'école, jamais codée en dur côté application ; le
+/// barème officiel (Seconde/Terminale, séries L/S) est apporté par
+/// `scripts/seed-subject-coefficients.ts`.
+model SubjectCoefficient {
+  id String @id @default(uuid())
+
+  /// ex. "Seconde", "Terminale" — texte libre, aligné sur les niveaux de `classOrder.ts`.
+  niveau String
+  /// ex. "L", "S", "L1", "L2", "S1", "S2" — `null` pour un niveau sans série.
+  serie  String?
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  coefficient Float
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([schoolId, niveau, serie, subjectId])
+  @@index([schoolId])
+  @@index([schoolId, niveau, serie])
 }
 
 /**
