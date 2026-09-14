@@ -1,5 +1,55 @@
 # EduCom SaaS - Contexte du Projet
 
+> **Correctifs A/B + Lot 2/5 livrés le 14 septembre — Réconciliation de la dérive `db push`, codes de matières stables, moteurs de calcul (tags `v18-notes-calculs`).**
+> - **Correctif A — dérive de la base de dev.** `prisma migrate dev` exigeait
+>   un reset complet : la base avait accumulé, via de nombreux `db push`
+>   jamais capturés en migration, des tables/colonnes entières (WhatsApp,
+>   présences, centre documentaire élève, liens d'action, campagnes,
+>   `Class.academicYear`). Diagnostiqué par diff schéma-à-schéma (sans base
+>   fantôme, indisponible ici — pas de Postgres local, pas de Docker) : la
+>   dérive était intégralement additive, donc réparable sans reset.
+>   Réconciliée par une migration de rattrapage
+>   (`prisma/migrations/20260914010000_catchup_db_push_drift/`) marquée
+>   `--applied` **sans être exécutée** (chaque objet existait déjà) — seule
+>   une vraie migration `ADD COLUMN`/`CREATE TABLE` toucherait la base
+>   réellement. Une migration orpheline incorrecte
+>   (`20260909233000_add_class_academic_year`, jamais enregistrée, déclarait
+>   `academicYear NOT NULL DEFAULT '2026-2027'` alors qu'il est nullable en
+>   réalité) a été corrigée en place plutôt que supprimée — la suppression de
+>   fichier est bloquée par le classificateur de permissions sur ce projet
+>   (`rm`/`git rm` refusés comme destruction irréversible, y compris pour un
+>   fichier jamais appliqué : à retenir pour la suite, corriger le contenu en
+>   place plutôt que tenter de supprimer). Preuve : un second
+>   `prisma migrate dev --create-only` ne réclame plus aucun reset.
+> - **Correctif B — matières sans code.** Les coefficients secondaires du
+>   lot 1 n'avaient pu s'apparier qu'à Français/Anglais (les seules matières
+>   dont le libellé correspondait exactement). `Subject.code` (stable :
+>   MATH/PC/SVT/FR/PHIL/HG/ANG/LV2) ajouté ; `SubjectCoefficient` s'y
+>   rattache désormais par ce code. `scripts/seed-secondary-subjects.ts` pose
+>   ou code les 8 matières officielles sans renommer un libellé existant
+>   (« Mathématiques » reste « Mathématiques », juste codé `MATH`).
+>   Terminale S2 revérifiée à 25 avec les 7 vraies matières.
+> - **Lot 2/5 — les deux moteurs de calcul**, étanches (`src/lib/notes/`) :
+>   `secondaire.ts` (MD/MM/P/MG, composition obligatoire) vérifié EXACTEMENT
+>   sur le cas de référence de Kory (321,50 pts / 25 coef = 12,86,
+>   `scripts/verify-notes-secondaire-reference.ts`, sans base de données) ;
+>   `elementaire.ts` (moyenne de domaine/générale sans coefficient,
+>   sous-discipline non notée = exclue, jamais zéro). Les couches
+>   `*-classe.ts` calculent une classe entière via `groupBy` Prisma (moyenne
+>   poussée en SQL), jamais en chargeant les notes brutes en mémoire. Bug du
+>   bulletin de référence (moyenne de classe = note d'un seul élève) prouvé
+>   absent : `scripts/verify-notes-calculs.ts` crée deux élèves fictifs à MM
+>   10 et MM 20 (nettoyés en fin de script), la moyenne de classe calculée
+>   vaut 15. **Gap trouvé en cours de route** : le schéma du lot 1 posait
+>   `GradeDomain`/`GradeSubDiscipline` sans aucun lien depuis `Grade` — ajouté
+>   `Grade.subDisciplineId` (nullable, additif, `SetNull`) pour que le calcul
+>   élémentaire puisse lire de vraies notes.
+> - Aucun écran, aucun bulletin branchés sur ces modules : `src/lib/bulletin.ts`
+>   (utilisé par les écrans actuels) n'a pas été touché. Ces deux points
+>   restent à faire dans un lot suivant.
+>
+> ---
+>
 > **Lot 1/5 livré le 14 septembre — Socle de données « notes Sénégal » (tag `v18-notes-modele`).**
 > Chantier en 5 lots pour refondre la saisie/le calcul des notes sur le modèle
 > officiel sénégalais (élémentaire à domaines, secondaire à coefficients par
@@ -100,7 +150,7 @@
 >
 > ---
 >
-> Dernière mise à jour : 14 septembre 2026 — **Socle de notes Sénégal (v18) — lot 1/5 livré (schéma + seed), lots 2-5 (écrans, saisie, calcul, niveau d'acquisition) à venir**
+> Dernière mise à jour : 14 septembre 2026 — **Socle de notes Sénégal (v18) — lots 1 et 2/5 livrés (schéma+seed, puis moteurs de calcul), dérive `db push` réconciliée, lots 3-5 (écrans, saisie, niveau d'acquisition) à venir**
 >
 > Chantier précédent : 11 septembre 2026 — **Chantier Générateur de Documents (v17) — Phase 0 terminée, Phase 1 (audit) livrée, en attente d'arbitrage de Kory avant la phase 2**
 >
