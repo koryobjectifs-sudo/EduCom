@@ -1,0 +1,4 @@
+-- Migration vide, générée par une vérification de non-régression du
+-- correctif A (14/09/2026) : elle prouve que `prisma migrate dev` ne
+-- réclame plus de reset de la base de dev après la migration de rattrapage
+-- `20260914010000_catchup_db_push_drift`. Sans effet, volontairement.

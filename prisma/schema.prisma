@@ -846,6 +846,13 @@ model Subject {
   id   String @id @default(uuid())
   name String // e.g. "Mathématiques", "Français"
 
+  /// Code stable de la matière (ex. "MATH", "PC", "FR") — un libellé change,
+  /// un code non. `SubjectCoefficient` s'y rattache par CE code, jamais par
+  /// `name` : renommer une matière ne doit pas décrocher ses coefficients.
+  /// `null` pour les matières libres créées par l'école hors référentiel
+  /// officiel. v18-notes-modele, correctif A.
+  code String?
+
   // Hiérarchie : "Français" regroupe orthographe, vocabulaire, grammaire...
   // Un parent n'est pas noté directement : sa moyenne est calculée à partir
   // de ses enfants sur le bulletin.
@@ -865,6 +872,7 @@ model Subject {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([schoolId, code])
   @@index([schoolId])
   @@index([parentId])
 }
