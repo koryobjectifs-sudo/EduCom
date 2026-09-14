@@ -1061,6 +1061,13 @@ model Grade {
   subjectId String
   subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
+  /// Sous-discipline élémentaire notée (lot 18/2), quand cette note en relève.
+  /// `null` pour toute note secondaire — `subjectId` reste alors la seule
+  /// clé pédagogique. Additif et `SetNull` : ne bloque et n'efface jamais
+  /// `Grade` en supprimant une sous-discipline, comme `StudentDocument.folderId`.
+  subDisciplineId String?
+  subDiscipline   GradeSubDiscipline? @relation(fields: [subDisciplineId], references: [id], onDelete: SetNull)
+
   termId String
   term   Term   @relation(fields: [termId], references: [id], onDelete: Cascade)
 
@@ -1076,6 +1083,7 @@ model Grade {
   @@index([studentId])
   @@index([classId])
   @@index([subjectId])
+  @@index([subDisciplineId])
   @@index([termId])
   @@index([evaluationId])
   @@index([teacherId])
@@ -1138,6 +1146,8 @@ model GradeSubDiscipline {
 
   schoolId String
   school   School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  grades Grade[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
