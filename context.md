@@ -1,5 +1,59 @@
 # EduCom SaaS - Contexte du Projet
 
+> **Lot 1/5 livré le 14 septembre — Socle de données « notes Sénégal » (tag `v18-notes-modele`).**
+> Chantier en 5 lots pour refondre la saisie/le calcul des notes sur le modèle
+> officiel sénégalais (élémentaire à domaines, secondaire à coefficients par
+> série). **Ce lot ne pose QUE le schéma + le seed** : aucun calcul, aucun
+> écran, aucun bulletin n'en dépend encore — c'est pour les lots 2 à 5.
+> - **Champs ajoutés** : `Student.ien` (Identifiant Éducation Nationale),
+>   `School.inspectionAcademique/inspectionIEF/regionAcademique`, `Class.serie`
+>   (L1/L2/S1/S2, `null` sinon). Tous nullables, tous `null` sur les lignes
+>   existantes.
+> - **Rythme** : déjà 3 trimestres pour les deux cycles en pratique
+>   (`Term.name` est du texte libre, aucune logique de semestre en code) — seul
+>   un placeholder d'exemple (« Ex: 1er Semestre ») dans le générateur d'emploi
+>   du temps a été aligné sur « 1er Trimestre ».
+> - **Élémentaire — domaines** : nouveaux modèles `GradeDomain` /
+>   `GradeSubDiscipline` (par école, activables/désactivables, barème
+>   configurable par sous-discipline, défaut 10). Les 4 domaines officiels et
+>   leurs 15 sous-disciplines sont seedés via `scripts/seed-grade-domains.ts`
+>   (essai à blanc par défaut, `APPLY=1` pour écrire) — **pas automatique à la
+>   création d'école**, ça reste à câbler dans l'onboarding (lot suivant).
+> - **Secondaire — coefficients** : nouveau modèle `SubjectCoefficient`,
+>   référentiel par (niveau, série, matière), distinct de
+>   `ClassSubject.coefficient` (qui reste le poids appliqué dans une classe
+>   précise — celui-ci sert à le préremplir). Barème officiel Seconde/Terminale
+>   L/S seedé via `scripts/seed-subject-coefficients.ts`. ⚠️ **Le script
+>   n'invente jamais de matière** : il apparie par nom exact à un `Subject`
+>   déjà existant dans l'école et ignore (en le signalant) tout nom absent —
+>   sur École de Kory, seuls Français/Anglais correspondaient ; Maths, PC, SVT,
+>   Hist-Géo, LV2, Philo n'existaient pas sous ces noms exacts et ont été
+>   ignorés. Vérifié : Terminale S2 totalise bien 25.
+> - **Note secondaire, non-numérique (lot 5)** : `Grade.acquisitionLevel
+>   String?` ajouté, réservé et non lu par aucun code — pour que le lot 5
+>   (niveau d'acquisition NA/PA/A/D) n'ait pas à toucher la colonne `value`
+>   existante. `Grade.value` reste `Float` obligatoire, inchangé.
+> - **Piège de migration rencontré** : `prisma migrate dev` a refusé d'écrire —
+>   la base de dev a dérivé de l'historique des migrations (colonnes WhatsApp,
+>   `User.avatar`, etc. présentes en base sans migration correspondante,
+>   probablement posées via `db push` par le passé) et exigeait un **reset
+>   complet** (perte de toutes les données de dev). Refusé. Contournement
+>   propre et non destructif : `prisma migrate diff --from-config-datasource
+>   --to-schema` pour ne générer QUE le SQL additif de ce lot, appliqué via
+>   `prisma db execute`, puis `prisma migrate resolve --applied` pour
+>   réconcilier l'historique. Migration versionnée dans
+>   `prisma/migrations/20260914005142_notes_modele_v18/`. **La dérive
+>   pré-existante n'est pas corrigée** — un futur `migrate dev` la retrouvera
+>   telle quelle tant que personne ne la résout.
+> - **Notes existantes** : les 64 lignes `Grade` en base restent intactes et
+>   lisibles telles quelles (vérifié par requête directe) — migration
+>   purement additive (nouvelles colonnes nullables, nouvelles tables).
+> - Vérifié : `tsc --noEmit` 0 erreur, seed scripts idempotents (rejoués à
+>   blanc → 0 création), migration relue avant application (aucun `DROP`,
+>   aucun `NOT NULL` sans défaut).
+>
+> ---
+>
 > **Petit chantier livré le 11 septembre — Palette "EduCom Aurora".** Ajout d'une
 > 26ᵉ teinte au sélecteur de couleur existant (`src/lib/theme.ts` →
 > `PRESET_SCHOOL_COLORS`, groupe `"Aurora"`, hex `#3B82F6`), sans toucher aux 25
@@ -46,7 +100,9 @@
 >
 > ---
 >
-> Dernière mise à jour chantier précédent : 11 septembre 2026 — **Chantier Générateur de Documents (v17) — Phase 0 terminée, Phase 1 (audit) livrée, en attente d'arbitrage de Kory avant la phase 2**
+> Dernière mise à jour : 14 septembre 2026 — **Socle de notes Sénégal (v18) — lot 1/5 livré (schéma + seed), lots 2-5 (écrans, saisie, calcul, niveau d'acquisition) à venir**
+>
+> Chantier précédent : 11 septembre 2026 — **Chantier Générateur de Documents (v17) — Phase 0 terminée, Phase 1 (audit) livrée, en attente d'arbitrage de Kory avant la phase 2**
 >
 > Chantier ouvert sur demande de Kory : un générateur universel, personnalisable sans compétence graphique, pour TOUS les documents produits par l'école. Jalonné en deux, frontière actée avant tout code : **Jalon A** (`v17-documents`) = mode blocs + PDF serveur + personnalisation complète (formats, affichages, marges de reliure, repères de coupe) + génération en masse + non-régression visuelle. **Jalon B** (`v17-documents-libre`) = éditeur de composition libre (drag/snap/undo/z-order/verrou/règles) + fidélité millimétrique éditeur↔PDF + vérification de débordement sur le cas le plus chargé. Deux choses du jalon B pré-posées dès le jalon A : coordonnées stockées en **millimètres** dès le mode blocs, et l'interrupteur de mode visible mais désactivé (« Composition libre — bientôt disponible »).
 >
