@@ -1,5 +1,16 @@
 # EduCom SaaS - Contexte du Projet
 
+> **Lot 3C/5 livré le 15 septembre — Bloc Conseil de Classe & délibérations administratives (tag `v18-conseil-classe`).**
+> - **Sécurité serveur absolue (OWNER/ADMIN uniquement)** : `assertCanManageConseilDeClasse` rejette formellement `TEACHER`, `PARENT`, `ACCOUNTANT`, `SECRETARY` (`403 Forbidden`). Testé et prouvé par `scripts/verify-lot3c-conseil.ts`.
+> - **Distinctions proposées, jamais imposées** : Proposition automatique selon la moyenne générale (≥12 Tableau d'honneur, ≥14 Encouragements, ≥16 Félicitations). Le conseil peut retenir, modifier ou retirer la distinction sans altérer la proposition calculée en direct.
+> - **Sanctions séparées** : Travail et conduite 100% indépendants (`AVERTISSEMENT`, `BLAME`, ou aucune).
+> - **Décision d'orientation étanche (3e trimestre uniquement)** : Passage, redoublement, exclusion. Rejet strict côté serveur si tentative d'écriture hors 3e trimestre. Champ absent des écrans en T1/T2.
+> - **Absences connectées au module Présences** : Comptage automatique des absences justifiées (`EXCUSED`) et non justifiées (`ABSENT`) sur les dates du trimestre depuis la table `Attendance`, avec surcharge manuelle autorisée pour la direction.
+> - **Observations adaptées par cycle** : Élémentaire synchronisé sur `appreciationTitulaire` du maître, Secondaire sur `observationsConseil`.
+> - **Écran dédié & points d'entrée** : Interface interactive `/dashboard/grades/conseil`, carte « 5. Conseil » et raccourcis par classe réservés aux administrateurs.
+>
+> ---
+>
 > **Lot 3B/5 consolidé le 15 septembre — Aiguillage serveur par cycle, coefficients stricts et isolation vérifiée (tag `v18-saisie-secondaire`).**
 > - **Aiguillage serveur par cycle (`/dashboard/grades/bulletin`)** : Cause du bug identifiée — l'ancienne « Vue bulletin » (`GradesClient` / `StudentEntryTab`) montait une grille unique non partitionnée et affichait des coefficients éditables. Corrigé par un dispatcher serveur strict : `ELEMENTAIRE` et `PRESCOLAIRE` sont redirigés vers `/dashboard/grades/elementaire`, tandis que `MOYEN` et `SECONDAIRE` sont redirigés vers `/dashboard/grades/secondaire`.
 > - **Terminale S1 configurée officiellement** : Nettoyage des matières parasites (Espagnol supprimé) et rattachement des 6 matières officielles avec leurs coefficients exacts (Maths 8, PC 8, Français 2, Hist-Géo 2, Anglais 2, Philo 2 = total 24).

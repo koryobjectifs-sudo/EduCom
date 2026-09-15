@@ -25,6 +25,25 @@ export async function assertClassInSchool(classId: string, schoolId: string): Pr
 }
 
 /**
+ * Périmètre CONSEIL DE CLASSE — lot 18/3C.
+ *
+ * Réservé STRICTEMENT à la direction et l'administration : OWNER et ADMIN.
+ * Un TEACHER (même titulaire ou professeur principal), un PARENT ou un
+ * ACCOUNTANT ne peuvent ni voir ni modifier ce bloc.
+ */
+export function assertCanManageConseilDeClasse(
+  actor: { role: string }
+): { ok: true } | EntryDenial {
+  if (actor.role !== "OWNER" && actor.role !== "ADMIN") {
+    return {
+      ok: false,
+      error: "Accès strictement réservé à la direction et l'administration (OWNER ou ADMIN).",
+    };
+  }
+  return { ok: true };
+}
+
+/**
  * Périmètre ÉLÉMENTAIRE — titulaire uniquement.
  *
  * ⚠️ L'élémentaire n'a pas de matières séparées à autoriser une par une : le

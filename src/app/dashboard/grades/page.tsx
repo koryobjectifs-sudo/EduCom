@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, FileText, Calendar, Clock, TrendingDown } from "lucide-react";
+import { ClipboardList, FileText, Calendar, Clock, TrendingDown, ShieldAlert } from "lucide-react";
 import { requireSchoolContext } from "@/lib/documentContext";
 import { prisma } from "@/lib/prisma";
 import { sortClasses } from "@/lib/classOrder";
@@ -13,6 +13,7 @@ export default async function GradesEntryChoicePage() {
   const { schoolId, user } = await requireSchoolContext();
 
   const isTeacher = user.role === "TEACHER";
+  const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
   let classWhere: any = { schoolId };
   if (isTeacher) {
     classWhere = {
@@ -112,7 +113,7 @@ export default async function GradesEntryChoicePage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mt-4">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isAdmin ? "lg:grid-cols-5" : "lg:grid-cols-4"} gap-2.5 mt-4`}>
         <Link 
           href="/dashboard/grades/bulletin?type=controle"
           className="group relative rounded-surface border border-rule bg-surface p-3 shadow-2xs transition-all hover:border-primary/50 hover:shadow-subtle flex items-center gap-2.5"
@@ -180,6 +181,25 @@ export default async function GradesEntryChoicePage() {
             </p>
           </div>
         </Link>
+
+        {isAdmin && (
+          <Link 
+            href="/dashboard/grades/conseil"
+            className="group relative rounded-surface border border-purple-200/80 bg-purple-50/20 p-3 shadow-2xs transition-all hover:border-purple-400 hover:shadow-subtle flex items-center gap-2.5"
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-purple-100 text-purple-700 group-hover:bg-purple-700 group-hover:text-white transition-colors">
+              <ShieldAlert className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-xs font-semibold text-text group-hover:text-purple-800 transition-colors">
+                5. Conseil
+              </h2>
+              <p className="mt-0.5 text-role-meta text-text-soft">
+                Distinctions & sanctions
+              </p>
+            </div>
+          </Link>
+        )}
       </div>
 
       {/* Saisie Élémentaire — Accès direct par classe (Lot 18/3A) */}
@@ -218,13 +238,25 @@ export default async function GradesEntryChoicePage() {
                   </p>
                 </div>
 
-                <Link
-                  href={`/dashboard/grades/elementaire?class=${c.id}`}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-control bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-primary-hover w-full sm:w-auto self-start"
-                >
-                  <ClipboardList className="h-3.5 w-3.5" />
-                  Saisir les notes &rarr;
-                </Link>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link
+                    href={`/dashboard/grades/elementaire?class=${c.id}`}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-control bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-primary-hover w-full sm:w-auto self-start"
+                  >
+                    <ClipboardList className="h-3.5 w-3.5" />
+                    Saisir les notes &rarr;
+                  </Link>
+
+                  {isAdmin && (
+                    <Link
+                      href={`/dashboard/grades/conseil?class=${c.id}`}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-control border border-purple-200 bg-purple-50/50 px-2.5 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 transition-colors w-full sm:w-auto self-start"
+                    >
+                      <ShieldAlert className="h-3.5 w-3.5" />
+                      Conseil &rarr;
+                    </Link>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -289,13 +321,25 @@ export default async function GradesEntryChoicePage() {
                     )}
                   </div>
 
-                  <Link
-                    href={`/dashboard/grades/secondaire?class=${c.id}${firstSubject ? `&subject=${firstSubject.id}` : ""}`}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-control bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-sky-700 w-full sm:w-auto self-start"
-                  >
-                    <ClipboardList className="h-3.5 w-3.5" />
-                    Saisir les notes &rarr;
-                  </Link>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href={`/dashboard/grades/secondaire?class=${c.id}${firstSubject ? `&subject=${firstSubject.id}` : ""}`}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-control bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-sky-700 w-full sm:w-auto self-start"
+                    >
+                      <ClipboardList className="h-3.5 w-3.5" />
+                      Saisir les notes &rarr;
+                    </Link>
+
+                    {isAdmin && (
+                      <Link
+                        href={`/dashboard/grades/conseil?class=${c.id}`}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-control border border-purple-200 bg-purple-50/50 px-2.5 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 transition-colors w-full sm:w-auto self-start"
+                      >
+                        <ShieldAlert className="h-3.5 w-3.5" />
+                        Conseil &rarr;
+                      </Link>
+                    )}
+                  </div>
                 </div>
               );
             })}
