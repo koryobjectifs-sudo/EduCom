@@ -1,5 +1,16 @@
 # EduCom SaaS - Contexte du Projet
 
+> **Chantier Réparation Import Dossiers Élèves livré le 15 septembre (tag `v19-import-eleves`).**
+> - **Modèle CSV round-trip 100% vérifié** : Cause racine identifiée (BOM `\uFEFF` + délimiteur `;` d'Excel décalant les clés d'objets PapaParse et provoquant le rejet "nom manquant"). Corrigé avec stripping de BOM, détection automatique de délimiteur et fallback de clés. 100/100 lignes du modèle sont désormais reconnues et validées.
+> - **Détection intelligente de colonnes** : Reconnaissance insensible à la casse, aux accents, aux espaces et parenthèses (ex: `PRENOM`, `Né(e) le`, `Nom de l'élève`, `Téléphone tuteur`).
+> - **Écran de correspondance colonne par colonne (`MappingWizard`)** : Affiche pour chaque colonne « J'ai trouvé {colonne} → {champ}. Correct ? », avec aperçu des 3 premiers exemples réels et option « Mémoriser pour l'école » stockée dans `School.importMapping` (migration `20260915003000_school_import_mapping`).
+> - **Création automatique de classes et cycles** : Déduction des 4 cycles sénégalais (CI-CM2 → ELEMENTAIRE, 6e-3e → MOYEN, 2nde-Tle → SECONDAIRE, PS-GS → PRESCOLAIRE) et des séries secondaires (L1, L2, S1, S2, STEG, STIDD). Application batch des pièces réglementaires officielles pour les nouveaux cycles sans explosion de requêtes.
+> - **Import partiel garanti & Tolérance format** : Traitement par élève évitant tout rollback global ; lignes invalides listées avec leur motif et bouton de téléchargement du CSV des rejets. Téléphones tolérant `+221`, espaces, points ; dates en `JJ/MM/AAAA`, `JJ-MM-AAAA`, `AAAA-MM-JJ`.
+> - **Déduplication tuteurs** : Même tél + nom similaire → fusion auto ; même tél + nom différent → signalement de conflit avec choix par défaut (deux personnes différentes) ; sans tél → profil distinct garanti.
+> - **Test de bout en bout validé sur SENG.CO ACADEMY** : Classe `Terminale S2` (Cycle: SECONDAIRE, Série: S2) créée avec succès, 10 élèves inscrits, tuteur commun dédupliqué, ancien total 363 élèves porté à 373 sans aucune altération de l'existant (`scripts/verify-import-eleves.ts`). Fichier modèle réutilisable disponible dans `scripts/exemple_import_terminale_s2.csv`.
+>
+> ---
+>
 > **Lot 3A/5 livré le 15 septembre — Écran de saisie élémentaire branché et opérationnel (tag `v18-saisie-elementaire`).**
 > - **Accès branché depuis `/dashboard/grades`** : Détection des classes élémentaires (`cycle === ELEMENTAIRE` ou CI-CM2). Accès direct par classe via paramètre d'URL `?class=[classId]` (ou `?classId=`). Action principale adaptée si enseignant exclusif d'élémentaire.
 > - **Moteur de calcul Lot 2 branché directement** : Recalcul en temps réel de chaque moyenne de domaine et de la moyenne générale via `calculerEleveElementaire`. Une sous-discipline vide reste vide et est exclue du calcul (jamais comptée zéro).

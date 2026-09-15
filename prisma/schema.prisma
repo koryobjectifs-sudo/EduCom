@@ -128,6 +128,9 @@ model School {
   /// Structure attendue: Array de { kind: string, startDate: string, endDate: string }
   periods Json?
 
+  /// Mémorisation du format de correspondance des colonnes CSV/Excel par école.
+  importMapping Json?
+
   // Lot 12.1 — référentiel financier
   feeSchedules      FeeSchedule[]
   feeItems          FeeItem[]

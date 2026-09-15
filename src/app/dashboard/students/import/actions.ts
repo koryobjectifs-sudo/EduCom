@@ -6,6 +6,29 @@ import { prisma } from "@/lib/prisma";
 import { requireActionContext } from "@/lib/actionContext";
 import { currentAcademicYear } from "@/lib/studentFile";
 import { parseFlexibleDate } from "@/lib/dateUtils";
+import { OFFICIAL_REQUIREMENTS_BY_CYCLE } from "@/lib/officialRequirements";
+import type { EducationalCycle } from "@/generated/prisma/client";
+
+export type EduComFieldKey =
+  | "firstName"
+  | "lastName"
+  | "className"
+  | "dateOfBirth"
+  | "gender"
+  | "emergencyContact"
+  | "emergencyPhone"
+  | "matricule";
+
+export const FIELD_DEFINITIONS: { key: EduComFieldKey; label: string; required: boolean; description: string }[] = [
+  { key: "firstName", label: "Prénom", required: true, description: "Prénom(s) de l'élève" },
+  { key: "lastName", label: "Nom de famille", required: true, description: "Nom patronymique" },
+  { key: "className", label: "Classe", required: true, description: "Niveau ou nom de la classe" },
+  { key: "dateOfBirth", label: "Date de naissance", required: false, description: "Format JJ/MM/AAAA ou AAAA-MM-JJ" },
+  { key: "gender", label: "Sexe", required: false, description: "M (Masculin) ou F (Féminin)" },
+  { key: "emergencyContact", label: "Nom du tuteur", required: false, description: "Nom complet du parent/tuteur" },
+  { key: "emergencyPhone", label: "Téléphone tuteur", required: false, description: "Numéro de contact (ex: +221 77...)" },
+  { key: "matricule", label: "Matricule", required: false, description: "Identifiant ou code élève" },
+];
 
 export type ImportRow = {
   matricule?: string;
@@ -17,6 +40,20 @@ export type ImportRow = {
   emergencyContact?: string;
   emergencyPhone?: string;
   status?: string;
+  [key: string]: any;
+};
+
+export type MissingClassDef = {
+  name: string;
+  cycle: EducationalCycle;
+  serie: string | null;
+};
+
+export type GuardianConflictDef = {
+  phone: string;
+  existingName: string;
+  incomingName: string;
+  studentName: string;
 };
 
 export type ImportPreviewResult = {
@@ -24,10 +61,311 @@ export type ImportPreviewResult = {
   validRows: number;
   invalidRows: number;
   classesCount: number;
-  duplicatesCount: number;
   classesDetected: string[];
+  missingClasses: MissingClassDef[];
+  existingClasses: string[];
+  duplicatesCount: number;
   duplicateNames: string[];
+  guardianConflicts: GuardianConflictDef[];
+  sampleRows: ImportRow[];
 };
+
+export type ImportStudentResult = {
+  success: boolean;
+  importedCount: number;
+  classesCreated: string[];
+  cyclesCreated: string[];
+  importedStudents: { id: string; firstName: string; lastName: string; className: string }[];
+  rejectedRows: { rowNumber: number; data: ImportRow; reason: string }[];
+  error?: string;
+  needsDpa?: boolean;
+};
+
+/**
+ * Déduit automatiquement le cycle scolaire officiel sénégalais et la série secondaire
+ * d'après le nom de la classe.
+ */
+export async function deduceCycleAndSerie(
+  className: string,
+): Promise<{ cycle: EducationalCycle; serie: string | null }> {
+  const n = className
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+  // 1. PRÉSCOLAIRE
+  if (
+    n.includes("petite section") ||
+    n.includes("moyenne section") ||
+    n.includes("grande section") ||
+    n.startsWith("tps") ||
+    n.startsWith("ps") ||
+    n.startsWith("ms") ||
+    n.startsWith("gs") ||
+    n.includes("maternelle") ||
+    n.includes("prescolaire")
+  ) {
+    return { cycle: "PRESCOLAIRE", serie: null };
+  }
+
+  // 2. ÉLÉMENTAIRE (CI, CP, CE1, CE2, CM1, CM2)
+  const elemPrefixes = ["ci", "cp", "ce1", "ce2", "cm1", "cm2"];
+  if (
+    elemPrefixes.some(
+      (p) =>
+        n === p ||
+        n.startsWith(`${p} `) ||
+        n.startsWith(`${p}-`) ||
+        n.startsWith(`${p}_`) ||
+        n.startsWith(`${p}.`),
+    )
+  ) {
+    return { cycle: "ELEMENTAIRE", serie: null };
+  }
+
+  // 3. MOYEN (6ème, 5ème, 4ème, 3ème)
+  const moyenPrefixes = ["6eme", "6e", "5eme", "5e", "4eme", "4e", "3eme", "3e"];
+  if (
+    moyenPrefixes.some(
+      (p) =>
+        n === p ||
+        n.startsWith(`${p} `) ||
+        n.startsWith(`${p}-`) ||
+        n.startsWith(`${p}_`) ||
+        n.includes("college"),
+    )
+  ) {
+    return { cycle: "MOYEN", serie: null };
+  }
+
+  // 4. SECONDAIRE (2nde, 1ère, Terminale)
+  const secPrefixes = ["2nde", "seconde", "2nd", "1ere", "premiere", "1er", "terminale", "tle"];
+  const isSec =
+    secPrefixes.some(
+      (p) =>
+        n === p ||
+        n.startsWith(`${p} `) ||
+        n.startsWith(`${p}-`) ||
+        n.startsWith(`${p}_`) ||
+        n.includes("lycee") ||
+        n.includes("secondaire"),
+    ) ||
+    n.includes("terminale") ||
+    n.includes("seconde") ||
+    n.includes("premiere");
+
+  if (isSec) {
+    let serie: string | null = null;
+    const upper = className.toUpperCase();
+    if (upper.includes("S1")) serie = "S1";
+    else if (upper.includes("S2")) serie = "S2";
+    else if (upper.includes("L1")) serie = "L1";
+    else if (upper.includes("L2")) serie = "L2";
+    else if (upper.includes("STEG")) serie = "STEG";
+    else if (upper.includes("STIDD")) serie = "STIDD";
+    else if (upper.includes("L'")) serie = "L2";
+    else if (upper.includes("S")) serie = "S2";
+    else if (upper.includes("L")) serie = "L2";
+    return { cycle: "SECONDAIRE", serie };
+  }
+
+  return { cycle: "AUTRE", serie: null };
+}
+
+/**
+ * Normalisation robuste des numéros de téléphone sénégalais (avec ou sans +221, espaces, points).
+ */
+export function normalizePhone(raw: string | null | undefined): { normalizedDigits: string; formatted: string } | null {
+  if (!raw) return null;
+  const digits = raw.replace(/[^0-9]/g, "");
+  if (!digits) return null;
+
+  let local = digits;
+  if (digits.startsWith("221") && digits.length === 12) {
+    local = digits.slice(3);
+  } else if (digits.startsWith("00221") && digits.length === 14) {
+    local = digits.slice(5);
+  }
+
+  // Numéro sénégalais classique : 9 chiffres (ex: 77 123 45 67)
+  if (local.length === 9) {
+    const formatted = `+221 ${local.slice(0, 2)} ${local.slice(2, 5)} ${local.slice(5, 7)} ${local.slice(7, 9)}`;
+    return { normalizedDigits: local, formatted };
+  }
+
+  if (local.length >= 7) {
+    return { normalizedDigits: local, formatted: raw.trim() };
+  }
+
+  return null;
+}
+
+/**
+ * Reconnaissance intelligente des en-têtes usuels.
+ * Insensible à la casse, aux accents, aux espaces et aux parenthèses.
+ */
+export function detectFieldForHeader(
+  rawHeader: string,
+  savedMapping?: Record<string, string> | null,
+): EduComFieldKey | null {
+  if (savedMapping && savedMapping[rawHeader]) {
+    return savedMapping[rawHeader] as EduComFieldKey;
+  }
+
+  const norm = rawHeader
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\(\)\[\]_\-\.\:\;\/\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // 1. Téléphone tuteur (vérifié avant nom pour éviter les faux positifs)
+  if (
+    norm.includes("tel") ||
+    norm.includes("phone") ||
+    norm.includes("mobile") ||
+    norm.includes("cellulaire") ||
+    norm.includes("contact tuteur") ||
+    norm.includes("tel parent")
+  ) {
+    return "emergencyPhone";
+  }
+
+  // 2. Nom du tuteur / parent (vérifié avant nom élève)
+  if (
+    norm.includes("tuteur") ||
+    norm.includes("parent") ||
+    norm.includes("responsable") ||
+    norm.includes("pere") ||
+    norm.includes("mere") ||
+    norm.includes("guardian")
+  ) {
+    return "emergencyContact";
+  }
+
+  // 3. Prénom de l'élève
+  if (
+    norm === "prenom" ||
+    norm === "prenoms" ||
+    norm.includes("prenom") ||
+    norm.includes("firstname") ||
+    norm.includes("first name") ||
+    norm.includes("given name")
+  ) {
+    return "firstName";
+  }
+
+  // 4. Nom patronymique de l'élève
+  if (
+    norm === "nom" ||
+    norm === "noms" ||
+    norm.includes("nom de famille") ||
+    norm.includes("lastname") ||
+    norm.includes("last name") ||
+    norm.includes("family name") ||
+    norm.includes("patronyme") ||
+    norm.startsWith("nom ") ||
+    norm.includes("nom eleve") ||
+    norm.includes("nom apprenant")
+  ) {
+    return "lastName";
+  }
+
+  // 5. Classe / Division / Niveau
+  if (
+    norm.includes("classe") ||
+    norm.includes("class") ||
+    norm.includes("niveau") ||
+    norm.includes("division") ||
+    norm.includes("section") ||
+    norm.includes("grade")
+  ) {
+    return "className";
+  }
+
+  // 6. Date de naissance
+  if (
+    norm.includes("date") ||
+    norm.includes("naissance") ||
+    norm.includes("dob") ||
+    norm.includes("birth") ||
+    norm.includes("ne e le") ||
+    norm.includes("nee le") ||
+    norm.includes("ne le") ||
+    norm.startsWith("ne ") ||
+    norm.startsWith("nee ")
+  ) {
+    return "dateOfBirth";
+  }
+
+  // 7. Sexe / Genre
+  if (
+    norm === "sexe" ||
+    norm === "genre" ||
+    norm === "gender" ||
+    norm === "sex" ||
+    norm === "m f" ||
+    norm.includes("sexe") ||
+    norm.includes("genre")
+  ) {
+    return "gender";
+  }
+
+  // 8. Matricule / IEN
+  if (
+    norm.includes("matricule") ||
+    norm.includes("identifiant") ||
+    norm === "id" ||
+    norm.includes("ien") ||
+    norm.includes("code")
+  ) {
+    return "matricule";
+  }
+
+  return null;
+}
+
+// -------------------------------------------------------------
+// ACTIONS DU WIZARD ET CONFIGURATION
+// -------------------------------------------------------------
+
+export async function getImportConfigAction() {
+  const auth = await requireActionContext("/dashboard/students");
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId } = auth.ctx;
+
+  const school = await prisma.school.findUnique({
+    where: { id: schoolId },
+    select: {
+      name: true,
+      importMapping: true,
+      dataProcessingAcceptedAt: true,
+      classes: { select: { id: true, name: true, cycle: true, serie: true } },
+    },
+  });
+
+  return {
+    accepted: Boolean(school?.dataProcessingAcceptedAt),
+    schoolName: school?.name || "Votre établissement",
+    savedMapping: (school?.importMapping as Record<string, string>) || {},
+    existingClasses: school?.classes || [],
+  };
+}
+
+export async function saveImportMappingAction(mapping: Record<string, string>) {
+  const auth = await requireActionContext("/dashboard/students");
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId } = auth.ctx;
+
+  await prisma.school.update({
+    where: { id: schoolId },
+    data: { importMapping: mapping },
+  });
+
+  return { success: true };
+}
 
 export async function getDpaStatusAction() {
   const auth = await requireActionContext("/dashboard/students");
@@ -67,39 +405,16 @@ export async function acceptDpaAction() {
 }
 
 export async function normalizeRawRow(row: Record<string, any>): Promise<ImportRow> {
-  return parseRawRow(row);
-}
-
-function parseRawRow(row: Record<string, any>): ImportRow {
   const normalized: Record<string, any> = {};
-  
+
   for (const [rawKey, val] of Object.entries(row)) {
     if (val === undefined || val === null) continue;
     const strVal = String(val).trim();
     if (!strVal) continue;
 
-    const k = rawKey.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-    if (!normalized.firstName && (k === "firstname" || k.includes("prenom") || k === "first name" || k === "first_name")) {
-      normalized.firstName = strVal;
-    } else if (!normalized.lastName && (k === "lastname" || (k.includes("nom") && !k.includes("prenom") && !k.includes("tuteur") && !k.includes("parent")) || k === "last name" || k === "last_name" || k === "nom de famille")) {
-      normalized.lastName = strVal;
-    } else if (!normalized.className && (k.includes("classe") || k.includes("class") || k.includes("niveau") || k.includes("division"))) {
-      normalized.className = strVal;
-    } else if (!normalized.dateOfBirth && (k.includes("naissance") || k.includes("dob") || k.includes("birth") || k === "date")) {
-      normalized.dateOfBirth = strVal;
-    } else if (!normalized.gender && (k.includes("sexe") || k.includes("gender") || k.includes("genre"))) {
-      normalized.gender = strVal;
-    } else if (!normalized.emergencyContact && (k.includes("tuteur") || k.includes("parent") || k.includes("responsable") || k === "emergencycontact")) {
-      if (!k.includes("tel") && !k.includes("phone")) {
-        normalized.emergencyContact = strVal;
-      }
-    } else if (!normalized.emergencyPhone && (k.includes("tel") || k.includes("phone") || k.includes("mobile") || k.includes("cellulaire") || k === "emergencyphone")) {
-      normalized.emergencyPhone = strVal;
-    } else if (!normalized.matricule && (k.includes("matricule") || k.includes("identifiant") || k === "id")) {
-      normalized.matricule = strVal;
-    } else if (!normalized.status && (k.includes("statut") || k.includes("status"))) {
-      normalized.status = strVal;
+    const detected = detectFieldForHeader(rawKey);
+    if (detected && !normalized[detected]) {
+      normalized[detected] = strVal;
     }
   }
 
@@ -116,38 +431,105 @@ function parseRawRow(row: Record<string, any>): ImportRow {
   };
 }
 
-export async function previewImport(rows: ImportRow[]): Promise<{ data?: ImportPreviewResult; error?: string }> {
-  const auth = await requireActionContext("/dashboard/students");
-  if (!auth.ok) return { error: auth.error };
-  const { schoolId } = auth.ctx;
+// -------------------------------------------------------------
+// PRÉVISUALISATION ET ANALYSE
+// -------------------------------------------------------------
 
+export async function executePreviewImport(
+  schoolId: string,
+  rows: ImportRow[],
+): Promise<{ data?: ImportPreviewResult; error?: string }> {
   if (!rows || rows.length === 0) {
     return { error: "Le fichier ne contient aucune donnée." };
   }
 
-  const normalizedRows = rows.map((r) => parseRawRow(r));
-  const validRows = normalizedRows.filter(r => r.firstName?.trim() && r.lastName?.trim());
-  const invalidRows = normalizedRows.length - validRows.length;
-
-  const uniqueClassNames = Array.from(new Set(validRows.map(r => r.className?.trim()).filter(Boolean))) as string[];
-
-  // Fetch existing students to check for potential duplicates based on First Name + Last Name
-  const existingStudents = await prisma.student.findMany({
-    where: { schoolId },
-    select: { firstName: true, lastName: true }
+  const normalizedRows = rows.map((r) => {
+    if (r.firstName !== undefined && r.lastName !== undefined) return r;
+    return r;
   });
 
-  const existingSet = new Set(existingStudents.map(s => `${s.firstName.toLowerCase().trim()}|${s.lastName.toLowerCase().trim()}`));
-  
+  const validRows = normalizedRows.filter((r) => r.firstName?.trim() && r.lastName?.trim());
+  const invalidRows = normalizedRows.length - validRows.length;
+
+  // 1. Analyse des classes
+  const uniqueClassNames = Array.from(
+    new Set(validRows.map((r) => r.className?.trim()).filter(Boolean)),
+  ) as string[];
+
+  const existingClasses = await prisma.class.findMany({
+    where: { schoolId },
+    select: { name: true, cycle: true, serie: true },
+  });
+  const existingClassNamesSet = new Set(existingClasses.map((c) => c.name.toLowerCase().trim()));
+
+  const missingClassNames = uniqueClassNames.filter(
+    (name) => !existingClassNamesSet.has(name.toLowerCase().trim()),
+  );
+
+  const missingClasses: MissingClassDef[] = await Promise.all(
+    missingClassNames.map(async (name) => {
+      const { cycle, serie } = await deduceCycleAndSerie(name);
+      return { name, cycle, serie };
+    }),
+  );
+
+  // 2. Détection des doublons élèves
+  const existingStudents = await prisma.student.findMany({
+    where: { schoolId },
+    select: { firstName: true, lastName: true },
+  });
+  const existingStudentSet = new Set(
+    existingStudents.map((s) => `${s.firstName.toLowerCase().trim()}|${s.lastName.toLowerCase().trim()}`),
+  );
+
   let duplicatesCount = 0;
   const duplicateNames: string[] = [];
 
   for (const row of validRows) {
     const key = `${row.firstName.toLowerCase().trim()}|${row.lastName.toLowerCase().trim()}`;
-    if (existingSet.has(key)) {
+    if (existingStudentSet.has(key)) {
       duplicatesCount++;
       if (duplicateNames.length < 5) {
         duplicateNames.push(`${row.firstName} ${row.lastName}`);
+      }
+    }
+  }
+
+  // 3. Détection des conflits de tuteurs (même téléphone, nom différent)
+  const existingParents = await prisma.user.findMany({
+    where: { schoolId, role: "PARENT", phone: { not: null } },
+    select: { firstName: true, lastName: true, phone: true },
+  });
+
+  const phoneMap = new Map<string, string>();
+  for (const p of existingParents) {
+    const norm = normalizePhone(p.phone);
+    if (norm) {
+      phoneMap.set(norm.normalizedDigits, `${p.firstName} ${p.lastName}`.trim());
+    }
+  }
+
+  const guardianConflicts: GuardianConflictDef[] = [];
+  for (const r of validRows) {
+    if (r.emergencyPhone && r.emergencyContact) {
+      const norm = normalizePhone(r.emergencyPhone);
+      if (norm && phoneMap.has(norm.normalizedDigits)) {
+        const existingName = phoneMap.get(norm.normalizedDigits)!;
+        const incomingName = r.emergencyContact.trim();
+        const existingLast = existingName.split(" ").slice(-1)[0].toLowerCase();
+        const incomingLast = incomingName.split(" ").slice(-1)[0].toLowerCase();
+
+        // Si le nom de famille est différent, c'est un conflit à signaler
+        if (existingLast !== incomingLast && !existingName.toLowerCase().includes(incomingLast)) {
+          if (!guardianConflicts.some((c) => c.phone === norm.formatted)) {
+            guardianConflicts.push({
+              phone: norm.formatted,
+              existingName,
+              incomingName,
+              studentName: `${r.firstName} ${r.lastName}`,
+            });
+          }
+        }
       }
     }
   }
@@ -158,18 +540,36 @@ export async function previewImport(rows: ImportRow[]): Promise<{ data?: ImportP
       validRows: validRows.length,
       invalidRows,
       classesCount: uniqueClassNames.length,
-      duplicatesCount,
       classesDetected: uniqueClassNames,
-      duplicateNames
-    }
+      missingClasses,
+      existingClasses: existingClasses.map((c) => c.name),
+      duplicatesCount,
+      duplicateNames,
+      guardianConflicts,
+      sampleRows: validRows.slice(0, 10),
+    },
   };
 }
 
-export async function importStudents(rows: ImportRow[], skipDuplicates: boolean = false) {
+export async function previewImport(rows: ImportRow[]): Promise<{ data?: ImportPreviewResult; error?: string }> {
   const auth = await requireActionContext("/dashboard/students");
   if (!auth.ok) return { error: auth.error };
-  const { schoolId, userId } = auth.ctx;
+  return executePreviewImport(auth.ctx.schoolId, rows);
+}
 
+// -------------------------------------------------------------
+// EXÉCUTION DE L'IMPORTATION (PARTIEL TOUJOURS)
+// -------------------------------------------------------------
+
+export async function executeImportStudents(
+  schoolId: string,
+  rows: ImportRow[],
+  options?: {
+    skipDuplicates?: boolean;
+    confirmedClasses?: MissingClassDef[];
+    guardianDecisions?: Record<string, "MERGE" | "SEPARATE">;
+  },
+): Promise<ImportStudentResult> {
   const schoolDb = await prisma.school.findUnique({
     where: { id: schoolId },
     select: { id: true, name: true, activeAcademicYear: true, dataProcessingAcceptedAt: true },
@@ -177,301 +577,337 @@ export async function importStudents(rows: ImportRow[], skipDuplicates: boolean 
 
   if (!schoolDb?.dataProcessingAcceptedAt) {
     return {
-      error: "Conformité légale : vous devez valider la convention de traitement des données (CDP Sénégal) avant d'importer des élèves.",
+      success: false,
+      importedCount: 0,
+      classesCreated: [],
+      cyclesCreated: [],
+      importedStudents: [],
+      rejectedRows: [],
+      error:
+        "Conformité légale : vous devez valider la convention de traitement des données (CDP Sénégal) avant d'importer des élèves.",
       needsDpa: true,
     };
   }
 
   if (!rows || rows.length === 0) {
-    return { error: "Le fichier ne contient aucune donnée valide." };
+    return {
+      success: false,
+      importedCount: 0,
+      classesCreated: [],
+      cyclesCreated: [],
+      importedStudents: [],
+      rejectedRows: [],
+      error: "Le fichier ne contient aucune ligne à importer.",
+    };
   }
 
-  const normalizedRows = rows.map((r) => parseRawRow(r));
+  const skipDuplicates = options?.skipDuplicates ?? false;
+  const confirmedClasses = options?.confirmedClasses || [];
+  const guardianDecisions = options?.guardianDecisions || {};
 
-  try {
-    const year = currentAcademicYear(schoolDb);
-    let importedCount = 0;
-    const classBreakdownMap = new Map<string, number>();
-    const partialErrors: { row: number; reason: string }[] = [];
+  const year = currentAcademicYear(schoolDb);
+  const rejectedRows: { rowNumber: number; data: ImportRow; reason: string }[] = [];
+  const validRowsToProcess: { row: ImportRow; rowNumber: number }[] = [];
 
-    // Filter valid rows with first & last name
-    const validRows: (ImportRow & { originalIndex: number })[] = [];
-    normalizedRows.forEach((r, idx) => {
-      if (!r.firstName?.trim() || !r.lastName?.trim()) {
-        partialErrors.push({ row: idx + 1, reason: "Nom ou prénom manquant" });
-      } else {
-        validRows.push({ ...r, originalIndex: idx + 1 });
-      }
-    });
+  // Filtrage préliminaire et vérifications des champs requis
+  rows.forEach((r, idx) => {
+    const rowNum = idx + 1;
+    if (!r.firstName?.trim() && !r.lastName?.trim()) {
+      rejectedRows.push({ rowNumber: rowNum, data: r, reason: "Nom et prénom manquants" });
+      return;
+    }
+    if (!r.firstName?.trim()) {
+      rejectedRows.push({ rowNumber: rowNum, data: r, reason: "Prénom manquant" });
+      return;
+    }
+    if (!r.lastName?.trim()) {
+      rejectedRows.push({ rowNumber: rowNum, data: r, reason: "Nom manquant" });
+      return;
+    }
+    validRowsToProcess.push({ row: r, rowNumber: rowNum });
+  });
 
-    let processRows = validRows;
-    if (skipDuplicates) {
-      const existingStudents = await prisma.student.findMany({
-        where: { schoolId },
-        select: { firstName: true, lastName: true },
+  // 1. Création / Résolution des classes
+  const classesCreated: string[] = [];
+  const newCyclesSet = new Set<EducationalCycle>();
+  const classMap = new Map<string, string>(); // className (lowercase) -> classId
+
+  // Charger les classes existantes
+  const existingClasses = await prisma.class.findMany({
+    where: { schoolId },
+    select: { id: true, name: true, cycle: true },
+  });
+  existingClasses.forEach((c) => classMap.set(c.name.toLowerCase().trim(), c.id));
+  const existingCycles = new Set(existingClasses.map((c) => c.cycle));
+
+  // Créer les classes manquantes confirmées
+  for (const cDef of confirmedClasses) {
+    const key = cDef.name.toLowerCase().trim();
+    if (!classMap.has(key)) {
+      const created = await prisma.class.create({
+        data: {
+          name: cDef.name.trim(),
+          schoolId,
+          cycle: cDef.cycle,
+          serie: cDef.serie || null,
+        },
       });
-      const existingSet = new Set(
-        existingStudents.map((s) => `${s.firstName.toLowerCase().trim()}|${s.lastName.toLowerCase().trim()}`)
+      classMap.set(key, created.id);
+      classesCreated.push(created.name);
+      if (!existingCycles.has(created.cycle)) {
+        newCyclesSet.add(created.cycle);
+      }
+    }
+  }
+
+  // Si des cycles sont nouveaux pour cette école, appliquer les exigences officielles en batch
+  const cyclesCreated = Array.from(newCyclesSet);
+  if (cyclesCreated.length > 0) {
+    const vises = cyclesCreated.filter((c) => OFFICIAL_REQUIREMENTS_BY_CYCLE[c]);
+    if (vises.length > 0) {
+      const existantes = await prisma.documentRequirement.findMany({
+        where: { schoolId, cycle: { in: vises } },
+        select: { cycle: true, label: true },
+      });
+      const cle = (cycle: string | null, label: string) =>
+        `${cycle ?? ""}|${label.trim().toLowerCase().replace(/\s+/g, " ")}`;
+      const deja = new Set(existantes.map((r) => cle(r.cycle, r.label)));
+
+      const aCreer = vises.flatMap((cycle) =>
+        (OFFICIAL_REQUIREMENTS_BY_CYCLE[cycle] ?? [])
+          .filter((r) => !deja.has(cle(cycle, r.label)))
+          .map((r, i) => ({
+            label: r.label,
+            category: r.category,
+            cycle,
+            source: r.source,
+            required: r.required,
+            pinned: r.pinned,
+            conditional: r.conditional ?? null,
+            studentKind: r.studentKind ?? null,
+            validityMonths: null,
+            position: r.order || i + 1,
+            schoolId,
+          })),
       );
-      processRows = validRows.filter((r) => {
-        const key = `${r.firstName.toLowerCase().trim()}|${r.lastName.toLowerCase().trim()}`;
-        const isDup = existingSet.has(key);
-        if (isDup) partialErrors.push({ row: r.originalIndex, reason: "Doublon déjà inscrit (ignoré)" });
-        return !isDup;
-      });
-    }
 
-    if (processRows.length === 0) {
-      return {
-        error: "Aucun nouvel élève valide à importer.",
-        partialErrors,
-      };
-    }
-
-    let resultStudents: { id: string; firstName: string; lastName: string; className: string }[] = [];
-
-    await prisma.$transaction(
-      async (tx) => {
-        // 1. Gérer les classes
-        const uniqueClassNames = Array.from(
-          new Set(processRows.map((r) => r.className?.trim()).filter(Boolean))
-        ) as string[];
-        const allClassMap = new Map<string, string>();
-
-        if (uniqueClassNames.length > 0) {
-          const existingClasses = await tx.class.findMany({
-            where: { schoolId, name: { in: uniqueClassNames } },
-          });
-          const existingClassNames = new Set(existingClasses.map((c) => c.name));
-          existingClasses.forEach((c) => allClassMap.set(c.name, c.id));
-
-          const missingClassNames = uniqueClassNames.filter((name) => !existingClassNames.has(name));
-
-          if (missingClassNames.length > 0) {
-            const newClasses = await tx.class.createManyAndReturn({
-              data: missingClassNames.map((name) => ({
-                name,
-                schoolId,
-                cycle: "ELEMENTAIRE", // Default cycle
-              })),
-            });
-
-            newClasses.forEach((c) => allClassMap.set(c.name, c.id));
-
-            await tx.auditLog.createMany({
-              data: newClasses.map((c) => ({
-                action: "CREATED",
-                entity: "Class",
-                entityId: c.id,
-                userId,
-                schoolId,
-                details: JSON.stringify({ name: c.name, source: "bulk_import" }),
-              })),
-            });
-          }
-        }
-
-        // 2. Déduplication intelligente des tuteurs (téléphone + similarité de nom)
-        const existingParents = await tx.user.findMany({
-          where: { schoolId, role: "PARENT" },
-          select: { id: true, firstName: true, lastName: true, phone: true },
-        });
-
-        // Map phone -> list of existing parents
-        const phoneToParents = new Map<string, { id: string; firstName: string; lastName: string }[]>();
-        for (const p of existingParents) {
-          if (p.phone) {
-            const norm = p.phone.replace(/[^0-9]/g, "");
-            if (norm) {
-              const list = phoneToParents.get(norm) || [];
-              list.push({ id: p.id, firstName: p.firstName, lastName: p.lastName });
-              phoneToParents.set(norm, list);
-            }
-          }
-        }
-
-        const rowsWithParentInfo = processRows.filter((r) => r.emergencyPhone || r.emergencyContact);
-        const assignedParentIds = new Map<number, string>();
-
-        for (const r of rowsWithParentInfo) {
-          const rawPhone = (r.emergencyPhone || "").trim();
-          const normPhone = rawPhone.replace(/[^0-9]/g, "");
-          const rawContact = (r.emergencyContact || "Parent").trim();
-          const names = rawContact.split(" ");
-          const pFirst = names.length > 1 ? names.slice(0, -1).join(" ") : names[0] || "Tuteur";
-          const pLast = names.length > 1 ? names[names.length - 1] : "Famille";
-
-          if (normPhone) {
-            const candidates = phoneToParents.get(normPhone) || [];
-            // Vérifier similarité de nom
-            const matchingCandidate = candidates.find(
-              (c) =>
-                c.lastName.toLowerCase().trim() === pLast.toLowerCase().trim() ||
-                c.firstName.toLowerCase().trim() === pFirst.toLowerCase().trim() ||
-                rawContact.toLowerCase().includes(c.lastName.toLowerCase())
-            );
-
-            if (matchingCandidate) {
-              // Fusion : même téléphone + nom concordant
-              assignedParentIds.set(r.originalIndex, matchingCandidate.id);
-            } else {
-              // Création d'un nouveau profil tuteur distinct
-              const placeholderEmail = `${normPhone}_${Date.now().toString(36)}_${Math.floor(Math.random() * 1000)}@parent.educom.local`;
-              const newParent = await tx.user.create({
-                data: {
-                  firstName: pFirst,
-                  lastName: pLast,
-                  phone: rawPhone,
-                  email: placeholderEmail,
-                  role: "PARENT",
-                  schoolId,
-                },
-                select: { id: true, firstName: true, lastName: true },
-              });
-              candidates.push(newParent);
-              phoneToParents.set(normPhone, candidates);
-              assignedParentIds.set(r.originalIndex, newParent.id);
-            }
-          } else if (rawContact) {
-            // Sans téléphone : création d'un tuteur distinct non fusionné
-            const placeholderEmail = `tuteur_${Date.now().toString(36)}_${Math.floor(Math.random() * 10000)}@parent.educom.local`;
-            const newParent = await tx.user.create({
-              data: {
-                firstName: pFirst,
-                lastName: pLast,
-                phone: null,
-                email: placeholderEmail,
-                role: "PARENT",
-                schoolId,
-              },
-              select: { id: true },
-            });
-            assignedParentIds.set(r.originalIndex, newParent.id);
-          }
-        }
-
-        // 3. Préparer les données des élèves
-        const studentsData = processRows.map((row) => {
-          const dateOfBirth = parseFlexibleDate(row.dateOfBirth);
-          const statusStr = row.status?.trim().toLowerCase() || "actif";
-          const mappedStatus =
-            statusStr === "inactif"
-              ? "INACTIVE"
-              : statusStr === "diplomé"
-              ? "GRADUATED"
-              : statusStr === "en attente"
-              ? "PENDING"
-              : "ENROLLED";
-
-          const parentId = assignedParentIds.get(row.originalIndex) || null;
-
-          return {
-            firstName: row.firstName.trim(),
-            lastName: row.lastName.trim(),
-            matricule: row.matricule?.trim() || null,
-            gender: row.gender?.trim() || null,
-            dateOfBirth,
-            emergencyContact: row.emergencyContact?.trim() || null,
-            emergencyPhone: row.emergencyPhone?.trim() || null,
-            parentId,
-            status: mappedStatus as "PENDING" | "ENROLLED" | "GRADUATED" | "INACTIVE",
-            schoolId,
-          };
-        });
-
-        // 4. Créer les élèves en masse
-        const createdStudents = await tx.student.createManyAndReturn({
-          data: studentsData,
-        });
-
-        // 5. Inscriptions et audits
-        const enrollmentsData: any[] = [];
-        const auditLogsData: any[] = [];
-
-        for (let i = 0; i < createdStudents.length; i++) {
-          const student = createdStudents[i];
-          const row = processRows[i];
-
-          auditLogsData.push({
-            action: "CREATED",
-            entity: "Student",
-            entityId: student.id,
-            userId,
-            schoolId,
-            details: JSON.stringify({ source: "bulk_import" }),
-          });
-
-          const className = row.className?.trim() || "Sans classe";
-          resultStudents.push({
-            id: student.id,
-            firstName: student.firstName,
-            lastName: student.lastName,
-            className,
-          });
-
-          if (row.className) {
-            const classId = allClassMap.get(row.className.trim());
-            if (classId) {
-              enrollmentsData.push({
-                studentId: student.id,
-                classId,
-                academicYear: year,
-              });
-              const currentCount = classBreakdownMap.get(row.className.trim()) || 0;
-              classBreakdownMap.set(row.className.trim(), currentCount + 1);
-            }
-          }
-        }
-
-        if (enrollmentsData.length > 0) {
-          await tx.enrollment.createMany({ data: enrollmentsData });
-        }
-
-        if (auditLogsData.length > 0) {
-          await tx.auditLog.createMany({ data: auditLogsData });
-        }
-
-        // 6. Activer l'école et mettre à jour setupProgress
-        await tx.school.update({
-          where: { id: schoolId },
-          data: {
-            schoolActivated: true,
-            setupProgress: {
-              classes: true,
-              students: true,
-              curriculum: true,
-              calendar: true,
-            },
-          },
-        });
-
-        importedCount = createdStudents.length;
-      },
-      {
-        timeout: 30000,
+      if (aCreer.length > 0) {
+        await prisma.documentRequirement.createMany({ data: aCreer });
       }
+    }
+  }
+
+  // 2. Gestion des doublons élèves si demandé
+  let candidateRows = validRowsToProcess;
+  if (skipDuplicates) {
+    const existingStudents = await prisma.student.findMany({
+      where: { schoolId },
+      select: { firstName: true, lastName: true },
+    });
+    const existingStudentSet = new Set(
+      existingStudents.map((s) => `${s.firstName.toLowerCase().trim()}|${s.lastName.toLowerCase().trim()}`),
     );
 
-    revalidatePath("/dashboard/students");
-    revalidatePath("/dashboard/classes");
-    revalidatePath("/dashboard");
+    candidateRows = validRowsToProcess.filter(({ row, rowNumber }) => {
+      const key = `${row.firstName.toLowerCase().trim()}|${row.lastName.toLowerCase().trim()}`;
+      if (existingStudentSet.has(key)) {
+        rejectedRows.push({ rowNumber, data: row, reason: "Élève déjà existant dans l'établissement (doublon ignoré)" });
+        return false;
+      }
+      return true;
+    });
+  }
 
-    const classesSummary = Array.from(classBreakdownMap.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+  // 3. Déduplication et résolution des tuteurs
+  const existingParents = await prisma.user.findMany({
+    where: { schoolId, role: "PARENT" },
+    select: { id: true, firstName: true, lastName: true, phone: true },
+  });
 
+  // Map normalizedPhone -> liste des parents existants
+  const parentByPhone = new Map<string, { id: string; firstName: string; lastName: string }[]>();
+  for (const p of existingParents) {
+    const norm = normalizePhone(p.phone);
+    if (norm) {
+      const list = parentByPhone.get(norm.normalizedDigits) || [];
+      list.push({ id: p.id, firstName: p.firstName, lastName: p.lastName });
+      parentByPhone.set(norm.normalizedDigits, list);
+    }
+  }
+
+  const assignedParentIds = new Map<number, string>(); // rowNumber -> parentId
+
+  for (const { row, rowNumber } of candidateRows) {
+    const phoneNorm = normalizePhone(row.emergencyPhone);
+    const rawContact = (row.emergencyContact || "").trim();
+
+    const names = rawContact ? rawContact.split(/\s+/) : [];
+    const pFirst = names.length > 1 ? names.slice(0, -1).join(" ") : names[0] || "Tuteur";
+    const pLast = names.length > 1 ? names[names.length - 1] : "Famille";
+
+    if (phoneNorm) {
+      const candidates = parentByPhone.get(phoneNorm.normalizedDigits) || [];
+      const incomingLastName = pLast.toLowerCase().trim();
+
+      // Vérifier si un parent existant a un nom similaire
+      const similarCandidate = candidates.find(
+        (c) =>
+          c.lastName.toLowerCase().trim() === incomingLastName ||
+          c.firstName.toLowerCase().trim() === pFirst.toLowerCase().trim() ||
+          rawContact.toLowerCase().includes(c.lastName.toLowerCase().trim()),
+      );
+
+      const userChoice = guardianDecisions[phoneNorm.formatted] || guardianDecisions[phoneNorm.normalizedDigits];
+
+      if (similarCandidate || userChoice === "MERGE") {
+        // Fusion automatique si nom similaire ou décision explicite
+        const targetParent = similarCandidate || candidates[0];
+        if (targetParent) {
+          assignedParentIds.set(rowNumber, targetParent.id);
+          continue;
+        }
+      }
+
+      // Nom différent ou choix explicite SEPARATE ou pas de candidat existant -> créer un nouveau profil parent
+      const placeholderEmail = `${phoneNorm.normalizedDigits}_${Date.now().toString(36)}_${Math.floor(Math.random() * 1000)}@parent.educom.local`;
+      const newParent = await prisma.user.create({
+        data: {
+          firstName: pFirst,
+          lastName: pLast,
+          phone: phoneNorm.formatted,
+          email: placeholderEmail,
+          role: "PARENT",
+          schoolId,
+        },
+        select: { id: true, firstName: true, lastName: true },
+      });
+      candidates.push(newParent);
+      parentByPhone.set(phoneNorm.normalizedDigits, candidates);
+      assignedParentIds.set(rowNumber, newParent.id);
+    } else if (rawContact) {
+      // Sans téléphone : créer un tuteur séparé, jamais fusionné
+      const placeholderEmail = `tuteur_${Date.now().toString(36)}_${Math.floor(Math.random() * 10000)}@parent.educom.local`;
+      const newParent = await prisma.user.create({
+        data: {
+          firstName: pFirst,
+          lastName: pLast,
+          phone: null,
+          email: placeholderEmail,
+          role: "PARENT",
+          schoolId,
+        },
+        select: { id: true },
+      });
+      assignedParentIds.set(rowNumber, newParent.id);
+    }
+  }
+
+  // 4. Création des élèves et inscriptions (Transaction par élève pour garantir l'import partiel)
+  const importedStudents: { id: string; firstName: string; lastName: string; className: string }[] = [];
+
+  for (const { row, rowNumber } of candidateRows) {
+    try {
+      const classId = row.className ? classMap.get(row.className.toLowerCase().trim()) : null;
+
+      // Normalisation de la date de naissance
+      let dobDate: Date | null = null;
+      if (row.dateOfBirth?.trim()) {
+        dobDate = parseFlexibleDate(row.dateOfBirth.trim());
+        if (!dobDate) {
+          rejectedRows.push({
+            rowNumber,
+            data: row,
+            reason: `Date de naissance invalide : "${row.dateOfBirth}" (format attendu : JJ/MM/AAAA)`,
+          });
+          continue;
+        }
+      }
+
+      // Normalisation du sexe
+      let genderStr = "M";
+      if (row.gender) {
+        const g = row.gender.toUpperCase().trim();
+        if (g.startsWith("F") || g.startsWith("W")) genderStr = "F";
+      }
+
+      const parentId = assignedParentIds.get(rowNumber) || null;
+
+      const student = await prisma.student.create({
+        data: {
+          firstName: row.firstName.trim(),
+          lastName: row.lastName.trim(),
+          gender: genderStr,
+          dateOfBirth: dobDate,
+          schoolId,
+          matricule: row.matricule?.trim() || null,
+          parentId,
+          status: "ENROLLED",
+        },
+        select: { id: true, firstName: true, lastName: true },
+      });
+
+      // Inscription dans la classe si définie
+      if (classId) {
+        await prisma.enrollment.create({
+          data: {
+            studentId: student.id,
+            classId,
+            academicYear: year,
+          },
+        });
+      }
+
+      importedStudents.push({
+        id: student.id,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        className: row.className?.trim() || "Sans classe",
+      });
+    } catch (err: any) {
+      console.error(`Erreur import ligne ${rowNumber}:`, err);
+      rejectedRows.push({
+        rowNumber,
+        data: row,
+        reason: err?.message || "Erreur interne lors de la création",
+      });
+    }
+  }
+
+  return {
+    success: true,
+    importedCount: importedStudents.length,
+    classesCreated,
+    cyclesCreated,
+    importedStudents,
+    rejectedRows,
+  };
+}
+
+export async function importStudents(
+  rows: ImportRow[],
+  options?: {
+    skipDuplicates?: boolean;
+    confirmedClasses?: MissingClassDef[];
+    guardianDecisions?: Record<string, "MERGE" | "SEPARATE">;
+  },
+): Promise<ImportStudentResult> {
+  const auth = await requireActionContext("/dashboard/students");
+  if (!auth.ok) {
     return {
-      success: true,
-      count: importedCount,
-      classesSummary,
-      importedStudents: resultStudents,
-      firstStudent: resultStudents[0] || null,
-      partialErrors,
-    };
-  } catch (error: any) {
-    console.error("Erreur lors de l'import:", error);
-    return {
-      error: "Une erreur est survenue lors de l'importation. Veuillez vérifier le format de votre fichier.",
+      success: false,
+      importedCount: 0,
+      classesCreated: [],
+      cyclesCreated: [],
+      importedStudents: [],
+      rejectedRows: [],
+      error: auth.error,
     };
   }
+  const { schoolId } = auth.ctx;
+  const res = await executeImportStudents(schoolId, rows, options);
+  if (res.success) {
+    revalidatePath("/dashboard/students");
+    revalidatePath("/dashboard/classes");
+  }
+  return res;
 }
