@@ -30,6 +30,17 @@ export default async function GradesEntryChoicePage() {
       include: {
         _count: { select: { enrollments: true } },
         teacher: { select: { id: true, firstName: true, lastName: true } },
+        subjects: {
+          include: {
+            subject: { select: { id: true, name: true, code: true } },
+          },
+        },
+        assignments: {
+          where: isTeacher ? { teacherId: user.id } : undefined,
+          include: {
+            subject: { select: { id: true, name: true, code: true } },
+          },
+        },
       },
     })
   );
@@ -41,7 +52,9 @@ export default async function GradesEntryChoicePage() {
     );
 
   const elementaryClasses = allClasses.filter(isElementaire);
-  const isElementaryOnlyTeacher = isTeacher && elementaryClasses.length > 0 && allClasses.length === elementaryClasses.length;
+  const secondaryClasses = allClasses.filter((c) => !isElementaire(c));
+  const isElementaryOnlyTeacher = isTeacher && elementaryClasses.length > 0 && secondaryClasses.length === 0;
+  const isSecondaryOnlyTeacher = isTeacher && secondaryClasses.length > 0 && elementaryClasses.length === 0;
 
   // Fetch upcoming evaluations (limit to 10 for the widget)
   const today = new Date();
@@ -74,6 +87,8 @@ export default async function GradesEntryChoicePage() {
 
   const mainEntryHref = isElementaryOnlyTeacher
     ? `/dashboard/grades/elementaire?class=${elementaryClasses[0].id}`
+    : isSecondaryOnlyTeacher
+    ? `/dashboard/grades/secondaire?class=${secondaryClasses[0].id}`
     : "/dashboard/grades/bulletin?type=controle";
 
   return (
@@ -212,6 +227,78 @@ export default async function GradesEntryChoicePage() {
                 </Link>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Saisie Secondaire & Moyen — Accès direct par classe et matière (Lot 18/3B) */}
+      {secondaryClasses.length > 0 && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="h-4 w-4 text-sky-600" />
+              <h2 className="text-sm sm:text-base font-bold text-text tracking-tight">
+                Saisie secondaire & moyen (6e à Terminale — par matières)
+              </h2>
+            </div>
+            <span className="text-role-meta text-text-soft">
+              {secondaryClasses.length} classe{secondaryClasses.length > 1 ? "s" : ""}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {secondaryClasses.map((c) => {
+              const allowedSubjects = isTeacher
+                ? (c.assignments ?? []).map((a: any) => a.subject).filter(Boolean)
+                : (c.subjects ?? []).map((cs: any) => cs.subject).filter(Boolean);
+
+              const firstSubject = allowedSubjects[0];
+
+              return (
+                <div
+                  key={c.id}
+                  className="group relative rounded-surface border border-rule bg-surface p-3.5 shadow-2xs transition-all hover:border-sky-500/50 hover:shadow-subtle flex flex-col justify-between gap-3"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-bold text-text group-hover:text-sky-600 transition-colors">
+                        {c.name}
+                      </h3>
+                      <span className="inline-flex items-center rounded-pill bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+                        {c.cycle === "MOYEN" ? "Moyen" : "Secondaire"}
+                        {c.serie ? ` · ${c.serie}` : ""}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-role-meta text-text-soft">
+                      {c._count.enrollments} élève{c._count.enrollments > 1 ? "s" : ""}
+                      {c.teacher ? ` · PP : ${c.teacher.firstName} ${c.teacher.lastName}` : ""}
+                    </p>
+
+                    {allowedSubjects.length > 0 && (
+                      <div className="mt-2.5 flex flex-wrap gap-1">
+                        {allowedSubjects.map((s: any) => (
+                          <Link
+                            key={s.id}
+                            href={`/dashboard/grades/secondaire?class=${c.id}&subject=${s.id}`}
+                            className="inline-flex items-center rounded-pill border border-rule bg-sunk/50 px-2 py-0.5 text-[11px] font-medium text-text-soft hover:border-sky-500/50 hover:text-sky-700 hover:bg-surface transition-colors"
+                          >
+                            {s.code || s.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <Link
+                    href={`/dashboard/grades/secondaire?class=${c.id}${firstSubject ? `&subject=${firstSubject.id}` : ""}`}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-control bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-sky-700 w-full sm:w-auto self-start"
+                  >
+                    <ClipboardList className="h-3.5 w-3.5" />
+                    Saisir les notes &rarr;
+                  </Link>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

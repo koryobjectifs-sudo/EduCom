@@ -26,6 +26,8 @@ import { calculerMatiereSecondaire } from "@/lib/notes/secondaire";
 import { deriverNiveau } from "@/lib/notes/secondaire-classe";
 import { pickCurrentTerm } from "@/lib/terms";
 
+import { editableSubjectIds } from "@/lib/gradeEntry";
+
 const PATH = "/dashboard/grades/secondaire";
 const MAX_DEVOIRS = 3;
 
@@ -48,6 +50,9 @@ export type SecondaireContext =
       classId: string; className: string;
       subjectId: string; subjectName: string; coefficient: number;
       termId: string; termName: string;
+      allTerms: { id: string; name: string }[];
+      allSubjects: { id: string; name: string; coefficient: number }[];
+      allClasses: { id: string; name: string }[];
       lignes: SecondaireEleveLigne[];
     }
   | { ok: false; error: string };
@@ -74,17 +79,36 @@ async function resoudreCoefficient(schoolId: string, classId: string, subjectId:
 }
 
 export async function getSecondaireContextWithActor(
-  actor: Actor, classId: string, subjectId: string, termId?: string,
+  actor: Actor, classId: string, subjectId?: string, termId?: string,
 ): Promise<SecondaireContext> {
   const klass = await assertClassInSchool(classId, actor.schoolId);
   if (!klass) return { ok: false, error: "Classe introuvable dans votre établissement." };
 
-  const perm = await assertCanEditSecondaireSubject({ userId: actor.userId, role: actor.role }, classId, subjectId);
+  let activeSubjectId = subjectId;
+  if (!activeSubjectId) {
+    const classSubjects = await prisma.classSubject.findMany({
+      where: { classId },
+      include: { subject: { select: { id: true, name: true } } },
+      orderBy: { subject: { name: "asc" } },
+    });
+    const editable = await editableSubjectIds(
+      { id: actor.userId, role: actor.role },
+      classId,
+      classSubjects.map((cs) => cs.subjectId),
+    );
+    const firstAllowed = classSubjects.find((cs) =>
+      editable === "ALL" ? true : editable.has(cs.subjectId),
+    );
+    if (!firstAllowed) return { ok: false, error: "Aucune matière ne vous est affectée dans cette classe." };
+    activeSubjectId = firstAllowed.subjectId;
+  }
+
+  const perm = await assertCanEditSecondaireSubject({ userId: actor.userId, role: actor.role }, classId, activeSubjectId);
   if (!perm.ok) return { ok: false, error: perm.error };
 
   const [classe, subject, enrollments, terms] = await Promise.all([
     prisma.class.findUniqueOrThrow({ where: { id: classId }, select: { name: true } }),
-    prisma.subject.findUnique({ where: { id: subjectId }, select: { name: true } }),
+    prisma.subject.findUnique({ where: { id: activeSubjectId }, select: { name: true } }),
     prisma.enrollment.findMany({
       where: { classId },
       include: { student: { select: { id: true, firstName: true, lastName: true } } },
@@ -93,6 +117,7 @@ export async function getSecondaireContextWithActor(
     prisma.term.findMany({
       where: { schoolId: actor.schoolId },
       select: { id: true, name: true, startDate: true, endDate: true, createdAt: true },
+      orderBy: { startDate: "asc" },
     }),
   ]);
   if (!subject) return { ok: false, error: "Matière introuvable." };
@@ -105,15 +130,15 @@ export async function getSecondaireContextWithActor(
 
   const [grades, appreciations, coefficient] = await Promise.all([
     prisma.grade.findMany({
-      where: { classId, subjectId, termId: term.id, studentId: { in: studentIds } },
+      where: { classId, subjectId: activeSubjectId, termId: term.id, studentId: { in: studentIds } },
       select: { id: true, studentId: true, value: true, type: true, createdAt: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.subjectAppreciation.findMany({
-      where: { subjectId, termId: term.id, studentId: { in: studentIds } },
+      where: { subjectId: activeSubjectId, termId: term.id, studentId: { in: studentIds } },
       select: { studentId: true, comment: true },
     }),
-    resoudreCoefficient(actor.schoolId, classId, subjectId),
+    resoudreCoefficient(actor.schoolId, classId, activeSubjectId),
   ]);
   const appreciationParEleve = new Map(appreciations.map((a) => [a.studentId, a.comment]));
 
@@ -123,7 +148,7 @@ export async function getSecondaireContextWithActor(
     const compo = mesNotes.find((g) => g.type === "EXAM");
 
     const resultat = calculerMatiereSecondaire({
-      subjectId, name: subject.name, coefficient,
+      subjectId: activeSubjectId, name: subject.name, coefficient,
       devoirs: devoirs.map((d) => d.value),
       composition: compo?.value ?? null,
     });
@@ -137,16 +162,70 @@ export async function getSecondaireContextWithActor(
     };
   });
 
+  // 1. Liste des trimestres
+  const allTerms = terms.map((t) => ({ id: t.id, name: t.name }));
+
+  // 2. Matières autorisées pour cet acteur dans cette classe
+  const classSubjects = await prisma.classSubject.findMany({
+    where: { classId },
+    include: { subject: { select: { id: true, name: true, code: true } } },
+    orderBy: { subject: { name: "asc" } },
+  });
+  const editable = await editableSubjectIds(
+    { id: actor.userId, role: actor.role },
+    classId,
+    classSubjects.map((cs) => cs.subjectId),
+  );
+  const allowedClassSubjects = classSubjects.filter((cs) =>
+    editable === "ALL" ? true : editable.has(cs.subjectId),
+  );
+  const allSubjects = await Promise.all(
+    allowedClassSubjects.map(async (cs) => {
+      const coef = await resoudreCoefficient(actor.schoolId, classId, cs.subjectId);
+      return { id: cs.subjectId, name: cs.subject.name, coefficient: coef };
+    }),
+  );
+
+  // 3. Classes secondaires accessibles par cet acteur
+  const accessibleClassesDb = await prisma.class.findMany({
+    where: {
+      schoolId: actor.schoolId,
+      ...(actor.role === "TEACHER"
+        ? {
+            OR: [
+              { teacherId: actor.userId },
+              { assignments: { some: { teacherId: actor.userId } } },
+            ],
+          }
+        : {}),
+    },
+    select: { id: true, name: true, cycle: true },
+    orderBy: { name: "asc" },
+  });
+  const allClasses = accessibleClassesDb
+    .filter(
+      (c) =>
+        c.cycle === "SECONDAIRE" ||
+        c.cycle === "MOYEN" ||
+        !["ci", "cp", "ce1", "ce2", "cm1", "cm2"].some((l) =>
+          c.name.toLowerCase().trim().startsWith(l),
+        ),
+    )
+    .map((c) => ({ id: c.id, name: c.name }));
+
   return {
     ok: true,
     classId, className: classe.name,
-    subjectId, subjectName: subject.name, coefficient,
+    subjectId: activeSubjectId, subjectName: subject.name, coefficient,
     termId: term.id, termName: term.name,
+    allTerms,
+    allSubjects,
+    allClasses,
     lignes,
   };
 }
 
-export async function getSecondaireContext(classId: string, subjectId: string, termId?: string): Promise<SecondaireContext> {
+export async function getSecondaireContext(classId: string, subjectId?: string, termId?: string): Promise<SecondaireContext> {
   const auth = await requireActionContext(PATH);
   if (!auth.ok) return { ok: false, error: auth.error };
   return getSecondaireContextWithActor(auth.ctx, classId, subjectId, termId);

@@ -20,11 +20,13 @@ export default async function SecondairePage({
   const sp = await searchParams;
   const one = (k: string) => (typeof sp[k] === "string" && sp[k] ? (sp[k] as string) : undefined);
 
-  const classId = one("class");
-  const subjectId = one("subject");
-  if (!classId || !subjectId) redirect("/dashboard/grades");
+  const classId = one("class") || one("classId");
+  if (!classId) redirect("/dashboard/grades");
 
-  const ctx = await getSecondaireContext(classId, subjectId, one("term"));
+  const subjectId = one("subject") || one("subjectId");
+  const termId = one("term") || one("termId");
+
+  const ctx = await getSecondaireContext(classId, subjectId, termId);
 
   return (
     <div className="flex-1 space-y-4">

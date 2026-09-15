@@ -1,5 +1,19 @@
 # EduCom SaaS - Contexte du Projet
 
+> **Lot 3B/5 livré le 15 septembre — Écran de saisie secondaire branché, verrouillé et validé (tag `v18-saisie-secondaire`).**
+> - **Jeu de test réversible (`scripts/setup-secondary-test.ts`)** : 7 matières officielles rattachées à la classe `Terminale S2` de `SENG.CO ACADEMY` avec coefficients officiels (Maths 5, PC 6, SVT 6, Français 2, Philo 2, Hist-Géo 2, Anglais 2 = total 25, liés par `Subject.code`). Compte `TEACHER` de test créé (`prof.maths.test@sengco.educom.sn`) affecté à UNE SEULE matière (Mathématiques). Nettoyable en une commande via `CLEANUP=1 npm run script -- scripts/setup-secondary-test.ts`.
+> - **Accès branché depuis `/dashboard/grades`** : Section dédiée « Saisie secondaire & moyen (6e à Terminale — par matières) » affichant les classes secondaires et leurs badges de matières autorisées par rôle (un prof ne voit que sa matière affectée, l'admin voit tout). Redirection directe vers `/dashboard/grades/secondaire?class=[classId]&subject=[subjectId]`. Action principale adaptée pour les profs du secondaire.
+> - **Grille de saisie secondaire (`SecondaireTable.tsx`)** :
+>   - Élèves en lignes, colonnes Devoir 1, 2, 3 (optionnels, une case vide ne compte pas), Composition, MM calculée en temps réel via `calculerMatiereSecondaire`, et appréciation par élève.
+>   - Composition obligatoire pour entrer dans la moyenne générale : surbrillance visuelle ambre (`border-amber-400 bg-amber-50/60`), badge `Compo requise`, et colonne MM affichant `Non comptée` tant que la composition n'est pas saisie.
+>   - Ergonomie tablette : colonnes d'élèves et ligne d'en-tête `sticky`, scroll horizontal fluide.
+> - **Verrouillage serveur éprouvé en conditions réelles (`scripts/verify-saisie-secondaire.ts`)** :
+>   - Compte TEACHER : ne voit que Mathématiques dans `allSubjects`, ne voit que Terminale S2 dans `allClasses`. Toute tentative de saisie illicite (ex: sur Physique-Chimie) est rejetée par le **serveur** (`Vous ne saisissez pas cette matière.`).
+>   - Compte ADMIN : accède et saisit sur les 7 matières.
+> - **Validation du cas de référence sénégalais** : Saisie complète sur un élève en base des notes de référence (Maths 13/11 · PC 14.5/13 · SVT 12/14 · FR 11/10.5 · Philo 10/12 · HG 15/14 · Anglais 13.5/15). Moteur de calcul Lot 2 branché : **321.50 points / 25 coefficients = 12.86 / 20** exactement.
+>
+> ---
+>
 > **Chantier Réparation Import Dossiers Élèves livré le 15 septembre (tag `v19-import-eleves`).**
 > - **Modèle CSV round-trip 100% vérifié** : Cause racine identifiée (BOM `\uFEFF` + délimiteur `;` d'Excel décalant les clés d'objets PapaParse et provoquant le rejet "nom manquant"). Corrigé avec stripping de BOM, détection automatique de délimiteur et fallback de clés. 100/100 lignes du modèle sont désormais reconnues et validées.
 > - **Détection intelligente de colonnes** : Reconnaissance insensible à la casse, aux accents, aux espaces et parenthèses (ex: `PRENOM`, `Né(e) le`, `Nom de l'élève`, `Téléphone tuteur`).
