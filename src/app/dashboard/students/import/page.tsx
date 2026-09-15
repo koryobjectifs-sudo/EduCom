@@ -36,11 +36,13 @@ import {
   acceptDpaAction,
   getImportConfigAction,
   saveImportMappingAction,
+} from "./actions";
+import {
   type ImportRow,
   type ImportPreviewResult,
   type MissingClassDef,
   type ImportStudentResult,
-} from "./actions";
+} from "./utils";
 import Link from "next/link";
 import { MappingWizard } from "./MappingWizard";
 import type { EducationalCycle } from "@/generated/prisma/client";

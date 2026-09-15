@@ -8,7 +8,7 @@ import {
   FIELD_DEFINITIONS,
   type EduComFieldKey,
   type ImportRow,
-} from "./actions";
+} from "./utils";
 
 type MappingWizardProps = {
   rawHeaders: string[];

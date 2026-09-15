@@ -4,9 +4,11 @@ import {
   detectFieldForHeader,
   deduceCycleAndSerie,
   normalizePhone,
+  type ImportRow,
+} from "../src/app/dashboard/students/import/utils";
+import {
   executePreviewImport,
   executeImportStudents,
-  type ImportRow,
 } from "../src/app/dashboard/students/import/actions";
 import { parseFlexibleDate } from "../src/lib/dateUtils";
 
