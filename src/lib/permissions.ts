@@ -306,6 +306,10 @@ export const ROLE_DENIALS: Partial<Record<RoleType, string[]>> = {
   TEACHER: [
     "/dashboard/documents/validation",
     "/dashboard/documents/centre/gestion",
+    // Lot 18/3 — le conseil de classe (distinctions, sanctions, orientation)
+    // est réservé à la direction. `TEACHER` hérite de `/dashboard/grades` par
+    // préfixe pour la saisie ; ce sous-chemin précis lui reste fermé.
+    "/dashboard/grades/conseil",
   ],
   SECRETARY: ["/dashboard/documents/centre/gestion"],
 };

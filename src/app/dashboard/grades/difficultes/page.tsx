@@ -56,6 +56,9 @@ export default async function ElevesEnDifficultePage({ searchParams }: Difficult
     const grades = await prisma.grade.findMany({
       where: {
         termId: selectedTerm.id,
+        // Ce rapport raisonne par matière (secondaire) : une note élémentaire
+        // (sous-discipline, sans `subjectId`) n'y a pas sa place.
+        subjectId: { not: null },
         class: {
           schoolId,
           ...(selectedClassId !== "ALL" ? { id: selectedClassId } : {}),
@@ -89,6 +92,7 @@ export default async function ElevesEnDifficultePage({ searchParams }: Difficult
     >();
 
     for (const g of grades) {
+      if (!g.subject) continue; // exclu par le `where`, garde de type seulement
       if (!g.max || g.max <= 0) continue;
       const coef = g.coefficient > 0 ? g.coefficient : 1;
       const gradeOn20 = (g.value / g.max) * 20;

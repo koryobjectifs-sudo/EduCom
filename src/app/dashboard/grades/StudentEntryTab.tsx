@@ -183,6 +183,7 @@ export default function StudentEntryTab({
     if (gradeRes.data) {
       const map: EntryMap = {};
       for (const g of gradeRes.data.grades ?? []) {
+        if (!g.subjectId) continue; // note élémentaire (sous-discipline) : hors de cette grille par matière
         if (!map[g.studentId]) map[g.studentId] = {};
         map[g.studentId][g.subjectId] = {
           id: g.id,

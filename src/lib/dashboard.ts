@@ -361,7 +361,13 @@ async function academicSignal(actor: ActorContext): Promise<Signal<AcademicFacts
   }
 
   const grades = await prisma.grade.findMany({
-    where: { class: { schoolId }, termId: { in: previous ? [current.id, previous.id] : [current.id] } },
+    where: {
+      class: { schoolId },
+      termId: { in: previous ? [current.id, previous.id] : [current.id] },
+      // Mouvements classe × matière : une note élémentaire (sous-discipline,
+      // sans `subjectId`) n'a pas de matière à regrouper ici.
+      subjectId: { not: null },
+    },
     select: {
       value: true, max: true, coefficient: true, termId: true,
       class: { select: { id: true, name: true } },
@@ -398,12 +404,13 @@ async function academicSignal(actor: ActorContext): Promise<Signal<AcademicFacts
   if (previous && previousMean !== null) {
     const keys = new Map<string, { className: string; subject: string }>();
     for (const g of grades) {
+      if (!g.subject) continue; // exclu par le `where`, garde de type seulement
       keys.set(`${g.class.id}|${g.subject.id}`, { className: g.class.name, subject: g.subject.name });
     }
     for (const [key, meta] of keys) {
       const [classId, subjectId] = key.split("|");
       const pick = (termId: string) =>
-        grades.filter((g) => g.class.id === classId && g.subject.id === subjectId && g.termId === termId);
+        grades.filter((g) => g.class.id === classId && g.subject?.id === subjectId && g.termId === termId);
       const a = mean(pick(current.id));
       const b = mean(pick(previous.id));
       if (a === null || b === null) continue;

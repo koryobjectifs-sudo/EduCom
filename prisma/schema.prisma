@@ -118,6 +118,8 @@ model School {
   evaluations      Evaluation[]
   assignments      TeachingAssignment[]
   reportCards      ReportCard[]
+  termReviews      TermReview[]
+  subjectAppreciations SubjectAppreciation[]
   expenses         Expense[]
   statements       FinancialStatement[]
   attendances      Attendance[]
@@ -338,6 +340,8 @@ model Student {
   invoices              Invoice[]
   grades                Grade[]
   reportCards           ReportCard[]
+  termReviews           TermReview[]
+  subjectAppreciations  SubjectAppreciation[]
   documents             StudentDocument[]
   attendances           Attendance[]
   actionLinks           ActionLink[]
@@ -383,6 +387,7 @@ model Class {
   subjects        ClassSubject[]
   assignments     TeachingAssignment[]
   reportCards     ReportCard[]
+  termReviews     TermReview[]
   feeItems        FeeItem[]
   docRequirements DocumentRequirement[]
   schoolDocuments SchoolDocument[]
@@ -868,6 +873,7 @@ model Subject {
   assignments  TeachingAssignment[]
   lessons      Lesson[]
   coefficients SubjectCoefficient[]
+  appreciations SubjectAppreciation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -951,11 +957,41 @@ model Term {
   grades      Grade[]
   evaluations Evaluation[]
   reportCards ReportCard[]
+  termReviews TermReview[]
+  subjectAppreciations SubjectAppreciation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([schoolId])
+}
+
+/// Appréciation du professeur pour SA matière, sur un trimestre (lot 18/3).
+///
+/// ⚠️ Pas un champ de `Grade` : l'appréciation doit pouvoir être écrite AVANT
+/// que la composition existe (`Grade` exige une valeur), et elle porte sur le
+/// trimestre entier, pas sur une note précise.
+model SubjectAppreciation {
+  id String @id @default(uuid())
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  termId    String
+  term      Term    @relation(fields: [termId], references: [id], onDelete: Cascade)
+  schoolId  String
+  school    School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  comment  String
+  authorId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, subjectId, termId])
+  @@index([schoolId])
+  @@index([subjectId, termId])
 }
 
 enum GradeType {
@@ -1037,6 +1073,63 @@ model ReportCard {
   @@index([schoolId, termId])
 }
 
+/// Bilan trimestriel d'un élève — bloc conseil de classe (lot 18/3).
+///
+/// ⚠️ Délibérément SÉPARÉ de `ReportCard` : celui-ci porte l'état du
+/// WORKFLOW du bulletin (brouillon/validé/soumis), pas les décisions du
+/// conseil. Le lot 3 exclut explicitement tout bulletin — ce modèle n'y
+/// touche pas et pourra être lu par un futur bulletin sans le contraindre.
+///
+/// ⚠️ Aucune distinction n'est stockée comme PROPOSITION : la proposition
+/// (≥12/14/16) se recalcule en direct depuis la moyenne du trimestre (lots 2
+/// et 3) à chaque affichage — la stocker risquerait une valeur périmée dès
+/// qu'une note change après coup. Seule la décision RETENUE par le conseil
+/// est écrite ici.
+model TermReview {
+  id String @id @default(uuid())
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId   String
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  termId    String
+  term      Term    @relation(fields: [termId], references: [id], onDelete: Cascade)
+  schoolId  String
+  school    School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  /// Élémentaire uniquement : appréciation unique du maître titulaire.
+  appreciationTitulaire String?
+
+  /// Décision du conseil — "TABLEAU_HONNEUR" | "ENCOURAGEMENTS" | "FELICITATIONS" | null.
+  /// Peut différer de la proposition automatique, ou la retirer (ex. élève à
+  /// 13 exclu pour indiscipline).
+  distinctionRetenue String?
+
+  /// Sanctions séparées : travail et conduite (ex. "AVERTISSEMENT", "BLAME").
+  sanctionTravail   String?
+  sanctionConduite  String?
+
+  /// Décision d'orientation — "PASSAGE" | "REDOUBLEMENT" | "EXCLUSION".
+  /// N'a de sens qu'au 3e trimestre ; le serveur refuse toute écriture hors
+  /// de ce trimestre (voir l'action d'écriture).
+  decisionOrientation String?
+
+  /// Reprises du module de présences si disponible, sinon saisies à la main.
+  absencesJustifiees    Int?
+  absencesNonJustifiees Int?
+
+  observationsConseil String?
+
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, termId])
+  @@index([classId, termId])
+  @@index([schoolId])
+}
+
 model Grade {
   id          String    @id @default(uuid())
   value       Float // e.g. 15.5
@@ -1058,8 +1151,12 @@ model Grade {
   classId String
   class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
 
-  subjectId String
-  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  /// `null` pour une note élémentaire (voir `subDisciplineId`) — une note
+  /// secondaire garde `subjectId` comme SEULE clé pédagogique. Exactement
+  /// l'un des deux est renseigné ; la règle est tenue côté code (actions de
+  /// saisie du lot 18/3), pas par une contrainte de schéma. v18-notes-saisie.
+  subjectId String?
+  subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
   /// Sous-discipline élémentaire notée (lot 18/2), quand cette note en relève.
   /// `null` pour toute note secondaire — `subjectId` reste alors la seule

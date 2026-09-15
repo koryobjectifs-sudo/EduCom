@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ClipboardList, FileText, Calendar, Clock, TrendingDown } from "lucide-react";
 import { requireSchoolContext } from "@/lib/documentContext";
 import { prisma } from "@/lib/prisma";
+import { sortClasses } from "@/lib/classOrder";
 
 export const metadata = {
   title: "Saisie de notes & Évaluations | EduCom",
@@ -9,7 +10,38 @@ export const metadata = {
 };
 
 export default async function GradesEntryChoicePage() {
-  const { schoolId } = await requireSchoolContext();
+  const { schoolId, user } = await requireSchoolContext();
+
+  const isTeacher = user.role === "TEACHER";
+  let classWhere: any = { schoolId };
+  if (isTeacher) {
+    classWhere = {
+      schoolId,
+      OR: [
+        { teacherId: user.id },
+        { assignments: { some: { teacherId: user.id } } },
+      ],
+    };
+  }
+
+  const allClasses = sortClasses(
+    await prisma.class.findMany({
+      where: classWhere,
+      include: {
+        _count: { select: { enrollments: true } },
+        teacher: { select: { id: true, firstName: true, lastName: true } },
+      },
+    })
+  );
+
+  const isElementaire = (c: { cycle: string; name: string }) =>
+    c.cycle === "ELEMENTAIRE" ||
+    ["ci", "cp", "ce1", "ce2", "cm1", "cm2"].some((l) =>
+      c.name.toLowerCase().trim().startsWith(l)
+    );
+
+  const elementaryClasses = allClasses.filter(isElementaire);
+  const isElementaryOnlyTeacher = isTeacher && elementaryClasses.length > 0 && allClasses.length === elementaryClasses.length;
 
   // Fetch upcoming evaluations (limit to 10 for the widget)
   const today = new Date();
@@ -40,6 +72,10 @@ export default async function GradesEntryChoicePage() {
     take: 10,
   });
 
+  const mainEntryHref = isElementaryOnlyTeacher
+    ? `/dashboard/grades/elementaire?class=${elementaryClasses[0].id}`
+    : "/dashboard/grades/bulletin?type=controle";
+
   return (
     <div className="space-y-4 pb-8 max-w-5xl">
       <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
@@ -51,9 +87,9 @@ export default async function GradesEntryChoicePage() {
             Sélectionnez le module d&apos;évaluation, l&apos;édition des bulletins ou le suivi pédagogique.
           </p>
         </div>
-        {/* Action principale de l'écran — chantier navigation UX (18 sept.) */}
+        {/* Action principale de l'écran — adaptée si enseignant d'élémentaire */}
         <Link
-          href="/dashboard/grades/bulletin?type=controle"
+          href={mainEntryHref}
           className="inline-flex h-8.5 shrink-0 items-center justify-center gap-1.5 rounded-control bg-primary px-3 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-primary-hover"
         >
           <ClipboardList aria-hidden="true" className="h-3.5 w-3.5" />
@@ -130,6 +166,55 @@ export default async function GradesEntryChoicePage() {
           </div>
         </Link>
       </div>
+
+      {/* Saisie Élémentaire — Accès direct par classe (Lot 18/3A) */}
+      {elementaryClasses.length > 0 && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="h-4 w-4 text-primary" />
+              <h2 className="text-sm sm:text-base font-bold text-text tracking-tight">
+                Saisie élémentaire (CI à CM2 — par domaines)
+              </h2>
+            </div>
+            <span className="text-role-meta text-text-soft">
+              {elementaryClasses.length} classe{elementaryClasses.length > 1 ? "s" : ""}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {elementaryClasses.map((c) => (
+              <div
+                key={c.id}
+                className="group relative rounded-surface border border-rule bg-surface p-3.5 shadow-2xs transition-all hover:border-primary/50 hover:shadow-subtle flex flex-col justify-between gap-3"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-bold text-text group-hover:text-primary transition-colors">
+                      {c.name}
+                    </h3>
+                    <span className="inline-flex items-center rounded-pill bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                      Élémentaire
+                    </span>
+                  </div>
+                  <p className="mt-1 text-role-meta text-text-soft">
+                    {c._count.enrollments} élève{c._count.enrollments > 1 ? "s" : ""}
+                    {c.teacher ? ` · Titulaire : ${c.teacher.firstName} ${c.teacher.lastName}` : ""}
+                  </p>
+                </div>
+
+                <Link
+                  href={`/dashboard/grades/elementaire?class=${c.id}`}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-control bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-primary-hover w-full sm:w-auto self-start"
+                >
+                  <ClipboardList className="h-3.5 w-3.5" />
+                  Saisir les notes &rarr;
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Planning des évaluations */}
       <div className="mt-6">

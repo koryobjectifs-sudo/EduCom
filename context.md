@@ -1,5 +1,17 @@
 # EduCom SaaS - Contexte du Projet
 
+> **Lot 3A/5 livré le 15 septembre — Écran de saisie élémentaire branché et opérationnel (tag `v18-saisie-elementaire`).**
+> - **Accès branché depuis `/dashboard/grades`** : Détection des classes élémentaires (`cycle === ELEMENTAIRE` ou CI-CM2). Accès direct par classe via paramètre d'URL `?class=[classId]` (ou `?classId=`). Action principale adaptée si enseignant exclusif d'élémentaire.
+> - **Moteur de calcul Lot 2 branché directement** : Recalcul en temps réel de chaque moyenne de domaine et de la moyenne générale via `calculerEleveElementaire`. Une sous-discipline vide reste vide et est exclue du calcul (jamais comptée zéro).
+> - **Robustesse & Persistance** : `saveSubDisciplineGradeWithActor` gère la mise à jour / création et la suppression réelle (`value: null` supprime la note en base au lieu de stocker 0). Récupération des identifiants existants et de l'appréciation titulaire `TermReview`.
+> - **Optimisation & Tablette** : Mémorisation par ligne (`EleveRow`) pour fluidité instantanée sur 60 élèves × 15 sous-disciplines (900 champs). En-têtes de table et colonne élèves `sticky`. Navigation clavier fluide (Entrée / Flèche bas vers l'élève suivant dans la colonne).
+> - **Validation réelle sur SENG.CO ACADEMY** :
+>   - Temps de chargement mesuré sur la plus grande classe disponible (CE1, 40 élèves) : **596 ms**.
+>   - Calcul sur 60 élèves × 15 matières : **1.45 ms** au total (0.024 ms par élève).
+>   - Persistance, indicateurs visuels et effacement validés par `scripts/verify-lot3a-elementaire.ts`.
+>
+> ---
+>
 > **Correctifs A/B + Lot 2/5 livrés le 14 septembre — Réconciliation de la dérive `db push`, codes de matières stables, moteurs de calcul (tags `v18-notes-calculs`).**
 > - **Correctif A — dérive de la base de dev.** `prisma migrate dev` exigeait
 >   un reset complet : la base avait accumulé, via de nombreux `db push`

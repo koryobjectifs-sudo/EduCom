@@ -821,9 +821,12 @@ export async function loadBulletin(
       // ne porte le sien (voir `buildBulletin()`).
       coefficient: cs.coefficient,
     })),
-    grades: rawGrades.map((g) => ({
+    // Une note élémentaire (sous-discipline, `subjectId` nul) ne peut pas
+    // figurer ici : elle n'a pas d'`evaluationId` et le `where` ci-dessus ne
+    // peut donc jamais la ramener. Le filtre n'est qu'une garde de type.
+    grades: rawGrades.filter((g) => g.subjectId !== null).map((g) => ({
       studentId: g.studentId,
-      subjectId: g.subjectId,
+      subjectId: g.subjectId as string,
       value: g.value,
       max: g.max,
       coefficient: g.coefficient,

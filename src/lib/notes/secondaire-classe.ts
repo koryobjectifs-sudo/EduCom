@@ -20,7 +20,7 @@ import {
 import { roundTo2 } from "./round";
 
 /** "Terminale S2" / "2nde S" / "Seconde S" → "Terminale" | "Seconde" | null. Local à ce module : pas de dépendance vers `classOrder.ts`, pour rester étanche. */
-function deriverNiveau(nomClasse: string): string | null {
+export function deriverNiveau(nomClasse: string): string | null {
   const n = nomClasse
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
