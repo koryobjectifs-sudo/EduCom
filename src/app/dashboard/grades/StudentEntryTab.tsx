@@ -723,13 +723,10 @@ export default function StudentEntryTab({
                                         className={`${FIELD} font-semibold text-center ${inputTone(e.value, locked)}`}
                                       />
                                     </td>
-                                    <td className="py-1 pr-1.5 w-12 sm:w-16">
-                                      <input
-                                        type="number" min="1" max="10" step="0.5"
-                                        value={e.coefficient} disabled={locked}
-                                        onChange={(ev) => updateEntry(sub.id, "coefficient", ev.target.value)}
-                                        className={`${FIELD} border-gray-200 bg-white text-center text-gray-500 disabled:bg-gray-50`}
-                                      />
+                                    <td className="py-1 pr-1.5 w-12 sm:w-16 text-center">
+                                      <span className="inline-flex items-center justify-center px-2 py-1 rounded bg-gray-100 text-xs font-semibold text-gray-700">
+                                        {sub.coefficient ?? e.coefficient ?? 1}
+                                      </span>
                                     </td>
                                     <td className="py-1 pr-2">
                                       <input

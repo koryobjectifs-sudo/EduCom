@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, TriangleAlert, AlertCircle, BookOpen, Layers } from "lucide-react";
 import {
@@ -48,6 +48,46 @@ export default function SecondaireTable({ ctx }: { ctx: Ctx }) {
       }),
     ),
   );
+
+  // Synchronisation stricte de l'état quand les props changent (évite tout résidu lors d'une navigation matière/trimestre)
+  useEffect(() => {
+    setLignes(
+      Object.fromEntries(
+        ctx.lignes.map((l) => {
+          const devoirs: (string | null)[] = [null, null, null];
+          const devoirValues = ["", "", ""];
+          l.devoirs.slice(0, 3).forEach((d, i) => {
+            devoirs[i] = d.gradeId;
+            devoirValues[i] = String(d.value);
+          });
+          return [
+            l.studentId,
+            {
+              devoirs,
+              devoirValues,
+              compositionId: l.composition?.gradeId ?? null,
+              compositionValue: l.composition ? String(l.composition.value) : "",
+              appreciation: l.appreciation,
+            },
+          ];
+        }),
+      ),
+    );
+    setStates({});
+    setErrors({});
+  }, [ctx.classId, ctx.subjectId, ctx.termId, ctx.lignes]);
+
+  const notesCount = useMemo(() => {
+    let count = 0;
+    for (const l of Object.values(lignes)) {
+      for (const v of l.devoirValues) {
+        if (v.trim() !== "") count++;
+      }
+      if (l.compositionValue.trim() !== "") count++;
+    }
+    return count;
+  }, [lignes]);
+
   const [states, setStates] = useState<Record<string, CellState>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -175,6 +215,9 @@ export default function SecondaireTable({ ctx }: { ctx: Ctx }) {
               </span>
               <span className="inline-flex items-center rounded-pill bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">
                 Coefficient {ctx.coefficient}
+              </span>
+              <span className={`inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs font-semibold ${notesCount > 0 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-gray-100 text-gray-500"}`}>
+                {notesCount} note{notesCount > 1 ? "s" : ""} enregistrée{notesCount > 1 ? "s" : ""} pour cette évaluation
               </span>
             </div>
             <p className="text-xs text-gray-500 mt-1">

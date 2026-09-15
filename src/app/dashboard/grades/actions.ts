@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { urlSupabase, cleAnonSupabase } from "@/lib/supabase/config";
 import { requireActionContext } from "@/lib/actionContext";
 import { recordPlanningChange } from "@/lib/planningNotice";
+import { resoudreCoefficient } from "@/lib/notes/coefficients";
 
 /**
  * ═══ QUI A LE DROIT DE CHANGER LE CADRE ACADÉMIQUE — 22 août 2026 ═══
@@ -711,15 +712,18 @@ export async function getClassSubjects(classId: string) {
 
   const editableIds = await editableSubjectIds(dbUser, classId, rows.map((r) => r.subjectId));
 
-  // `editable` porte le périmètre : le bulletin s'affiche en entier, mais
-  // l'enseignant ne saisit que ses matières. Les autres restent en lecture.
-  return {
-    data: rows.map((r) => ({
-      ...r.subject,
-      coefficient: r.coefficient,
-      editable: editableIds === "ALL" || editableIds.has(r.subjectId),
-    })),
-  };
+  const data = await Promise.all(
+    rows.map(async (r) => {
+      const coef = await resoudreCoefficient(dbUser.schoolId, classId, r.subjectId);
+      return {
+        ...r.subject,
+        coefficient: coef,
+        editable: editableIds === "ALL" || editableIds.has(r.subjectId),
+      };
+    }),
+  );
+
+  return { data };
 }
 
 /**

@@ -24,6 +24,7 @@ import {
 } from "@/lib/notes/entryPermissions";
 import { calculerMatiereSecondaire } from "@/lib/notes/secondaire";
 import { deriverNiveau } from "@/lib/notes/secondaire-classe";
+import { resoudreCoefficient } from "@/lib/notes/coefficients";
 import { pickCurrentTerm } from "@/lib/terms";
 
 import { editableSubjectIds } from "@/lib/gradeEntry";
@@ -57,26 +58,6 @@ export type SecondaireContext =
     }
   | { ok: false; error: string };
 
-async function resoudreCoefficient(schoolId: string, classId: string, subjectId: string): Promise<number> {
-  const [classe, classSubject] = await Promise.all([
-    prisma.class.findUnique({ where: { id: classId }, select: { name: true, serie: true } }),
-    prisma.classSubject.findFirst({ where: { classId, subjectId }, select: { coefficient: true } }),
-  ]);
-  const fallback = classSubject && classSubject.coefficient > 0 ? classSubject.coefficient : 1;
-  if (!classe) return fallback;
-
-  const niveau = deriverNiveau(classe.name);
-  if (!niveau || !classe.serie) return fallback;
-
-  const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { code: true } });
-  if (!subject?.code) return fallback;
-
-  const referentiel = await prisma.subjectCoefficient.findFirst({
-    where: { schoolId, niveau, serie: classe.serie, subject: { code: subject.code } },
-    select: { coefficient: true },
-  });
-  return referentiel?.coefficient ?? fallback;
-}
 
 export async function getSecondaireContextWithActor(
   actor: Actor, classId: string, subjectId?: string, termId?: string,

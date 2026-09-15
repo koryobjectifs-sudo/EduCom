@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, memo, useCallback, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Loader2, TriangleAlert, Award, Search } from "lucide-react";
 import { saveSubDisciplineGrade, saveTitulaireAppreciation, type ElementaireContext } from "./actions";
 import { calculerEleveElementaire, type SousDisciplineInput } from "@/lib/notes/elementaire";
@@ -40,6 +40,33 @@ export default function ElementaireGrid({ ctx }: { ctx: Ctx }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  // Synchronisation de l'état local si le contexte de classe/trimestre change
+  useEffect(() => {
+    setNotes(
+      Object.fromEntries(
+        ctx.eleves.map((e) => [
+          e.studentId,
+          Object.fromEntries(Object.entries(e.notes).map(([sdId, v]) => [sdId, String(v)])),
+        ]),
+      ),
+    );
+    setGradeIds(
+      Object.fromEntries(ctx.eleves.map((e) => [e.studentId, { ...e.gradeIds }])),
+    );
+    setStates({});
+    setErrors({});
+  }, [ctx.classId, ctx.termId, ctx.eleves]);
+
+  const totalNotes = useMemo(() => {
+    let count = 0;
+    for (const studentNotes of Object.values(notes)) {
+      for (const val of Object.values(studentNotes)) {
+        if (val.trim() !== "") count++;
+      }
+    }
+    return count;
+  }, [notes]);
 
   const cellKey = (studentId: string, sdId: string) => `${studentId}:${sdId}`;
 
@@ -144,6 +171,9 @@ export default function ElementaireGrid({ ctx }: { ctx: Ctx }) {
             <h1 className="text-xl font-bold text-gray-900">{ctx.className}</h1>
             <span className="inline-flex items-center rounded-pill bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
               Élémentaire (CI à CM2)
+            </span>
+            <span className={`inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs font-semibold ${totalNotes > 0 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-gray-100 text-gray-500"}`}>
+              {totalNotes} note{totalNotes > 1 ? "s" : ""} enregistrée{totalNotes > 1 ? "s" : ""} pour cette évaluation
             </span>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">

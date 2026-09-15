@@ -36,7 +36,7 @@ export default async function ElementairePage({
       {!ctx.ok ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">{ctx.error}</div>
       ) : (
-        <ElementaireGrid ctx={ctx} />
+        <ElementaireGrid key={`${ctx.classId}-${ctx.termId}`} ctx={ctx} />
       )}
     </div>
   );

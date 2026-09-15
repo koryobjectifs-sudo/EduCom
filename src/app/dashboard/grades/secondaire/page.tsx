@@ -40,7 +40,7 @@ export default async function SecondairePage({
       {!ctx.ok ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">{ctx.error}</div>
       ) : (
-        <SecondaireTable ctx={ctx} />
+        <SecondaireTable key={`${ctx.classId}-${ctx.subjectId}-${ctx.termId}`} ctx={ctx} />
       )}
     </div>
   );
