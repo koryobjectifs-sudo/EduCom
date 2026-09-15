@@ -27,15 +27,18 @@ const GRILLE: { niveau: string; serie: string; matieres: Record<string, number> 
   { niveau: "Seconde", serie: "S", matieres: { MATH: 5, PC: 5, SVT: 4, FR: 3, HG: 2, ANG: 2, LV2: 2 } },
   { niveau: "Terminale", serie: "L1", matieres: { MATH: 2, FR: 6, HG: 2, ANG: 3, PHIL: 6 } },
   { niveau: "Terminale", serie: "L2", matieres: { MATH: 2, PC: 2, FR: 5, HG: 6, ANG: 4, PHIL: 6 } },
-  { niveau: "Terminale", serie: "S1", matieres: { MATH: 8, PC: 8, FR: 2, HG: 2, ANG: 2, PHIL: 2 } },
+  { niveau: "Terminale", serie: "S1", matieres: { MATH: 8, PC: 8, SVT: 2, FR: 2, HG: 2, ANG: 2, PHIL: 2 } },
   { niveau: "Terminale", serie: "S2", matieres: { MATH: 5, PC: 6, SVT: 6, FR: 2, HG: 2, ANG: 2, PHIL: 2 } },
 ];
 
-/** Garde-fou du cahier des charges : Terminale S2 doit totaliser 25. */
+/** Garde-fous officiels : Terminale S1 à 26 (avec SVT coef 2), Terminale S2 à 25. */
 function verifierTotaux() {
   for (const bloc of GRILLE) {
     const total = Object.values(bloc.matieres).reduce((a, b) => a + b, 0);
     console.log(`  ${bloc.niveau} ${bloc.serie.padEnd(3)} → total coefficients : ${total}`);
+    if (bloc.niveau === "Terminale" && bloc.serie === "S1" && total !== 26) {
+      throw new Error(`Terminale S1 doit totaliser 26 coefficients, trouvé ${total}`);
+    }
     if (bloc.niveau === "Terminale" && bloc.serie === "S2" && total !== 25) {
       throw new Error(`Terminale S2 doit totaliser 25 coefficients, trouvé ${total}`);
     }

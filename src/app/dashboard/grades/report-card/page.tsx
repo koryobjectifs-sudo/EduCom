@@ -3,7 +3,7 @@ import { FileText } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePathAccess } from "@/lib/documentContext";
 import { hasAccess, type RoleType } from "@/lib/permissions";
-import { loadBulletin } from "@/lib/gradeEntry";
+import { loadOfficialBulletin } from "@/lib/bulletin/loadOfficialBulletin";
 import { pickCurrentTerm } from "@/lib/terms";
 import { sortClasses } from "@/lib/classOrder";
 import { evaluationKind } from "@/lib/bulletin";
@@ -109,8 +109,8 @@ export default async function ReportCardPage({
     return `/dashboard/grades/report-card?${p.toString()}`;
   };
 
-  const loaded = classId && termId
-    ? await loadBulletin({ schoolId, userId: user.id, role }, { classId, termId, evaluationId })
+  const officialData = classId && termId
+    ? await loadOfficialBulletin({ schoolId, classId, termId, studentId })
     : null;
 
   const Selectors = (
@@ -123,19 +123,6 @@ export default async function ReportCardPage({
       <Row label="Trimestre">
         {termRows.map((t) => (
           <Pill key={t.id} href={link({ termId: t.id, evaluationId: undefined })} active={t.id === termId}>{t.name}</Pill>
-        ))}
-      </Row>
-      <Row label="Portée">
-        {/* ⚠️ « Tout le trimestre » agrège contrôles ET composition — la chaîne
-            que `loadBulletin()` rend enfin possible. */}
-        <Pill href={link({ evaluationId: undefined })} active={!evaluationId}>Tout le trimestre</Pill>
-        {evaluations.map((e) => (
-          <Pill key={e.id} href={link({ evaluationId: e.id })} active={e.id === evaluationId}>
-            {e.name}
-            <span className="ml-1.5 opacity-70">
-              {evaluationKind(e.type) === "COMPOSITION" ? "· composition" : "· contrôle"}
-            </span>
-          </Pill>
         ))}
       </Row>
     </div>
@@ -151,22 +138,19 @@ export default async function ReportCardPage({
               { label: "Documents", href: "/dashboard/documents" },
               { label: "Bulletins" },
             ]}
-            title="Bulletins"
-            description="Générés automatiquement à partir des notes saisies."
+            title="Bulletins officiels"
+            description="Gabarits officiels conformes au Ministère de l'Éducation Nationale du Sénégal (A4)."
           />
         </div>
       )}
 
       {!isEmbed && Selectors}
 
-      {!loaded ? (
+      {!officialData ? (
         <div className="print:hidden">
           <DataState
             kind="empty"
             icon={FileText}
-            /* ⚠️ Cet état ne se rencontre plus que si l'école n'a RIEN — pas de
-               trimestre, ou pas de classe. Il nomme donc ce qui manque
-               réellement au lieu de demander un choix impossible. */
             title={termRows.length === 0 ? "Aucun trimestre déclaré" : "Aucune classe"}
             description={
               termRows.length === 0
@@ -181,18 +165,10 @@ export default async function ReportCardPage({
         </div>
       ) : (
         <ReportCardGenerator
-          bulletin={loaded.bulletin}
-          klass={loaded.klass}
-          term={loaded.term}
-          evaluation={loaded.evaluation}
-          academicYear={loaded.academicYear}
-          school={await prisma.school.findUnique({
-            where: { id: schoolId },
-            select: { name: true, logo: true, signature: true, stamp: true },
-          })}
-          canEditCouncil={hasAccess(role, "/dashboard/documents/validation")}
+          data={officialData}
           canPrint={role !== "TEACHER"}
           focusStudentId={studentId}
+          embed={isEmbed}
         />
       )}
     </div>

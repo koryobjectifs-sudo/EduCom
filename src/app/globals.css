@@ -679,6 +679,13 @@ html[data-density="comfort"] {
   --text-meta:          12.5px;
 }
 
+.bulletin-sheet {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 12mm 15mm;
+  box-sizing: border-box;
+}
+
 @media print {
   body {
     -webkit-print-color-adjust: exact !important;
@@ -690,4 +697,17 @@ html[data-density="comfort"] {
     margin: 10mm;
     size: auto;
   }
+
+  .bulletin-sheet {
+    width: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 2mm 5mm !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
 }
+

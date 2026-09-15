@@ -1,5 +1,16 @@
 # EduCom SaaS - Contexte du Projet
 
+> **Lot 4/5 livré le 15 septembre — Les Deux Bulletins officiels Sénégal (tag `v18-bulletins`).**
+> - **Barème S2 conservé à 25 coefficients (Français à coef 2)** : C'est le barème du bulletin trimestriel de contrôle continu (différent du barème national d'examen du Baccalauréat à 26 coefficients avec Français à 3, qui est volontairement écarté ici pour le bulletin scolaire de l'établissement). Cas de référence strictement validé : 321.50 points / 25 coefficients = **12.86 / 20**.
+> - **Barème S1 ajusté avec SVT (coefficient 2)** : Rattachement officiel des SVT (coef 2) en Terminale S1, portant le total de la série S1 de 24 à **26 coefficients**.
+> - **Isolation de la personnalisation des coefficients** : Toute modification ou surcharge d'un coefficient par une école (via `ClassSubject` ou `SubjectCoefficient` filtré par `schoolId`) est strictement cloisonnée à cette école. Le référentiel national officiel reste le barème par défaut immuable pour toutes les autres écoles.
+> - **Bulletin Secondaire officiel A4** : En-tête officiel sénégalais complet (Région Académique, IA, IEF, Ministère de l'Éducation Nationale), tableau réglementaire (Disciplines | Moy. Dev | Comp. | Moy. Trim. | Coef. | Points | Appréciations), ligne Totaux (somme coefs et points), ligne Moyenne Générale sur fond accentué avec Rang à droite. Bas de page en deux colonnes : délibérations du conseil (distinctions proposées/retenues, sanctions travail et conduite distinctes, assiduité, décision d'orientation T3, observations) à gauche ; DEUX zones de visa à droite (Professeur Principal + Proviseur avec cachet et signature de l'école lus depuis les Paramètres — jamais redessinés à la volée).
+> - **Bulletin Élémentaire officiel A4** : Organisation par domaines d'apprentissage avec sous-disciplines en retrait, sous-totaux par domaine sur fond léger, barème sur 10 convertible sur 20 selon réglage de l'école, AUCUNE colonne coefficient. Bilan complet (points obtenus sur barème maximal, MG, rang, absences justifiées et non justifiées), appréciation globale du maître, TROIS zones de visa (Enseignant, Directeur avec cachet/signature des Paramètres, Parents). Décision de passage affichée au T3 uniquement.
+> - **Couleurs de marque & Mode monochrome** : Couleur d'accent de l'école (`primaryColor`) pour les en-têtes et la ligne de moyenne générale ; option monochrome noir & blanc commutable pour l'impression économique.
+> - **Garantie stricte 1 page A4 sans débordement** : Les deux gabarits (`BulletinSecondaireSheet` et `BulletinElementaireSheet`) sont calibrés pour tenir sur exactement une seule page A4 sans débordement, y compris sur le cas élémentaire le plus chargé (4 domaines, 15 sous-disciplines). Prouvé par rendu PDF natif Chromium CDP (`scripts/verify-lot4-bulletins.ts`).
+>
+> ---
+>
 > **Lot 3C/5 livré le 15 septembre — Bloc Conseil de Classe & délibérations administratives (tag `v18-conseil-classe`).**
 > - **Sécurité serveur absolue (OWNER/ADMIN uniquement)** : `assertCanManageConseilDeClasse` rejette formellement `TEACHER`, `PARENT`, `ACCOUNTANT`, `SECRETARY` (`403 Forbidden`). Testé et prouvé par `scripts/verify-lot3c-conseil.ts`.
 > - **Distinctions proposées, jamais imposées** : Proposition automatique selon la moyenne générale (≥12 Tableau d'honneur, ≥14 Encouragements, ≥16 Félicitations). Le conseil peut retenir, modifier ou retirer la distinction sans altérer la proposition calculée en direct.
@@ -194,7 +205,7 @@
 >
 > ---
 >
-> Dernière mise à jour : 14 septembre 2026 — **Socle de notes Sénégal (v18) — lots 1 et 2/5 livrés (schéma+seed, puis moteurs de calcul), dérive `db push` réconciliée, lots 3-5 (écrans, saisie, niveau d'acquisition) à venir**
+> Dernière mise à jour : 15 septembre 2026 — **Socle de notes Sénégal (v18) — Lot 4/5 Les Deux Bulletins livré (secondaire et élémentaire officiels, A4 mono-page garanti, barèmes validés, tag `v18-bulletins`)**
 >
 > Chantier précédent : 11 septembre 2026 — **Chantier Générateur de Documents (v17) — Phase 0 terminée, Phase 1 (audit) livrée, en attente d'arbitrage de Kory avant la phase 2**
 >
