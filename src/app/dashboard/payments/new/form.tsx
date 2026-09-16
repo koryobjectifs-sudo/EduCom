@@ -426,7 +426,7 @@ export function NewInvoiceForm({ students, school, initialStudentId }: { student
                 </div>
                 <div className="text-left sm:text-right print:text-right flex-shrink-0 max-w-full sm:max-w-[50%] print:max-w-[50%]">
                   <h2 className={`${paperFormat === "A4-half" ? "text-sm sm:text-base" : "text-sm sm:text-2xl"} font-light text-gray-900 uppercase tracking-widest whitespace-normal sm:whitespace-nowrap print:whitespace-nowrap`}>{title || "Facture"}</h2>
-                  <p className={`${paperFormat === "A4-half" ? "text-[10px]" : "text-sm"} text-gray-500 mt-1 font-medium`}>#INV-{new Date().getFullYear()}-001</p>
+                  <p className={`${paperFormat === "A4-half" ? "text-[10px]" : "text-sm"} text-gray-500 mt-1 font-medium`}>N° officiel attribué à l'enregistrement</p>
                 </div>
               </div>
 

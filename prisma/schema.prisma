@@ -136,6 +136,7 @@ model School {
   feeItems          FeeItem[]
   feeChangeRequests FeeChangeRequest[]
   notifications     StaffNotification[]
+  documentSequences DocumentSequence[]
 
   // Lot 13 — dossier numérique élève
   documentRequirements DocumentRequirement[]
@@ -430,11 +431,12 @@ enum InvoiceStatus {
 }
 
 model Invoice {
-  id          String        @id @default(uuid())
-  title       String // e.g., "Facture - Octobre"
-  totalAmount Float         @default(0)
-  status      InvoiceStatus @default(PENDING)
-  dueDate     DateTime
+  id            String        @id @default(uuid())
+  invoiceNumber String? // Numérotation séquentielle officielle par école (ex: FAC-2026-0001)
+  title         String // e.g., "Facture - Octobre"
+  totalAmount   Float         @default(0)
+  status        InvoiceStatus @default(PENDING)
+  dueDate       DateTime
 
   schoolId String
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -451,6 +453,7 @@ model Invoice {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([schoolId, invoiceNumber])
   @@index([schoolId])
   @@index([studentId])
   @@index([parentId])
@@ -481,10 +484,11 @@ enum PaymentMethod {
 }
 
 model Payment {
-  id        String        @id @default(uuid())
-  amount    Float
-  method    PaymentMethod @default(CASH)
-  reference String? // Transaction ID or Check Number
+  id            String        @id @default(uuid())
+  receiptNumber String? // Numérotation séquentielle officielle de reçu par école (ex: REC-2026-0001)
+  amount        Float
+  method        PaymentMethod @default(CASH)
+  reference     String? // Transaction ID or Check Number
 
   invoiceId String
   invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
@@ -494,11 +498,26 @@ model Payment {
 
   createdAt DateTime @default(now())
 
+  @@unique([schoolId, receiptNumber])
   @@index([invoiceId])
   @@index([schoolId])
   @@index([schoolId, method])
   /// Recettes par période : `createdAt` est la SEULE date d'un encaissement.
   @@index([schoolId, createdAt])
+}
+
+/// Compteur séquentiel de numérotation par établissement et par année (Factures et Reçus).
+model DocumentSequence {
+  id         String   @id @default(uuid())
+  schoolId   String
+  school     School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  type       String   // "INVOICE" | "RECEIPT"
+  year       Int
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([schoolId, type, year])
+  @@index([schoolId])
 }
 
 /// Statuts du circuit de validation financier — dépenses ET états financiers.

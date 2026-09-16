@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireActionContext } from "@/lib/actionContext";
 import { recordAudit } from "@/lib/audit";
+import { getNextInvoiceNumber, getNextReceiptNumber } from "@/lib/finance/numbering";
 
 /**
  * Actions de facturation.
@@ -66,29 +67,33 @@ export async function createInvoice(formData: FormData) {
   const totalAmount = items.reduce((sum, item) => sum + (item.amount * item.quantity), 0);
 
   try {
-    const created = await prisma.invoice.create({
-      data: {
-        title,
-        totalAmount,
-        dueDate: new Date(dueDateStr),
-        status: "PENDING",
-        studentId: targetStudentId,
-        schoolId: ctx.schoolId,
-        items: {
-          create: items.map(item => ({
-            title: item.title,
-            amount: item.amount,
-            quantity: item.quantity
-          }))
-        }
-      },
-      select: { id: true },
+    const created = await prisma.$transaction(async (tx) => {
+      const invoiceNumber = await getNextInvoiceNumber(tx, ctx.schoolId, new Date(dueDateStr));
+      return tx.invoice.create({
+        data: {
+          invoiceNumber,
+          title,
+          totalAmount,
+          dueDate: new Date(dueDateStr),
+          status: "PENDING",
+          studentId: targetStudentId,
+          schoolId: ctx.schoolId,
+          items: {
+            create: items.map(item => ({
+              title: item.title,
+              amount: item.amount,
+              quantity: item.quantity
+            }))
+          }
+        },
+        select: { id: true, invoiceNumber: true },
+      });
     });
     await recordAudit(ctx, {
       action: "invoice.create",
       entity: "invoice",
       entityId: created.id,
-      details: { title, totalAmount, studentId: targetStudentId ?? null },
+      details: { title, totalAmount, studentId: targetStudentId ?? null, invoiceNumber: created.invoiceNumber },
     });
   } catch (error) {
     console.error("Failed to create invoice:", error);
@@ -116,30 +121,33 @@ export async function markInvoiceAsPaid(invoiceId: string) {
     if (invoice.status === "PAID") return { error: "Facture déjà payée" };
     if (invoice.status === "CANCELLED") return { error: "Facture annulée" };
 
-    await prisma.$transaction([
-      prisma.payment.create({
+    const payment = await prisma.$transaction(async (tx) => {
+      const receiptNumber = await getNextReceiptNumber(tx, ctx.schoolId);
+      const p = await tx.payment.create({
         data: {
+          receiptNumber,
           amount: invoice.totalAmount,
           method: "CASH",
           invoiceId: invoice.id,
           schoolId: ctx.schoolId,
         },
-      }),
-      prisma.invoice.update({
+      });
+      await tx.invoice.update({
         where: { id: invoice.id, schoolId: ctx.schoolId },
         data: { status: "PAID" },
-      }),
-    ]);
+      });
+      return p;
+    });
 
     await recordAudit(ctx, {
       action: "invoice.collect",
       entity: "invoice",
       entityId: invoice.id,
-      details: { from: invoice.status, to: "PAID", amount: invoice.totalAmount },
+      details: { from: invoice.status, to: "PAID", amount: invoice.totalAmount, receiptNumber: payment.receiptNumber },
     });
 
     revalidatePath("/dashboard/payments");
-    return { success: true };
+    return { success: true, paymentId: payment.id };
   } catch (error) {
     console.error("Failed to mark invoice as paid:", error);
     return { error: "Erreur lors de l'encaissement" };
@@ -167,9 +175,11 @@ export async function quickCollect(studentId: string, amount: number) {
 
   try {
     await prisma.$transaction(async (tx) => {
-      // 1. Create Invoice
+      // 1. Create Invoice with sequential number
+      const invoiceNumber = await getNextInvoiceNumber(tx, ctx.schoolId);
       const invoice = await tx.invoice.create({
         data: {
+          invoiceNumber,
           title,
           totalAmount: amount,
           dueDate: new Date(),
@@ -186,9 +196,11 @@ export async function quickCollect(studentId: string, amount: number) {
         },
       });
 
-      // 2. Create Payment
+      // 2. Create Payment with sequential receipt number
+      const receiptNumber = await getNextReceiptNumber(tx, ctx.schoolId);
       await tx.payment.create({
         data: {
+          receiptNumber,
           amount: amount,
           method: "CASH", // Defaulting to cash for quick collect
           invoiceId: invoice.id,
@@ -200,7 +212,7 @@ export async function quickCollect(studentId: string, amount: number) {
         action: "invoice.collect",
         entity: "invoice",
         entityId: invoice.id,
-        details: { mode: "quick", amount: amount, studentId: student.id },
+        details: { mode: "quick", amount: amount, studentId: student.id, invoiceNumber, receiptNumber },
       });
     });
 

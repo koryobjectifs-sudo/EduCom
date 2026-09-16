@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, DollarSign, X, Wallet, History, Send } from "lucide-react";
+import { Search, DollarSign, X, Wallet, History, Send, Printer, Receipt } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
@@ -17,6 +17,7 @@ import { formatDate } from "@/lib/dateUtils";
 
 type Invoice = {
   id: string;
+  invoiceNumber?: string | null;
   title: string;
   totalAmount: number;
   status: string;
@@ -26,6 +27,7 @@ type Invoice = {
     lastName: string;
     enrollments: { class: { id: string, name: string } }[];
   } | null;
+  payments?: { id: string; receiptNumber?: string | null }[];
 };
 
 type ExpectedDetail = {
@@ -304,9 +306,16 @@ export default function PaymentsListClient({
                     return (
                       <DataTable.Row key={invoice.id}>
                         <DataTable.Cell>
-                          <span className="font-semibold text-text">{invoice.title}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {invoice.invoiceNumber && (
+                              <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                {invoice.invoiceNumber}
+                              </span>
+                            )}
+                            <span className="font-semibold text-text">{invoice.title}</span>
+                          </div>
                           {studentName && (
-                            <span className="block text-role-meta text-text-soft sm:hidden">
+                            <span className="block text-role-meta text-text-soft sm:hidden mt-0.5">
                               {studentName}
                             </span>
                           )}
@@ -339,7 +348,7 @@ export default function PaymentsListClient({
                         </DataTable.Cell>
 
                         <DataTable.Cell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1.5">
                             {invoice.status !== "PAID" && canCollect ? (
                               <PayButton invoiceId={invoice.id} />
                             ) : invoice.status !== "PAID" ? (
@@ -351,8 +360,8 @@ export default function PaymentsListClient({
                                 {describeStatus("invoice", "PAID").label}
                               </span>
                             )}
-                            {/* Raccourci d'intention — chantier navigation UX (18 sept.) :
-                                ferme le chemin facture impayée -> relance, sans nouvelle logique. */}
+                            {/* Raccourci d'intention — chantier navigation UX :
+                                relance vers les impayés. */}
                             {late && (
                               <Link
                                 href="/dashboard/documents/reminder"
@@ -362,12 +371,23 @@ export default function PaymentsListClient({
                                 <Send className="w-4 h-4" />
                               </Link>
                             )}
+                            {/* Règle 4 : Imprimer le reçu vers /payments/receipt?paymentId= */}
+                            {invoice.payments && invoice.payments.length > 0 && (
+                              <Link
+                                href={`/dashboard/payments/receipt?paymentId=${invoice.payments[0].id}`}
+                                title={`Imprimer le reçu (${invoice.payments[0].receiptNumber || "Encaissement"})`}
+                                className="inline-flex items-center justify-center rounded-md text-sm font-medium text-emerald-700 hover:bg-emerald-50 transition-colors h-8 w-8"
+                              >
+                                <Receipt className="w-4 h-4" />
+                              </Link>
+                            )}
+                            {/* Règle 4 : Imprimer vers /payments/invoice?invoiceId= */}
                             <Link
-                              href={`/dashboard/payments/${invoice.id}`}
-                              title="Voir la facture"
+                              href={`/dashboard/payments/invoice?invoiceId=${invoice.id}`}
+                              title="Imprimer la facture officielle"
                               className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8"
                             >
-                              <Search className="w-4 h-4" />
+                              <Printer className="w-4 h-4" />
                             </Link>
                           </div>
                         </DataTable.Cell>

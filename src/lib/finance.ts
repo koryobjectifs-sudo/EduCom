@@ -410,12 +410,13 @@ export type ExpectedDetail = {
 export type InvoiceOverview = {
   /** Factures visibles par l'acteur. Déjà restreintes par `invoiceScope()`. */
   invoices: {
-    id: string; title: string; totalAmount: number; status: string; dueDate: Date;
+    id: string; invoiceNumber?: string | null; title: string; totalAmount: number; status: string; dueDate: Date;
     student: { 
       firstName: string; 
       lastName: string;
       enrollments: { class: { id: string, name: string } }[];
     } | null;
+    payments?: { id: string; receiptNumber?: string | null }[];
   }[];
   /** Encaissé sur ces factures — même définition que l'état financier. */
   collected: number;
@@ -453,6 +454,7 @@ export async function invoiceOverview(actor: ActorContext): Promise<InvoiceOverv
       where: scope,
       select: {
         id: true,
+        invoiceNumber: true,
         title: true,
         totalAmount: true,
         status: true,
@@ -463,6 +465,11 @@ export async function invoiceOverview(actor: ActorContext): Promise<InvoiceOverv
             lastName: true,
             enrollments: { select: { class: { select: { id: true, name: true } } } },
           },
+        },
+        payments: {
+          select: { id: true, receiptNumber: true },
+          take: 1,
+          orderBy: { createdAt: "desc" },
         },
       },
       orderBy: { createdAt: "desc" },

@@ -1,6 +1,20 @@
 # EduCom SaaS - Contexte du Projet
 
-> **Bascule Moteur de Bulletins Unifié & Correctifs Import livrés le 16 septembre (tag `v18-moteur-unifie`).**
+> **Chantier Unification Facture et Reçu livré le 16 septembre (tag `v20-facturation`).**
+> - **Numérotation séquentielle officielle par école (modèle `DocumentSequence`)** :
+>   - *État antérieur* : `Invoice` ne portait aucun numéro officiel (uniquement l'UUID `id`). Le formulaire `payments/new` affichait en dur `#INV-2026-001`, le visualiseur tronquait l'UUID (`id.split('-')[0]`), et l'écran `payments/invoice` inventait des numéros aléatoires `FAC-2026-xxxx` stockés en `localStorage`. `Payment` n'avait aucun numéro de reçu.
+>   - *Nouvel état* : Séquence atomique garantie par `DocumentSequence` (`upsert` avec `{ increment: 1 }` dans `prisma.$transaction`). Les factures reçoivent `FAC-YYYY-0001` et les paiements `REC-YYYY-0001`. Unicité stricte par établissement (`@@unique([schoolId, invoiceNumber])` et `@@unique([schoolId, receiptNumber])`). Migration SQL appliquée et 14 factures / 5 paiements historiques rétro-numérotés.
+> - **Suppression définitive du stockage navigateur** :
+>   - Nettoyage automatique des clés `draft_invoice_*` et `draft_receipt_*` dans `DraftsList.tsx`. Les documents comptables officiels ne vivent plus dans le navigateur.
+> - **Écrans unifiés et réparés** :
+>   - `/dashboard/payments/invoice` : Avec `?invoiceId=`, charge et affiche l'objet `Invoice` réel (lignes, montants, statut, élève, cachet, signature de l'école). Sans `invoiceId`, affiche `InvoiceSelector` (liste des factures existantes + CTA "+ Nouvelle facture").
+>   - `/dashboard/payments/receipt` : Avec `?paymentId=`, charge et affiche le reçu officiel lié à l'encaissement et à la facture correspondante. Sans `paymentId`, affiche `ReceiptSelector` (historique des encaissements).
+>   - Actions et liens directs : "Facturer" depuis l'annuaire mène à `/payments/new?studentId=...`. Le tableau des paiements propose "Imprimer la facture" (`/invoice?invoiceId=`) et "Imprimer le reçu" (`/receipt?paymentId=`).
+> - **Contraintes & Conformité** :
+>   - Format monétaire XOF strict sans décimales (`50 000 FCFA`), conversion en toutes lettres en français (`amountInWordsXOF`).
+>   - Permissions vérifiées côté serveur : accès réservé à `OWNER`, `ADMIN`, `ACCOUNTANT` ; refus strict pour `TEACHER` et `PARENT` (43/43 tests validés).
+>   - Compilation : `npx tsc --noEmit` à 0 erreur. Aucun push Git vers `origin`.
+
 > - **Bascule des deux composants sur `loadOfficialBulletin`** :
 >   1. `PrintClient.tsx` (et sa route `/dashboard/documents/validation/impression`) et `StudentEntryTab.tsx` (avec sa route `/preview/report-card`) sont désormais branchés sur le moteur officiel unifié `loadOfficialBulletin`, garantissant le rendu étanche des gabarits officiels sénégalais (`BulletinSecondaireSheet` et `BulletinElementaireSheet`).
 >   2. **Inventaire et archivage de `bulletin.ts`** : Toutes les références ont été recensées et nettoyées. Les fonctions utilitaires génériques (`buildBlocks`, `SubjectRow`, `evaluationKind`) ont été déplacées dans `src/lib/curriculum.ts`. L'ancien moteur a été archivé dans `src/lib/legacy/bulletin.ts` (aucune suppression destructive).

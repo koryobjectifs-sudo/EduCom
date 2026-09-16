@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { FileText, ArrowLeft, Trash2, CalendarDays, Contact2, FileBadge, ReceiptText, Banknote } from "lucide-react";
+import { FileText, ArrowLeft, Trash2, CalendarDays, Contact2, FileBadge } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function DraftsList({ students, classes }: { students: any[], classes?: any[] }) {
@@ -13,8 +13,6 @@ export default function DraftsList({ students, classes }: { students: any[], cla
   const [certificateDrafts, setCertificateDrafts] = useState<any[]>([]);
   const [infoSheetDrafts, setInfoSheetDrafts] = useState<any[]>([]);
   const [timetableDrafts, setTimetableDrafts] = useState<any[]>([]);
-  const [invoiceDrafts, setInvoiceDrafts] = useState<any[]>([]);
-  const [receiptDrafts, setReceiptDrafts] = useState<any[]>([]);
   const [otherDrafts, setOtherDrafts] = useState<any[]>([]);
   
   const [isClient, setIsClient] = useState(false);
@@ -29,10 +27,18 @@ export default function DraftsList({ students, classes }: { students: any[], cla
     const certs = [];
     const infosheets = [];
     const timetables = [];
-    const invoices = [];
-    const receipts = [];
     const others = [];
     
+    // Purge obsolete billing/receipt browser drafts
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith("draft_invoice_") || key.startsWith("draft_receipt_"))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key) {
@@ -48,14 +54,6 @@ export default function DraftsList({ students, classes }: { students: any[], cla
           const classId = key.replace("draft_timetable_", "");
           const c = classes?.find((cl) => cl.id === classId);
           if (c) timetables.push({ ...c, key });
-        } else if (key.startsWith("draft_invoice_")) {
-          const studentId = key.replace("draft_invoice_", "");
-          const s = students.find((st) => st.id === studentId);
-          if (s) invoices.push({ ...s, key });
-        } else if (key.startsWith("draft_receipt_")) {
-          const studentId = key.replace("draft_receipt_", "");
-          const s = students.find((st) => st.id === studentId);
-          if (s) receipts.push({ ...s, key });
         } else if (key.startsWith("draft_other_")) {
           const studentId = key.replace("draft_other_", "");
           const s = students.find((st) => st.id === studentId);
@@ -73,8 +71,6 @@ export default function DraftsList({ students, classes }: { students: any[], cla
     setCertificateDrafts(certs);
     setInfoSheetDrafts(infosheets);
     setTimetableDrafts(timetables);
-    setInvoiceDrafts(invoices);
-    setReceiptDrafts(receipts);
     setOtherDrafts(others);
   };
 
@@ -92,10 +88,6 @@ export default function DraftsList({ students, classes }: { students: any[], cla
       router.push(`/dashboard/documents/info-sheet?studentId=${id}`);
     } else if (type === "timetable") {
       router.push(`/dashboard/documents/timetable?classId=${id}`);
-    } else if (type === "invoice") {
-      router.push(`/dashboard/payments/invoice?studentId=${id}`);
-    } else if (type === "receipt") {
-      router.push(`/dashboard/payments/receipt?studentId=${id}`);
     }
   };
 
@@ -144,76 +136,6 @@ export default function DraftsList({ students, classes }: { students: any[], cla
                       onClick={() => deleteDraft(draft.key)}
                       className="p-1.5 text-danger bg-danger/10 rounded-lg hover:bg-danger/20 transition-colors"
                       title="Supprimer définitivement"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Factures */}
-        {invoiceDrafts.length > 0 && (
-          <div className="bg-white border border-rule rounded-control overflow-hidden shadow-sm">
-            <div className="bg-ground px-5 py-3 border-b border-rule flex items-center gap-2">
-              <ReceiptText className="w-5 h-5 text-success" />
-              <h2 className="font-semibold text-text">Factures</h2>
-              <span className="bg-sunk text-text-soft text-xs font-bold px-2 py-0.5 rounded-full ml-2">{invoiceDrafts.length}</span>
-            </div>
-            <div className="divide-y divide-gray-100">
-              {invoiceDrafts.map(draft => (
-                <div key={draft.key} className="flex items-center justify-between p-4 hover:bg-ground transition-colors">
-                  <div>
-                    <p className="font-semibold text-text">{draft.firstName} {draft.lastName}</p>
-                    <p className="text-sm text-text-soft">{draft.enrollments?.[0]?.class?.name || "Classe non spécifiée"}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => resumeDraft("invoice", draft.id)}
-                      className="px-3 py-1.5 text-sm font-semibold bg-white border border-rule text-text-soft rounded-lg hover:bg-ground shadow-sm transition-colors"
-                    >
-                      Reprendre
-                    </button>
-                    <button 
-                      onClick={() => deleteDraft(draft.key)}
-                      className="p-1.5 text-danger bg-danger/10 rounded-lg hover:bg-danger/20 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Reçus */}
-        {receiptDrafts.length > 0 && (
-          <div className="bg-white border border-rule rounded-control overflow-hidden shadow-sm">
-            <div className="bg-ground px-5 py-3 border-b border-rule flex items-center gap-2">
-              <Banknote className="w-5 h-5 text-warning" />
-              <h2 className="font-semibold text-text">Reçus de paiement</h2>
-              <span className="bg-sunk text-text-soft text-xs font-bold px-2 py-0.5 rounded-full ml-2">{receiptDrafts.length}</span>
-            </div>
-            <div className="divide-y divide-gray-100">
-              {receiptDrafts.map(draft => (
-                <div key={draft.key} className="flex items-center justify-between p-4 hover:bg-ground transition-colors">
-                  <div>
-                    <p className="font-semibold text-text">{draft.firstName} {draft.lastName}</p>
-                    <p className="text-sm text-text-soft">{draft.enrollments?.[0]?.class?.name || "Classe non spécifiée"}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => resumeDraft("receipt", draft.id)}
-                      className="px-3 py-1.5 text-sm font-semibold bg-white border border-rule text-text-soft rounded-lg hover:bg-ground shadow-sm transition-colors"
-                    >
-                      Reprendre
-                    </button>
-                    <button 
-                      onClick={() => deleteDraft(draft.key)}
-                      className="p-1.5 text-danger bg-danger/10 rounded-lg hover:bg-danger/20 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -357,7 +279,7 @@ export default function DraftsList({ students, classes }: { students: any[], cla
         )}
 
         {/* Empty state */}
-        {reportCardDrafts.length === 0 && certificateDrafts.length === 0 && infoSheetDrafts.length === 0 && timetableDrafts.length === 0 && invoiceDrafts.length === 0 && receiptDrafts.length === 0 && otherDrafts.length === 0 && (
+        {reportCardDrafts.length === 0 && certificateDrafts.length === 0 && infoSheetDrafts.length === 0 && timetableDrafts.length === 0 && otherDrafts.length === 0 && (
           <div className="text-center py-20 bg-white border border-dashed border-rule rounded-control">
             <FileText className="w-12 h-12 text-text-faint mx-auto mb-3" />
             <h3 className="text-lg font-medium text-text mb-1">Aucun brouillon</h3>
