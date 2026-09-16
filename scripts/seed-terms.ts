@@ -34,7 +34,7 @@
 import { prisma } from "./_env";
 import { APPLY, resoudreCible } from "./_cible";
 import { pickCurrentTerm } from "../src/lib/terms";
-import { evaluationKind } from "../src/lib/bulletin";
+import { evaluationKind } from "../src/lib/curriculum";
 
 /** Libellés fournis par l'école. Aucun n'est déduit ni reformulé. */
 const PLAN: { trimestre: string; evaluations: { nom: string; type: "QUIZ" | "EXAM" }[] }[] = [

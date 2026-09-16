@@ -69,15 +69,21 @@ export function getPhoneValidationError(phoneStr: string): string | null {
   if (!clean) return "Numéro de téléphone requis.";
 
   try {
-    if (!isValidPhoneNumber(clean)) {
-      const parsed = parsePhoneNumber(clean);
-      const countryCode = parsed?.country || (clean.startsWith("+221") || clean.startsWith("7") ? "SN" : undefined);
+    const hasPlus = clean.startsWith("+");
+    const defaultCountry = !hasPlus && (clean.startsWith("7") || clean.length === 9) ? "SN" : undefined;
+
+    if (!isValidPhoneNumber(clean, defaultCountry)) {
+      let parsed = null;
+      try {
+        parsed = parsePhoneNumber(clean, defaultCountry);
+      } catch {}
+      const countryCode = parsed?.country || defaultCountry || (clean.startsWith("+221") || clean.startsWith("7") ? "SN" : undefined);
       const countryAdj = countryCode && COUNTRY_NAMES[countryCode] ? COUNTRY_NAMES[countryCode] : "international";
       const example = countryCode && COUNTRY_FORMAT_EXAMPLES[countryCode] ? ` Format attendu : ${COUNTRY_FORMAT_EXAMPLES[countryCode]}.` : "";
       return `Ce numéro n'est pas un numéro ${countryAdj} valide.${example}`;
     }
 
-    const parsed = parsePhoneNumber(clean);
+    const parsed = parsePhoneNumber(clean, defaultCountry);
     if (parsed?.country === "SN") {
       // Vérification spécifique Sénégal : 9 chiffres nationaux, commence par 7
       const nat = parsed.nationalNumber;
@@ -103,6 +109,16 @@ export const phoneSchema = z
         code: z.ZodIssueCode.custom,
         message: err,
       });
+    }
+  })
+  .transform((val) => {
+    try {
+      const hasPlus = val.startsWith("+");
+      const defaultCountry = !hasPlus && (val.startsWith("7") || val.length === 9) ? "SN" : undefined;
+      const parsed = parsePhoneNumber(val, defaultCountry);
+      return parsed ? parsed.number : val;
+    } catch {
+      return val;
     }
   });
 

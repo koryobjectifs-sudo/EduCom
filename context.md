@@ -1,5 +1,68 @@
 # EduCom SaaS - Contexte du Projet
 
+> **Bascule Moteur de Bulletins Unifié & Correctifs Import livrés le 16 septembre (tag `v18-moteur-unifie`).**
+> - **Bascule des deux composants sur `loadOfficialBulletin`** :
+>   1. `PrintClient.tsx` (et sa route `/dashboard/documents/validation/impression`) et `StudentEntryTab.tsx` (avec sa route `/preview/report-card`) sont désormais branchés sur le moteur officiel unifié `loadOfficialBulletin`, garantissant le rendu étanche des gabarits officiels sénégalais (`BulletinSecondaireSheet` et `BulletinElementaireSheet`).
+>   2. **Inventaire et archivage de `bulletin.ts`** : Toutes les références ont été recensées et nettoyées. Les fonctions utilitaires génériques (`buildBlocks`, `SubjectRow`, `evaluationKind`) ont été déplacées dans `src/lib/curriculum.ts`. L'ancien moteur a été archivé dans `src/lib/legacy/bulletin.ts` (aucune suppression destructive).
+>   3. **Comparaison avant/après sur un élève de chaque cycle** :
+>      - *Secondaire (Terminale S2, Babacar Ndiaye)* : Ancien moteur = `null` (aucune évaluation détectée car il dépendait d'`Evaluation.type`) vs Nouveau moteur officiel = **12.86/20** (1er, 25 coefficients, 321.50 points, 7 matières). Le nouveau moteur a raison (cas de référence officiel validé).
+>      - *Élémentaire (CE1, Abdoulaye Sow)* : Ancien moteur = `null` (ne prenait pas en compte les sous-disciplines) vs Nouveau moteur officiel = **8.20/10** (**16.40/20**, 1er/40, 123/150 points, 4 domaines officiels). Le nouveau moteur a raison.
+> - **Traitement des bugs d'import restés ouverts** :
+>   - **a) Parseur XLSX à 0 ligne réparé** :
+>     - Support robuste multi-feuilles : extraction de la feuille active/remplie sans blocage sur une première feuille vide.
+>     - Détection dynamique de l'en-tête (au-delà des titres introductifs éventuels).
+>     - Suppression de la contradiction des bandeaux : le bandeau vert « Fichier analysé avec succès » n'est activé que si des élèves valides sont extraits (`uploadedFile` remis à `null` en cas d'erreur).
+>     - Message d'erreur honnête et précis : remplacement de « Le fichier Excel ne contient pas de données » par la cause réelle (`Le fichier contient {N} lignes, mais aucun élève n'a été reconnu...`).
+>   - **b) En-têtes mal orthographiés (« om » au lieu de « nom »)** :
+>     - Algorithme de distance d'édition de Levenshtein (distance 1 ou 2) intégré via `suggestFieldForHeader`.
+>     - Règle constitutionnelle respectée : **propose sans jamais appliquer en silence**.
+>     - L'écran de correspondance (`MappingWizard.tsx`) et le wizard affichent les colonnes non appariées avec leurs valeurs d'exemple et suggèrent l'association avec confirmation utilisateur en un clic.
+> - **Preuve & Stabilité** : `npx tsc --noEmit` (0 erreur), smoke test Chromium CDP Lot 4/5 100% vert (`scripts/verify-lot4-bulletins.ts`), aucun push Git effectué.
+
+
+> **Correctif Écran Import Élèves Wizard Pédagogique (« Étape 2 sur 3 ») livré le 16 septembre (tag `v19-wizard-import-fix`).**
+> - **Champs/fichiers sans confirmation & absence de bouton CTA** :
+>   1. **Cause 1 (Bouton CTA invisible)** : Le bouton « Importer {valid} élèves » était conditionné par `importPreview.valid > 0`. Lorsque le fichier ne séparait pas explicitement « Prénom » et « Nom » (ex: colonne unique « Nom et Prénom » ou « Nom complet »), les 65 élèves étaient considérés « incomplets » (`valid = 0`), ce qui masquait complètement le bouton de validation.
+>   2. **Cause 2 (Absence de feedback sur le fichier déposé)** : La zone de dépôt conservait l'apparence vide « Glissez votre fichier ici... » même après sélection d'un fichier.
+>   3. **Cause 3 (Absence d'aperçu des élèves)** : L'utilisateur voyait uniquement des chiffres bruts (« 0 valides, 65 incomplètes, Partiel Import sécurisé ») sans savoir ce qui avait été lu ni pourquoi c'était incomplet.
+> - **Cause profonde du dysfonctionnement en capture 2** :
+>   1. `prenom.includes("nom")` est vrai en JavaScript (le mot « prénom » contient la sous-chaîne « nom »). Le filtre `s.includes("nom") && s.includes("prenom")` classait donc la colonne `prenom` comme `fullName`, provoquant l'écrasement du nom de famille.
+>   2. PapaParse avec `transformHeader` renommait plusieurs colonnes tuteurs (`nom_tuteur`, `prenom_tuteur`, `profession_tuteur`) vers la même clé `guardianName`, déclenchant une collision de clés (`Duplicate headers found and renamed`).
+>   3. En revanche, le module de la capture 1 (`/dashboard/students/import`) utilisait le moteur éprouvé `normalizeRawRow` sans collisions.
+> - **Correctifs appliqués** :
+>   1. **Unification sur `normalizeRawRow`** : Remplacement du parseur ad-hoc de `WizardClient.tsx` par `normalizeRawRow` de `@/app/dashboard/students/import/utils`, testé et validé à 65/65 élèves valides sur le fichier réel `educom-import-eleves-secondaire.csv/.xlsx`.
+>   2. **Détection robuste et auto-split** : `splitFullName` intervient en complément si un élève n'a qu'un nom complet.
+> - **Preuve & Architecture** : Testé directement sur les fichiers de test du répertoire utilisateur (65/65 élèves valides), `splitFullName` dans `src/lib/nameUtils.ts`, `npx tsc --noEmit` (0 erreur).
+
+> **Correctif Étape 5 Onboarding (« Une erreur s'est produite lors de la configuration ») livré le 16 septembre (tag `v19-onboarding-fix`).**
+> - **Cause racine 1 (Désynchronisation `emailVerified`)** : Un compte confirmé côté Supabase Auth (via OAuth Google ou lien) conservait `emailVerified: false` dans Prisma si le callback était sauté ou en session réutilisée. `requireActionContext` et `requireSchoolContext` bloquaient donc l'action avec une erreur de vérification d'e-mail. Corrigé par : (1) auto-synchronisation en DB (`UPDATE "User" SET "emailVerified" = true`) dans `requireActionContext`, `requireSchoolContext` et `onboarding/page.tsx` dès que `user.email_confirmed_at` est présent ; (2) appel de `requireActionContext(undefined, { allowUnverifiedEmail: true })` dans `completeOnboarding`.
+> - **Cause racine 2 (Rejet téléphone format national)** : La saisie d'un numéro sénégalais national (ex: `781582740` sans indicatif `+221`) échouait dans `getPhoneValidationError` en l'absence de pays par défaut. Corrigé par : fallback par défaut sur `"SN"` si pas d'indicatif `+`, et normalisation automatique E.164 via `.transform()` dans `phoneSchema`.
+> - **Cause racine 3 (Schéma erroné sur nom d'établissement)** : `completeOnboarding` appliquait `nameSchema` (`personNameSchema`, qui interdit les chiffres) au lieu de `schoolNameSchema` sur `data.schoolName`. Corrigé par l'import et l'application stricte de `schoolNameSchema` pour l'école et `personNameSchema` pour `firstName` et `lastName`.
+> - **Cause racine 4 (Masquage de l'erreur)** : Le catch renvoyait un message générique sans exposer la cause réelle. Désormais, `error.message` est retourné explicitement pour un diagnostic instantané.
+> - **Preuve** : Validé par `npx tsc --noEmit` (0 erreur) et `scripts/test-onboarding-fix.ts` (100% succès sur téléphone SN `781582740`, nom d'école, prénom, nom et statut DB).
+
+> **Point Bloquant Coefficients & Écran Difficultés résolus le 16 septembre.**
+> - **Inversion de priorité des coefficients** :
+>   1. Priorité 1 : Coefficient saisi par l'école pour sa classe (`ClassSubject.coefficient`).
+>   2. Priorité 2 : Référentiel officiel par `(niveau, série)` (`SubjectCoefficient.coefficient`).
+>   3. Priorité 3 : Signalement explicite de l'absence (`null` / message d'erreur clair), aucune valeur devinée.
+>   - *Preuve d'isolation multi-écoles* : Validé par test dédié (`scripts/test-coef-priority.ts`). L'école qui personnalise Français à 4 en S2 a 4 sur son bulletin ; les autres écoles conservent 2 du référentiel officiel.
+> - **Smoke test réparé** (`scripts/verify-notes-saisie-smoke.ts`) :
+>   - Le test valide l'application du coefficient spécifique de l'école (3) primant sur le référentiel.
+>   - L'absence de coefficient (ni personnalisé ni officiel) est gérée proprement avec `ok: false` sans planter le serveur. Test 100% au vert.
+> - **Écran Élèves en difficulté branché sur les moteurs officiels** (`/dashboard/grades/difficultes`) :
+>   - Calcul par classe branché sur `calculerClasseElementaire` (domaines, sans coef) et `calculerClasseSecondaire` (coefficients stricts, MD/MM/MG).
+>   - Scoping enseignant : un enseignant (`TEACHER`) ne voit que ses classes (titularité `teacherId` ou affectation `assignments`).
+>   - Filtre interactif par classe ajouté (`ClassFilterSelect.tsx`) et intégré à la navigation Pédagogie ("Suivi des acquis").
+> - **Chiffrage coexistence des moteurs** :
+>   - Anciens consommateurs de `src/lib/bulletin.ts` : `StudentEntryTab.tsx` (saisie vue bulletin), `PrintClient.tsx` (impression legacy), `BulletinSheet.tsx`.
+>   - Divergence constatée : Sur Babacar Ndiaye (Tle S2), le moteur officiel donne **12.86/20** (1er), tandis que l'ancien donne **null** (aucune note trouvée car il lit `Evaluation` au lieu des devoirs/compositions).
+>   - Coût estimé de bascule : ~2h à 3h de refactorisation ciblée pour basculer `StudentEntryTab` et `PrintClient` sur `loadOfficialBulletin`.
+
+> **Correctif Inscription Google & Persistance Brouillon livré le 16 septembre.**
+> - **Champs effacés pendant la saisie** : Cause racine identifiée. En accès réseau local (`192.168.1.5`), Next.js 16 bloquait les chunks de développement hors `allowedDevOrigins`, provoquant des déconnexions/rechargements intempestifs (`window.location.reload()`) qui vidaient le state React. De plus, `clearStaleSession()` exécutait un `signOut()` intempestif au montage. Corrigé en : (1) whitelist dynamique de toutes les interfaces IPv4 locales dans `next.config.ts` ; (2) suppression de `clearStaleSession` ; (3) persistance continue en `sessionStorage` (`educom_register_draft`) pour restaurer immédiatement `schoolName`, `firstName`, `lastName`, `phone`, `email` en cas de rafraîchissement ou bascule d'application.
+> - **Inscription Google non fonctionnelle** : Cause racine identifiée. (1) Échec de chargement des scripts dev client sur IP locale ; (2) Dans `/auth/callback`, `exchangeCodeForSession` échouait avec les anciens cookies `get/set/remove` de `@supabase/ssr` remplacés par `getAll/setAll` ; (3) En cas d'utilisateur existant par e-mail, `tx.user.create` levait `P2002 (Unique constraint failed on email)` étouffé par un try/catch, laissant l'utilisateur sans espace ni rôle. Corrigé par : réconciliation automatique avec mise à jour en cascade de l'ID (`UPDATE "User" SET id = ...`), initialisation complète des champs de l'école (`schoolActivated`, `setupProgress`) et redirection immédiate vers `/welcome`.
+
 > **Lot 4/5 livré le 15 septembre — Les Deux Bulletins officiels Sénégal (tag `v18-bulletins`).**
 > - **Barème S2 conservé à 25 coefficients (Français à coef 2)** : C'est le barème du bulletin trimestriel de contrôle continu (différent du barème national d'examen du Baccalauréat à 26 coefficients avec Français à 3, qui est volontairement écarté ici pour le bulletin scolaire de l'établissement). Cas de référence strictement validé : 321.50 points / 25 coefficients = **12.86 / 20**.
 > - **Barème S1 ajusté avec SVT (coefficient 2)** : Rattachement officiel des SVT (coef 2) en Terminale S1, portant le total de la série S1 de 24 à **26 coefficients**.

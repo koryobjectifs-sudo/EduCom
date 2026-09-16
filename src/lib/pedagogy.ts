@@ -3,9 +3,8 @@ import type { ActorContext } from "@/lib/audit";
 import { recordAudit } from "@/lib/audit";
 import { sortClasses } from "@/lib/classOrder";
 import { pickCurrentTerm } from "@/lib/terms";
-import { evaluationKind } from "@/lib/bulletin";
 import {
-  TERM_MODEL, curriculumFor, parentOf, curriculumProposal,
+  TERM_MODEL, curriculumFor, parentOf, curriculumProposal, evaluationKind,
   type CurriculumProposal,
 } from "@/lib/curriculum";
 

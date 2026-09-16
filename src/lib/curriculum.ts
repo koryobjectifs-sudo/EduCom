@@ -318,3 +318,61 @@ export function curriculumProposal(
     },
   };
 }
+
+export type SubjectRow = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  parent?: { id: string; name: string } | null;
+  coefficient?: number | null;
+};
+
+export type Block<T extends SubjectRow = SubjectRow> = {
+  key: string;
+  title: string | null;
+  rows: T[];
+};
+
+const BLOCK_ORDER = ["Français", "Mathématiques", "Éveil", "Éducation artistique"];
+
+export function buildBlocks<T extends SubjectRow>(subjects: T[]): Block<T>[] {
+  const groups = new Map<string, Block<T>>();
+  const blocks: Block<T>[] = [];
+
+  for (const s of subjects) {
+    if (s.parentId && s.parent) {
+      let group = groups.get(s.parentId);
+      if (!group) {
+        group = { key: s.parentId, title: s.parent.name, rows: [] };
+        groups.set(s.parentId, group);
+        blocks.push(group);
+      }
+      group.rows.push(s);
+    } else {
+      blocks.push({ key: s.id, title: null, rows: [s] });
+    }
+  }
+
+  for (const group of groups.values()) {
+    group.rows.sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  }
+
+  const rank = (b: Block) => {
+    const name = b.title ?? b.rows[0].name;
+    const i = BLOCK_ORDER.indexOf(name);
+    return i === -1 ? BLOCK_ORDER.length : i;
+  };
+
+  return blocks.sort((a, b) => {
+    const byRank = rank(a) - rank(b);
+    if (byRank !== 0) return byRank;
+    return (a.title ?? a.rows[0].name).localeCompare(b.title ?? b.rows[0].name, "fr");
+  });
+}
+
+export type EvaluationKind = "CONTROL" | "COMPOSITION";
+
+export function evaluationKind(type: string | null | undefined): EvaluationKind {
+  return type === "EXAM" ? "COMPOSITION" : "CONTROL";
+}
+

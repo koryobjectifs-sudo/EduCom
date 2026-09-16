@@ -48,16 +48,33 @@ export default function RegisterPage() {
   // Touched state for onBlur validation
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
+  const DRAFT_KEY = "educom_register_draft";
+
+  // Récupérer les informations déjà saisies pour éviter toute perte
   useEffect(() => {
-    async function clearStaleSession() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.auth.signOut();
+    try {
+      const saved = sessionStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.schoolName) setSchoolName(data.schoolName);
+        if (data.firstName) setFirstName(data.firstName);
+        if (data.lastName) setLastName(data.lastName);
+        if (data.phone) setPhone(data.phone);
+        if (data.email) setEmail(data.email);
       }
+    } catch {
+      // sessionStorage non accessible
     }
-    clearStaleSession();
   }, []);
+
+  const saveDraft = (field: string, value: string) => {
+    try {
+      const current = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "{}");
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ ...current, [field]: value }));
+    } catch {
+      // Ignorer
+    }
+  };
 
   const passwordStrength = calculatePasswordStrength(password);
 
@@ -150,6 +167,7 @@ export default function RegisterPage() {
     try {
       const result = await register(formData);
       if (result && "confirmationRequise" in result) {
+        try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
         router.push(`/verify-email?email=${encodeURIComponent(result.email)}`);
         return;
       }
@@ -228,8 +246,10 @@ export default function RegisterPage() {
             placeholder="Ex : Groupe Scolaire Excellence"
             value={schoolName}
             onChange={(e) => {
-              setSchoolName(e.target.value);
-              if (touched.schoolName) handleBlur("schoolName", e.target.value);
+              const val = e.target.value;
+              setSchoolName(val);
+              saveDraft("schoolName", val);
+              if (touched.schoolName) handleBlur("schoolName", val);
             }}
             onBlur={() => handleBlur("schoolName", schoolName)}
             error={touched.schoolName ? errors.schoolName : undefined}
@@ -246,8 +266,10 @@ export default function RegisterPage() {
               placeholder="Amadou"
               value={firstName}
               onChange={(e) => {
-                setFirstName(e.target.value);
-                if (touched.firstName) handleBlur("firstName", e.target.value);
+                const val = e.target.value;
+                setFirstName(val);
+                saveDraft("firstName", val);
+                if (touched.firstName) handleBlur("firstName", val);
               }}
               onBlur={() => handleBlur("firstName", firstName)}
               error={touched.firstName ? errors.firstName : undefined}
@@ -261,8 +283,10 @@ export default function RegisterPage() {
               placeholder="Diallo"
               value={lastName}
               onChange={(e) => {
-                setLastName(e.target.value);
-                if (touched.lastName) handleBlur("lastName", e.target.value);
+                const val = e.target.value;
+                setLastName(val);
+                saveDraft("lastName", val);
+                if (touched.lastName) handleBlur("lastName", val);
               }}
               onBlur={() => handleBlur("lastName", lastName)}
               error={touched.lastName ? errors.lastName : undefined}
@@ -278,8 +302,10 @@ export default function RegisterPage() {
             placeholder="77 123 45 67"
             value={phone}
             onChange={(val) => {
-              setPhone(val || "");
-              if (touched.phone) handleBlur("phone", val || "");
+              const cleaned = val || "";
+              setPhone(cleaned);
+              saveDraft("phone", cleaned);
+              if (touched.phone) handleBlur("phone", cleaned);
             }}
             error={touched.phone ? errors.phone : undefined}
           />
@@ -295,8 +321,10 @@ export default function RegisterPage() {
             placeholder="direction@votre-ecole.sn"
             value={email}
             onChange={(e) => {
-              setEmail(e.target.value);
-              if (touched.email) handleBlur("email", e.target.value);
+              const val = e.target.value;
+              setEmail(val);
+              saveDraft("email", val);
+              if (touched.email) handleBlur("email", val);
             }}
             onBlur={() => handleBlur("email", email)}
             error={touched.email ? errors.email : undefined}

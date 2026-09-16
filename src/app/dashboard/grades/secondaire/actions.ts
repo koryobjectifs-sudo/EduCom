@@ -52,7 +52,7 @@ export type SecondaireContext =
       subjectId: string; subjectName: string; coefficient: number;
       termId: string; termName: string;
       allTerms: { id: string; name: string }[];
-      allSubjects: { id: string; name: string; coefficient: number }[];
+      allSubjects: { id: string; name: string; coefficient: number | null }[];
       allClasses: { id: string; name: string }[];
       lignes: SecondaireEleveLigne[];
     }
@@ -121,6 +121,12 @@ export async function getSecondaireContextWithActor(
     }),
     resoudreCoefficient(actor.schoolId, classId, activeSubjectId),
   ]);
+  if (coefficient === null) {
+    return {
+      ok: false,
+      error: `Le coefficient de la matière « ${subject.name} » n'est pas défini pour cette classe. Veuillez le configurer dans les paramètres pédagogiques.`,
+    };
+  }
   const appreciationParEleve = new Map(appreciations.map((a) => [a.studentId, a.comment]));
 
   const lignes: SecondaireEleveLigne[] = enrollments.map((e) => {

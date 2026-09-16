@@ -33,8 +33,17 @@ export const requireSchoolContext = cache(async function requireSchoolContext() 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  let dbUser = await prisma.user.findUnique({ where: { id: user.id } });
   if (!dbUser) redirect("/login");
+
+  // Synchronisation automatique si confirmé dans Supabase Auth (ex: via Google OAuth ou lien de confirmation)
+  if (!dbUser.emailVerified && user.email_confirmed_at) {
+    await prisma.user.update({
+      where: { id: dbUser.id },
+      data: { emailVerified: true },
+    });
+    dbUser = { ...dbUser, emailVerified: true };
+  }
 
   // ⚠️ SÉCURITÉ : Redirection immédiate si e-mail non vérifié
   if (!dbUser.emailVerified) {

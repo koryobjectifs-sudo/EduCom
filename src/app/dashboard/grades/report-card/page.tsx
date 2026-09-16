@@ -6,7 +6,6 @@ import { hasAccess, type RoleType } from "@/lib/permissions";
 import { loadOfficialBulletin } from "@/lib/bulletin/loadOfficialBulletin";
 import { pickCurrentTerm } from "@/lib/terms";
 import { sortClasses } from "@/lib/classOrder";
-import { evaluationKind } from "@/lib/bulletin";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataState } from "@/components/dashboard/DataState";
 import ReportCardGenerator from "./Generator";

@@ -22,7 +22,7 @@ import {
   applyCurriculum, configurationReadiness, schoolCalendar, programmeByClass,
 } from "../src/lib/pedagogy";
 import { recordPlanningChange, recentPlanningChanges, outboundNoticeReady } from "../src/lib/planningNotice";
-import { buildBulletin } from "../src/lib/bulletin";
+import { buildBulletin } from "../src/lib/legacy/bulletin";
 import { resolveEntryContext, academicBoard } from "../src/lib/gradeEntry";
 import { pickCurrentTerm } from "../src/lib/terms";
 

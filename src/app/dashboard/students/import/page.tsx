@@ -3,8 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Papa from "papaparse";
-// @ts-ignore
-import { readSheet } from "read-excel-file/browser";
+import readXlsxFile from "read-excel-file/browser";
 import {
   UploadCloud,
   CheckCircle2,
@@ -42,6 +41,7 @@ import {
   type ImportPreviewResult,
   type MissingClassDef,
   type ImportStudentResult,
+  levenshteinDistance,
 } from "./utils";
 import Link from "next/link";
 import { MappingWizard } from "./MappingWizard";
@@ -227,32 +227,91 @@ export default function ImportStudentsPage() {
           },
         });
       } else if (isExcel) {
-        const rows = await readSheet(selectedFile);
-        if (rows.length < 2) {
-          setError("Le fichier Excel est vide ou ne contient pas d'en-têtes.");
+        const parsed: any = await (readXlsxFile as any)(selectedFile);
+        let rows: any[] = [];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (parsed[0] && Array.isArray(parsed[0].data)) {
+            // Plusieurs feuilles : retenir la feuille avec le plus de lignes
+            let maxLen = 0;
+            for (const s of parsed) {
+              if (Array.isArray(s.data) && s.data.length > maxLen) {
+                maxLen = s.data.length;
+                rows = s.data;
+              }
+            }
+          } else if (Array.isArray(parsed[0])) {
+            rows = parsed;
+          }
+        }
+
+        if (!rows || rows.length === 0) {
+          setError("Le fichier Excel ne contient aucune ligne ou la feuille sélectionnée est vide.");
           return;
         }
 
-        const headers = rows[0].map((h: any) => String(h || "").trim().replace(/^\uFEFF/, ""));
+        // Nettoyer les lignes complètement vides
+        const nonEmptyRows = rows.filter(
+          (r) => Array.isArray(r) && r.some((c) => c !== null && c !== undefined && String(c).trim() !== "")
+        );
+
+        if (nonEmptyRows.length < 2) {
+          setError(
+            `Le fichier Excel contient ${rows.length} ligne(s), mais pas assez de données pour constituer des en-têtes et des élèves.`
+          );
+          return;
+        }
+
+        // Trouver dynamiquement la ligne d'en-tête (au cas où les premières lignes sont des titres)
+        let headerRowIndex = 0;
+        for (let rIdx = 0; rIdx < Math.min(nonEmptyRows.length, 6); rIdx++) {
+          const r = nonEmptyRows[rIdx];
+          const matchCount = r.filter((cell: any) => {
+            const s = String(cell || "").toLowerCase().trim();
+            return (
+              s.includes("nom") ||
+              s.includes("prenom") ||
+              s.includes("eleve") ||
+              s.includes("classe") ||
+              s === "om" ||
+              levenshteinDistance(s, "nom") <= 1 ||
+              levenshteinDistance(s, "prenom") <= 1
+            );
+          }).length;
+          if (matchCount >= 1) {
+            headerRowIndex = rIdx;
+            break;
+          }
+        }
+
+        const headers = nonEmptyRows[headerRowIndex].map((h: any) => String(h || "").trim().replace(/^\uFEFF/, ""));
         const dataRows: any[] = [];
 
-        for (let i = 1; i < rows.length; i++) {
-          const rowData = rows[i];
+        for (let i = headerRowIndex + 1; i < nonEmptyRows.length; i++) {
+          const rowData = nonEmptyRows[i];
           const obj: any = {};
           headers.forEach((header: string, index: number) => {
             if (header) {
               obj[header] = rowData[index] !== null && rowData[index] !== undefined ? String(rowData[index]).trim() : "";
             }
           });
-          dataRows.push(obj);
+          const hasAny = Object.values(obj).some((v) => v && String(v).trim().length > 0);
+          if (hasAny) dataRows.push(obj);
         }
-        setRawHeaders(headers);
+
+        if (dataRows.length === 0) {
+          setError(
+            `Le fichier Excel contient ${rows.length} lignes, mais aucune donnée élève exploitable n'a été extraite sous la ligne d'en-tête.`
+          );
+          return;
+        }
+
+        setRawHeaders(headers.filter(Boolean));
         setRawRows(dataRows);
         setCurrentState("MAPPING");
       }
     } catch (err) {
       console.error(err);
-      setError("Une erreur s'est produite lors de la lecture du fichier.");
+      setError("Une erreur s'est produite lors de la lecture du fichier Excel.");
     }
   };
 

@@ -10,6 +10,7 @@ import {
   School,
   Users,
   UserCheck,
+  Check,
   CheckCircle2,
   ArrowRight,
   ArrowLeft,
@@ -32,6 +33,13 @@ import {
   type WizardStudentRow,
   type WizardImportResult,
 } from "./actions";
+import { splitFullName } from "@/lib/nameUtils";
+import {
+  normalizeRawRow,
+  suggestFieldForHeader,
+  FIELD_DEFINITIONS,
+  levenshteinDistance,
+} from "@/app/dashboard/students/import/utils";
 import { SCHOOL_TYPE_CLASSES, type SchoolTypeOption } from "@/lib/pedagogy-types";
 
 interface WizardClientProps {
@@ -120,44 +128,36 @@ export default function WizardClient({ schoolName, currentYear, initialStep = 1 
   // ── ÉCRAN 2 : IMPORT ÉLÈVES ──
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<{ name: string; size: number } | null>(null);
   const [rawRows, setRawRows] = useState<WizardStudentRow[]>([]);
-  const [importPreview, setImportPreview] = useState<{ total: number; valid: number; invalid: number } | null>(null);
+  const [importPreview, setImportPreview] = useState<{
+    total: number;
+    valid: number;
+    invalid: number;
+    classesDetected: number;
+  } | null>(null);
   const [importResult, setImportResult] = useState<WizardImportResult | null>(null);
   const [importedTotal, setImportedTotal] = useState(0);
-
-  const normalizeHeader = (h: string): string => {
-    const s = h.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    if (s.includes("tel") || s.includes("phone") || s.includes("mobile") || s.includes("cel") || s.includes("portable") || s.includes("contact")) {
-      return "guardianPhone";
-    }
-    if (s.includes("lien") || s.includes("relation") || s.includes("parente")) {
-      return "guardianRelation";
-    }
-    if (s.includes("tuteur") || s.includes("parent") || s.includes("pere") || s.includes("mere") || s.includes("responsable") || s.includes("representant")) {
-      return "guardianName";
-    }
-    if (s.includes("date") || s.includes("naissance") || s.includes("dob") || s.includes("ne(e)") || s.includes("anniversaire")) {
-      return "dateOfBirth";
-    }
-    if (s.includes("sexe") || s.includes("genre")) {
-      return "gender";
-    }
-    if (s.includes("classe") || s.includes("niveau") || s.includes("division")) {
-      return "className";
-    }
-    if (s.includes("prenom")) return "firstName";
-    if (s.includes("nom")) return "lastName";
-    if (s.includes("matricule") || s.includes("identifiant")) return "matricule";
-    return s;
-  };
+  const [pendingSuggestion, setPendingSuggestion] = useState<{
+    header: string;
+    field: string;
+    fieldLabel: string;
+    distance: number;
+    rawRows: any[];
+    file: File;
+  } | null>(null);
 
   const parseFile = async (file: File) => {
     setErrorMessage(null);
     setRawRows([]);
     setImportPreview(null);
+    setUploadedFile(null);
+    setPendingSuggestion(null);
 
-    const isCsv = file.name.endsWith(".csv");
-    const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
+    const isCsv = file.name.toLowerCase().endsWith(".csv");
+    const isExcel =
+      file.name.toLowerCase().endsWith(".xlsx") ||
+      file.name.toLowerCase().endsWith(".xls");
 
     if (!isCsv && !isExcel) {
       setErrorMessage("Format non supporté. Veuillez utiliser un fichier .xlsx, .xls ou .csv");
@@ -168,46 +168,181 @@ export default function WizardClient({ schoolName, currentYear, initialStep = 1 
       if (isCsv) {
         Papa.parse(file, {
           header: true,
-          skipEmptyLines: true,
-          transformHeader: normalizeHeader,
+          skipEmptyLines: "greedy",
           complete: (results) => {
-            const rows = results.data as WizardStudentRow[];
-            processParsedRows(rows);
+            const rows = (results.data as any[]) || [];
+            if (rows.length === 0) {
+              setErrorMessage("Le fichier CSV ne contient aucune ligne de données.");
+              return;
+            }
+            processParsedRows(rows, file);
           },
         });
       } else {
-        const rows: any = await readXlsxFile(file);
-        if (!rows || rows.length < 2) {
-          setErrorMessage("Le fichier Excel ne contient pas de données.");
-          return;
-        }
-        const headers = rows[0].map((h: any) => normalizeHeader(String(h || "")));
-        const dataRows: WizardStudentRow[] = [];
-
-        for (let i = 1; i < rows.length; i++) {
-          const r = rows[i];
-          const obj: any = {};
-          headers.forEach((hdr: string, idx: number) => {
-            if (hdr) obj[hdr] = r[idx] ? String(r[idx]) : undefined;
-          });
-          if (obj.firstName || obj.lastName) {
-            dataRows.push(obj as WizardStudentRow);
+        const parsed: any = await (readXlsxFile as any)(file);
+        let rows: any[] = [];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (parsed[0] && Array.isArray(parsed[0].data)) {
+            // Plusieurs feuilles : retenir la feuille la plus remplie
+            let maxLen = 0;
+            for (const s of parsed) {
+              if (Array.isArray(s.data) && s.data.length > maxLen) {
+                maxLen = s.data.length;
+                rows = s.data;
+              }
+            }
+          } else if (Array.isArray(parsed[0])) {
+            rows = parsed;
           }
         }
-        processParsedRows(dataRows);
+
+        if (!rows || rows.length === 0) {
+          setErrorMessage("Le fichier Excel ne contient aucune ligne ou la feuille sélectionnée est vide.");
+          return;
+        }
+
+        const nonEmptyRows = rows.filter(
+          (r) => Array.isArray(r) && r.some((c) => c !== null && c !== undefined && String(c).trim() !== "")
+        );
+
+        if (nonEmptyRows.length < 2) {
+          setErrorMessage(
+            `Le fichier Excel contient ${rows.length} ligne(s), mais pas assez de données pour constituer des en-têtes et des élèves.`
+          );
+          return;
+        }
+
+        // Trouver dynamiquement la ligne d'en-tête (au cas où les premières lignes sont des titres)
+        let headerRowIndex = 0;
+        for (let rIdx = 0; rIdx < Math.min(nonEmptyRows.length, 6); rIdx++) {
+          const r = nonEmptyRows[rIdx];
+          const matchCount = r.filter((cell: any) => {
+            const s = String(cell || "").toLowerCase().trim();
+            return (
+              s.includes("nom") ||
+              s.includes("prenom") ||
+              s.includes("eleve") ||
+              s.includes("classe") ||
+              s === "om" ||
+              levenshteinDistance(s, "nom") <= 1 ||
+              levenshteinDistance(s, "prenom") <= 1
+            );
+          }).length;
+          if (matchCount >= 1) {
+            headerRowIndex = rIdx;
+            break;
+          }
+        }
+
+        const headers = nonEmptyRows[headerRowIndex].map((h: any) => String(h || "").trim().replace(/^\uFEFF/, ""));
+        const dataRows: any[] = [];
+
+        for (let i = headerRowIndex + 1; i < nonEmptyRows.length; i++) {
+          const r = nonEmptyRows[i];
+          if (!Array.isArray(r)) continue;
+          const obj: any = {};
+          headers.forEach((hdr: string, idx: number) => {
+            if (hdr) obj[hdr] = r[idx] !== null && r[idx] !== undefined ? String(r[idx]).trim() : "";
+          });
+          const hasAnyValue = Object.values(obj).some((v) => v && String(v).trim().length > 0);
+          if (hasAnyValue) {
+            dataRows.push(obj);
+          }
+        }
+
+        if (dataRows.length === 0) {
+          setErrorMessage(
+            `Le fichier Excel contient ${nonEmptyRows.length} lignes, mais aucune donnée élève n'a pu être extraite sous les en-têtes.`
+          );
+          return;
+        }
+
+        processParsedRows(dataRows, file);
       }
     } catch (err) {
-      setErrorMessage("Impossible de lire ce fichier.");
+      console.error("Erreur lecture fichier:", err);
+      setErrorMessage("Impossible de lire ce fichier Excel.");
     }
   };
 
-  const processParsedRows = (rows: WizardStudentRow[]) => {
-    const valid = rows.filter((r) => r.firstName?.trim() && r.lastName?.trim());
-    setRawRows(rows);
+  const processParsedRows = (rows: any[], file: File) => {
+    const sample = rows[0] || {};
+    const rawKeys = Object.keys(sample);
+
+    const formattedRows: WizardStudentRow[] = rows.map((raw) => {
+      const norm = normalizeRawRow(raw);
+      let fName = norm.firstName?.trim() || "";
+      let lName = norm.lastName?.trim() || "";
+
+      if (fName && !lName) {
+        const s = splitFullName(fName);
+        fName = s.firstName;
+        lName = s.lastName;
+      } else if (!fName && lName) {
+        const s = splitFullName(lName);
+        fName = s.firstName;
+        lName = s.lastName;
+      }
+
+      return {
+        firstName: fName,
+        lastName: lName,
+        className: norm.className?.trim() || undefined,
+        dateOfBirth: norm.dateOfBirth?.trim() || undefined,
+        gender: norm.gender?.trim() || undefined,
+        guardianName: norm.emergencyContact?.trim() || undefined,
+        guardianPhone: norm.emergencyPhone?.trim() || undefined,
+        guardianRelation: norm.guardianRelation?.trim() || undefined,
+      };
+    }).filter((r) => r.firstName || r.lastName);
+
+    if (formattedRows.length === 0) {
+      setUploadedFile(null);
+      setRawRows([]);
+      setImportPreview(null);
+
+      // Chercher si une colonne non appariée a une suggestion approchante (ex: "om" -> "lastName")
+      let foundSuggestion: any = null;
+      for (const k of rawKeys) {
+        const sugg = suggestFieldForHeader(k, 2);
+        if (sugg && (sugg.field === "lastName" || sugg.field === "firstName")) {
+          const fieldDef = FIELD_DEFINITIONS.find((f) => f.key === sugg.field);
+          foundSuggestion = {
+            header: k,
+            field: sugg.field,
+            fieldLabel: fieldDef?.label || sugg.field,
+            distance: sugg.distance,
+            rawRows: rows,
+            file,
+          };
+          break;
+        }
+      }
+
+      if (foundSuggestion) {
+        setPendingSuggestion(foundSuggestion);
+        setErrorMessage(
+          `Le fichier contient ${rows.length} lignes, mais la colonne « ${foundSuggestion.fieldLabel} » n'a pas été reconnue directement. La colonne « ${foundSuggestion.header} » semble y correspondre.`
+        );
+      } else {
+        setErrorMessage(
+          `Le fichier contient ${rows.length} lignes, mais aucun élève n'a été reconnu car les colonnes obligatoires (Nom, Prénom) sont introuvables. Colonnes présentes : ${rawKeys.filter(Boolean).join(", ")}.`
+        );
+      }
+      return;
+    }
+
+    const valid = formattedRows.filter((r) => r.firstName?.trim() && r.lastName?.trim());
+    const uniqueClasses = new Set(formattedRows.map((r) => r.className?.trim()).filter(Boolean));
+
+    setPendingSuggestion(null);
+    setUploadedFile({ name: file.name, size: file.size });
+    setRawRows(formattedRows);
     setImportPreview({
-      total: rows.length,
+      total: formattedRows.length,
       valid: valid.length,
-      invalid: rows.length - valid.length,
+      invalid: formattedRows.length - valid.length,
+      classesDetected: uniqueClasses.size,
     });
   };
 
@@ -544,69 +679,184 @@ export default function WizardClient({ schoolName, currentYear, initialStep = 1 
               </button>
             </div>
 
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
+            {/* Zone de Dépôt / Carte Fichier Analysé */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files?.[0]) parseFile(e.target.files[0]);
               }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsDragging(false);
-                if (e.dataTransfer.files?.[0]) parseFile(e.dataTransfer.files[0]);
-              }}
-              onClick={() => fileInputRef.current?.click()}
-              className={`rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all ${
-                isDragging
-                  ? "border-primary bg-primary/5"
-                  : "border-slate-300 hover:border-primary/60 hover:bg-slate-50/60"
-              }`}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files?.[0]) parseFile(e.target.files[0]);
+            />
+
+            {/* Alerte de suggestion approchante (ex: "om" -> "nom") */}
+            {pendingSuggestion && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span>Correspondance approchante proposée (distance d&apos;édition {pendingSuggestion.distance})</span>
+                </div>
+                <p className="text-xs text-amber-800">
+                  Le fichier contient <strong>{pendingSuggestion.rawRows.length} lignes</strong>. La colonne « <span className="font-mono font-bold text-slate-900">{pendingSuggestion.header}</span> » ressemble à <strong>{pendingSuggestion.fieldLabel}</strong>. Souhaitez-vous l&apos;utiliser ?
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const remapped = pendingSuggestion.rawRows.map((r) => ({
+                        ...r,
+                        [pendingSuggestion.field]: r[pendingSuggestion.header],
+                      }));
+                      processParsedRows(remapped, pendingSuggestion.file);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-1.5 text-xs font-semibold shadow-xs transition-colors"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    Oui, utiliser « {pendingSuggestion.header} » comme {pendingSuggestion.fieldLabel}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {uploadedFile ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5 transition-all">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                      <FileSpreadsheet className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-slate-900 truncate max-w-[220px] sm:max-w-xs">
+                          {uploadedFile.name}
+                        </p>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Fichier analysé avec succès
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {(uploadedFile.size / 1024).toFixed(1)} Ko · {rawRows.length} lignes extraites
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition-colors self-end sm:self-center"
+                  >
+                    <UploadCloud className="h-3.5 w-3.5 text-slate-500" />
+                    <span>Changer de fichier</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
                 }}
-              />
-              <UploadCloud className="mx-auto h-10 w-10 text-slate-400 mb-3" />
-              <p className="text-sm font-semibold text-slate-800">
-                Glissez votre fichier ici, ou cliquez pour parcourir
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                Formats acceptés : .xlsx, .xls, .csv · Détection automatique des colonnes
-              </p>
-            </div>
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  if (e.dataTransfer.files?.[0]) parseFile(e.dataTransfer.files[0]);
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                className={`rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all ${
+                  isDragging
+                    ? "border-primary bg-primary/5"
+                    : "border-slate-300 hover:border-primary/60 hover:bg-slate-50/60"
+                }`}
+              >
+                <UploadCloud className="mx-auto h-10 w-10 text-slate-400 mb-3" />
+                <p className="text-sm font-semibold text-slate-800">
+                  Glissez votre fichier ici, ou cliquez pour parcourir
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Formats acceptés : .xlsx, .xls, .csv · Détection automatique des colonnes
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* Prévisualisation */}
+          {/* Prévisualisation & Résumé */}
           {importPreview && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-              <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="text-slate-800">Résultat de la détection :</span>
-                <span className="text-primary font-bold">{importPreview.total} lignes trouvées</span>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-emerald-600" />
+                  <span className="text-sm font-bold text-slate-900">
+                    Résultat de l&apos;analyse :
+                  </span>
+                </div>
+                <span className="rounded-full bg-slate-200/80 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
+                  {importPreview.total} élève{importPreview.total > 1 ? "s" : ""} trouvé{importPreview.total > 1 ? "s" : ""}
+                </span>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-lg bg-white p-2.5 border border-slate-200">
-                  <p className="text-base font-bold text-emerald-600">{importPreview.valid}</p>
-                  <p className="text-[10px] text-slate-500">Valides</p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+                <div className="rounded-xl bg-white p-3.5 border border-emerald-200 shadow-xs">
+                  <p className="text-2xl font-black text-emerald-600">{importPreview.valid}</p>
+                  <p className="text-xs font-semibold text-slate-600 mt-0.5">Prêts à être importés</p>
                 </div>
-                <div className="rounded-lg bg-white p-2.5 border border-slate-200">
-                  <p className="text-base font-bold text-red-600">{importPreview.invalid}</p>
-                  <p className="text-[10px] text-slate-500">Incomplètes</p>
+                <div className="rounded-xl bg-white p-3.5 border border-slate-200 shadow-xs">
+                  <p className="text-2xl font-black text-slate-800">{importPreview.classesDetected}</p>
+                  <p className="text-xs font-semibold text-slate-600 mt-0.5">Classes identifiées</p>
                 </div>
-                <div className="rounded-lg bg-white p-2.5 border border-slate-200">
-                  <p className="text-base font-bold text-blue-600">Partiel</p>
-                  <p className="text-[10px] text-slate-500">Import sécurisé</p>
+                <div className="rounded-xl bg-white p-3.5 border border-slate-200 shadow-xs">
+                  <p className={`text-2xl font-black ${importPreview.invalid > 0 ? "text-amber-600" : "text-slate-400"}`}>
+                    {importPreview.invalid}
+                  </p>
+                  <p className="text-xs font-semibold text-slate-600 mt-0.5">
+                    {importPreview.invalid > 0 ? "Lignes incomplètes" : "Aucune erreur"}
+                  </p>
                 </div>
               </div>
+
+              {/* Aperçu concret des premiers élèves pour rassurer l'utilisateur */}
+              {rawRows.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-200/60">
+                  <p className="text-xs font-bold text-slate-700 mb-2">
+                    Aperçu des premiers élèves détectés :
+                  </p>
+                  <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-semibold">
+                        <tr>
+                          <th className="px-3 py-2">Prénom</th>
+                          <th className="px-3 py-2">Nom</th>
+                          <th className="px-3 py-2">Classe</th>
+                          <th className="px-3 py-2">Contact Tuteur</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {rawRows.slice(0, 4).map((r, i) => (
+                          <tr key={i} className="hover:bg-slate-50/50">
+                            <td className="px-3 py-2 font-medium text-slate-900">{r.firstName || "—"}</td>
+                            <td className="px-3 py-2 font-medium text-slate-900">{r.lastName || "—"}</td>
+                            <td className="px-3 py-2 text-slate-600">{r.className || "À affecter"}</td>
+                            <td className="px-3 py-2 text-slate-600">
+                              {r.guardianPhone || r.guardianName || "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {rawRows.length > 4 && (
+                      <div className="bg-slate-50/60 px-3 py-1.5 text-center text-[11px] text-slate-500 border-t border-slate-100">
+                        + {rawRows.length - 4} autre{rawRows.length - 4 > 1 ? "s" : ""} élève{rawRows.length - 4 > 1 ? "s" : ""} prêt{rawRows.length - 4 > 1 ? "s" : ""} dans ce fichier
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Actions */}
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+          {/* Actions & Bouton de Validation CTA */}
+          <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => setStep(1)}
@@ -616,20 +866,21 @@ export default function WizardClient({ schoolName, currentYear, initialStep = 1 
               <span>Retour</span>
             </button>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setStep(3)}
-                className="text-xs font-semibold text-slate-500 hover:text-slate-700 px-3 py-2"
+                className="text-xs font-semibold text-slate-500 hover:text-slate-700 px-3 py-2 order-2 sm:order-1"
               >
                 Ajouter manuellement plus tard
               </button>
-              {importPreview && importPreview.valid > 0 && (
+
+              {importPreview && importPreview.valid > 0 ? (
                 <button
                   type="button"
                   disabled={loading}
                   onClick={handleImportSubmit}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-primary-hover active:scale-[0.98] transition-all disabled:opacity-50"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-white shadow-md hover:bg-primary-hover active:scale-[0.98] transition-all disabled:opacity-50 order-1 sm:order-2"
                 >
                   {loading ? (
                     <>
@@ -638,12 +889,26 @@ export default function WizardClient({ schoolName, currentYear, initialStep = 1 
                     </>
                   ) : (
                     <>
-                      <span>Importer {importPreview.valid} élèves</span>
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>Valider et importer {importPreview.valid} élèves</span>
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}
                 </button>
-              )}
+              ) : importPreview && importPreview.valid === 0 ? (
+                <div className="flex flex-col items-center sm:items-end gap-1 order-1 sm:order-2">
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex items-center gap-2 rounded-xl bg-slate-200 px-5 py-2.5 text-xs font-bold text-slate-400 cursor-not-allowed"
+                  >
+                    <span>Vérification requise</span>
+                  </button>
+                  <span className="text-[11px] text-red-500">
+                    Aucun nom d&apos;élève détecté. Vérifiez vos colonnes.
+                  </span>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

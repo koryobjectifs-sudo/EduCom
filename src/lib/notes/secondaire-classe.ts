@@ -109,7 +109,18 @@ export async function calculerClasseSecondaire(params: {
       const cle = `${studentId}:${cs.subject.id}`;
       const md = devoirParPaire.get(cle);
       const coefficientReferentiel = cs.subject.code ? coefParCode.get(cs.subject.code) : undefined;
-      const coefficient = coefficientReferentiel ?? cs.coefficient;
+      // 1. Saisi par l'école pour cette classe (ClassSubject)
+      // 2. Sinon référentiel officiel
+      // 3. Sinon absence signalée
+      const coefficient = (cs.coefficient != null && cs.coefficient > 0)
+        ? cs.coefficient
+        : (coefficientReferentiel ?? null);
+
+      if (coefficient === null) {
+        throw new Error(
+          `Coefficient non défini pour la matière « ${cs.subject.name} » dans la classe « ${classe.name} ». Veuillez le configurer.`
+        );
+      }
       return {
         subjectId: cs.subject.id,
         name: cs.subject.name,

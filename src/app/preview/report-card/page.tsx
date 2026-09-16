@@ -3,9 +3,9 @@ import { requirePathAccess } from "@/lib/documentContext";
 import type { RoleType } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { pickCurrentTerm } from "@/lib/terms";
-import { sortClasses } from "@/lib/classOrder";
-import { loadBulletin } from "@/lib/gradeEntry";
-import { BulletinSheet } from "@/components/grades/BulletinSheet";
+import { loadOfficialBulletin } from "@/lib/bulletin/loadOfficialBulletin";
+import { BulletinSecondaireSheet } from "@/components/grades/BulletinSecondaireSheet";
+import { BulletinElementaireSheet } from "@/components/grades/BulletinElementaireSheet";
 
 export default async function PreviewReportCardPage({
   searchParams,
@@ -13,14 +13,12 @@ export default async function PreviewReportCardPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { schoolId, user } = await requirePathAccess("/dashboard/grades/report-card");
-  const role = user.role as RoleType;
   const sp = await searchParams;
   const one = (k: string) => (typeof sp[k] === "string" && sp[k] ? (sp[k] as string) : undefined);
 
   const studentId = one("studentId") ?? null;
   let classId = one("classId");
   let termId = one("termId");
-  const evaluationId = one("evaluationId");
 
   if (!studentId) return <div className="p-4 text-center text-gray-500">Aucun élève sélectionné.</div>;
 
@@ -43,29 +41,31 @@ export default async function PreviewReportCardPage({
     return <div className="p-4 text-center text-gray-500">Informations insuffisantes pour charger le bulletin.</div>;
   }
 
-  const loaded = await loadBulletin({ schoolId, userId: user.id, role }, { classId, termId, evaluationId });
+  const loaded = await loadOfficialBulletin({ schoolId, classId, termId, studentId });
   if (!loaded) return <div className="p-4 text-center text-gray-500">Bulletin introuvable.</div>;
 
-  const schoolParams = await prisma.school.findUnique({
-    where: { id: schoolId },
-    select: { name: true, logo: true, signature: true, stamp: true },
-  });
-
-  const student = loaded.bulletin.students.find(s => s.studentId === studentId);
+  const student = (loaded.students as any[]).find((s) => s.studentId === studentId);
   if (!student) return <div className="p-4 text-center text-gray-500">Élève non trouvé dans ce bulletin.</div>;
 
   return (
     <div className="w-full min-h-screen bg-gray-100/50 sm:p-4 flex justify-center">
-      <BulletinSheet
-        student={student}
-        bulletin={loaded.bulletin}
-        school={schoolParams}
-        className={loaded.klass.name}
-        termName={loaded.term.name}
-        evaluationName={loaded.evaluation?.name || "Toutes évaluations"}
-        isComposition={loaded.evaluation?.isComposition || false}
-        academicYear={loaded.academicYear}
-      />
+      {loaded.cycle === "ELEMENTAIRE" ? (
+        <BulletinElementaireSheet
+          student={student}
+          school={loaded.school}
+          className={loaded.classe.name}
+          termName={loaded.term.name}
+          isT3={loaded.term.isT3}
+        />
+      ) : (
+        <BulletinSecondaireSheet
+          student={student}
+          school={loaded.school}
+          className={loaded.classe.name}
+          termName={loaded.term.name}
+          isT3={loaded.term.isT3}
+        />
+      )}
     </div>
   );
 }

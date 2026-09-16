@@ -17,7 +17,7 @@ import { Printer, Check, Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { BulletinSheet } from "@/components/grades/BulletinSheet";
 import { saveCouncilComment } from "@/app/dashboard/grades/actions";
-import type { Bulletin } from "@/lib/bulletin";
+import type { Bulletin } from "@/lib/legacy/bulletin";
 
 /**
  * Aperçu et impression des bulletins.

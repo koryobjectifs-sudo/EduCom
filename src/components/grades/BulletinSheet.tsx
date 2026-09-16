@@ -1,4 +1,4 @@
-import type { Bulletin, BulletinStudent } from "@/lib/bulletin";
+import type { Bulletin, BulletinStudent } from "@/lib/legacy/bulletin";
 import { formatDate } from "@/lib/dateUtils";
 
 /**

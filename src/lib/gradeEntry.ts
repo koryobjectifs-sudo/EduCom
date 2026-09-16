@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { ActorContext } from "@/lib/audit";
 import { pickCurrentTerm } from "@/lib/terms";
 import { sortClasses } from "@/lib/classOrder";
-import { evaluationKind, buildBulletin, type EvaluationKind, type Bulletin } from "@/lib/bulletin";
+import { evaluationKind, buildBulletin, type EvaluationKind, type Bulletin } from "@/lib/legacy/bulletin";
 import { currentAcademicYear } from "@/lib/studentFile";
 
 /**

@@ -81,7 +81,7 @@ export const requireActionContext = cache(async function requireActionContext(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Non autorisé — vous devez être connecté." };
 
-  const dbUser = await prisma.user.findUnique({
+  let dbUser = await prisma.user.findUnique({
     where: { id: user.id },
     select: {
       id: true,
@@ -94,6 +94,15 @@ export const requireActionContext = cache(async function requireActionContext(
   });
   if (!dbUser) return { ok: false, error: "Utilisateur introuvable." };
   if (!dbUser.schoolId) return { ok: false, error: "Aucun établissement rattaché à ce compte." };
+
+  // Synchronisation automatique si confirmé dans Supabase Auth (ex: via Google OAuth ou lien de confirmation)
+  if (!dbUser.emailVerified && user.email_confirmed_at) {
+    await prisma.user.update({
+      where: { id: dbUser.id },
+      data: { emailVerified: true },
+    });
+    dbUser = { ...dbUser, emailVerified: true };
+  }
 
   // ⚠️ SÉCURITÉ : Blocage des actions serveurs si e-mail non vérifié
   if (!options?.allowUnverifiedEmail && !dbUser.emailVerified) {

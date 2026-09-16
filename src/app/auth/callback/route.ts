@@ -49,30 +49,49 @@ export async function GET(request: Request) {
   }
 
   // ⚠️ INTERCEPTION "FAST & SECURE" POUR GOOGLE OAUTH
-  // Si l'utilisateur vient d'arriver via Google, il existe dans Supabase Auth
-  // mais n'a pas encore de School ni de User dans Prisma.
-  // On le crée à la volée pour un onboarding immédiat.
+  // Si l'utilisateur vient d'arriver via Google, il existe dans Supabase Auth.
+  // On synchronise son compte ou on crée son établissement à la volée.
   if (data?.user) {
     const { prisma } = await import('@/lib/prisma')
     
     try {
-      const dbUser = await prisma.user.findUnique({
-        where: { id: data.user.id },
-        select: { id: true },
+      const email = (data.user.email || '').trim().toLowerCase()
+      
+      // Recherche par id ou par email pour réconciliation fluide
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { id: data.user.id },
+            ...(email ? [{ email }] : []),
+          ],
+        },
       })
       
-      if (!dbUser) {
+      if (!existingUser) {
         const metadata = data.user.user_metadata || {}
-        // On sépare le nom complet fourni par Google
-        const fullName = metadata.full_name || ''
-        const parts = fullName.split(' ')
-        const firstName = metadata.first_name || parts[0] || 'Direction'
-        const lastName = metadata.last_name || parts.slice(1).join(' ') || ''
-        const email = data.user.email || ''
+        const fullName = metadata.full_name || metadata.name || ''
+        const parts = fullName.trim().split(/\s+/)
+        const firstName = metadata.first_name || metadata.given_name || parts[0] || 'Direction'
+        const lastName = metadata.last_name || metadata.family_name || parts.slice(1).join(' ') || ''
         const schoolName = `École de ${firstName}`
 
         await prisma.$transaction(async (tx) => {
-          const school = await tx.school.create({ data: { name: schoolName, email } })
+          const school = await tx.school.create({
+            data: {
+              name: schoolName,
+              email,
+              schoolActivated: false,
+              onboardingCompleted: false,
+              setupProgress: {
+                classes: false,
+                curriculum: false,
+                calendar: false,
+                students: false,
+                teachers: false,
+                payments: false,
+              },
+            },
+          })
           await tx.user.create({
             data: {
               id: data.user.id,
@@ -82,25 +101,26 @@ export async function GET(request: Request) {
               role: 'ADMIN',
               schoolId: school.id,
               emailVerified: true,
+              termsAcceptedAt: new Date(),
+              termsVersion: '2026-09-v1',
             },
           })
         })
         
-        // Si c'est une création à la volée, on l'envoie vers la page de bienvenue
-        // (même si l'URL demandait /dashboard, on préfère lui souhaiter la bienvenue).
-        if (next === '/dashboard') {
-          return NextResponse.redirect(`${origin}/welcome`)
-        }
+        return NextResponse.redirect(`${origin}/welcome`)
       } else {
-        // Confirmation d'e-mail d'un utilisateur existant : valider l'adresse en base
-        await prisma.user.update({
-          where: { id: data.user.id },
-          data: { emailVerified: true },
-        })
+        // Utilisateur existant : synchroniser l'id Supabase si différent et valider l'e-mail
+        if (existingUser.id !== data.user.id) {
+          await prisma.$executeRaw`UPDATE "User" SET id = ${data.user.id}, "emailVerified" = true WHERE id = ${existingUser.id}`
+        } else if (!existingUser.emailVerified) {
+          await prisma.user.update({
+            where: { id: data.user.id },
+            data: { emailVerified: true },
+          })
+        }
       }
     } catch (err) {
-      console.error('Erreur lors de la création automatique OAuth:', err)
-      // Si on échoue, on continue : le layout dashboard gérera l'erreur "espace_absent"
+      console.error('Erreur lors de la création ou synchronisation automatique OAuth:', err)
     }
   }
 

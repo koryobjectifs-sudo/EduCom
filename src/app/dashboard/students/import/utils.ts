@@ -344,3 +344,98 @@ export function normalizeRawRow(row: Record<string, any>): ImportRow {
     status: normalized.status || row.status || "",
   };
 }
+
+/**
+ * Calcul standard de la distance de Levenshtein (nombre d'opérations d'édition entre deux chaînes).
+ */
+export function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+      }
+    }
+  }
+  return dp[m][n];
+}
+
+export type HeaderSuggestion = {
+  field: EduComFieldKey;
+  distance: number;
+  matchedWord: string;
+};
+
+/**
+ * Correspondance approchante (distance 1 ou 2) pour rattraper les fautes de frappe
+ * telles que « om » au lieu de « nom », « prenm » au lieu de « prenom », etc.
+ *
+ * ⚠️ Conformément à la règle produit : cette fonction ne fait que PROPOSER,
+ * elle n'applique jamais la correspondance en silence sans validation utilisateur.
+ */
+export function suggestFieldForHeader(
+  rawHeader: string,
+  maxDistance = 2,
+): HeaderSuggestion | null {
+  if (!rawHeader) return null;
+
+  // Si l'en-tête est déjà reconnu par l'analyse exacte, aucune suggestion approchante n'est nécessaire
+  if (detectFieldForHeader(rawHeader)) return null;
+
+  const norm = rawHeader
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\(\)\[\]_\-\.\:\;\/\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!norm) return null;
+
+  const targets: { field: EduComFieldKey; words: string[] }[] = [
+    { field: "lastName", words: ["nom", "noms", "patronyme", "lastname"] },
+    { field: "firstName", words: ["prenom", "prenoms", "firstname"] },
+    { field: "className", words: ["classe", "classes", "niveau", "section"] },
+    { field: "dateOfBirth", words: ["naissance", "date"] },
+    { field: "gender", words: ["sexe", "genre", "gender"] },
+    { field: "emergencyContact", words: ["tuteur", "parent", "responsable"] },
+    { field: "emergencyPhone", words: ["telephone", "contact", "mobile", "tel"] },
+    { field: "matricule", words: ["matricule", "identifiant", "code"] },
+  ];
+
+  let bestMatch: HeaderSuggestion | null = null;
+
+  for (const item of targets) {
+    for (const word of item.words) {
+      // 1. Distance globale
+      const dist = levenshteinDistance(norm, word);
+      if (dist <= maxDistance) {
+        if (!bestMatch || dist < bestMatch.distance) {
+          bestMatch = { field: item.field, distance: dist, matchedWord: word };
+        }
+      }
+
+      // 2. Distance mot à mot si l'en-tête contient plusieurs termes
+      const tokens = norm.split(" ").filter((t) => t.length >= 2);
+      for (const token of tokens) {
+        const tokenDist = levenshteinDistance(token, word);
+        if (tokenDist <= maxDistance) {
+          if (!bestMatch || tokenDist < bestMatch.distance) {
+            bestMatch = { field: item.field, distance: tokenDist, matchedWord: word };
+          }
+        }
+      }
+    }
+  }
+
+  return bestMatch;
+}
+

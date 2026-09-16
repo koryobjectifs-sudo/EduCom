@@ -91,9 +91,16 @@ async function main() {
       // MD = (12+14)/2 = 13 ; MM = (13+16)/2 = 14.5
       check(`secondaire : MD=13 (obtenu ${ligne?.md})`, ligne?.md === 13);
       check(`secondaire : MM=14.5 (obtenu ${ligne?.mm})`, ligne?.mm === 14.5);
-      check("secondaire : coefficient référentiel Terminale S2 appliqué (5, pas le 3 de ClassSubject)", ctxSec.coefficient === 5);
+      check("secondaire : coefficient saisi par l'école appliqué (3, priorité ClassSubject sur référentiel)", ctxSec.coefficient === 3);
       check("secondaire : appréciation revient bien", ligne?.appreciation === "Bon niveau.");
     }
+
+    // Matière sans personnalisation ni référentiel : absence signalée proprement sans deviner ni planter
+    const matiereOrpheline = await prisma.subject.create({ data: { name: `${TAG} Orpheline`, code: `${TAG}-ORPH`, schoolId: ecole.id }, select: { id: true } });
+    await prisma.classSubject.create({ data: { classId: classeSec.id, subjectId: matiereOrpheline.id, coefficient: 0 } });
+    await prisma.teachingAssignment.create({ data: { teacherId: prof.id, classId: classeSec.id, subjectId: matiereOrpheline.id, schoolId: ecole.id } });
+    const ctxSans = await getSecondaireContextWithActor(actorProf, classeSec.id, matiereOrpheline.id, t1.id);
+    check("secondaire : sans personnalisation ni référentiel, l'absence est signalée proprement", ctxSans.ok === false && ctxSans.error.includes("n'est pas défini"));
 
     // Limite : un 4e devoir doit être refusé.
     const d3 = await saveDevoirGradeWithActor(actorProf, { gradeId: null, studentId: eleveSec.id, classId: classeSec.id, subjectId: matiere.id, termId: t1.id, value: 10 });

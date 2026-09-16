@@ -13,7 +13,7 @@ import {
   getReportCardStates, validateStudentReportCard, reopenStudentReportCard,
   submitClassToSecretariat, submitStudentToSecretariat, validateClassReportCards,
 } from "./actions";
-import { buildBlocks, type SubjectRow } from "@/lib/bulletin";
+import { buildBlocks, type SubjectRow } from "@/lib/curriculum";
 import { triggerCelebration } from "@/lib/celebration";
 
 /** Une matière de la classe, avec le droit de saisie de l'utilisateur courant. */

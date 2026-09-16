@@ -78,10 +78,32 @@ const ENTETES_SECURITE = [
  * plutôt qu'en dur : les URL de tunnel sont éphémères et changent à chaque
  * redémarrage. `localhost` reste autorisé d'office par Next.
  */
-const originesDevAutorisees = (process.env.DEV_ALLOWED_ORIGINS ?? "")
-  .split(",")
-  .map((h) => h.trim())
-  .filter(Boolean);
+import os from "node:os";
+
+// Détection automatique de toutes les adresses IPv4 locales (ex: 192.168.1.5)
+const localIps = Object.values(os.networkInterfaces())
+  .flatMap((net) => net ?? [])
+  .filter((addr) => addr.family === "IPv4" && !addr.internal)
+  .map((addr) => addr.address);
+
+const defaultDevOrigins = [
+  "localhost",
+  "127.0.0.1",
+  "192.168.1.5",
+  "192.168.1.5:3000",
+  ...localIps,
+  ...localIps.map((ip) => `${ip}:3000`),
+];
+
+const originesDevAutorisees = Array.from(
+  new Set([
+    ...defaultDevOrigins,
+    ...(process.env.DEV_ALLOWED_ORIGINS ?? "")
+      .split(",")
+      .map((h) => h.trim())
+      .filter(Boolean),
+  ]),
+);
 
 const nextConfig: NextConfig = {
   distDir: surVercel ? ".next" : process.env.NEXT_DIST_DIR || ".next",
@@ -89,18 +111,6 @@ const nextConfig: NextConfig = {
     position: "bottom-right",
   },
   ...(originesDevAutorisees.length > 0 ? { allowedDevOrigins: originesDevAutorisees } : {}),
-  /**
-   * ⚠️ Second garde-fou, distinct du précédent. Un Server Action compare
-   * l'en-tête `Origin` à `Host` (ou `X-Forwarded-Host`) et **abandonne** la
-   * requête s'ils diffèrent. Derrière un tunnel, le navigateur envoie l'origine
-   * publique tandis que le serveur voit son propre hôte : la connexion
-   * échouerait encore, et pour une raison entièrement différente de celle des
-   * ressources de dev bloquées.
-   *
-   * C'est une LISTE BLANCHE explicite, pas une désactivation : la protection
-   * CSRF reste entière pour toute origine non déclarée, et la liste est vide
-   * tant que `DEV_ALLOWED_ORIGINS` n'est pas renseignée.
-   */
   ...(originesDevAutorisees.length > 0
     ? { experimental: { serverActions: { allowedOrigins: originesDevAutorisees } } }
     : {}),

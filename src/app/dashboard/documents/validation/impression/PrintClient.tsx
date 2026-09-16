@@ -2,41 +2,33 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Printer, Info } from "lucide-react";
-import { BulletinSheet } from "@/components/grades/BulletinSheet";
-import type { Bulletin } from "@/lib/bulletin";
+import { ArrowLeft, Printer } from "lucide-react";
+import type { OfficialBulletinData } from "@/lib/bulletin/loadOfficialBulletin";
+import { BulletinSecondaireSheet } from "@/components/grades/BulletinSecondaireSheet";
+import { BulletinElementaireSheet } from "@/components/grades/BulletinElementaireSheet";
 
 /**
- * Impression des bulletins déposés — secrétariat.
+ * Impression des bulletins validés — secrétariat.
  *
- * ═══ CE QUI A CHANGÉ LE 21 AOÛT ═══
+ * ═══ BASCULE MOTEUR OFFICIEL UNIFIÉ (v18) ═══
  *
- * Ce fichier portait **sa propre fonction `average()`** et **son propre rendu de
- * bulletin**, en parallèle de ceux du générateur. Deux documents officiels qui
- * ne disaient pas la même chose : celui-ci groupait les matières, l'autre non.
- * Le calcul est parti dans `buildBulletin()`, le rendu dans `BulletinSheet`.
- *
- * ⚠️ L'année scolaire était figée à `ACADEMIC_YEAR = "2023-2024"`. Elle vient
- * maintenant de `currentAcademicYear()`, résolue côté serveur.
- *
- * ⚠️ **L'écran ne redemande rien** : le dossier est déjà validé, tout vient de
- * l'URL. C'était vrai avant, ça le reste.
- *
- * ⚠️ `printOnly` ne masque qu'à l'impression : l'écran ne clignote pas entre le
- * clic et la boîte d'impression.
+ * Ce composant consomme désormais `OfficialBulletinData` issu de `loadOfficialBulletin`.
+ * Rendu étanche par cycle :
+ *   - Secondaire / Moyen : BulletinSecondaireSheet (MD, Compo, MM, Coef, Points, Avis conseil)
+ *   - Élémentaire : BulletinElementaireSheet (Domaines, Sous-disciplines, Barème /10 convertible /20, sans coef)
  */
 export default function PrintClient({
-  bulletin, school, className, termName, evaluationName, isComposition, academicYear,
+  data,
+  focusStudentId = null,
 }: {
-  bulletin: Bulletin;
-  school: { name?: string | null; logo?: string | null; signature?: string | null; stamp?: string | null } | null;
-  className: string;
-  termName: string;
-  evaluationName: string;
-  isComposition: boolean;
-  academicYear: string;
+  data: OfficialBulletinData;
+  focusStudentId?: string | null;
 }) {
-  const [printOnly, setPrintOnly] = useState<string | null>(null);
+  const [printOnly, setPrintOnly] = useState<string | null>(focusStudentId);
+
+  const students = printOnly
+    ? (data.students as any[]).filter((s) => s.studentId === printOnly)
+    : (data.students as any[]);
 
   return (
     <div className="space-y-4 pb-12">
@@ -53,11 +45,10 @@ export default function PrintClient({
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-surface border border-rule bg-surface px-4 py-3 shadow-card print:hidden">
         <div className="min-w-0">
           <p className="text-role-body font-semibold text-text">
-            {className} — {termName} · {evaluationName}
+            {data.classe.name} — {data.term.name}
           </p>
           <p className="text-role-meta text-text-soft">
-            {bulletin.headcount} élève{bulletin.headcount > 1 ? "s" : ""} · barème /{bulletin.scale}
-            {bulletin.classAverage !== null && ` · moyenne de classe ${bulletin.classAverage.toFixed(2)}`}
+            {data.students.length} élève{data.students.length > 1 ? "s" : ""} · {data.cycle === "ELEMENTAIRE" ? "Élémentaire (Domaines)" : "Secondaire (Coefficients)"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -79,48 +70,50 @@ export default function PrintClient({
         </div>
       </div>
 
-      {/* Une pastille par élève, avec sa moyenne : imprimer un seul bulletin
-          reste possible sans quitter l'écran. */}
+      {/* Une pastille par élève, avec sa moyenne */}
       <div className="flex flex-wrap gap-2 print:hidden">
-        {bulletin.students.map((s) => (
-          <button
-            key={s.studentId}
-            onClick={() => setPrintOnly(printOnly === s.studentId ? null : s.studentId)}
-            className={`rounded-control border px-2.5 py-1.5 text-role-meta font-medium transition-all duration-200 ${
-              printOnly === s.studentId
-                ? "border-primary bg-primary text-white"
-                : "border-rule bg-surface text-text-soft hover:border-primary/30 hover:text-primary"
-            }`}
-          >
-            {s.lastName} {s.firstName}
-            <span className="ml-1.5 tabular-nums opacity-70">
-              {s.general === null ? "—" : s.general.toFixed(2)}
-            </span>
-          </button>
-        ))}
+        {(data.students as any[]).map((s) => {
+          const avg = data.cycle === "ELEMENTAIRE" ? s.moyenneGeneraleSur10 : s.moyenneGenerale;
+          const maxScale = data.cycle === "ELEMENTAIRE" ? "/10" : "/20";
+          return (
+            <button
+              key={s.studentId}
+              onClick={() => setPrintOnly(printOnly === s.studentId ? null : s.studentId)}
+              className={`rounded-control border px-2.5 py-1.5 text-role-meta font-medium transition-all duration-200 ${
+                printOnly === s.studentId
+                  ? "border-primary bg-primary text-white"
+                  : "border-rule bg-surface text-text-soft hover:border-primary/30 hover:text-primary"
+              }`}
+            >
+              {s.lastName} {s.firstName}
+              <span className="ml-1.5 tabular-nums opacity-70">
+                {avg === null ? "—" : `${avg.toFixed(2)}${maxScale}`}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {bulletin.mixedScales && (
-        <p className="flex items-start gap-2 rounded-control border border-warning/20 bg-warning/10 px-3.5 py-2.5 text-role-meta text-warning print:hidden">
-          <Info aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          Plusieurs barèmes cohabitent dans cette classe. Les moyennes sont ramenées sur /{bulletin.scale}.
-        </p>
-      )}
-
       <div className="space-y-6 print:space-y-0">
-        {bulletin.students.map((s) => (
-          <div key={s.studentId} className="rounded-surface border border-rule shadow-card print:border-none print:shadow-none">
-            <BulletinSheet
-              student={s}
-              bulletin={bulletin}
-              school={school}
-              className={className}
-              termName={termName}
-              evaluationName={evaluationName}
-              isComposition={isComposition}
-              academicYear={academicYear}
-              hidden={printOnly !== null && printOnly !== s.studentId}
-            />
+        {students.map((student) => (
+          <div key={student.studentId} className="rounded-surface border border-rule shadow-card print:border-none print:shadow-none">
+            {data.cycle === "ELEMENTAIRE" ? (
+              <BulletinElementaireSheet
+                student={student}
+                school={data.school}
+                className={data.classe.name}
+                termName={data.term.name}
+                isT3={data.term.isT3}
+              />
+            ) : (
+              <BulletinSecondaireSheet
+                student={student}
+                school={data.school}
+                className={data.classe.name}
+                termName={data.term.name}
+                isT3={data.term.isT3}
+              />
+            )}
           </div>
         ))}
       </div>

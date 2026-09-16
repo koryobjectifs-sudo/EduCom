@@ -69,6 +69,8 @@ export type WizardImportResult = {
   errors: { row: number; name: string; reason: string; raw: WizardStudentRow }[];
 };
 
+import { splitFullName } from "@/lib/nameUtils";
+
 /**
  * 3. Import partiel avec déduplication des tuteurs par numéro de téléphone.
  */
@@ -87,23 +89,33 @@ export async function importStudentsWizardAction(
   const errors: WizardImportResult["errors"] = [];
   const validRows: { index: number; row: WizardStudentRow }[] = [];
 
-  // 1. Validation de premier niveau
+  // 1. Validation de premier niveau avec décomposition intelligente du nom complet
   rows.forEach((row, idx) => {
     const rowNum = idx + 2; // Index Excel (1-based + 1 pour l'en-tête)
-    const fName = row.firstName?.trim();
-    const lName = row.lastName?.trim();
+    let fName = row.firstName?.trim() || "";
+    let lName = row.lastName?.trim() || "";
+
+    if (!fName && lName) {
+      const s = splitFullName(lName);
+      fName = s.firstName;
+      lName = s.lastName;
+    } else if (fName && !lName) {
+      const s = splitFullName(fName);
+      fName = s.firstName;
+      lName = s.lastName;
+    }
 
     if (!fName || !lName) {
       errors.push({
         row: rowNum,
-        name: `${fName || ""} ${lName || ""}`.trim() || "Ligne incomplète",
+        name: `${fName} ${lName}`.trim() || "Ligne incomplète",
         reason: "Nom ou prénom manquant.",
         raw: row,
       });
       return;
     }
 
-    validRows.push({ index: rowNum, row });
+    validRows.push({ index: rowNum, row: { ...row, firstName: fName, lastName: lName } });
   });
 
   if (validRows.length === 0) {

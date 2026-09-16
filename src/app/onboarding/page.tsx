@@ -13,13 +13,22 @@ export default async function OnboardingPage() {
   }
 
   // Récupérer l'utilisateur dans la base de données
-  const dbUser = await prisma.user.findUnique({
+  let dbUser = await prisma.user.findUnique({
     where: { id: user.id },
     include: { school: true }
   });
 
   if (!dbUser || !dbUser.school) {
     redirect("/login");
+  }
+
+  // Synchronisation automatique si confirmé dans Supabase Auth (ex: via Google OAuth ou lien magique)
+  if (!dbUser.emailVerified && user.email_confirmed_at) {
+    await prisma.user.update({
+      where: { id: dbUser.id },
+      data: { emailVerified: true },
+    });
+    dbUser.emailVerified = true;
   }
 
   // SÉCURITÉ : confirmation obligatoire avant d'accéder au wizard d'installation

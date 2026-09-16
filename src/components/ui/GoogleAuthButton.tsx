@@ -16,10 +16,12 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const targetNext = mode === "signup" ? "/welcome" : "/dashboard";
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${mode === "signup" ? "/welcome" : "/dashboard"}`,
+          redirectTo: `${origin}/auth/callback?next=${targetNext}`,
           queryParams: {
             access_type: "offline",
             prompt: "consent",
@@ -30,9 +32,13 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
       if (error) {
         throw error;
       }
-    } catch (error) {
+
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (error: any) {
       console.error("Erreur de connexion Google:", error);
-      toast.error("La connexion via Google a échoué. Veuillez réessayer.");
+      toast.error(error?.message || "La connexion via Google a échoué. Veuillez réessayer.");
       setLoading(false);
     }
   };

@@ -286,14 +286,14 @@ export default function SecondaireTable({ ctx }: { ctx: Ctx }) {
                           : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                       }`}
                     >
-                      {s.name} (coef {s.coefficient})
+                      {s.name}{s.coefficient != null ? ` (coef ${s.coefficient})` : ""}
                     </button>
                   );
                 })}
               </div>
             ) : (
               <span className="text-xs font-semibold text-gray-900 bg-gray-100 px-2.5 py-1 rounded-lg">
-                {ctx.subjectName} (coef {ctx.coefficient})
+                {ctx.subjectName}{ctx.coefficient != null ? ` (coef ${ctx.coefficient})` : ""}
               </span>
             )}
           </div>

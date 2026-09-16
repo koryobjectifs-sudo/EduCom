@@ -7,7 +7,7 @@ import { requireActionContext } from '@/lib/actionContext'
 import { applyCurriculum } from '@/lib/pedagogy'
 import { LEVELS } from '@/lib/curriculum'
 import { OFFICIAL_REQUIREMENTS_BY_CYCLE } from '@/lib/officialRequirements'
-import { emailSchema, nameSchema, phoneSchema } from '@/lib/validations'
+import { emailSchema, schoolNameSchema, personNameSchema, phoneSchema } from '@/lib/validations'
 
 /**
  * Vérifie si une école au nom similaire existe déjà (détection de doublon).
@@ -73,14 +73,22 @@ export async function checkDuplicateSchoolAction(schoolName: string, address?: s
  * Finalise la configuration d'un établissement.
  */
 export async function completeOnboarding(data: any) {
-  const auth = await requireActionContext()
+  const auth = await requireActionContext(undefined, { allowUnverifiedEmail: true })
   if (!auth.ok) return { success: false, classesCreated: 0, error: auth.error }
   const { schoolId, userId } = auth.ctx
 
   try {
     if (data.schoolName) {
-      const nameVal = nameSchema.safeParse(data.schoolName);
+      const nameVal = schoolNameSchema.safeParse(data.schoolName);
       if (!nameVal.success) return { success: false, classesCreated: 0, error: `Nom de l'école : ${nameVal.error.issues[0]?.message || "invalide"}` };
+    }
+    if (data.firstName) {
+      const fnVal = personNameSchema.safeParse(data.firstName);
+      if (!fnVal.success) return { success: false, classesCreated: 0, error: `Prénom : ${fnVal.error.issues[0]?.message || "invalide"}` };
+    }
+    if (data.lastName) {
+      const lnVal = personNameSchema.safeParse(data.lastName);
+      if (!lnVal.success) return { success: false, classesCreated: 0, error: `Nom : ${lnVal.error.issues[0]?.message || "invalide"}` };
     }
     if (data.phone) {
       const phoneVal = phoneSchema.safeParse(data.phone);
@@ -175,6 +183,11 @@ export async function completeOnboarding(data: any) {
     return { success: true, classesCreated, programme: null };
   } catch (error) {
     console.error("Erreur lors de l'onboarding:", error);
-    return { success: false, classesCreated: 0, programme: null, error: "Une erreur s'est produite lors de la configuration." };
+    return {
+      success: false,
+      classesCreated: 0,
+      programme: null,
+      error: error instanceof Error ? error.message : "Une erreur s'est produite lors de la configuration.",
+    };
   }
 }
