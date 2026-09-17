@@ -616,6 +616,9 @@ export async function uploadStudentDocumentDirectAction(formData: FormData) {
       },
     });
 
+    const { resolveDocumentReminders } = await import("@/lib/parentReminder");
+    await resolveDocumentReminders(studentId, requirementId);
+
     done();
     return { success: true, documentId: newDocId };
   } catch (err: any) {
@@ -779,5 +782,56 @@ export async function updateStudentParentDirectAction(input: {
     console.error("Erreur updateStudentParentDirectAction:", err);
     return { error: "Erreur lors de la mise à jour du tuteur." };
   }
+}
+
+/* ═══════════════════ RELANCES PARENTS (PIÈCES MANQUANTES) ═══════════════════ */
+
+/**
+ * Vérifie l'éligibilité d'une relance parent pour une pièce (garde-fous 48h, compte tuteur).
+ */
+export async function checkCanRemindAction(studentId: string, requirementId: string) {
+  const auth = await requireActionContext(READ_PATH);
+  if (!auth.ok) return { error: auth.error };
+  const { schoolId } = auth.ctx;
+
+  const { checkCanRemindParent } = await import("@/lib/parentReminder");
+  const res = await checkCanRemindParent(schoolId, studentId, requirementId);
+  return { data: res };
+}
+
+/**
+ * Envoie une relance parent pour une pièce manquante ciblée.
+ */
+export async function remindParentDocumentAction(studentId: string, requirementId: string) {
+  const auth = await requireActionContext(READ_PATH);
+  if (!auth.ok) return { error: auth.error };
+
+  const { sendDocumentReminder } = await import("@/lib/parentReminder");
+  const res = await sendDocumentReminder(auth.ctx, { studentId, requirementId });
+  if (!res.success) {
+    return { error: res.error };
+  }
+
+  revalidatePath(READ_PATH);
+  revalidatePath(`/dashboard/students/${studentId}/dossier`);
+  return { success: true, data: res };
+}
+
+/**
+ * Envoie une relance groupée depuis la revue des admissions.
+ * Chaque parent reçoit un message ne concernant QUE son enfant et ses pièces réellement manquantes.
+ */
+export async function bulkRemindParentsAction(studentIds: string[]) {
+  const auth = await requireActionContext(READ_PATH);
+  if (!auth.ok) return { error: auth.error };
+
+  const { sendBulkDocumentReminders } = await import("@/lib/parentReminder");
+  const res = await sendBulkDocumentReminders(auth.ctx, studentIds);
+  if (!res.success) {
+    return { error: res.error };
+  }
+
+  revalidatePath(READ_PATH);
+  return { success: true, results: res.results };
 }
 

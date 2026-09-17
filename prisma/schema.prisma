@@ -137,6 +137,7 @@ model School {
   feeChangeRequests FeeChangeRequest[]
   notifications     StaffNotification[]
   documentSequences DocumentSequence[]
+  documentReminders DocumentReminder[]
 
   // Lot 13 — dossier numérique élève
   documentRequirements DocumentRequirement[]
@@ -211,6 +212,7 @@ model User {
   whatsappOptIn   WhatsAppOptInStatus    @default(UNKNOWN)
   waConversations WhatsAppConversation[]
   actionLinks     ActionLink[]
+  documentReminders DocumentReminder[] @relation("ParentReminders")
 
   @@index([schoolId])
   @@index([managerId])
@@ -350,6 +352,7 @@ model Student {
   attendances           Attendance[]
   actionLinks           ActionLink[]
   whatsAppConversations WhatsAppConversation[]
+  documentReminders     DocumentReminder[]
 
   @@index([schoolId])
   @@index([parentId])
@@ -1611,6 +1614,7 @@ model DocumentRequirement {
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   documents StudentDocument[]
+  documentReminders DocumentReminder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
@@ -1696,6 +1700,33 @@ model StudentDocument {
   @@index([schoolId, supersededAt])
   @@index([schoolId, status])
   @@index([schoolId, studentId, requirementId])
+}
+
+/// Relance parent pour une pièce manquante du dossier élève.
+/// Porte le garde-fou 48h, le canal utilisé, et se résout dès le dépôt.
+model DocumentReminder {
+  id            String    @id @default(uuid())
+  schoolId      String
+  studentId     String
+  requirementId String
+  parentId      String
+  channel       String    @default("IN_APP") // "IN_APP", "WHATSAPP", "SMS"
+  status        String    @default("PENDING") // "PENDING", "RESOLVED"
+  message       String
+  actionUrl     String
+  sentById      String
+  createdAt     DateTime  @default(now())
+  resolvedAt    DateTime?
+
+  school      School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student     Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  requirement DocumentRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  parent      User                @relation("ParentReminders", fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([studentId, requirementId])
+  @@index([parentId, status])
+  @@index([createdAt])
 }
 
 /**

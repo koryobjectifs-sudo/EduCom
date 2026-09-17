@@ -83,6 +83,7 @@ export default async function DossierReviewPage({
         academicYear: null,
         studentKind: r.studentKind ?? null,
         source: r.source as any,
+        nature: r.nature,
         required: r.required,
         pinned: r.pinned,
         conditional: r.conditional ?? null,
@@ -175,9 +176,16 @@ export default async function DossierReviewPage({
       if (applicable) {
         totalRequiredApplicable++;
         const hasValidDoc = s.documents.some(
-          (d) => d.requirementId === req.id && d.status === "VALIDATED"
+          (d) => d.requirementId === req.id && (d.status === "VALIDATED" || d.status === "TO_VERIFY")
         );
-        if (hasValidDoc) compliantCount++;
+        const isAutoAcquired = req.nature === "AUTO" && (() => {
+          const lbl = req.label.toLowerCase();
+          if (lbl.includes("certificat") || lbl.includes("scolaire")) return Boolean(currentEnrollment);
+          if (lbl.includes("bulletin")) return s.enrollments.some((e) => e.academicYear !== year);
+          return false;
+        })();
+
+        if (hasValidDoc || isAutoAcquired) compliantCount++;
       }
     }
 
@@ -308,6 +316,30 @@ export default async function DossierReviewPage({
       })
     : [];
 
+  // 6b. Récupération des relances existantes pour les élèves de la page
+  const pageStudentReminders = pageStudents.length > 0
+    ? await prisma.documentReminder.findMany({
+        where: {
+          schoolId,
+          studentId: { in: pageStudents.map((s) => s.id) },
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          studentId: true,
+          requirementId: true,
+          createdAt: true,
+        },
+      })
+    : [];
+
+  const remindersByStudentAndReq = new Map<string, Date>();
+  for (const r of pageStudentReminders) {
+    const key = `${r.studentId}|${r.requirementId}`;
+    if (!remindersByStudentAndReq.has(key)) {
+      remindersByStudentAndReq.set(key, r.createdAt);
+    }
+  }
+
   // Indexation des pièces par studentId -> requirementId
   const docsByStudentAndReq = new Map<string, (typeof pageStudentDocs)[0]>();
   for (const doc of pageStudentDocs) {
@@ -380,6 +412,8 @@ export default async function DossierReviewPage({
         }
       }
 
+      const reminderDate = remindersByStudentAndReq.get(`${s.id}|${req.id}`);
+
       return {
         requirementId: req.id,
         label: req.label,
@@ -399,6 +433,7 @@ export default async function DossierReviewPage({
         storagePath: doc?.storagePath || null,
         note: doc?.reviewNote || null,
         updatedAt: doc?.updatedAt ? doc.updatedAt.toISOString() : null,
+        lastReminderAt: reminderDate ? reminderDate.toISOString() : null,
       };
     });
 
@@ -419,6 +454,7 @@ export default async function DossierReviewPage({
           firstName: s.parent.firstName,
           lastName: s.parent.lastName,
           phone: s.parent.phone,
+          hasAccount: true,
         }
       : null;
 
@@ -429,6 +465,7 @@ export default async function DossierReviewPage({
         firstName: names.length > 1 ? names.slice(0, -1).join(" ") : names[0] || "Tuteur",
         lastName: names.length > 1 ? names[names.length - 1] : "",
         phone: s.emergencyPhone || null,
+        hasAccount: false,
       };
     }
 
@@ -468,6 +505,7 @@ export default async function DossierReviewPage({
     pinned: r.pinned,
     order: r.position || 0,
     conditional: r.conditional,
+    nature: r.nature,
   }));
 
   return (

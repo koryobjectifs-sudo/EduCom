@@ -47,9 +47,27 @@ export default async function DashboardLayout({
 
   // 1. AIGUILLAGE SERVEUR PARENT : Application dédiée simplifiée (RSC)
   if (userRole === "PARENT") {
+    const { getActiveParentReminders } = await import("@/lib/parentReminder");
+    const reminders = await getActiveParentReminders(dbUser.id);
+    const serializedReminders = reminders.map((r) => ({
+      id: r.id,
+      studentName: `${r.student.firstName} ${r.student.lastName}`,
+      requirementLabel: r.requirement.label,
+      nature: r.requirement.nature,
+      actionUrl: r.actionUrl,
+      message: r.message,
+      createdAt: r.createdAt.toISOString(),
+    }));
+
     return (
       <div style={themeStyle} className="contents">
-        <ParentLayout schoolName={schoolName} schoolLogo={schoolLogo} userName={userName} emailVerified={emailVerified}>
+        <ParentLayout
+          schoolName={schoolName}
+          schoolLogo={schoolLogo}
+          userName={userName}
+          emailVerified={emailVerified}
+          activeReminders={serializedReminders}
+        >
           {children}
         </ParentLayout>
       </div>

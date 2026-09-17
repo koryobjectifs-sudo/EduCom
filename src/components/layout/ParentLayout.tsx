@@ -8,17 +8,32 @@ import {
   GraduationCap, 
   CreditCard, 
   User, 
-  LogOut 
+  LogOut,
+  FileWarning,
+  ArrowRight,
+  Upload,
+  PenTool,
 } from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+
+export interface ParentReminderItem {
+  id: string;
+  studentName: string;
+  requirementLabel: string;
+  nature: string;
+  actionUrl: string;
+  message: string;
+  createdAt: string;
+}
 
 export interface ParentLayoutProps {
   schoolName?: string;
   schoolLogo?: string | null;
   userName?: string;
   emailVerified?: boolean;
+  activeReminders?: ParentReminderItem[];
   children: React.ReactNode;
 }
 
@@ -27,6 +42,7 @@ export default function ParentLayout({
   schoolLogo,
   userName,
   emailVerified = false,
+  activeReminders = [],
   children,
 }: ParentLayoutProps) {
   const pathname = usePathname();
@@ -120,6 +136,52 @@ export default function ParentLayout({
           </form>
         </div>
       </header>
+
+      {/* ── NOTIFICATIONS DE RELANCE DOSSIER (ESPACE PARENT PRIORITAIRE) ── */}
+      {activeReminders.length > 0 && (
+        <aside aria-label="Pièces de dossier manquantes" className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="space-y-2.5">
+            {activeReminders.map((rem) => (
+              <div
+                key={rem.id}
+                className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-in fade-in duration-200"
+              >
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-700">
+                    <FileWarning className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm font-semibold text-text">
+                      {rem.message}
+                    </p>
+                    <p className="text-[11px] text-text-soft mt-0.5">
+                      Élève : <span className="font-semibold text-text">{rem.studentName}</span> · Pièce : <span className="font-semibold text-text">{rem.requirementLabel}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <Link
+                  href={rem.actionUrl}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-2xs hover:bg-primary/90 transition-all shrink-0 min-h-[44px]"
+                >
+                  {rem.nature === "SIGNATURE" ? (
+                    <>
+                      <PenTool className="h-4 w-4" />
+                      <span>Lire et signer</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" />
+                      <span>Déposer la pièce</span>
+                    </>
+                  )}
+                  <ArrowRight className="h-3.5 w-3.5 ml-0.5" />
+                </Link>
+              </div>
+            ))}
+          </div>
+        </aside>
+      )}
 
       {/* Contenu Parent */}
       <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">

@@ -37,6 +37,8 @@ import {
   Plus,
   School,
   ArrowRight,
+  Bell,
+  BellOff,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Input, Select } from "@/components/ui/Field";
@@ -55,6 +57,8 @@ import {
   uploadStudentDocumentDirectAction,
   bulkUploadStudentDocumentAction,
   getSignedDocumentUrlAction,
+  remindParentDocumentAction,
+  bulkRemindParentsAction,
 } from "./actions";
 
 export type StudentDocItem = {
@@ -76,6 +80,7 @@ export type StudentDocItem = {
   storagePath?: string | null;
   note?: string | null;
   updatedAt?: string | null;
+  lastReminderAt?: string | null;
 };
 
 export type ReviewStudentItem = {
@@ -96,6 +101,7 @@ export type ReviewStudentItem = {
     firstName: string;
     lastName: string;
     phone: string | null;
+    hasAccount?: boolean;
   } | null;
   docs: StudentDocItem[];
   completeness: {
@@ -118,6 +124,7 @@ export type RequirementDefItem = {
   pinned: boolean;
   order: number;
   conditional: string | null;
+  nature?: "UPLOAD" | "SIGNATURE" | "AUTO";
 };
 
 interface ReviewPortalClientProps {
@@ -257,6 +264,11 @@ export default function ReviewPortalClient({
 
   // Modale Édition Tuteur Rapide
   const [editParentStudent, setEditParentStudent] = useState<ReviewStudentItem | null>(null);
+
+  // Relances Parent
+  const [remindSubmitting, setRemindSubmitting] = useState(false);
+  const [bulkRemindModal, setBulkRemindModal] = useState(false);
+  const [bulkRemindSubmitting, setBulkRemindSubmitting] = useState(false);
   const [parentFormData, setParentFormData] = useState({ firstName: "", lastName: "", phone: "" });
 
   // Menu contextuel d'en-tête de colonne
@@ -564,6 +576,65 @@ export default function ReviewPortalClient({
     });
   };
 
+  const formatReminderDate = (dateStr: string) => {
+    try {
+      return new Intl.DateTimeFormat("fr-FR", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(dateStr));
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const handleRemindSingleParent = async () => {
+    if (!depositModal) return;
+    const { student, req } = depositModal;
+    setRemindSubmitting(true);
+    try {
+      const res = await remindParentDocumentAction(student.id, req.id);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(`Relance envoyée au tuteur de ${student.firstName}`);
+        setDepositModal(null);
+        router.refresh();
+      }
+    } catch (err) {
+      toast.error("Échec de l'envoi de la relance.");
+    } finally {
+      setRemindSubmitting(false);
+    }
+  };
+
+  const handleBulkRemindParents = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkRemindSubmitting(true);
+    try {
+      const res = await bulkRemindParentsAction(Array.from(selectedIds));
+      if (res.error) {
+        toast.error(res.error);
+      } else if (res.results) {
+        const { sentCount, skippedNoParent, skippedRecentlyReminded, skippedNothingMissing } = res.results;
+        toast.success(
+          `${sentCount} relance(s) envoyée(s) aux parents.` +
+            (skippedNoParent > 0 || skippedRecentlyReminded > 0 || skippedNothingMissing > 0
+              ? ` (${skippedNoParent} sans compte, ${skippedRecentlyReminded} déjà relancés, ${skippedNothingMissing} complets)`
+              : "")
+        );
+        setBulkRemindModal(false);
+        setSelectedIds(new Set());
+        router.refresh();
+      }
+    } catch (err) {
+      toast.error("Échec de l'envoi des relances groupées.");
+    } finally {
+      setBulkRemindSubmitting(false);
+    }
+  };
+
   // Actions sur une pièce depuis le Tiroir
   const handleDrawerValidate = () => {
     if (!drawerStudent || !activeDrawerDoc) return;
@@ -862,6 +933,15 @@ export default function ReviewPortalClient({
             >
               <UploadCloud className="h-3.5 w-3.5 text-sky-400" />
               <span>Déposer la même pièce</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setBulkRemindModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 text-xs font-semibold transition-all shadow-xs"
+            >
+              <Bell className="h-3.5 w-3.5 text-indigo-200" />
+              <span>Demander aux parents</span>
             </button>
 
             <button
@@ -2068,6 +2148,90 @@ export default function ReviewPortalClient({
                   <p className="text-[11px] text-amber-700">Démarche en cours (état civil, jugement supplétif)</p>
                 </div>
               </button>
+
+              {/* ── ACTION 3 : DEMANDER AU PARENT ── */}
+              {(() => {
+                const isAuto = depositModal.req.nature === "AUTO";
+                if (isAuto) return null; // Ne jamais demander au parent pour une pièce AUTO
+
+                const parent = depositModal.student.parent;
+                const hasAccount = Boolean(parent && parent.hasAccount && parent.id);
+                const docItem = depositModal.student.docs.find((d) => d.requirementId === depositModal.req.id);
+                const lastReminderAt = docItem?.lastReminderAt;
+                const isTooFrequent = lastReminderAt
+                  ? Date.now() - new Date(lastReminderAt).getTime() < 48 * 3600 * 1000
+                  : false;
+
+                if (!hasAccount) {
+                  return (
+                    <div className="w-full min-h-[44px] p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3 text-left">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-slate-500">
+                          <BellOff className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-slate-700">Demander au parent</p>
+                          <p className="text-[11px] text-slate-500">
+                            Cet élève n&apos;a pas de tuteur avec un compte EduCom rattaché.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const s = depositModal.student;
+                          setDepositModal(null);
+                          setEditParentStudent(s);
+                        }}
+                        className="shrink-0 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors shadow-2xs"
+                      >
+                        Rattacher un tuteur
+                      </button>
+                    </div>
+                  );
+                }
+
+                if (isTooFrequent) {
+                  return (
+                    <div className="w-full min-h-[44px] p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-3 text-left opacity-85">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-slate-500">
+                        <Clock className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-700">Demander au parent (Déjà relancé)</p>
+                        <p className="text-[11px] text-slate-500">
+                          Dernière relance le {formatReminderDate(lastReminderAt!)} · Délai minimum de 48h requis
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
+                const lastReminderSubtext = lastReminderAt
+                  ? `Dernier rappel envoyé le ${formatReminderDate(lastReminderAt)} · Relancer à nouveau`
+                  : "Le tuteur reçoit une notification et peut agir directement";
+
+                return (
+                  <button
+                    type="button"
+                    onClick={handleRemindSingleParent}
+                    disabled={remindSubmitting}
+                    className="w-full min-h-[44px] p-3 rounded-xl border border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100/60 flex items-center gap-3 text-left transition-colors"
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
+                      {remindSubmitting ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <Bell className="h-5 w-5" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-indigo-900">Demander au parent</p>
+                      <p className="text-[11px] text-indigo-700">{lastReminderSubtext}</p>
+                    </div>
+                  </button>
+                );
+              })()}
             </div>
 
             {/* Inputs cachés */}
@@ -2311,6 +2475,61 @@ export default function ReviewPortalClient({
                 className="px-4 py-2 text-xs font-semibold bg-primary hover:bg-primary/90 text-white rounded-xl disabled:opacity-50"
               >
                 Téléverser pour la sélection
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── MODALE RELANCE GROUPÉE AUX PARENTS ── */}
+      {bulkRemindModal && (
+        <Modal
+          open={true}
+          onClose={() => setBulkRemindModal(false)}
+          title="Demander aux parents"
+        >
+          <div className="space-y-4">
+            <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 text-xs text-indigo-950 space-y-2">
+              <p className="font-semibold text-sm text-indigo-900 flex items-center gap-2">
+                <Bell className="h-4 w-4 text-indigo-600" />
+                <span>{selectedIds.size} élève(s) sélectionné(s)</span>
+              </p>
+              <p>
+                Chaque parent recevra une notification ciblée ne concernant <strong>que son enfant</strong> et ses <strong>pièces réellement manquantes</strong>.
+              </p>
+              <div className="pt-2 border-t border-indigo-200/60 space-y-1 text-[11px] text-indigo-800">
+                <p>• Les pièces déjà fournies, en cours ou validées sont automatiquement écartées.</p>
+                <p>• Les pièces automatiques (AUTO) ne sont jamais demandées au parent.</p>
+                <p>• Règle anti-saturation : délai obligatoire de 48h respecté par pièce.</p>
+                <p>• Les élèves sans tuteur avec compte sont signalés dans le compte-rendu.</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setBulkRemindModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkRemindParents}
+                disabled={bulkRemindSubmitting}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-2xs transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {bulkRemindSubmitting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Envoi des relances...</span>
+                  </>
+                ) : (
+                  <>
+                    <Bell className="h-3.5 w-3.5" />
+                    <span>Envoyer les relances</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

@@ -64,20 +64,15 @@ export const NAV_SPACES: NavSpace[] = [
       "/dashboard/students",
       "/dashboard/directory",
       "/dashboard/classes",
+      "/dashboard/admissions",
     ],
     sections: [
       {
-        title: "Élèves & Dossiers",
+        title: "Scolarité",
         items: [
-          { id: "all-students", name: "Registre des élèves", href: "/dashboard/students", icon: "Users", short: "Élèves" },
-          { id: "by-classes", name: "Par classe", href: "/dashboard/students?view=classes", icon: "FolderKanban", short: "Classes" },
-          { id: "review", name: "Examen des admissions", href: "/dashboard/students/dossiers/review", icon: "UserCheck", short: "Admissions" },
-        ],
-      },
-      {
-        title: "Structure & Classes",
-        items: [
-          { id: "classes", name: "Classes & niveaux", href: "/dashboard/classes", icon: "Layers", short: "Classes" },
+          { id: "all-students", name: "Élèves", href: "/dashboard/students", icon: "Users", short: "Élèves" },
+          { id: "admissions", name: "Admissions", href: "/dashboard/students/dossiers/review", icon: "UserCheck", short: "Admissions" },
+          { id: "structure", name: "Structure", href: "/dashboard/classes", icon: "Layers", short: "Structure" },
         ],
       },
     ],
@@ -181,10 +176,9 @@ export const NAV_SPACES: NavSpace[] = [
     ],
     sections: [
       {
-        title: "Gestion Documentaire",
+        title: "Bibliothèque",
         items: [
-          { id: "documents", name: "Documents scolaires", href: "/dashboard/documents", icon: "FileText", short: "Documents" },
-          { id: "documents-admin", name: "Documents administratifs", href: "/dashboard/documents/centre", icon: "FileText", short: "Administratifs" },
+          { id: "documents-produced", name: "Documents produits", href: "/dashboard/documents", icon: "FileText", short: "Documents" },
           { id: "documents-templates", name: "Modèles", href: "/dashboard/documents/templates", icon: "Layers", short: "Modèles" },
         ],
       },

@@ -1,5 +1,151 @@
 # EduCom SaaS - Contexte du Projet
 
+> **Chantier Relance du Parent depuis l'École (Notification In-App & Action Directe) — 17 septembre 2026.**
+> - **Action directe dans la modale de dépôt (`ReviewPortalClient.tsx`)** :
+>   - Troisième action ajoutée sur « Déposer <pièce> » : *Demander au parent*.
+>   - Si l'élève n'a pas de tuteur avec compte : bouton indisponible expliquant la cause (« Cet élève n'a pas de tuteur avec un compte EduCom rattaché ») et CTA direct « Rattacher un tuteur » ouvrant la modale de rattachement.
+>   - Si la pièce est AUTO : masquage automatique (ne doit jamais être demandée au parent).
+>   - Si déjà relancé il y a moins de 48h : affichage de la date du dernier rappel et désactivation (« Délai minimum de 48h requis »).
+>   - Si éligible : envoi en 1 clic de la relance ciblée via `remindParentDocumentAction`.
+> - **Parcours direct sans intermédiaire (Mobile-first)** :
+>   - Le lien de notification atterrit sur `/dashboard/students/[id]/dossier?action=deposit&reqId=...` ou `?action=sign&reqId=...`.
+>   - Pour UPLOAD : modale de dépôt direct immédiate avec bouton « Prendre une photo » (`capture="environment"` pour appareil photo mobile) et « Choisir un fichier ».
+>   - Pour SIGNATURE : ouverture immédiate de `SignatureDialog` avec document à lire et signer au doigt.
+> - **Notification In-App prioritaire & Canal externe conditionnel (`parentReminder.ts`)** :
+>   - In-App systématique : bannière d'alerte claire dans `ParentLayout.tsx` avec bouton CTA direct menant à l'action.
+>   - Canal externe WhatsApp déclenché uniquement si l'école a configuré ses accès Meta.
+>   - Message nominatif conforme : « Le dossier de [Prénom] est incomplet. Il manque [pièce]. Déposez-le en quelques secondes. ».
+> - **Relance groupée depuis les admissions** :
+>   - Sélection multiple sur l'examen des admissions + bouton « Demander aux parents » dans la barre flottante.
+>   - `sendBulkDocumentReminders` : chaque parent reçoit uniquement les pièces réellement manquantes de son enfant (AUTO, pièces reçues et relances < 48h exclues automatiquement).
+> - **Garde-fous & Résolution instantanée** :
+>   - Règle stricte des 48h respectée.
+>   - Disparition immédiate du rappel dès le dépôt ou la signature via `resolveDocumentReminders` (`status: "RESOLVED"`).
+>   - Traçabilité complète dans l'Audit Log (`documentReminder.send` et `documentReminder.bulkSend`).
+> - **Validation technique** :
+>   - `npx tsc --noEmit` : 0 erreur.
+>   - Smoke test automatisé validé à 100% (`scripts/smoke-test-parent-reminders.ts`).
+>   - Aucun commit ni tag Git effectué (en attente de validation).
+
+
+> - **Point 1 — Faille de permissions matières (Secondaire)** :
+>   - *Cause* : `editableSubjectIds` dans `src/lib/gradeEntry.ts` retournait `"ALL"` pour tout enseignant si la classe n'avait aucune affectation, et ne filtrait pas strictement les matières au secondaire sur les `TeachingAssignment` réels de l'enseignant connecté.
+>   - *Correction* : Seuls `OWNER` et `ADMIN` ont `"ALL"`. Au primaire/préscolaire, le titulaire a `"ALL"`. Au secondaire/moyen, `TEACHER` est restreint strictement à ses `assignment.subjectId`.
+>   - *Server Actions sécurisées* : `saveDevoirGrade`, `saveCompositionGrade`, `saveSubjectAppreciation` vérifient systématiquement les permissions via `editableSubjectIds`. Toute tentative sur une matière non affectée est immédiatement rejetée avec code `UNAUTHORIZED`.
+>   - *Test en conditions réelles* (`scripts/verify-point1-teacher-subjects.ts`) : `prof.maths.test@sengco.educom.sn` sur 4e ne voit que Mathématiques ; rejet de saisie sur Anglais confirmé côté serveur.
+> - **Point 2 — Déduplication des inscriptions et des élèves sur la 4e** :
+>   - *Cause* : La contrainte `Enrollment` `@@unique([studentId, academicYear])` existait déjà en base. Les doublons provenaient de ré-imports CSV/seed sans déduplication préalable créant des enregistrements `Student` distincts pour les mêmes élèves physiques.
+>   - *Sécurisation de l'import* : Ajout dans `src/app/dashboard/students/import/actions.ts` d'une déduplication robuste par matricule ou triplet `(schoolId, firstName, lastName, dateOfBirth)` avec `enrollment.upsert`.
+>   - *Migration système* (`scripts/deduplicate-classes-students.ts` avec `APPLY=1`) :
+>     - Total élèves système : **2 526 → 2 460** (-66 profils doublons).
+>     - Total inscriptions système : **3 146 → 3 080** (-66 inscriptions redondantes).
+>     - Total notes système : **190 → 170** (-20 notes nettoyées sur la 4e).
+>     - Sur la 4e SENG.CO : **10 élèves / 40 notes → 5 élèves / 20 notes** (exactement les 5 élèves réels, 4 notes chacun).
+> - **Point 3 — Tableau de bord Enseignant dédié (`/dashboard`)** :
+>   - Détection automatique du rôle `TEACHER` dans `src/app/dashboard/page.tsx` et affichage du composant `TeacherDashboard.tsx`.
+>   - Données fournies par `src/lib/dashboard-teacher.ts` (`getTeacherDashboardSnapshot`) :
+>     - Mes classes et mes matières affectées.
+>     - Avancement des saisies de notes et ce qu'il reste à saisir avant échéance avec lien direct vers la grille.
+>     - Évaluations à venir du calendrier pédagogique.
+>     - Statut de l'appel du jour pour les classes dont l'enseignant est titulaire (avec alerte immédiate si non fait).
+>     - Exclusion totale des KPI financiers et effectifs globaux de l'école.
+> - **Validation technique** :
+>   - `npx tsc --noEmit` : 0 erreur.
+>   - Aucun commit ni tag Git effectué (respect strict des règles).
+
+> **Chantier Affectation par matière au secondaire & Garde de Cycle — 17 septembre 2026.**
+> - **Garde d'intégrité de cycle (`EducationalCycle`)** :
+>   - Test automatisé `scripts/verify-cycle-guards.ts` : échoue avec code 1 si une valeur de cycle hors enum Prisma (`COLLEGE`, `LYCEE`, `MATERNELLE`) apparaît dans le code ou les formulaires.
+>   - Nettoyage des vocabulaires parallèles résiduels dans `dashboard-director.ts` et `EnrollmentAnalyticsSection.tsx`.
+> - **Deux vues d'affectation (`/dashboard/classes`)** :
+>   - **Vue par classe** : carte détaillée avec professeur principal, grille des matières, statut affecté / non affecté, et sélecteur d'enseignant filtré par pertinence.
+>   - **Vue par enseignant (Affectation en masse)** : recrutement ou rentrée en moins d'une minute — choix de l'enseignant, de sa matière, et cochage en masse des classes ciblées avec validation en un clic (`assignTeacherBulk`).
+> - **Trois précisions métier respectées** :
+>   - ① **PP enseigne aussi** : à la désignation du professeur principal, proposition explicite de l'affecter à sa matière dans la classe (`assignTeacherDirectly(..., teachSubjectId)`), sans l'imposer.
+>   - ② **Sélecteur filtré & recommandé** : les enseignants qui enseignent déjà cette matière ailleurs dans l'établissement apparaissent en tête sous `⭐ Enseignants de la matière (recommandés)`.
+>   - ③ **Conflits & charge extrême** : détection des professeurs affectés à plus de 8 classes avec avertissement ambre explicite (`> 8 classes`), sans interdiction bloquante.
+> - **Alerte globale en tête** :
+>   - Compteur combiné en tête de `/dashboard/classes` : `"${classes.length} classes configurées · ${unassignedClassesCount} sans titulaire · ${totalUnassignedSubjects} matières sans enseignant"`.
+> - **Verrouillage strict côté serveur (`saveGrades`)** :
+>   - `src/app/dashboard/grades/actions.ts` : vérification stricte via `editableSubjectIds`. Refus immédiat du serveur si un enseignant tente d'écrire une note pour une matière non autorisée.
+>   - Le titulaire au secondaire ne peut plus écraser les matières des autres professeurs dès que des affectations existent sur la classe.
+> - **Validation technique & en conditions réelles** :
+>   - `scripts/verify-cycle-guards.ts` : validé (0 violation).
+>   - `scripts/verify-teaching-assignments-security.ts` : validé à 100% sur SENG.CO ACADEMY (Terminale S2) : prof Maths restreint à Maths, prof non affecté exclu du workspace, rejet serveur prouvé.
+>   - `npx tsc --noEmit` : 0 erreur. Aucun commit ni tag effectué sans accord préalable.
+
+> **Chantier Pièces du Dossier : Trois Natures de Pièces (UPLOAD, SIGNATURE, AUTO) — 17 septembre 2026.**
+> - **Nature des pièces (`RequirementNature`)** :
+>   - Enum Prisma `RequirementNature` (`UPLOAD`, `SIGNATURE`, `AUTO`) et champ `nature` sur `DocumentRequirement` (défaut `UPLOAD`).
+>   - `signatureMetadata` (`Json?`) ajouté sur `StudentDocument`.
+>   - Base synchronisée (`prisma db push`), client Prisma régénéré (`prisma generate`).
+>   - Migration batchée réversible `scripts/migrate-requirement-natures.ts` : 3 568 exigences migrées (1 086 `SIGNATURE`, 704 `AUTO`, 1 778 `UPLOAD`), 0 doublon.
+>   - Fusion « Fiche scolaire » et « Certificat de scolarité » : documents identiques dans l'usage scolaire sénégalais, unifiés sous l'intitulé officiel « Certificat de scolarité ».
+> - **Validation automatique des pièces AUTO** :
+>   - Si EduCom détient la donnée (inscription en cours pour certificat de scolarité, historique N-1 pour bulletins), la pièce est auto-générée et validée avec lien direct (« Généré automatiquement par l'école »).
+>   - Si la donnée n'existe pas (élève nouvel arrivant pour bulletin N-1), repli automatique en UPLOAD avec motif clair : « Nous n'avons pas ce document — merci de le fournir. ».
+> - **Signature électronique certifiée & Traçabilité probatoire** :
+>   - Module probatoire `src/lib/signedDocumentGenerator.ts` : archivage du document HTML complet, scellement par empreinte cryptographique SHA-256.
+>   - Métadonnées scellées : horodatage certifié UTC + local Dakar, adresse IP source, userAgent, identité certifiée du signataire (nom, email, rôle), version 1.0.
+>   - Formulaire structuré multi-personnes pour « Personnes autorisées à récupérer l'enfant » (Nom, Prénom, Lien de parenté, Téléphone, CNI).
+>   - Composant `SignatureDialog.tsx` : tracé au doigt/souris sur canvas tactile fluide et haute densité (Retina/Mobile), ou import de signature scannée.
+>   - Contrôles serveur stricts (`signStudentDocument`) : parent agit uniquement sur ses enfants, interdiction formelle de modifier une pièce déjà validée, zéro donnée de santé.
+> - **Actions qui poussent à agir & Regroupement UI** :
+>   - Dans le dossier élève (`DossierClient.tsx`), regroupement par action : *À signer*, *À déposer*, *Fourni par l'école*.
+>   - Incitations actives sur chaque pièce : « Déposez l'extrait de naissance », « Ajoutez une photo d'identité », « Signez la fiche de renseignements », « Indiquez qui peut récupérer votre enfant ».
+>   - Raccourcis photo directs sur mobile avec `capture="environment"`.
+> - **Recalcul de complétude (Jaya Ba)** :
+>   - Dénominateur restreint strictement aux pièces **requises et applicables** (les pièces AUTO comptent comme acquises).
+>   - **Taux de Jaya Ba** (Dieynaba Ba, CE1, SENG.CO ACADEMY) :
+>     - **Avant** : 9 pièces (inclusives d'optionnelles et hors-cycle CI), 1 reçue (ou 0) → **11 %** (ou 0 %).
+>     - **Après** : 2 requises applicables (Extrait de naissance [manquant] + Certificat de scolarité [AUTO validé]) → **50 %** (1/2).
+> - **Vérification & Qualité** :
+>   - `npx tsc --noEmit` : 0 erreur.
+>   - Smoke tests validés (`scripts/smoke-test-dossier-natures.ts`).
+>   - Aucun commit ni push Git effectué (respect strict des consignes).
+
+> **Correction Bug Cycle "Autres" & Régularisation des Classes — 17 septembre 2026.**
+> - **Cause UI identifiée** : Dans `ClassListClient.tsx`, `CYCLES_CONFIG` utilisait des identifiants non-conformes (`"COLLEGE"`, `"LYCEE"`, `"MATERNELLE"`) au lieu des valeurs officielles de l'enum Prisma `EducationalCycle` (`"MOYEN"`, `"SECONDAIRE"`, `"PRESCOLAIRE"`). Toutes les classes de collège/lycée retombaient par défaut dans `CYCLES_CONFIG[4]` ("Autres").
+> - **Cause formulaires** : Les formulaires (`classes/new/form.tsx`, `StudentsUnifiedClient.tsx`) soumettaient les libellés non-conformes, entraînant le fallback `cycle: "AUTRE"` en base pour 9 classes élémentaires.
+> - **Corrections appliquées** :
+>   - `ClassListClient.tsx` : aligné sur `EducationalCycle` avec normalisation automatique des alias (`normalizeCycleId`) et dérivation automatique de secours (`resolveClassCycle`).
+>   - `new/form.tsx`, `StudentsUnifiedClient.tsx` : options de sélection alignées sur `PRESCOLAIRE`, `ELEMENTAIRE`, `MOYEN`, `SECONDAIRE`.
+>   - `actions.ts` : `createClass`, `createClassInline`, `updateClass` assainis avec `normalizeOrDeduceCycle`.
+>   - `curriculum.ts` : `curriculumFor` supporte `SECONDAIRE` et `MOYEN`.
+> - **Régularisation en base (script `scripts/fix-class-cycles.ts`)** :
+>   - Classes en cycle "AUTRE" avant : **9** (6 à Queen School, 3 à SENG.CO ACADEMY).
+>   - Classes en cycle "AUTRE" après : **0** (toutes les 9 passées en `ELEMENTAIRE`).
+>   - Répartition finale sur 99 classes : `ELEMENTAIRE`: 63, `MOYEN`: 18, `SECONDAIRE`: 12, `PRESCOLAIRE`: 6, `AUTRE`: 0.
+> - **Validation** : `tsc --noEmit` 0 erreur, smoke test validé. Aucun commit effectué.
+
+
+> **Chantier Navigation : Documents et Scolarité — 17 septembre 2026.**
+> - **Générer un document est une action contextuelle, pas un espace** :
+>   - Création du composant contextuel `src/components/documents/GenerateDocumentDropdown.tsx` (accessible, non-flottant, responsive 390px).
+>   - **Sur la fiche élève** (`/dashboard/students/[id]`) : Certificat de scolarité, Bulletin trimestriel, Fiche de renseignements, Attestation. L'élève est pré-sélectionné sans re-saisie.
+>   - **Sur une classe** (`/dashboard/classes/[id]`) : Liste de classe (émargement/impression), Emploi du temps, Bulletins de la classe.
+>   - **Sur une facture** (`/dashboard/payments/invoice` et `[id]`) : Facture officielle, Reçu de versement, Lettre de relance.
+>   - **Sur un paiement** (`/dashboard/payments/receipt`) : Reçu officiel certifié.
+>   - Générateurs mis à jour pour retenir immédiatement le contexte passé en URL (`initialStudentId`, `initialInvoiceId`, `initialClassId`).
+> - **L'espace Documents devient la Bibliothèque et la Configuration des Modèles** :
+>   - `/dashboard/documents` : Bibliothèque des documents produits avec recherche instantanée et filtres intégrés (*Tous*, *Documents scolaires*, *Documents administratifs*).
+>   - `/dashboard/documents/templates` : Configuration des modèles, gabarits officiels sénégalais, en-têtes IA/IEF et mentions légales.
+> - **Scolarité : Restructuration en 3 entrées** :
+>   - Structure cible : **Élèves** (`/dashboard/students`), **Admissions** (`/dashboard/students/dossiers/review`), **Structure** (`/dashboard/classes`).
+>   - "Par classe" retiré de la barre latérale (accessible directement depuis les vues du registre `?view=classes`).
+>   - "Classes & niveaux" renommé en "Structure".
+> - **Redirections 308 permanentes (`next.config.ts`)** :
+>   - `/dashboard/admissions` → `/dashboard/students/dossiers/review` (308)
+>   - `/dashboard/students/classes` → `/dashboard/students?view=classes` (308)
+>   - `/dashboard/documents/centre` → `/dashboard/documents?filter=administratifs` (308)
+> - **Recherche globale (Cmd+K)** :
+>   - Mots-clés enrichis et normalisation des accents dans `src/app/dashboard/search-actions.ts` (certificat, attestation, bulletin, relance, fiche, reçu, structure, etc.).
+> - **Validation & Qualité** :
+>   - `scripts/verify-navigation-integrity.ts` : 100% des 58 routes couvertes, 0 orpheline.
+>   - `npx tsc --noEmit` : 0 erreur.
+>   - Smoke tests des redirections 308 validés.
+>   - Aucun commit, aucun push effectué.
+
 > **Chantier Rattachement Automatique des Matières & Grilles Officielles du Collège (6e à 3e) — 17 septembre 2026.**
 > - **Rattachement automatique des matières par niveau et série** :
 >   - Création du module `src/lib/notes/class-subjects.ts` (`attachCurriculumSubjectsToClass`, `getSubjectCodesForClass`, `CANONICAL_SUBJECTS`).
