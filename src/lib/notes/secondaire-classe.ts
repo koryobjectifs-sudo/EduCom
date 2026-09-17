@@ -19,15 +19,25 @@ import {
 } from "./secondaire";
 import { roundTo2 } from "./round";
 
-/** "Terminale S2" / "2nde S" / "Seconde S" → "Terminale" | "Seconde" | null. Local à ce module : pas de dépendance vers `classOrder.ts`, pour rester étanche. */
+/** "Terminale S2" / "2nde S" / "6e A" / "Sixième B" → "Terminale" | "Première" | "Seconde" | "6e" | "5e" | "4e" | "3e" | null. Local à ce module. */
 export function deriverNiveau(nomClasse: string): string | null {
   const n = nomClasse
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  // Lycée
   if (n.includes("terminale") || /\btle\b/.test(n)) return "Terminale";
-  if (n.includes("seconde") || /\b2nde\b/.test(n)) return "Seconde";
   if (n.includes("premiere") || /\b1ere\b/.test(n)) return "Première";
+  if (n.includes("seconde") || /\b2nde\b/.test(n)) return "Seconde";
+
+  // Collège (Moyen) : 6e, 5e, 4e, 3e et leurs variantes
+  if (/\b(6e|6eme|sixieme)\b/.test(n) || n.startsWith("6e") || n.startsWith("6eme")) return "6e";
+  if (/\b(5e|5eme|cinquieme)\b/.test(n) || n.startsWith("5e") || n.startsWith("5eme")) return "5e";
+  if (/\b(4e|4eme|quatrieme)\b/.test(n) || n.startsWith("4e") || n.startsWith("4eme")) return "4e";
+  if (/\b(3e|3eme|troisieme)\b/.test(n) || n.startsWith("3e") || n.startsWith("3eme")) return "3e";
+
   return null;
 }
 
@@ -46,6 +56,19 @@ export type BulletinClasseSecondaire = {
   effectif: number;
 };
 
+/**
+ * Calcule le bulletin complet d'une classe du secondaire pour un trimestre.
+ *
+ * Déroulé :
+ *   1. Résout les élèves inscrits et les matières enseignées dans la classe.
+ *   2. Charge les deux seuls agrégats bruts nécessaires (MD et MC par élève × matière)
+ *      en 2 requêtes SQL groupées — jamais de chargement des `Grade` en mémoire.
+ *   3. Calcule pour chaque élève sa note par matière (MM), ses points (P = MM × coef)
+ *      et sa moyenne générale (MG = ΣP / Σcoef).
+ *   4. Classe les élèves selon la règle officielle (tri descendant par MG, ex-aequo
+ *      au même rang sans saut — `classerSecondaire`).
+ *   5. Calcule les moyennes de classe par matière et la moyenne générale de la classe.
+ */
 export async function calculerClasseSecondaire(params: {
   schoolId: string;
   classId: string;
@@ -72,12 +95,11 @@ export async function calculerClasseSecondaire(params: {
     return { eleves: [], moyennesParMatiere: [], moyenneClasseGenerale: null, effectif: 0 };
   }
 
-  // Référentiel de coefficients (niveau, série) — ne remplace le coefficient
-  // de classe QUE s'il existe une entrée pour ce (niveau, série, code).
+  // Référentiel de coefficients (niveau, série OU null pour collège)
   const coefficientsReferentiel =
-    niveau && classe.serie
+    niveau
       ? await prisma.subjectCoefficient.findMany({
-          where: { schoolId, niveau, serie: classe.serie },
+          where: { schoolId, niveau, serie: classe.serie || null },
           select: { coefficient: true, subject: { select: { code: true } } },
         })
       : [];

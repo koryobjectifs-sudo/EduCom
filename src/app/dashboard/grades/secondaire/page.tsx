@@ -53,7 +53,22 @@ export default async function SecondairePage({
       </div>
 
       {!ctx.ok ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">{ctx.error}</div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <p className="font-semibold">{ctx.error}</p>
+            <p className="text-xs text-amber-700 mt-1">
+              Rattachez les matières de cette classe pour débloquer la saisie des devoirs, compositions et bulletins.
+            </p>
+          </div>
+          {isAdmin && (
+            <Link
+              href="/dashboard/settings/pedagogie"
+              className="inline-flex items-center gap-1.5 rounded-control bg-amber-800 text-white px-3 py-1.5 text-xs font-semibold hover:bg-amber-900 transition-colors shrink-0 self-start sm:self-center"
+            >
+              Configurer les matières &rarr;
+            </Link>
+          )}
+        </div>
       ) : (
         <SecondaireTable key={`${ctx.classId}-${ctx.subjectId}-${ctx.termId}`} ctx={ctx} />
       )}

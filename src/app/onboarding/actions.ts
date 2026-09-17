@@ -7,6 +7,7 @@ import { requireActionContext } from '@/lib/actionContext'
 import { applyCurriculum } from '@/lib/pedagogy'
 import { LEVELS } from '@/lib/curriculum'
 import { OFFICIAL_REQUIREMENTS_BY_CYCLE } from '@/lib/officialRequirements'
+import { attachCurriculumSubjectsToClass } from '@/lib/notes/class-subjects'
 import { emailSchema, schoolNameSchema, personNameSchema, phoneSchema } from '@/lib/validations'
 
 /**
@@ -151,6 +152,14 @@ export async function completeOnboarding(data: any) {
         skipDuplicates: true
       });
       classesCreated = res.count;
+
+      const createdClasses = await prisma.class.findMany({
+        where: { schoolId, name: { in: classesToCreate.map((c) => c.name) } },
+        select: { id: true },
+      });
+      for (const cls of createdClasses) {
+        await attachCurriculumSubjectsToClass(cls.id);
+      }
 
       // 4. Seeder le référentiel des pièces exigées pour les cycles sélectionnés
       const activeCycles = Array.from(new Set(classesToCreate.map((c) => c.cycle).filter(Boolean))) as any[];

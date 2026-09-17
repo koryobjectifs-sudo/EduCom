@@ -29,7 +29,8 @@ const REFERENTIEL: { code: string; nom: string; alias: string[] }[] = [
   { code: "PHIL", nom: "Philosophie", alias: ["Philo", "Philosophie"] },
   { code: "HG", nom: "Histoire-Géographie", alias: ["Hist-Géo", "Histoire-Géographie", "Histoire-Géo", "Histoire Géographie"] },
   { code: "ANG", nom: "Anglais", alias: ["Anglais"] },
-  { code: "LV2", nom: "LV2", alias: ["LV2"] },
+  { code: "LV2", nom: "LV2", alias: ["LV2", "Espagnol", "Arabe"] },
+  { code: "EPS", nom: "Éducation Physique (EPS)", alias: ["EPS", "Éducation Physique (EPS)", "Éducation Physique", "Education Physique"] },
 ];
 
 async function main() {

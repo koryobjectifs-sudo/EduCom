@@ -56,7 +56,7 @@ export type SecondaireContext =
       allClasses: { id: string; name: string }[];
       lignes: SecondaireEleveLigne[];
     }
-  | { ok: false; error: string };
+  | { ok: false; error: string; noSubjects?: boolean };
 
 
 export async function getSecondaireContextWithActor(
@@ -72,6 +72,13 @@ export async function getSecondaireContextWithActor(
       include: { subject: { select: { id: true, name: true } } },
       orderBy: { subject: { name: "asc" } },
     });
+    if (classSubjects.length === 0) {
+      return {
+        ok: false,
+        error: "Cette classe n'a aucune matière assignée. Veuillez lui affecter ses matières dans la configuration pédagogique pour pouvoir saisir les notes.",
+        noSubjects: true,
+      };
+    }
     const editable = await editableSubjectIds(
       { id: actor.userId, role: actor.role },
       classId,

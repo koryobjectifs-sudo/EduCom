@@ -1,6 +1,43 @@
 # EduCom SaaS - Contexte du Projet
 
-> **Chantier Unification Facture et Reçu livré le 16 septembre (tag `v20-facturation`).**
+> **Chantier Rattachement Automatique des Matières & Grilles Officielles du Collège (6e à 3e) — 17 septembre 2026.**
+> - **Rattachement automatique des matières par niveau et série** :
+>   - Création du module `src/lib/notes/class-subjects.ts` (`attachCurriculumSubjectsToClass`, `getSubjectCodesForClass`, `CANONICAL_SUBJECTS`).
+>   - 6e et 5e : Français (4), Maths (3), Hist-Géo (2), Anglais (2), SVT (2), EPS (1) — ni PC, ni LV2.
+>   - 4e et 3e : les 6 précédentes + Physique-Chimie (2) + LV2 (2).
+>   - Seconde L / S : grilles spécifiques Seconde.
+>   - Première & Terminale : par séries L1, L2, S1, S2.
+>   - Élémentaire & Préscolaire : évalués par domaines et sous-disciplines officiels (aucun `ClassSubject`).
+> - **Câblage systématique à la création de classe** :
+>   - Branché dans `src/app/dashboard/classes/actions.ts` (`createClass`, `createClassInline`, `generateDefaultClasses`, `generateCycleClasses`).
+>   - Branché dans `src/app/dashboard/students/import/actions.ts` (classes créées à la volée).
+>   - Branché dans `src/app/onboarding/actions.ts` et `src/lib/pedagogy-setup.ts`.
+> - **Rattrapage de l'existant & Zéro classe sans matière** :
+>   - Script réversible `scripts/catchup-class-subjects.ts` exécuté avec `APPLY=1`.
+>   - Classes Collège/Lycée sans matière avant : **24** → après : **0**. Aucune classe du système n'est désormais sans matière.
+> - **Écran de saisie secondaire & UX** :
+>   - Distinction nette si la classe n'a aucune matière configurée (`noSubjects: true`).
+>   - Message clair et bouton direct « Configurer les matières → » vers `/dashboard/settings/pedagogie` sur `/dashboard/grades/secondaire` et `/dashboard/grades`.
+> - **Barèmes officiels collège vs BFEM & Confirmation** :
+>   - Examen national BFEM distinct du bulletin trimestriel de contrôle continu (grille horaire DEMG / décret 79-1165).
+>   - EPS seedé au standard collèges à **coefficient 1** (ajustable par l'école).
+>   - Éducation civique intégrée à Histoire-Géographie (matière unique, enseignant unique).
+>   - Seed officiel des coefficients appliqué (`scripts/seed-subject-coefficients.ts` : 60 coefficients ajoutés).
+> - **Validation du bulletin 6e** :
+>   - Validé à 100% via `scripts/test-bulletin-6e.ts` sur élève réel de 6e (Ibrahima Fall, SENG.CO ACADEMY).
+>   - 6 matières exactes, ni PC ni LV2, 14 coefficients, 201.75 points, Moyenne Générale 14.41/20, 1er/10, Encouragements.
+> - **Qualité & Garde-fous** : `npx tsc --noEmit` à 0 erreur. Aucun push, aucun commit sans accord de Kory.
+
+> **Chantier Préparation à la Mise en Production (Audit, Stabilité & Procédures) — 16 septembre 2026.**
+> - **Écart Git & Production** : 41 commits d'écart entre `HEAD` et le commit déployé `5991754` (9 septembre). 16 nouvelles migrations prêtes à être appliquées séquentiellement (20 migrations au total au dépôt).
+> - **Test de déploiement à blanc sur base vierge** : Validé à 100% via `scripts/test-e2e-blank-deployment.ts`. Les 20 migrations Prisma s'appliquent sans accroc, et le parcours complet (Inscription → Onboarding → Création classe Terminale S2 → Inscription élèves → Émission facture séquentielle `FAC-2026-0001` → Dashboard) s'exécute sans aucune erreur.
+> - **Audit des données de test** : 116 écoles de test / démo identifiées, 130 élèves de test (`TEST_*` dans SENG.CO), 116 comptes utilisateurs de test (`prof.maths.test@`, `smoke.*`, `testparent*`). Script réversible prêt : `scripts/cleanup-test-data.ts` (simulation par défaut, application avec `APPLY=1`). Les 6 établissements légitimes sont préservés.
+> - **Variables d'environnement & Supabase Auth** :
+>   - Variable manquante critique : `NEXT_PUBLIC_SITE_URL` (doit être fixée à `https://educom.school` sur Vercel) et `CRON_SECRET`.
+>   - Redirections Supabase : conserver `https://educom.school/auth/callback` et `https://educom.school/**` ; retirer `localhost`, `127.0.0.1` et `192.168.1.*`.
+> - **Procédure de retour arrière** : Documentée de manière opérationnelle dans `docs/procedure-retour-arriere.md` (Instant rollback Vercel < 60s, rétrocompatibilité des colonnes nullable, restauration PITR Supabase).
+> - **Restes et incomplétudes** : Passerelle Wave en attente de doc d'API (encaissement manuel opérationnel), WhatsApp direct en attente d'approbation Meta/templates, bulletins cycle Moyen redirigés vers l'aiguillage secondaire.
+
 > - **Numérotation séquentielle officielle par école (modèle `DocumentSequence`)** :
 >   - *État antérieur* : `Invoice` ne portait aucun numéro officiel (uniquement l'UUID `id`). Le formulaire `payments/new` affichait en dur `#INV-2026-001`, le visualiseur tronquait l'UUID (`id.split('-')[0]`), et l'écran `payments/invoice` inventait des numéros aléatoires `FAC-2026-xxxx` stockés en `localStorage`. `Payment` n'avait aucun numéro de reçu.
 >   - *Nouvel état* : Séquence atomique garantie par `DocumentSequence` (`upsert` avec `{ increment: 1 }` dans `prisma.$transaction`). Les factures reçoivent `FAC-YYYY-0001` et les paiements `REC-YYYY-0001`. Unicité stricte par établissement (`@@unique([schoolId, invoiceNumber])` et `@@unique([schoolId, receiptNumber])`). Migration SQL appliquée et 14 factures / 5 paiements historiques rétro-numérotés.

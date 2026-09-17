@@ -3,6 +3,7 @@ import type { ActorContext } from "@/lib/audit";
 import { recordAudit } from "@/lib/audit";
 import { applyCurriculum } from "@/lib/pedagogy";
 import { currentAcademicYear } from "@/lib/studentFile";
+import { attachCurriculumSubjectsToClass } from "@/lib/notes/class-subjects";
 import {
   SCHOOL_TYPE_CLASSES,
   type SchoolTypeOption,
@@ -46,13 +47,14 @@ export async function setupSchoolPedagogy(
     if (existing) {
       classesExisting++;
     } else {
-      await prisma.class.create({
+      const created = await prisma.class.create({
         data: {
           name: c.name,
           cycle: c.cycle,
           schoolId,
         },
       });
+      await attachCurriculumSubjectsToClass(created.id);
       classesCreated++;
     }
   }

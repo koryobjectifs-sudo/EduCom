@@ -8,6 +8,7 @@ import { currentAcademicYear } from "@/lib/studentFile";
 import { parseFlexibleDate } from "@/lib/dateUtils";
 import { OFFICIAL_REQUIREMENTS_BY_CYCLE } from "@/lib/officialRequirements";
 import type { EducationalCycle } from "@/generated/prisma/client";
+import { attachCurriculumSubjectsToClass } from "@/lib/notes/class-subjects";
 
 export type {
   EduComFieldKey,
@@ -328,6 +329,7 @@ export async function executeImportStudents(
           serie: cDef.serie || null,
         },
       });
+      await attachCurriculumSubjectsToClass(created.id);
       classMap.set(key, created.id);
       classesCreated.push(created.name);
       if (!existingCycles.has(created.cycle)) {

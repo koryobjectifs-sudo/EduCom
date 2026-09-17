@@ -21,12 +21,12 @@ export async function resoudreCoefficient(
     return classSubject.coefficient;
   }
 
-  // 2. Sinon, référentiel officiel par (niveau, série)
+  // 2. Sinon, référentiel officiel par (niveau, série OU null pour collège)
   const classe = await prisma.class.findUnique({
     where: { id: classId },
     select: { name: true, serie: true },
   });
-  if (classe && classe.serie) {
+  if (classe) {
     const niveau = deriverNiveau(classe.name);
     if (niveau) {
       const subject = await prisma.subject.findUnique({
@@ -35,7 +35,7 @@ export async function resoudreCoefficient(
       });
       if (subject?.code) {
         const referentiel = await prisma.subjectCoefficient.findFirst({
-          where: { schoolId, niveau, serie: classe.serie, subject: { code: subject.code } },
+          where: { schoolId, niveau, serie: classe.serie || null, subject: { code: subject.code } },
           select: { coefficient: true },
         });
         if (referentiel && referentiel.coefficient != null && referentiel.coefficient > 0) {

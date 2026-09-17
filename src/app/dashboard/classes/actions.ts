@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { attachCurriculumSubjectsToClass } from "@/lib/notes/class-subjects";
 
 export async function createClass(formData: FormData) {
   const supabase = await createClient();
@@ -28,16 +29,20 @@ export async function createClass(formData: FormData) {
     return { error: "Le cycle éducatif est requis." };
   }
 
+  const serie = formData.get("serie") as string | null;
+
   try {
-    await prisma.class.create({
+    const created = await prisma.class.create({
       data: {
         name,
         cycle: cycle as any,
+        serie: serie || null,
         schoolId: dbUser.schoolId,
         teacherId: teacherId || null,
         academicYear: dbUser.school.activeAcademicYear,
       }
     });
+    await attachCurriculumSubjectsToClass(created.id);
   } catch (error) {
     console.error("Error creating class:", error);
     return { error: "Erreur lors de la création de la classe." };
@@ -66,16 +71,20 @@ export async function createClassInline(formData: FormData) {
     return { error: "Le nom de la classe est requis." };
   }
 
+  const serie = formData.get("serie") as string | null;
+
   try {
-    await prisma.class.create({
+    const created = await prisma.class.create({
       data: {
         name,
         cycle: cycle || "AUTRE",
+        serie: serie || null,
         schoolId: dbUser.schoolId,
         teacherId: teacherId || null,
         academicYear: dbUser.school.activeAcademicYear,
       }
     });
+    await attachCurriculumSubjectsToClass(created.id);
   } catch (error) {
     console.error("Error creating class:", error);
     return { error: "Erreur lors de la création de la classe." };
@@ -238,6 +247,13 @@ export async function generateDefaultClasses() {
       await prisma.class.createMany({
         data: classesToCreate
       });
+      const createdInDb = await prisma.class.findMany({
+        where: { schoolId: dbUser.schoolId, name: { in: classesToCreate.map(c => c.name) } },
+        select: { id: true },
+      });
+      for (const cls of createdInDb) {
+        await attachCurriculumSubjectsToClass(cls.id);
+      }
     }
 
     revalidatePath("/dashboard/classes");
@@ -295,6 +311,13 @@ export async function generateCycleClasses(cycleId: string) {
       await prisma.class.createMany({
         data: classesToCreate
       });
+      const createdInDb = await prisma.class.findMany({
+        where: { schoolId: dbUser.schoolId, name: { in: classesToCreate.map(c => c.name) } },
+        select: { id: true },
+      });
+      for (const cls of createdInDb) {
+        await attachCurriculumSubjectsToClass(cls.id);
+      }
     }
 
     revalidatePath("/dashboard/students");

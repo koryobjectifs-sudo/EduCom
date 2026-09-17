@@ -306,7 +306,7 @@ export default async function GradesEntryChoicePage() {
                       {c.teacher ? ` · PP : ${c.teacher.firstName} ${c.teacher.lastName}` : ""}
                     </p>
 
-                    {allowedSubjects.length > 0 && (
+                    {allowedSubjects.length > 0 ? (
                       <div className="mt-2.5 flex flex-wrap gap-1">
                         {allowedSubjects.map((s: any) => (
                           <Link
@@ -317,6 +317,15 @@ export default async function GradesEntryChoicePage() {
                             {s.code || s.name}
                           </Link>
                         ))}
+                      </div>
+                    ) : (
+                      <div className="mt-2.5">
+                        <span className="text-[11px] text-amber-700 font-medium">
+                          Aucune matière configurée ·{" "}
+                          <Link href="/dashboard/settings/pedagogie" className="underline hover:text-amber-900 font-semibold">
+                            Configurer
+                          </Link>
+                        </span>
                       </div>
                     )}
                   </div>
