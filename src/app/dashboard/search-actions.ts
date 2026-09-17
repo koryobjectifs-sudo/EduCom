@@ -137,20 +137,26 @@ export async function globalSearchAction(query: string): Promise<{ items: Search
   }
 
   // 4. DOCUMENTS & MODÈLES (si accès documents)
+  const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const nq = normalize(q);
+
   if (hasAccess(userRole, "/dashboard/documents")) {
     const docKeywords = [
-      { key: "bulletin", title: "Bulletins scolaires", href: "/dashboard/grades/bulletin", label: "Pédagogie" },
-      { key: "certificat", title: "Certificats de scolarité", href: "/dashboard/documents/certificate", label: "Documents" },
-      { key: "fiche", title: "Fiches de renseignement", href: "/dashboard/documents/info-sheet", label: "Documents" },
-      { key: "emploi", title: "Emplois du temps", href: "/dashboard/documents/timetable", label: "Documents" },
-      { key: "rappel", title: "Rappels & Notifications", href: "/dashboard/documents/reminder", label: "Documents" },
-      { key: "centre", title: "Centre documentaire", href: "/dashboard/documents/centre", label: "Documents" },
+      { key: "certificat scolarite attestation", title: "Certificat de scolarité", href: "/dashboard/documents/certificate", label: "Documents" },
+      { key: "bulletin notes report card", title: "Bulletins de notes", href: "/dashboard/grades/report-card", label: "Pédagogie" },
+      { key: "fiche renseignement information urgence", title: "Fiche de renseignements", href: "/dashboard/documents/info-sheet", label: "Documents" },
+      { key: "emploi du temps planning horaire", title: "Emplois du temps", href: "/dashboard/documents/timetable", label: "Documents" },
+      { key: "relance rappel impaye facture", title: "Lettre de relance", href: "/dashboard/documents/reminder", label: "Documents" },
+      { key: "modele gabarit en-tete mentions", title: "Modèles & Mentions légales", href: "/dashboard/documents/templates", label: "Documents" },
+      { key: "bibliotheque archives documents produits", title: "Bibliothèque de documents", href: "/dashboard/documents", label: "Documents" },
+      { key: "structure classes niveaux cycles", title: "Structure de l'école", href: "/dashboard/classes", label: "Scolarité" },
+      { key: "admissions dossiers inscription", title: "Examen des admissions", href: "/dashboard/students/dossiers/review", label: "Scolarité" },
     ];
 
     for (const d of docKeywords) {
-      if (d.key.includes(q) || d.title.toLowerCase().includes(q)) {
+      if (normalize(d.key).includes(nq) || normalize(d.title).includes(nq)) {
         results.push({
-          id: `doc-${d.key}`,
+          id: `doc-${d.title}`,
           title: d.title,
           subtitle: d.label,
           category: "document",
@@ -164,17 +170,17 @@ export async function globalSearchAction(query: string): Promise<{ items: Search
   // 5. FINANCE (si accès payments)
   if (hasAccess(userRole, "/dashboard/payments")) {
     const finKeywords = [
-      { key: "facture", title: "Factures & Échéanciers", href: "/dashboard/payments/invoice", label: "Finance" },
-      { key: "recu", title: "Reçus de paiement", href: "/dashboard/payments/receipt", label: "Finance" },
-      { key: "tarif", title: "Grille tarifaire", href: "/dashboard/payments/tarifs", label: "Finance" },
-      { key: "depense", title: "Dépenses & Achats", href: "/dashboard/payments/expenses", label: "Finance" },
-      { key: "releve", title: "Relevé financier", href: "/dashboard/payments/statement", label: "Finance" },
+      { key: "facture echeancier scolarite frais", title: "Factures & Échéanciers", href: "/dashboard/payments/invoice", label: "Finance" },
+      { key: "recu versement paiement encaissement", title: "Reçus de paiement", href: "/dashboard/payments/receipt", label: "Finance" },
+      { key: "tarif grille tarifaire prix", title: "Grille tarifaire", href: "/dashboard/payments/tarifs", label: "Finance" },
+      { key: "depense achat sortie de caisse", title: "Dépenses & Achats", href: "/dashboard/payments/expenses", label: "Finance" },
+      { key: "releve financier compte solde", title: "Relevé financier", href: "/dashboard/payments/statement", label: "Finance" },
     ];
 
     for (const f of finKeywords) {
-      if (f.key.includes(q) || f.title.toLowerCase().includes(q)) {
+      if (normalize(f.key).includes(nq) || normalize(f.title).includes(nq)) {
         results.push({
-          id: `fin-${f.key}`,
+          id: `fin-${f.title}`,
           title: f.title,
           subtitle: f.label,
           category: "finance",

@@ -6,6 +6,7 @@ import { ArrowLeft, Printer, FileText, CheckCircle2 } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 import { formatXOF, amountInWordsXOF } from "@/lib/finance/numbering";
 import { PAYMENT_METHOD_LABELS } from "@/lib/finance";
+import GenerateDocumentDropdown from "@/components/documents/GenerateDocumentDropdown";
 
 export default function ReceiptViewer({
   payment,
@@ -59,15 +60,12 @@ export default function ReceiptViewer({
         </div>
 
         <div className="flex items-center gap-2.5">
-          {invoice && (
-            <Link
-              href={`/dashboard/payments/invoice?invoiceId=${invoice.id}`}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-rule bg-white px-3.5 py-2 text-xs font-semibold text-text hover:bg-sunk transition-colors shadow-2xs"
-            >
-              <FileText className="w-3.5 h-3.5 text-text-faint" />
-              Voir la facture ({invoice.invoiceNumber || "Détails"})
-            </Link>
-          )}
+          <GenerateDocumentDropdown
+            context="payment"
+            paymentId={payment.id}
+            invoiceId={invoice?.id}
+            variant="default"
+          />
 
           <button
             onClick={() => window.print()}

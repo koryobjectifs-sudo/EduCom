@@ -52,26 +52,36 @@ export async function editableSubjectIds(
   classId: string,
   classSubjectIds: string[],
 ): Promise<"ALL" | Set<string>> {
-  if (["OWNER", "ADMIN", "SECRETARY"].includes(user.role)) return "ALL";
+  // un ADMIN ou OWNER voit tout, c'est le seul cas
+  if (user.role === "OWNER" || user.role === "ADMIN") return "ALL";
 
-  const assignments = await prisma.teachingAssignment.findMany({
+  const klass = await prisma.class.findUnique({
+    where: { id: classId },
+    select: { cycle: true, teacherId: true },
+  });
+
+  const isElementaire =
+    klass?.cycle === "ELEMENTAIRE" || klass?.cycle === "PRESCOLAIRE";
+
+  const userAssignments = await prisma.teachingAssignment.findMany({
     where: { classId, teacherId: user.id },
     select: { subjectId: true },
   });
 
-  if (assignments.length === 0) {
-    const klass = await prisma.class.findUnique({
-      where: { id: classId },
-      select: { teacherId: true },
-    });
-    return klass?.teacherId === user.id ? "ALL" : new Set<string>();
+  // En élémentaire / préscolaire uniquement : le maître unique couvre toute la classe
+  if (isElementaire) {
+    if (userAssignments.some((a) => a.subjectId === null)) return "ALL";
+    if (klass?.teacherId === user.id) return "ALL";
   }
 
-  if (assignments.some((a) => a.subjectId === null)) return "ALL";
+  // En secondaire / moyen (et règle générale) :
+  // Un TEACHER ne voit et ne saisit QUE ses matières affectées réelles.
+  // Aucun passe-droit pour le titulaire/professeur principal, aucun filet "ALL" si 0 affectation.
+  const assignedSubjectIds = userAssignments
+    .map((a) => a.subjectId)
+    .filter((id): id is string => id !== null && classSubjectIds.includes(id));
 
-  return new Set(
-    assignments.map((a) => a.subjectId as string).filter((id) => classSubjectIds.includes(id)),
-  );
+  return new Set(assignedSubjectIds);
 }
 
 /* ═══════════════════════════════ types publics ═══════════════════════════════ */

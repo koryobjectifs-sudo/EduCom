@@ -510,27 +510,58 @@ export async function executeImportStudents(
 
       const parentId = assignedParentIds.get(rowNumber) || null;
 
-      const student = await prisma.student.create({
-        data: {
-          firstName: row.firstName.trim(),
-          lastName: row.lastName.trim(),
-          gender: genderStr,
-          dateOfBirth: dobDate,
-          schoolId,
-          matricule: row.matricule?.trim() || null,
-          parentId,
-          status: "ENROLLED",
-        },
-        select: { id: true, firstName: true, lastName: true },
-      });
+      // Déduplication : vérifier si l'élève existe déjà dans l'école
+      let student = row.matricule?.trim()
+        ? await prisma.student.findFirst({
+            where: { schoolId, matricule: row.matricule.trim() },
+            select: { id: true, firstName: true, lastName: true },
+          })
+        : null;
+
+      if (!student) {
+        student = await prisma.student.findFirst({
+          where: {
+            schoolId,
+            firstName: { equals: row.firstName.trim(), mode: "insensitive" },
+            lastName: { equals: row.lastName.trim(), mode: "insensitive" },
+            ...(dobDate ? { dateOfBirth: dobDate } : {}),
+          },
+          select: { id: true, firstName: true, lastName: true },
+        });
+      }
+
+      if (!student) {
+        student = await prisma.student.create({
+          data: {
+            firstName: row.firstName.trim(),
+            lastName: row.lastName.trim(),
+            gender: genderStr,
+            dateOfBirth: dobDate,
+            schoolId,
+            matricule: row.matricule?.trim() || null,
+            parentId,
+            status: "ENROLLED",
+          },
+          select: { id: true, firstName: true, lastName: true },
+        });
+      }
 
       // Inscription dans la classe si définie
       if (classId) {
-        await prisma.enrollment.create({
-          data: {
+        await prisma.enrollment.upsert({
+          where: {
+            studentId_academicYear: {
+              studentId: student.id,
+              academicYear: year,
+            },
+          },
+          create: {
             studentId: student.id,
             classId,
             academicYear: year,
+          },
+          update: {
+            classId,
           },
         });
       }

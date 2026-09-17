@@ -132,6 +132,21 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
+        source: "/dashboard/students/classes",
+        destination: "/dashboard/students?view=classes",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/admissions",
+        destination: "/dashboard/students/dossiers/review",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/documents/centre",
+        destination: "/dashboard/documents?filter=administratifs",
+        permanent: true,
+      },
+      {
         source: "/communications",
         destination: "/dashboard/communications",
         permanent: true,

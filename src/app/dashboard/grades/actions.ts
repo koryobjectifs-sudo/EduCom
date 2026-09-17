@@ -964,8 +964,46 @@ export async function saveGrades(gradesData: any[]) {
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
   if (!dbUser) return { error: "Utilisateur introuvable" };
 
+  if (!Array.isArray(gradesData) || gradesData.length === 0) {
+    return { success: true };
+  }
+
+  // ── SÉCURITÉ SERVEUR : Vérification stricte du périmètre d'affectation ──
+  // Le refus vient du SERVEUR, pas d'un simple champ masqué côté client.
+  const isStaff = ["OWNER", "ADMIN", "SECRETARY"].includes(dbUser.role);
+
+  if (!isStaff) {
+    // Vérifier pour chaque classe et chaque matière concernée
+    const classIds = Array.from(new Set(gradesData.map((g) => g.classId).filter(Boolean)));
+
+    for (const cid of classIds) {
+      // 1. Vérifier que la classe appartient bien à l'école de l'utilisateur
+      const klass = await prisma.class.findFirst({
+        where: { id: cid, schoolId: dbUser.schoolId },
+        select: { id: true, subjects: { select: { subjectId: true } } },
+      });
+      if (!klass) {
+        return { error: "Non autorisé : classe introuvable ou hors établissement." };
+      }
+
+      const classSubjectIds = klass.subjects.map((s) => s.subjectId);
+      const allowed = await editableSubjectIds(dbUser, cid, classSubjectIds);
+
+      if (allowed !== "ALL") {
+        for (const g of gradesData) {
+          if (g.classId === cid && g.subjectId) {
+            if (!allowed.has(g.subjectId)) {
+              return {
+                error: "Non autorisé (refus serveur) : Vous n'êtes pas affecté à cette matière dans cette classe.",
+              };
+            }
+          }
+        }
+      }
+    }
+  }
+
   try {
-    // We could optimize this by doing a transaction
     await prisma.$transaction(
       gradesData.map(g => {
         if (g.id) {

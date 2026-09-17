@@ -13,6 +13,7 @@ import {
   VoletEleve, SectionApercu, SectionScolarite, SectionPresence,
   SectionNotes, SectionFinance, SectionFamille, SectionDocuments,
 } from "./sections";
+import GenerateDocumentDropdown from "@/components/documents/GenerateDocumentDropdown";
 
 /**
  * Fiche élève — « Student 360 ».
@@ -244,15 +245,13 @@ export default async function StudentProfilePage({
             <Link href={`/dashboard/students/${student.id}/dossier`} className={ACTION_PRINCIPALE}>
               <FolderOpen aria-hidden="true" className="h-4 w-4" /> Dossier
             </Link>
-            {hasAccess(actor.role, "/dashboard/documents/certificate") && (
-              <Link href={`/dashboard/documents/certificate?studentId=${student.id}`} className={ACTION_NEUTRE}>
-                <FileBadge aria-hidden="true" className="h-4 w-4" /> Certificat
-              </Link>
-            )}
-            {hasAccess(actor.role, "/dashboard/grades/report-card") && (
-              <Link href={`/dashboard/grades/report-card?studentId=${student.id}`} className={ACTION_NEUTRE}>
-                <FileText aria-hidden="true" className="h-4 w-4" /> Bulletin
-              </Link>
+            {hasAccess(actor.role, "/dashboard/documents") && (
+              <GenerateDocumentDropdown
+                context="student"
+                studentId={student.id}
+                studentName={`${student.firstName} ${student.lastName}`}
+                variant="banner"
+              />
             )}
             {hasAccess(actor.role, "/dashboard/payments/new") && (
               <Link href={`/dashboard/payments/new?studentId=${student.id}`} className={ACTION_NEUTRE}>

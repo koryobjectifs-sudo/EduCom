@@ -222,10 +222,11 @@ export type DirectorDashboardSnapshot = {
 };
 
 const CYCLE_DISPLAY_LABELS: Record<string, string> = {
-  MATERNELLE: "Maternelle",
+  PRESCOLAIRE: "Préscolaire",
   ELEMENTAIRE: "Élémentaire",
-  COLLEGE: "Collège",
-  LYCEE: "Lycée",
+  MOYEN: "Moyen",
+  SECONDAIRE: "Secondaire",
+  UNIVERSITAIRE: "Universitaire",
   AUTRE: "Autre cycle",
 };
 

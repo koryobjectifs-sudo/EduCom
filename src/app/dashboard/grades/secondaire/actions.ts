@@ -186,10 +186,7 @@ export async function getSecondaireContextWithActor(
       schoolId: actor.schoolId,
       ...(actor.role === "TEACHER"
         ? {
-            OR: [
-              { teacherId: actor.userId },
-              { assignments: { some: { teacherId: actor.userId } } },
-            ],
+            assignments: { some: { teacherId: actor.userId } },
           }
         : {}),
     },

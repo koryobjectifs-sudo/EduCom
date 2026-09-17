@@ -26,6 +26,13 @@ interface EnrollmentAnalyticsSectionProps {
 }
 
 const CYCLE_CONFIG: Record<string, { label: string; color: string; bgGradient: string; textClass: string; barGradient: string }> = {
+  PRESCOLAIRE: {
+    label: "Maternelle",
+    color: "#F59E0B",
+    bgGradient: "from-amber-500 to-orange-500",
+    textClass: "text-amber-700 bg-amber-50 border-amber-200",
+    barGradient: "from-amber-400 to-orange-500",
+  },
   MATERNELLE: {
     label: "Maternelle",
     color: "#F59E0B",
@@ -40,12 +47,26 @@ const CYCLE_CONFIG: Record<string, { label: string; color: string; bgGradient: s
     textClass: "text-blue-700 bg-blue-50 border-blue-200",
     barGradient: "from-blue-500 via-indigo-500 to-indigo-600",
   },
+  MOYEN: {
+    label: "Collège",
+    color: "#0D9488",
+    bgGradient: "from-teal-600 to-emerald-600",
+    textClass: "text-teal-700 bg-teal-50 border-teal-200",
+    barGradient: "from-teal-500 to-emerald-600",
+  },
   COLLEGE: {
     label: "Collège",
     color: "#0D9488",
     bgGradient: "from-teal-600 to-emerald-600",
     textClass: "text-teal-700 bg-teal-50 border-teal-200",
     barGradient: "from-teal-500 to-emerald-600",
+  },
+  SECONDAIRE: {
+    label: "Lycée",
+    color: "#7C3AED",
+    bgGradient: "from-purple-600 to-violet-600",
+    textClass: "text-purple-700 bg-purple-50 border-purple-200",
+    barGradient: "from-purple-500 to-violet-600",
   },
   LYCEE: {
     label: "Lycée",

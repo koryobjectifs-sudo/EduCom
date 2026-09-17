@@ -211,6 +211,7 @@ export async function applyOfficialRequirements(cycles: EducationalCycle[]) {
       .map((r, i) => ({
         label: r.label,
         category: r.category,
+        nature: r.nature,
         cycle,
         source: r.source,
         required: r.required,

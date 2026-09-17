@@ -27,10 +27,10 @@ import { createClassInline } from "../classes/actions";
 import { CYCLE_LABELS } from "@/lib/schoolDocumentLabels";
 
 const CYCLES = [
-  { id: "MATERNELLE", label: "Maternelle" },
+  { id: "PRESCOLAIRE", label: "Maternelle" },
   { id: "ELEMENTAIRE", label: "Élémentaire" },
-  { id: "COLLEGE", label: "Collège" },
-  { id: "LYCEE", label: "Lycée" },
+  { id: "MOYEN", label: "Collège" },
+  { id: "SECONDAIRE", label: "Lycée" },
   { id: "AUTRE", label: "Autres" },
 ];
 

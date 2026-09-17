@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import { requireSchoolContext } from "@/lib/documentContext";
 import { getDirectorDashboardSnapshot } from "@/lib/dashboard-director";
+import { getTeacherDashboardSnapshot } from "@/lib/dashboard-teacher";
 import DirectorDashboard from "@/components/dashboard/director/DirectorDashboard";
+import TeacherDashboard from "@/components/dashboard/teacher/TeacherDashboard";
 import AcademicProgressSectionServer from "@/components/dashboard/director/AcademicProgressSectionServer";
 import AcademicProgressSkeleton from "@/components/dashboard/director/AcademicProgressSkeleton";
 import RecentActivityFeedServer from "@/components/dashboard/director/RecentActivityFeedServer";
@@ -12,7 +14,7 @@ import { hasAccess, firstAllowedPath } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 
 /**
- * DIRECTRICE / DIRECTOR COMMAND CENTER
+ * DIRECTRICE / DIRECTOR COMMAND CENTER & ESPACE ENSEIGNANT
  * Poste de pilotage quotidien de l'établissement scolaire.
  */
 export default async function DashboardHome() {
@@ -22,6 +24,17 @@ export default async function DashboardHome() {
   // si le rôle n'a pas accès à l'accueil (ex. PARENT). Redirection immédiate.
   if (!hasAccess(user.role, "/dashboard$")) {
     redirect(firstAllowedPath(user.role));
+  }
+
+  // ── ESPACE ENSEIGNANT DÉDIÉ ──
+  // Un enseignant ne doit voir que son métier : ses classes, ses matières,
+  // ses saisies et restant à saisir, prochaines évaluations, appel du jour s'il est titulaire.
+  if (user.role === "TEACHER") {
+    const teacherSnapshot = await getTeacherDashboardSnapshot(
+      { schoolId, userId: user.id },
+      user.firstName?.trim() || "Enseignant",
+    );
+    return <TeacherDashboard snapshot={teacherSnapshot} />;
   }
 
   let simulation: { date?: Date; period?: PeriodKind } | undefined;
