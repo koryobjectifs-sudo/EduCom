@@ -9,11 +9,13 @@ import { formatDate } from "@/lib/dateUtils";
 export default function ReminderGenerator({
   overdueInvoices,
   school,
+  initialInvoiceId,
 }: {
   overdueInvoices: any[];
   school?: { name: string; address: string | null; phone: string | null; email: string | null } | null;
+  initialInvoiceId?: string | null;
 }) {
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState(initialInvoiceId || "");
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [signatureData, setSignatureData] = useState<string | null>(null);
 

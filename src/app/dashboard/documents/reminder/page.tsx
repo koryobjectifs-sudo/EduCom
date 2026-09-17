@@ -18,9 +18,16 @@ const PATH = "/dashboard/documents/reminder";
  * Le générateur lui-même n'est pas modifié : le lot 09 interdit d'y toucher, et
  * ce n'était pas nécessaire — la correction est une question de droit d'accès.
  */
-export default async function ReminderPage() {
+export default async function ReminderPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ invoiceId?: string }>;
+}) {
   const { user, schoolId, school } = await requireSchoolContext();
   if (!hasAccess(user.role, PATH)) redirect(firstAllowedPath(user.role));
+
+  const sp = searchParams ? await searchParams : null;
+  const invoiceId = sp?.invoiceId;
 
   const overdueInvoices = await prisma.invoice.findMany({
     where: { status: "OVERDUE", schoolId },
@@ -35,5 +42,22 @@ export default async function ReminderPage() {
     orderBy: { dueDate: "asc" },
   });
 
-  return <ReminderGenerator overdueInvoices={overdueInvoices} school={school} />;
+  if (invoiceId && !overdueInvoices.some((i) => i.id === invoiceId)) {
+    const specificInvoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, schoolId },
+      include: {
+        student: {
+          include: {
+            parent: true,
+            enrollments: { include: { class: true } },
+          },
+        },
+      },
+    });
+    if (specificInvoice) {
+      overdueInvoices.unshift(specificInvoice);
+    }
+  }
+
+  return <ReminderGenerator overdueInvoices={overdueInvoices} school={school} initialInvoiceId={invoiceId ?? null} />;
 }

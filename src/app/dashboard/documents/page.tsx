@@ -1,33 +1,155 @@
 import Link from "next/link";
-import { ArrowRight, FileStack } from "lucide-react";
+import { FileStack, FileText } from "lucide-react";
+import { prisma } from "@/lib/prisma";
 import { requireSchoolContext } from "@/lib/documentContext";
 import { hasAccess, type RoleType } from "@/lib/permissions";
-import { DOCUMENT_KINDS, documentHref } from "@/lib/documents";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DocumentsTabs } from "./DocumentsTabs";
+import DocumentsLibraryClient, { type LibraryDocumentItem } from "./DocumentsLibraryClient";
+import { formatDate } from "@/lib/dateUtils";
 
-export default async function DocumentsHub() {
-  const { user } = await requireSchoolContext();
+export const metadata = {
+  title: "Bibliothèque de documents | EduCom",
+};
+
+export default async function DocumentsHub({
+  searchParams,
+}: {
+  searchParams?: Promise<{ filter?: string }>;
+}) {
+  const { schoolId, user } = await requireSchoolContext();
   const role = user.role as RoleType;
 
+  const sp = searchParams ? await searchParams : null;
+  const initialFilter = sp?.filter || null;
+
   const canValidate = hasAccess(role, "/dashboard/documents/validation");
-  const visibleKinds = DOCUMENT_KINDS.filter((d) => hasAccess(role, documentHref(d)));
+  const canManage = hasAccess(role, "/dashboard/documents/centre/gestion");
+
+  // Charger les documents administratifs de l'établissement (SchoolDocument)
+  const schoolDocs = await prisma.schoolDocument.findMany({
+    where: { schoolId },
+    include: {
+      class: { select: { name: true } },
+      folder: { select: { name: true } },
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 50,
+  });
+
+  // Charger les documents scolaires des élèves (StudentDocument)
+  const studentDocs = await prisma.studentDocument.findMany({
+    where: {
+      student: { schoolId },
+    },
+    include: {
+      student: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          enrollments: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            include: { class: { select: { name: true } } },
+          },
+        },
+      },
+      requirement: { select: { label: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  // Charger les reçus récents (Payment)
+  const recentPayments = await prisma.payment.findMany({
+    where: { schoolId },
+    include: {
+      invoice: {
+        include: {
+          student: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              enrollments: {
+                take: 1,
+                orderBy: { createdAt: "desc" },
+                include: { class: { select: { name: true } } },
+              },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 25,
+  });
+
+  // Mapper en items unifiés de la bibliothèque
+  const items: LibraryDocumentItem[] = [];
+
+  // 1. Documents administratifs
+  for (const sd of schoolDocs) {
+    items.push({
+      id: `school-doc-${sd.id}`,
+      title: sd.title,
+      category: "administratif",
+      categoryLabel: "Administratif",
+      docKind: sd.folder?.name || "Document officiel",
+      targetName: sd.class?.name ? `Classe ${sd.class.name}` : "Établissement",
+      targetClassName: sd.class?.name || undefined,
+      date: formatDate(sd.updatedAt || sd.createdAt),
+      fileUrl: sd.storagePath,
+      viewUrl: `/dashboard/documents/centre`,
+      statusLabel: String(sd.status),
+    });
+  }
+
+  // 2. Documents élèves
+  for (const std of studentDocs) {
+    const student = std.student;
+    const currentClass = student.enrollments[0]?.class?.name;
+    items.push({
+      id: `student-doc-${std.id}`,
+      title: std.label || std.requirement?.label || "Pièce du dossier élève",
+      category: "scolaire",
+      categoryLabel: "Scolaire",
+      docKind: "Dossier élève",
+      targetName: `${student.firstName} ${student.lastName}`,
+      targetClassName: currentClass,
+      date: formatDate(std.createdAt),
+      fileUrl: std.storagePath,
+      viewUrl: `/dashboard/students/${student.id}/dossier`,
+    });
+  }
+
+  // 3. Reçus récents
+  for (const pay of recentPayments) {
+    const student = pay.invoice?.student;
+    const currentClass = student?.enrollments[0]?.class?.name;
+    const studentName = student ? `${student.firstName} ${student.lastName}` : "Élève";
+    items.push({
+      id: `payment-${pay.id}`,
+      title: `Reçu de paiement ${pay.receiptNumber || pay.id.slice(0, 8).toUpperCase()}`,
+      category: "scolaire",
+      categoryLabel: "Paiement",
+      docKind: "Reçu de versement",
+      targetName: studentName,
+      targetClassName: currentClass,
+      date: formatDate(pay.createdAt),
+      viewUrl: `/dashboard/payments/receipt?paymentId=${pay.id}`,
+    });
+  }
 
   return (
     <div className="space-y-6 pb-10">
       <PageHeader
         breadcrumb={[{ label: "Accueil", href: "/dashboard" }, { label: "Documents" }]}
         title="Documents"
-        description={`${visibleKinds.length} modèle${visibleKinds.length > 1 ? "s" : ""} disponible${visibleKinds.length > 1 ? "s" : ""} · vos informations d'établissement, cachet et signature sont insérés automatiquement`}
+        description="Bibliothèque des documents officiels et scolaires de l'établissement · Recherche, consultation et re-téléchargement"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Link
-              href="/dashboard/documents/centre"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-control border border-rule bg-surface px-4 text-role-body font-semibold text-text shadow-card transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
-            >
-              <FileStack aria-hidden="true" className="h-4 w-4" />
-              Centre documentaire
-            </Link>
             <Link
               href="/dashboard/documents/drafts"
               className="inline-flex h-10 items-center justify-center gap-2 rounded-control border border-rule bg-surface px-4 text-role-body font-semibold text-text shadow-card transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
@@ -41,50 +163,11 @@ export default async function DocumentsHub() {
 
       <DocumentsTabs canValidate={canValidate} />
 
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <ul className="divide-y divide-gray-100">
-          {visibleKinds.map((doc) => {
-            const Icon = doc.icon;
-            return (
-              <li key={doc.id}>
-                <Link
-                  href={documentHref(doc)}
-                  className="group flex items-center justify-between px-6 py-4 hover:bg-gray-50/60 transition-colors"
-                >
-                  <div className="flex items-center gap-4 min-w-0">
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-50/50 text-[#539BEB] group-hover:bg-[#539BEB] group-hover:text-white transition-colors shadow-sm">
-                      <Icon className="h-6 w-6" strokeWidth={1.8} />
-                    </span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-[15px] font-semibold text-gray-900 truncate group-hover:text-[#539BEB] transition-colors">
-                          {doc.name}
-                        </h3>
-                        <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 truncate">
-                          Par {doc.subject}
-                        </span>
-                      </div>
-                      <p className="text-[13px] text-gray-500 line-clamp-1">
-                        {doc.description}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="shrink-0 ml-4 pl-4 flex items-center">
-                    <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#539BEB] opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
-                      Créer
-                      <ArrowRight aria-hidden="true" className="h-4 w-4" />
-                    </span>
-                    <span className="text-gray-300 group-hover:opacity-0 transition-opacity duration-300 ml-4">
-                      <ArrowRight aria-hidden="true" className="h-5 w-5" />
-                    </span>
-                  </div>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+      <DocumentsLibraryClient
+        initialDocuments={items}
+        initialFilter={initialFilter}
+        canManage={canManage}
+      />
     </div>
   );
 }

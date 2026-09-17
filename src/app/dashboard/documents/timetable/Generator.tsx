@@ -16,8 +16,14 @@ const getEmptyState = () => ({
   cells: {} as Record<string, string>
 });
 
-export default function TimetableGenerator({ classes }: { classes: any[] }) {
-  const [selectedClassId, setSelectedClassId] = useState("");
+export default function TimetableGenerator({
+  classes,
+  initialClassId,
+}: {
+  classes: any[];
+  initialClassId?: string | null;
+}) {
+  const [selectedClassId, setSelectedClassId] = useState(initialClassId || "");
   
   // State for document data
   const [academicYear, setAcademicYear] = useState("2023-2024");

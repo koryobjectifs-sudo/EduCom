@@ -9,13 +9,13 @@ export function DocumentsTabs({ canValidate = false }: { canValidate?: boolean }
 
   const tabs = [
     {
-      name: "Générer un document",
+      name: "Documents produits",
       href: "/dashboard/documents",
       icon: FileStack,
-      isActive: pathname === "/dashboard/documents" || (pathname.startsWith("/dashboard/documents/") && !pathname.startsWith("/dashboard/documents/templates") && !pathname.startsWith("/dashboard/documents/validation") && !pathname.startsWith("/dashboard/documents/drafts") && !pathname.startsWith("/dashboard/documents/centre")),
+      isActive: pathname === "/dashboard/documents" || (pathname.startsWith("/dashboard/documents") && !pathname.startsWith("/dashboard/documents/templates") && !pathname.startsWith("/dashboard/documents/validation") && !pathname.startsWith("/dashboard/documents/drafts")),
     },
     {
-      name: "Modèles de l'école",
+      name: "Modèles",
       href: "/dashboard/documents/templates",
       icon: FolderOpen,
       isActive: pathname.startsWith("/dashboard/documents/templates"),

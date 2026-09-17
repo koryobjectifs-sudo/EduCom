@@ -20,7 +20,7 @@ export default function InfoSheetGenerator({
   initialStudentId?: string | null;
   school?: { name: string; address: string | null } | null;
 }) {
-  const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [selectedStudentId, setSelectedStudentId] = useState(initialStudentId || "");
   
   // Modals state
   const [showEditorModal, setShowEditorModal] = useState(false);

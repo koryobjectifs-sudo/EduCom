@@ -1561,6 +1561,12 @@ enum StudentDocStatus {
   EN_REGULARISATION
 }
 
+enum RequirementNature {
+  UPLOAD
+  SIGNATURE
+  AUTO
+}
+
 /// Une pièce exigée par l'établissement — la checklist configurable.
 ///
 /// ⚠️ **Aucune liste nationale n'est codée nulle part.** Chaque école déclare
@@ -1578,6 +1584,7 @@ model DocumentRequirement {
   label    String
   shortLabel String?
   category DocCategory @default(AUTRES)
+  nature   RequirementNature @default(UPLOAD)
 
   cycle        EducationalCycle?
   classId      String?
@@ -1665,6 +1672,9 @@ model StudentDocument {
   reviewedAt     DateTime?
   /// Motif de rejet, ou note de validation.
   reviewNote     String?
+
+  /// Traçabilité juridique des pièces signées (IP, horodatage, signataire, version, hash)
+  signatureMetadata Json?
 
   /// Chaîne de remplacement.
   supersedesId String?          @unique

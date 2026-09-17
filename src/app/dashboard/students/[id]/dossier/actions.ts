@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireActionContext } from "@/lib/actionContext";
@@ -12,6 +13,7 @@ import { validateMagicBytes } from "@/lib/studentFileLimits";
 import { canSeeCategory, canSeeStudent } from "@/lib/studentScope";
 import { analyzeDocument, ocrCapability } from "@/lib/documentProposals";
 import { prepareDiffusion, recordManualDelivery } from "@/lib/diffusion";
+import { generateSignedDocumentHtml, computeSignatureSha256 } from "@/lib/signedDocumentGenerator";
 import type { ChannelId } from "@/lib/channels";
 import type { DocCategory } from "../../../../../generated/prisma/client";
 
@@ -261,6 +263,11 @@ export async function uploadStudentDocument(formData: FormData) {
       ...(previous ? { replacedId: previous.id, replacedFileName: previous.fileName, replacedStatus: previous.status } : {}),
     },
   });
+
+  if (requirementId) {
+    const { resolveDocumentReminders } = await import("@/lib/parentReminder");
+    await resolveDocumentReminders(studentId, requirementId);
+  }
 
   revalidateFile(studentId);
   return { data: { id, replaced: Boolean(previous) } };
@@ -524,3 +531,259 @@ export async function createStudentDocFolder(name: string) {
   revalidatePath("/dashboard/students", "layout");
   return { data: folder };
 }
+
+/* ═════════════════════ signature numérique certifiée (Point 3) ═════════════════════ */
+
+export type AuthorizedPersonInput = {
+  lastName: string;
+  firstName: string;
+  relationship: string;
+  phone: string;
+  idCardNumber: string;
+};
+
+export type SignStudentDocInput = {
+  studentId: string;
+  requirementId: string;
+  signatureImageBase64: string;
+  signatureType: "DRAWN" | "SCANNED";
+  formData?: {
+    authorizedPersons?: AuthorizedPersonInput[];
+    attestationConfirmed?: boolean;
+    notes?: string;
+  };
+};
+
+/**
+ * Signature électronique certifiée d'un document du dossier (fiche de renseignements, règlement, personnes autorisées).
+ *
+ * ═══ SÉCURITÉ & CONFORMITÉ JURIDIQUE STRICTE ═══
+ * - Seul le parent de ses propres enfants (ou direction/secrétariat) peut signer.
+ * - Ne peut être exécuté QUE sur une pièce NON encore validée (règle absolue).
+ * - Aucune donnée médicale / de santé n'est transmise ni acceptée.
+ * - Le document signé intégral (HTML certifié) est généré et conservé dans Storage, pas seulement la signature.
+ * - Traçabilité probatoire complète : horodatage certifié UTC + heure locale Dakar, IP source, user-agent,
+ *   identité du signataire (nom, email, rôle), version du document ("1.0"), et empreinte SHA-256 scellée.
+ */
+export async function signStudentDocument(input: SignStudentDocInput) {
+  const auth = await requireActionContext(READ_PATH);
+  if (!auth.ok) return { error: auth.error };
+  const { ctx } = auth;
+
+  // 1. Contrôle d'accès élève et portée (le parent n'agit QUE sur ses enfants)
+  const student = await assertStudent(ctx, input.studentId);
+  if (!student) return { error: "Élève introuvable dans votre établissement." };
+
+  // 2. Vérification de l'exigence
+  const requirement = await prisma.documentRequirement.findFirst({
+    where: { id: input.requirementId, schoolId: ctx.schoolId, active: true },
+  });
+  if (!requirement) return { error: "Exigence introuvable ou inactive dans votre établissement." };
+  if (requirement.nature !== "SIGNATURE") {
+    return { error: "Cette pièce ne fait pas l'objet d'une signature numérique." };
+  }
+  if (!canSeeCategory(ctx, requirement.category)) {
+    return { error: "Cette catégorie de pièce ne relève pas de votre périmètre." };
+  }
+
+  // 3. Règle absolue : seulement sur les pièces NON VALIDÉES
+  const previous = await prisma.studentDocument.findFirst({
+    where: {
+      schoolId: ctx.schoolId,
+      studentId: input.studentId,
+      requirementId: input.requirementId,
+      supersededAt: null,
+    },
+    select: { id: true, status: true },
+  });
+  if (previous && previous.status === "VALIDATED") {
+    return { error: "Ce document a déjà été validé par l'établissement et ne peut plus être modifié." };
+  }
+
+  // 4. Validation de la signature (base64 image)
+  if (!input.signatureImageBase64 || !input.signatureImageBase64.startsWith("data:image/")) {
+    return { error: "Signature manquante ou format invalide." };
+  }
+  // Limite de taille pour l'image de signature (max ~2 Mo)
+  if (input.signatureImageBase64.length > 2 * 1024 * 1024 * 1.37) {
+    return { error: "L'image de signature est trop volumineuse." };
+  }
+
+  // 5. Validation des données du formulaire selon la pièce
+  const isAuthorizedPersons = requirement.label.toLowerCase().includes("personne") ||
+    requirement.label.toLowerCase().includes("récupérer") ||
+    requirement.label.toLowerCase().includes("recuperer");
+
+  if (isAuthorizedPersons) {
+    const persons = input.formData?.authorizedPersons ?? [];
+    if (persons.length === 0) {
+      return { error: "Veuillez indiquer au moins une personne autorisée à récupérer l'enfant." };
+    }
+    for (let i = 0; i < persons.length; i++) {
+      const p = persons[i];
+      if (!p.lastName?.trim() || !p.firstName?.trim() || !p.phone?.trim()) {
+        return { error: `Veuillez renseigner le nom, prénom et téléphone pour la personne ${i + 1}.` };
+      }
+    }
+  }
+
+  if (!input.formData?.attestationConfirmed) {
+    return { error: "Veuillez confirmer l'attestation sur l'honneur avant d'apposer votre signature." };
+  }
+
+  // 6. Résolution des informations pour la traçabilité juridique
+  const headerList = await headers();
+  const ip = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() || headerList.get("x-real-ip") || "127.0.0.1";
+  const userAgent = headerList.get("user-agent") || "Inconnu";
+
+  const user = await prisma.user.findUnique({
+    where: { id: ctx.userId },
+    select: { firstName: true, lastName: true, email: true, phone: true },
+  });
+  const signerName = user ? `${user.firstName} ${user.lastName}`.trim() : "Signataire";
+
+  const school = await prisma.school.findUnique({
+    where: { id: ctx.schoolId },
+    select: { name: true },
+  });
+
+  const studentFull = await prisma.student.findUnique({
+    where: { id: input.studentId },
+    select: {
+      firstName: true,
+      lastName: true,
+      enrollments: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { class: { select: { name: true, cycle: true } } },
+      },
+    },
+  });
+
+  const now = new Date();
+  const timestampIso = now.toISOString();
+  const timestampFormatted = now.toLocaleDateString("fr-FR", {
+    day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit",
+    timeZone: "Africa/Dakar",
+  });
+
+  const currentClass = studentFull?.enrollments[0]?.class;
+  const docVersion = "1.0";
+
+  const payload = {
+    schoolName: school?.name || "Établissement scolaire",
+    academicYear: currentAcademicYear(),
+    student: {
+      id: input.studentId,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      className: currentClass?.name || null,
+      cycle: currentClass?.cycle ? String(currentClass.cycle) : null,
+    },
+    requirementLabel: requirement.label,
+    docVersion,
+    timestampIso,
+    timestampFormatted,
+    ip,
+    userAgent,
+    signer: {
+      name: signerName,
+      role: String(ctx.role),
+      email: user?.email || null,
+      phone: user?.phone || null,
+    },
+    signatureImageBase64: input.signatureImageBase64,
+    signatureType: input.signatureType,
+    formData: input.formData,
+  };
+
+  const sha256 = computeSignatureSha256({
+    ...payload,
+    signatureSnippet: input.signatureImageBase64.slice(0, 80) + input.signatureImageBase64.slice(-80),
+  });
+
+  const htmlContent = generateSignedDocumentHtml(payload, sha256);
+  const docId = crypto.randomUUID();
+  const rawFileName = `${requirement.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-signe.html`;
+  const fileName = sanitizeFileName(rawFileName);
+  const storagePath = storagePathFor(ctx.schoolId, input.studentId, docId, fileName);
+
+  // 7. Enregistrement du fichier binaire signé dans le bucket privé sécurisé
+  const supabase = createAdminClient();
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(storagePath, Buffer.from(htmlContent, "utf-8"), {
+      contentType: "text/html; charset=utf-8",
+      upsert: true,
+    });
+
+  if (uploadError) {
+    return { error: `Échec de l'archivage du document signé : ${uploadError.message}` };
+  }
+
+  // 8. Remplacement propre de l'ancienne version non validée s'il y a lieu
+  if (previous) {
+    await prisma.studentDocument.update({
+      where: { id: previous.id },
+      data: { supersededAt: now },
+    });
+  }
+
+  // 9. Création de la ligne StudentDocument avec métadonnées de traçabilité scellées
+  const newDoc = await prisma.studentDocument.create({
+    data: {
+      id: docId,
+      schoolId: ctx.schoolId,
+      studentId: input.studentId,
+      requirementId: input.requirementId,
+      label: `${requirement.label} (signé)`,
+      category: requirement.category,
+      storagePath,
+      fileName,
+      mimeType: "text/html",
+      sizeBytes: Buffer.byteLength(htmlContent, "utf-8"),
+      status: "TO_VERIFY",
+      academicYear: currentAcademicYear(),
+      uploadedById: ctx.userId,
+      uploadedByRole: ctx.role,
+      supersedesId: previous?.id ?? null,
+      signatureMetadata: {
+        version: docVersion,
+        signedAt: timestampIso,
+        signerId: ctx.userId,
+        signerName,
+        signerRole: ctx.role,
+        signerEmail: user?.email ?? null,
+        signerPhone: user?.phone ?? null,
+        ip,
+        userAgent,
+        sha256,
+        signatureType: input.signatureType,
+        formData: input.formData ?? null,
+      },
+    },
+  });
+
+  // 10. Traçabilité dans l'Audit Log
+  await recordAudit(ctx, {
+    action: "studentDocument.sign",
+    entity: "studentDocument",
+    entityId: docId,
+    details: {
+      requirementId: input.requirementId,
+      label: requirement.label,
+      signerName,
+      signerRole: ctx.role,
+      ip,
+      sha256,
+      version: docVersion,
+    },
+  });
+
+  const { resolveDocumentReminders } = await import("@/lib/parentReminder");
+  await resolveDocumentReminders(input.studentId, input.requirementId);
+
+  revalidateFile(input.studentId);
+  return { data: newDoc };
+}
+

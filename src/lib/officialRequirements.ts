@@ -1,4 +1,4 @@
-import type { DocCategory, EducationalCycle, StudentKind, RequirementSource } from "../generated/prisma/client";
+import type { DocCategory, EducationalCycle, StudentKind, RequirementSource, RequirementNature } from "../generated/prisma/client";
 
 /**
  * Référentiel réglementaire et officiel des pièces d'inscription — Sénégal, par cycle.
@@ -25,15 +25,21 @@ import type { DocCategory, EducationalCycle, StudentKind, RequirementSource } fr
  * 
  * Contexte réglementaire officiel sénégalais :
  * - Inscription au CI : extrait ou bulletin de naissance. Si < 6 ans, certificat de scolarité préscolaire.
- * - Entrée en 6e (décret n° 90-1463 du 28 décembre 1990) : demande d'inscription, acte d'état civil, fiche scolaire.
- * - Inscription au CFEE : bulletin ou extrait de naissance, fiche scolaire ou certificat de scolarité.
+ * - Entrée en 6e (décret n° 90-1463 du 28 décembre 1990) : demande d'inscription, acte d'état civil, fiche scolaire (certificat de scolarité).
+ * - Inscription au CFEE : bulletin ou extrait de naissance, certificat de scolarité (fiche scolaire).
  * - Inscription au BFEM / Baccalauréat : acte d'état civil, relevés et certificats de scolarité.
+ *
+ * Natures de pièces :
+ * - UPLOAD    : le parent envoie un fichier qu'il possède
+ * - SIGNATURE : l'école fournit le document, le parent remplit et signe
+ * - AUTO      : l'école détient déjà la donnée, EduCom la produit
  */
 
 export type OfficialRequirementDef = {
   label: string;
   shortLabel: string;
   category: DocCategory;
+  nature: RequirementNature;
   source: RequirementSource;
   required: boolean;
   pinned: boolean;
@@ -48,6 +54,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Extrait ou bulletin de naissance",
       shortLabel: "Extrait de naissance",
       category: "IDENTITE",
+      nature: "UPLOAD",
       source: "OFFICIEL",
       required: true,
       pinned: true,
@@ -57,6 +64,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Personnes autorisées à récupérer l'enfant",
       shortLabel: "Personnes autorisées",
       category: "INSCRIPTION",
+      nature: "SIGNATURE",
       source: "ETABLISSEMENT",
       required: true,
       pinned: true,
@@ -66,6 +74,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Photos d'identité",
       shortLabel: "Photos",
       category: "IDENTITE",
+      nature: "UPLOAD",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
@@ -75,6 +84,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Fiche de renseignements signée",
       shortLabel: "Fiche renseig.",
       category: "INSCRIPTION",
+      nature: "SIGNATURE",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
@@ -84,6 +94,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Règlement intérieur signé",
       shortLabel: "Règlement int.",
       category: "INSCRIPTION",
+      nature: "SIGNATURE",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
@@ -95,6 +106,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Extrait ou bulletin de naissance",
       shortLabel: "Extrait de naissance",
       category: "IDENTITE",
+      nature: "UPLOAD",
       source: "OFFICIEL",
       required: true,
       pinned: true,
@@ -104,6 +116,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Certificat de scolarité préscolaire",
       shortLabel: "Certif. préscolaire",
       category: "SCOLARITE",
+      nature: "AUTO",
       source: "OFFICIEL",
       required: true,
       pinned: false,
@@ -111,9 +124,10 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       order: 2,
     },
     {
-      label: "Fiche scolaire / certificat de scolarité",
-      shortLabel: "Fiche scolaire",
+      label: "Certificat de scolarité",
+      shortLabel: "Certificat scolarité",
       category: "SCOLARITE",
+      nature: "AUTO",
       source: "OFFICIEL",
       required: true,
       pinned: true,
@@ -123,6 +137,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Certificat de transfert (exeat)",
       shortLabel: "Certif. exeat",
       category: "SCOLARITE",
+      nature: "UPLOAD",
       source: "OFFICIEL",
       required: true,
       pinned: false,
@@ -133,6 +148,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Bulletin de l'année précédente",
       shortLabel: "Bulletin N-1",
       category: "SCOLARITE",
+      nature: "AUTO",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
@@ -142,6 +158,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Photos d'identité",
       shortLabel: "Photos",
       category: "IDENTITE",
+      nature: "UPLOAD",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
@@ -151,6 +168,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Fiche de renseignements signée",
       shortLabel: "Fiche renseig.",
       category: "INSCRIPTION",
+      nature: "SIGNATURE",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
@@ -160,6 +178,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Pièce d'identité du tuteur",
       shortLabel: "CNI Tuteur",
       category: "IDENTITE",
+      nature: "UPLOAD",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
@@ -169,10 +188,21 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Règlement intérieur signé",
       shortLabel: "Règlement int.",
       category: "INSCRIPTION",
+      nature: "SIGNATURE",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
       order: 9,
+    },
+    {
+      label: "Personnes autorisées à récupérer l'enfant",
+      shortLabel: "Personnes autorisées",
+      category: "INSCRIPTION",
+      nature: "SIGNATURE",
+      source: "ETABLISSEMENT",
+      required: false,
+      pinned: false,
+      order: 10,
     },
   ],
   MOYEN: [
@@ -180,15 +210,17 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Acte d'état civil (bulletin, extrait ou jugement)",
       shortLabel: "Acte d'état civil",
       category: "IDENTITE",
+      nature: "UPLOAD",
       source: "OFFICIEL",
       required: true,
       pinned: true,
       order: 1,
     },
     {
-      label: "Fiche scolaire",
-      shortLabel: "Fiche scolaire",
+      label: "Certificat de scolarité",
+      shortLabel: "Certificat scolarité",
       category: "SCOLARITE",
+      nature: "AUTO",
       source: "OFFICIEL",
       required: true,
       pinned: true,
@@ -198,6 +230,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Demande d'inscription",
       shortLabel: "Demande inscrip.",
       category: "INSCRIPTION",
+      nature: "SIGNATURE",
       source: "OFFICIEL",
       required: true,
       pinned: false,
@@ -207,6 +240,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Relevé de notes CFEE",
       shortLabel: "Relevé CFEE",
       category: "EXAMENS",
+      nature: "UPLOAD",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
@@ -216,6 +250,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Bulletin de l'année précédente",
       shortLabel: "Bulletin N-1",
       category: "SCOLARITE",
+      nature: "AUTO",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
@@ -225,6 +260,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Photos d'identité",
       shortLabel: "Photos",
       category: "IDENTITE",
+      nature: "UPLOAD",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
@@ -234,6 +270,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Pièce d'identité du tuteur",
       shortLabel: "CNI Tuteur",
       category: "IDENTITE",
+      nature: "UPLOAD",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
@@ -243,10 +280,21 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Règlement intérieur signé",
       shortLabel: "Règlement int.",
       category: "INSCRIPTION",
+      nature: "SIGNATURE",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
       order: 8,
+    },
+    {
+      label: "Personnes autorisées à récupérer l'enfant",
+      shortLabel: "Personnes autorisées",
+      category: "INSCRIPTION",
+      nature: "SIGNATURE",
+      source: "ETABLISSEMENT",
+      required: false,
+      pinned: false,
+      order: 9,
     },
   ],
   SECONDAIRE: [
@@ -254,15 +302,17 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Acte d'état civil",
       shortLabel: "Acte d'état civil",
       category: "IDENTITE",
+      nature: "UPLOAD",
       source: "OFFICIEL",
       required: true,
       pinned: true,
       order: 1,
     },
     {
-      label: "Fiche scolaire / certificat de scolarité",
-      shortLabel: "Fiche scolaire",
+      label: "Certificat de scolarité",
+      shortLabel: "Certificat scolarité",
       category: "SCOLARITE",
+      nature: "AUTO",
       source: "OFFICIEL",
       required: true,
       pinned: true,
@@ -272,6 +322,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Relevé de notes BFEM",
       shortLabel: "Relevé BFEM",
       category: "EXAMENS",
+      nature: "UPLOAD",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
@@ -281,6 +332,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Bulletin de l'année précédente",
       shortLabel: "Bulletin N-1",
       category: "SCOLARITE",
+      nature: "AUTO",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
@@ -290,6 +342,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Photos d'identité",
       shortLabel: "Photos",
       category: "IDENTITE",
+      nature: "UPLOAD",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
@@ -299,6 +352,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Pièce d'identité du tuteur",
       shortLabel: "CNI Tuteur",
       category: "IDENTITE",
+      nature: "UPLOAD",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
@@ -308,10 +362,21 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Règlement intérieur signé",
       shortLabel: "Règlement int.",
       category: "INSCRIPTION",
+      nature: "SIGNATURE",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,
       order: 7,
+    },
+    {
+      label: "Personnes autorisées à récupérer l'enfant",
+      shortLabel: "Personnes autorisées",
+      category: "INSCRIPTION",
+      nature: "SIGNATURE",
+      source: "ETABLISSEMENT",
+      required: false,
+      pinned: false,
+      order: 8,
     },
   ],
   AUTRE: [
@@ -319,6 +384,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Extrait ou bulletin de naissance",
       shortLabel: "Extrait de naissance",
       category: "IDENTITE",
+      nature: "UPLOAD",
       source: "OFFICIEL",
       required: true,
       pinned: true,
@@ -328,6 +394,7 @@ export const OFFICIAL_REQUIREMENTS_BY_CYCLE: Record<EducationalCycle, OfficialRe
       label: "Règlement intérieur signé",
       shortLabel: "Règlement int.",
       category: "INSCRIPTION",
+      nature: "SIGNATURE",
       source: "ETABLISSEMENT",
       required: false,
       pinned: false,

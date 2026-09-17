@@ -24,7 +24,7 @@ const getEmptyState = () => ({
  * casserait la route (piège du lot 13.1). La page la calcule et la descend.
  */
 export default function CertificateGenerator({ students, school, initialStudentId, academicYear }: { students: any[], school: any, initialStudentId?: string | null, academicYear: string }) {
-  const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [selectedStudentId, setSelectedStudentId] = useState(initialStudentId || "");
   
   // State for document data
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);

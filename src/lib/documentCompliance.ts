@@ -87,7 +87,7 @@ export async function documentComplianceOverview(actor: ActorContext): Promise<C
   for (const s of students) {
     const c = combinaisonDe(s);
     if (!requisParCombinaison.has(c.key)) {
-      requisParCombinaison.set(c.key, await requirementsFor(actor, { classId: c.classId, cycle: c.cycle, kind: c.kind, year }));
+      requisParCombinaison.set(c.key, await requirementsFor(actor, { classId: c.classId, className: c.className, cycle: c.cycle, kind: c.kind, year }));
     }
   }
 
@@ -115,8 +115,20 @@ export async function documentComplianceOverview(actor: ActorContext): Promise<C
       continue;
     }
     const recues = recuesParEleve.get(s.id) ?? new Set<string>();
-    const received = requirements.filter((r) => recues.has(r.id)).length;
-    const required = requirements.length;
+    const isAcquired = (r: (typeof requirements)[number]) => {
+      if (r.nature === "AUTO") {
+        const lbl = r.label.toLowerCase();
+        if (lbl.includes("certificat") || lbl.includes("scolaire")) return s.enrollments.length > 0;
+        if (lbl.includes("bulletin")) return s.enrollments.some((e) => e.academicYear !== year);
+      }
+      return recues.has(r.id);
+    };
+
+    const requiredReqs = requirements.filter((r) => r.required);
+    const targetReqs = requiredReqs.length > 0 ? requiredReqs : requirements;
+    const received = targetReqs.filter(isAcquired).length;
+    const required = targetReqs.length;
+
     configured.push({
       studentId: s.id, firstName: s.firstName, lastName: s.lastName, className: c.className, cycle: c.cycle,
       required, received, percent: Math.round((received / required) * 100), compliant: received === required,
