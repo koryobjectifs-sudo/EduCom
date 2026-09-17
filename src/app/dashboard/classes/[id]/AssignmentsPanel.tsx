@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, Trash2, Loader2, TriangleAlert, Users, BookOpen } from "lucide-react";
+import { UserPlus, Trash2, Loader2, TriangleAlert, Users, BookOpen, AlertTriangle } from "lucide-react";
 import { createAssignment, deleteAssignment } from "../../grades/actions";
 
 type Assignment = {
@@ -10,6 +10,15 @@ type Assignment = {
   subjectId: string | null;
   teacher: { id: string; firstName: string; lastName: string };
   subject: { id: string; name: string } | null;
+};
+
+type TeacherOption = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  assignedClassCount?: number;
+  highLoadWarning?: boolean;
+  subjectIdsTaught?: string[];
 };
 
 /**
@@ -28,7 +37,7 @@ export default function AssignmentsPanel({
 }: {
   classId: string;
   assignments: Assignment[];
-  teachers: { id: string; firstName: string; lastName: string }[];
+  teachers: TeacherOption[];
   subjects: { id: string; name: string }[];
   canEdit: boolean;
 }) {
@@ -37,22 +46,53 @@ export default function AssignmentsPanel({
   const [subjectId, setSubjectId] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
+
+  const selectedTeacher = teachers.find((t) => t.id === teacherId);
+
+  // Filtrage des enseignants recommandés si une matière est choisie
+  const recommendedTeachers = subjectId
+    ? teachers.filter((t) => t.subjectIdsTaught?.includes(subjectId))
+    : [];
+  const otherTeachers = subjectId
+    ? teachers.filter((t) => !t.subjectIdsTaught?.includes(subjectId))
+    : teachers;
 
   const add = async () => {
-    if (!teacherId) { setError("Choisissez un enseignant."); return; }
-    setIsBusy(true); setError(null);
+    if (!teacherId) {
+      setError("Choisissez un enseignant.");
+      return;
+    }
+    setIsBusy(true);
+    setError(null);
+    setWarning(null);
+
     const res = await createAssignment(classId, teacherId, subjectId || null);
     setIsBusy(false);
-    if (res?.error) { setError(res.error); return; }
-    setTeacherId(""); setSubjectId("");
+    if (res?.error) {
+      setError(res.error);
+      return;
+    }
+    if (selectedTeacher?.highLoadWarning) {
+      setWarning(
+        `Attention : ${selectedTeacher.firstName} ${selectedTeacher.lastName} est désormais affecté(e) à plus de 8 classes. Vérifiez s'il ne s'agit pas d'une erreur de saisie.`
+      );
+    }
+    setTeacherId("");
+    setSubjectId("");
     router.refresh();
   };
 
   const remove = async (id: string) => {
-    setIsBusy(true); setError(null);
+    setIsBusy(true);
+    setError(null);
+    setWarning(null);
     const res = await deleteAssignment(id);
     setIsBusy(false);
-    if (res?.error) { setError(res.error); return; }
+    if (res?.error) {
+      setError(res.error);
+      return;
+    }
     router.refresh();
   };
 
@@ -66,12 +106,18 @@ export default function AssignmentsPanel({
       </div>
       <p className="text-xs text-gray-500 mb-4">
         Détermine qui peut saisir quoi dans cette classe. Sans matière précisée,
-        l'enseignant couvre tout le programme.
+        l&apos;enseignant couvre tout le programme.
       </p>
 
       {error && (
         <p className="mb-3 text-[13px] text-red-600 flex items-center gap-1.5 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
           <TriangleAlert className="w-3.5 h-3.5 shrink-0" /> {error}
+        </p>
+      )}
+
+      {warning && (
+        <p className="mb-3 text-[12px] text-amber-900 flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600" /> {warning}
         </p>
       )}
 
@@ -115,26 +161,56 @@ export default function AssignmentsPanel({
       {canEdit && (
         <div className="space-y-2 border-t border-gray-100 pt-3">
           <select
-            value={teacherId}
-            onChange={(e) => { setTeacherId(e.target.value); setError(null); }}
+            value={subjectId}
+            onChange={(e) => {
+              setSubjectId(e.target.value);
+              setError(null);
+            }}
             className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-[13px] bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
           >
-            <option value="">Enseignant...</option>
-            {teachers.map((t) => (
-              <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>
+            <option value="">Toutes les matières de la classe (Maître unique)</option>
+            {subjects.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
             ))}
           </select>
 
           <select
-            value={subjectId}
-            onChange={(e) => setSubjectId(e.target.value)}
+            value={teacherId}
+            onChange={(e) => {
+              setTeacherId(e.target.value);
+              setError(null);
+            }}
             className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-[13px] bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
           >
-            <option value="">Toutes les matières de la classe</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
+            <option value="">Choisir un enseignant...</option>
+            {recommendedTeachers.length > 0 && (
+              <optgroup label="⭐ Enseignants de la matière (recommandés)">
+                {recommendedTeachers.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.firstName} {t.lastName} ({t.assignedClassCount ?? 0} cl.)
+                    {t.highLoadWarning ? " ⚠️ > 8 classes" : ""}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label={recommendedTeachers.length > 0 ? "Autres enseignants" : "Enseignants"}>
+              {otherTeachers.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.firstName} {t.lastName} ({t.assignedClassCount ?? 0} cl.)
+                  {t.highLoadWarning ? " ⚠️ > 8 classes" : ""}
+                </option>
+              ))}
+            </optgroup>
           </select>
+
+          {selectedTeacher?.highLoadWarning && (
+            <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 flex items-center gap-1.5">
+              <AlertTriangle className="w-3 h-3 shrink-0 text-amber-600" />
+              Attention : {selectedTeacher.firstName} {selectedTeacher.lastName} est affecté(e) à {selectedTeacher.assignedClassCount} classes (&gt; 8).
+            </p>
+          )}
 
           <button
             onClick={add}

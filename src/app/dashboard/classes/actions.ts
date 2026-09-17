@@ -5,6 +5,19 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { attachCurriculumSubjectsToClass } from "@/lib/notes/class-subjects";
+import { deduceCycleAndSerie } from "@/app/dashboard/students/import/utils";
+
+function normalizeOrDeduceCycle(rawCycle: string | null | undefined, className: string): any {
+  let c = (rawCycle || "").trim().toUpperCase();
+  if (c === "MATERNELLE") c = "PRESCOLAIRE";
+  if (c === "COLLEGE") c = "MOYEN";
+  if (c === "LYCEE") c = "SECONDAIRE";
+  if (c === "PRESCOLAIRE" || c === "ELEMENTAIRE" || c === "MOYEN" || c === "SECONDAIRE") {
+    return c;
+  }
+  const deduced = deduceCycleAndSerie(className);
+  return deduced.cycle;
+}
 
 export async function createClass(formData: FormData) {
   const supabase = await createClient();
@@ -19,23 +32,20 @@ export async function createClass(formData: FormData) {
 
   const name = formData.get("name") as string;
   const teacherId = formData.get("teacherId") as string;
-  const cycle = formData.get("cycle") as string;
+  const rawCycle = formData.get("cycle") as string;
 
   if (!name) {
     return { error: "Le nom de la classe est requis." };
   }
 
-  if (!cycle) {
-    return { error: "Le cycle éducatif est requis." };
-  }
-
+  const cycle = normalizeOrDeduceCycle(rawCycle, name);
   const serie = formData.get("serie") as string | null;
 
   try {
     const created = await prisma.class.create({
       data: {
         name,
-        cycle: cycle as any,
+        cycle: cycle,
         serie: serie || null,
         schoolId: dbUser.schoolId,
         teacherId: teacherId || null,
@@ -65,19 +75,20 @@ export async function createClassInline(formData: FormData) {
 
   const name = formData.get("name") as string;
   const teacherId = formData.get("teacherId") as string;
-  const cycle = formData.get("cycle") as any;
+  const rawCycle = formData.get("cycle") as string;
 
   if (!name) {
     return { error: "Le nom de la classe est requis." };
   }
 
+  const cycle = normalizeOrDeduceCycle(rawCycle, name);
   const serie = formData.get("serie") as string | null;
 
   try {
     const created = await prisma.class.create({
       data: {
         name,
-        cycle: cycle || "AUTRE",
+        cycle,
         serie: serie || null,
         schoolId: dbUser.schoolId,
         teacherId: teacherId || null,
@@ -104,15 +115,13 @@ export async function updateClass(id: string, formData: FormData) {
 
   const name = formData.get("name") as string;
   const teacherId = formData.get("teacherId") as string;
-  const cycle = formData.get("cycle") as string;
+  const rawCycle = formData.get("cycle") as string;
 
   if (!name) {
     return { error: "Le nom de la classe est requis." };
   }
 
-  if (!cycle) {
-    return { error: "Le cycle éducatif est requis." };
-  }
+  const cycle = normalizeOrDeduceCycle(rawCycle, name);
 
   try {
     await prisma.class.update({
@@ -122,7 +131,7 @@ export async function updateClass(id: string, formData: FormData) {
       },
       data: {
         name,
-        cycle: cycle as any,
+        cycle,
         teacherId: teacherId || null,
       }
     });
@@ -136,15 +145,23 @@ export async function updateClass(id: string, formData: FormData) {
   return { success: true };
 }
 
-export async function assignTeacherDirectly(classId: string, teacherId: string | null) {
+export async function assignTeacherDirectly(
+  classId: string,
+  teacherId: string | null,
+  teachSubjectId?: string | null
+) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non autorisé" };
 
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
   if (!dbUser) return { error: "Utilisateur introuvable" };
+  if (!["OWNER", "ADMIN", "SECRETARY"].includes(dbUser.role)) {
+    return { error: "Seule la direction peut désigner le professeur principal." };
+  }
 
   try {
+    // 1. Mettre à jour le titulaire / professeur principal
     await prisma.class.update({
       where: {
         id: classId,
@@ -155,13 +172,219 @@ export async function assignTeacherDirectly(classId: string, teacherId: string |
       },
     });
 
+    // 2. Si un professeur principal est désigné et qu'une matière d'enseignement est fournie
+    if (teacherId && teachSubjectId) {
+      const existingAssign = await prisma.teachingAssignment.findFirst({
+        where: {
+          classId,
+          subjectId: teachSubjectId,
+        },
+      });
+
+      if (existingAssign) {
+        await prisma.teachingAssignment.update({
+          where: { id: existingAssign.id },
+          data: { teacherId },
+        });
+      } else {
+        await prisma.teachingAssignment.create({
+          data: {
+            classId,
+            teacherId,
+            subjectId: teachSubjectId,
+            schoolId: dbUser.schoolId,
+          },
+        });
+      }
+    }
+
+    // 3. Détection de charge extrême (> 8 classes)
+    let warning: string | null = null;
+    if (teacherId) {
+      const teacherAssignments = await prisma.teachingAssignment.findMany({
+        where: { teacherId, schoolId: dbUser.schoolId },
+        select: { classId: true },
+      });
+      const distinctClasses = new Set(teacherAssignments.map((a) => a.classId));
+      distinctClasses.add(classId);
+
+      if (distinctClasses.size > 8) {
+        warning = `Attention : cet enseignant est affecté à ${distinctClasses.size} classes (> 8). Vérifiez s'il ne s'agit pas d'une erreur de saisie.`;
+      }
+    }
+
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/classes");
+    revalidatePath(`/dashboard/classes/${classId}`);
     revalidatePath("/dashboard/settings/pedagogie");
-    return { success: true };
+    return { success: true, warning };
   } catch (error) {
     console.error("Error assigning teacher to class:", error);
     return { error: "Erreur lors de l'affectation de l'enseignant." };
+  }
+}
+
+/**
+ * Affecte ou retire un enseignant pour une matière précise d'une classe.
+ */
+export async function assignSubjectTeacher(
+  classId: string,
+  subjectId: string,
+  teacherId: string | null
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non autorisé" };
+
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { error: "Utilisateur introuvable" };
+  if (!["OWNER", "ADMIN", "SECRETARY"].includes(dbUser.role)) {
+    return { error: "Seule la direction peut modifier les affectations." };
+  }
+
+  try {
+    if (!teacherId) {
+      // Retirer l'affectation sur cette matière
+      await prisma.teachingAssignment.deleteMany({
+        where: {
+          classId,
+          subjectId,
+          schoolId: dbUser.schoolId,
+        },
+      });
+      revalidatePath(`/dashboard/classes/${classId}`);
+      revalidatePath("/dashboard/classes");
+      return { success: true };
+    }
+
+    // Remplacer ou créer l'affectation
+    const existing = await prisma.teachingAssignment.findFirst({
+      where: {
+        classId,
+        subjectId,
+      },
+    });
+
+    if (existing) {
+      await prisma.teachingAssignment.update({
+        where: { id: existing.id },
+        data: { teacherId },
+      });
+    } else {
+      await prisma.teachingAssignment.create({
+        data: {
+          classId,
+          subjectId,
+          teacherId,
+          schoolId: dbUser.schoolId,
+        },
+      });
+    }
+
+    // Vérifier si charge extrême (> 8 classes)
+    let warning: string | null = null;
+    const teacherAssignments = await prisma.teachingAssignment.findMany({
+      where: { teacherId, schoolId: dbUser.schoolId },
+      select: { classId: true },
+    });
+    const distinctClasses = new Set(teacherAssignments.map((a) => a.classId));
+    if (distinctClasses.size > 8) {
+      warning = `Attention : cet enseignant est affecté à ${distinctClasses.size} classes (> 8). Vérifiez s'il ne s'agit pas d'une erreur de saisie.`;
+    }
+
+    revalidatePath(`/dashboard/classes/${classId}`);
+    revalidatePath("/dashboard/classes");
+    revalidatePath("/dashboard/settings/pedagogie");
+    return { success: true, warning };
+  } catch (error: any) {
+    console.error("Error in assignSubjectTeacher:", error);
+    return { error: error.message || "Erreur lors de l'affectation de la matière." };
+  }
+}
+
+/**
+ * Affectation en masse depuis la fiche / vue enseignant :
+ * Permet d'affecter un enseignant à plusieurs classes pour une matière en une seule opération.
+ */
+export async function assignTeacherBulk(
+  teacherId: string,
+  subjectId: string | null,
+  targetClassIds: string[]
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non autorisé" };
+
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { error: "Utilisateur introuvable" };
+  if (!["OWNER", "ADMIN", "SECRETARY"].includes(dbUser.role)) {
+    return { error: "Seule la direction peut effectuer des affectations en masse." };
+  }
+
+  try {
+    // 1. Vérifier que l'enseignant appartient à l'école
+    const teacher = await prisma.user.findFirst({
+      where: { id: teacherId, schoolId: dbUser.schoolId },
+    });
+    if (!teacher) return { error: "Enseignant introuvable dans cet établissement." };
+
+    // 2. Pour chaque classe ciblée, remplacer ou ajouter l'affectation
+    for (const classId of targetClassIds) {
+      // Si subjectId est précisé, remplacer l'affectation existante sur ce sujet
+      if (subjectId) {
+        const existing = await prisma.teachingAssignment.findFirst({
+          where: { classId, subjectId },
+        });
+        if (existing) {
+          await prisma.teachingAssignment.update({
+            where: { id: existing.id },
+            data: { teacherId },
+          });
+        } else {
+          await prisma.teachingAssignment.create({
+            data: {
+              classId,
+              subjectId,
+              teacherId,
+              schoolId: dbUser.schoolId,
+            },
+          });
+        }
+      } else {
+        // Maître unique / toutes matières
+        const existingAll = await prisma.teachingAssignment.findFirst({
+          where: { classId, teacherId, subjectId: null },
+        });
+        if (!existingAll) {
+          await prisma.teachingAssignment.create({
+            data: {
+              classId,
+              subjectId: null,
+              teacherId,
+              schoolId: dbUser.schoolId,
+            },
+          });
+        }
+      }
+    }
+
+    // 3. Détection de charge extrême (> 8 classes)
+    const teacherAssignments = await prisma.teachingAssignment.findMany({
+      where: { teacherId, schoolId: dbUser.schoolId },
+      select: { classId: true },
+    });
+    const distinctClasses = new Set(teacherAssignments.map((a) => a.classId));
+    let warning: string | null = null;
+    if (distinctClasses.size > 8) {
+      warning = `Attention : cet enseignant est désormais affecté à ${distinctClasses.size} classes (> 8). Vérifiez s'il ne s'agit pas d'une erreur de saisie.`;
+    }
+
+    revalidatePath("/dashboard/classes");
+    revalidatePath("/dashboard/settings/pedagogie");
+    return { success: true, count: targetClassIds.length, warning };
+  } catch (error: any) {
+    console.error("Error in assignTeacherBulk:", error);
+    return { error: error.message || "Erreur lors de l'affectation en masse." };
   }
 }
 

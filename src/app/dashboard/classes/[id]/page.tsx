@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, Edit, Users, BookOpen, GraduationCap, Calendar, User } from "lucide-react";
 import AssignmentsPanel from "./AssignmentsPanel";
 import { StatusBadge } from "@/components/ui/Badge";
+import GenerateDocumentDropdown from "@/components/documents/GenerateDocumentDropdown";
 
 export default async function ClassProfilePage({
   params,
@@ -45,7 +46,7 @@ export default async function ClassProfilePage({
   const academicYear = `${currentYear}-${currentYear + 1}`;
 
   // Affectations : qui saisit quoi dans cette classe.
-  const [assignments, teachers, classSubjects] = await Promise.all([
+  const [assignments, rawTeachers, classSubjects, allSchoolAssignments] = await Promise.all([
     prisma.teachingAssignment.findMany({
       where: { classId: id, schoolId: dbUser.schoolId },
       include: {
@@ -55,15 +56,42 @@ export default async function ClassProfilePage({
       orderBy: { createdAt: "asc" },
     }),
     prisma.user.findMany({
-      where: { schoolId: dbUser.schoolId, role: "TEACHER" },
+      where: { schoolId: dbUser.schoolId, role: { in: ["TEACHER", "OWNER", "ADMIN"] } },
       select: { id: true, firstName: true, lastName: true },
-      orderBy: { firstName: "asc" },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     }),
     prisma.classSubject.findMany({
       where: { classId: id },
       include: { subject: { select: { id: true, name: true } } },
     }),
+    prisma.teachingAssignment.findMany({
+      where: { schoolId: dbUser.schoolId },
+      select: { teacherId: true, classId: true, subjectId: true },
+    }),
   ]);
+
+  const teacherClassSets = new Map<string, Set<string>>();
+  const teacherSubjectSets = new Map<string, Set<string>>();
+  for (const a of allSchoolAssignments) {
+    if (!teacherClassSets.has(a.teacherId)) teacherClassSets.set(a.teacherId, new Set());
+    teacherClassSets.get(a.teacherId)!.add(a.classId);
+    if (a.subjectId) {
+      if (!teacherSubjectSets.has(a.teacherId)) teacherSubjectSets.set(a.teacherId, new Set());
+      teacherSubjectSets.get(a.teacherId)!.add(a.subjectId);
+    }
+  }
+
+  const teachers = rawTeachers.map((t) => {
+    const classCount = teacherClassSets.get(t.id)?.size || 0;
+    return {
+      id: t.id,
+      firstName: t.firstName,
+      lastName: t.lastName,
+      assignedClassCount: classCount,
+      highLoadWarning: classCount > 8,
+      subjectIdsTaught: Array.from(teacherSubjectSets.get(t.id) || []),
+    };
+  });
 
   const canEditAssignments = ["OWNER", "ADMIN", "SECRETARY"].includes(dbUser.role);
 
@@ -102,6 +130,12 @@ export default async function ClassProfilePage({
               ferment le chemin vers les deux actions les plus fréquentes sur
               une classe, sans déplacer les écrans eux-mêmes. */}
           <div className="flex flex-wrap items-center gap-2">
+            <GenerateDocumentDropdown
+              context="class"
+              classId={classData.id}
+              className={classData.name}
+              variant="banner"
+            />
             <Link
               href={`/dashboard/grades/bulletin?classId=${classData.id}`}
               className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-white/15 border border-white/30 rounded-2xl hover:bg-white/25 transition-all backdrop-blur-md"
@@ -116,7 +150,7 @@ export default async function ClassProfilePage({
             </Link>
             <Link
               href={`/dashboard/classes/${classData.id}/edit`}
-              className="flex items-center gap-2 px-6 py-3 text-sm font-bold text-primary bg-white rounded-2xl hover:bg-gray-50 transition-all hover:scale-105 hover:shadow-lg"
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-white/15 border border-white/30 rounded-2xl hover:bg-white/25 transition-all backdrop-blur-md"
             >
               <Edit className="h-4 w-4" /> Configurer
             </Link>

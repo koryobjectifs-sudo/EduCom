@@ -158,8 +158,8 @@ export function curriculumFor(className: string, cycle: string): string[] {
     const l = normalize(level);
     if (n === l || n.startsWith(`${l} `) || n.startsWith(`${l}-`)) return subjects;
   }
-  if (cycle === "LYCEE") return PROGRAMME_LYCEE;
-  if (cycle === "COLLEGE") return PROGRAMME_COLLEGE;
+  if (cycle === "LYCEE" || cycle === "SECONDAIRE") return PROGRAMME_LYCEE;
+  if (cycle === "COLLEGE" || cycle === "MOYEN") return PROGRAMME_COLLEGE;
   return [];
 }
 

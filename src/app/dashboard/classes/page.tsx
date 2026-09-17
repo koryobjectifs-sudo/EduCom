@@ -35,7 +35,7 @@ export default async function ClassesPage({ searchParams }: ClassesPageProps) {
   const searchParam = sp?.q || "";
   const activeYear = currentAcademicYear(school);
 
-  const [rawClasses, teachers] = await Promise.all([
+  const [rawClasses, teachers, allAssignments, allSubjects] = await Promise.all([
     prisma.class.findMany({
       where: { schoolId },
       include: {
@@ -45,6 +45,14 @@ export default async function ClassesPage({ searchParams }: ClassesPageProps) {
         enrollments: {
           where: { academicYear: activeYear },
           select: { id: true },
+        },
+        subjects: {
+          select: {
+            subjectId: true,
+            coefficient: true,
+            subject: { select: { id: true, name: true } },
+          },
+          orderBy: { subject: { name: "asc" } },
         },
         _count: {
           select: {
@@ -59,21 +67,108 @@ export default async function ClassesPage({ searchParams }: ClassesPageProps) {
       select: { id: true, firstName: true, lastName: true, email: true, role: true },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     }),
+    prisma.teachingAssignment.findMany({
+      where: { schoolId },
+      select: {
+        id: true,
+        classId: true,
+        teacherId: true,
+        subjectId: true,
+        teacher: { select: { id: true, firstName: true, lastName: true } },
+      },
+    }),
+    prisma.subject.findMany({
+      where: { schoolId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
-  const classes: ClassItem[] = rawClasses.map((c) => ({
-    id: c.id,
-    name: c.name,
-    cycle: c.cycle,
-    teacherId: c.teacherId,
-    teacher: c.teacher,
-    _count: {
-      enrollments: c.enrollments.length,
-      grades: c._count.grades,
-    },
-  }));
+  // 1. Calcul de charge par enseignant et des matières enseignées
+  const teacherClassSets = new Map<string, Set<string>>();
+  const teacherSubjectSets = new Map<string, Set<string>>();
 
-  const unassignedCount = classes.filter((c) => !c.teacherId).length;
+  for (const c of rawClasses) {
+    if (c.teacherId) {
+      if (!teacherClassSets.has(c.teacherId)) teacherClassSets.set(c.teacherId, new Set());
+      teacherClassSets.get(c.teacherId)!.add(c.id);
+    }
+  }
+
+  for (const a of allAssignments) {
+    if (!teacherClassSets.has(a.teacherId)) teacherClassSets.set(a.teacherId, new Set());
+    teacherClassSets.get(a.teacherId)!.add(a.classId);
+
+    if (a.subjectId) {
+      if (!teacherSubjectSets.has(a.teacherId)) teacherSubjectSets.set(a.teacherId, new Set());
+      teacherSubjectSets.get(a.teacherId)!.add(a.subjectId);
+    }
+  }
+
+  const teacherItems: TeacherItem[] = teachers.map((t) => {
+    const classCount = teacherClassSets.get(t.id)?.size || 0;
+    return {
+      id: t.id,
+      firstName: t.firstName,
+      lastName: t.lastName,
+      email: t.email,
+      role: t.role,
+      assignedClassCount: classCount,
+      highLoadWarning: classCount > 8,
+      subjectIdsTaught: Array.from(teacherSubjectSets.get(t.id) || []),
+    };
+  });
+
+  // 2. Indexation des affectations par classe
+  const classAssignmentsMap = new Map<string, Map<string, { id: string; name: string }>>();
+  const classGeneralTeacherMap = new Map<string, { id: string; name: string }>();
+
+  for (const a of allAssignments) {
+    const tName = `${a.teacher.firstName} ${a.teacher.lastName}`.trim();
+    if (a.subjectId === null) {
+      classGeneralTeacherMap.set(a.classId, { id: a.teacherId, name: tName });
+    } else {
+      if (!classAssignmentsMap.has(a.classId)) {
+        classAssignmentsMap.set(a.classId, new Map());
+      }
+      classAssignmentsMap.get(a.classId)!.set(a.subjectId, { id: a.teacherId, name: tName });
+    }
+  }
+
+  // 3. Construction des classes avec leurs matières et enseignants
+  let totalUnassignedSubjects = 0;
+
+  const classes: ClassItem[] = rawClasses.map((c) => {
+    const subjectsMap = classAssignmentsMap.get(c.id);
+    const generalTeacher = classGeneralTeacherMap.get(c.id);
+
+    const subjects = c.subjects.map((cs) => {
+      const assigned = subjectsMap?.get(cs.subjectId) || generalTeacher || null;
+      if (!assigned) totalUnassignedSubjects++;
+      return {
+        subjectId: cs.subjectId,
+        subjectName: cs.subject.name,
+        coefficient: cs.coefficient || 1,
+        assignedTeacherId: assigned?.id || null,
+        assignedTeacherName: assigned?.name || null,
+      };
+    });
+
+    return {
+      id: c.id,
+      name: c.name,
+      cycle: c.cycle,
+      teacherId: c.teacherId,
+      teacher: c.teacher,
+      _count: {
+        enrollments: c.enrollments.length,
+        grades: c._count.grades,
+      },
+      subjects,
+    };
+  });
+
+  const unassignedClassesCount = classes.filter((c) => !c.teacherId).length;
 
   return (
     <div className="space-y-6 pb-12">
@@ -83,9 +178,7 @@ export default async function ClassesPage({ searchParams }: ClassesPageProps) {
           { label: "Classes & Niveaux" },
         ]}
         title="Classes et Niveaux"
-        description={`${classes.length} classe${classes.length > 1 ? "s" : ""} configurée${classes.length > 1 ? "s" : ""}${
-          unassignedCount > 0 ? ` · ${unassignedCount} sans titulaire` : ""
-        }`}
+        description={`${classes.length} classes configurées · ${unassignedClassesCount} sans titulaire · ${totalUnassignedSubjects} matières sans enseignant`}
         actions={
           <div className="flex items-center gap-2">
             <Link
@@ -108,11 +201,13 @@ export default async function ClassesPage({ searchParams }: ClassesPageProps) {
 
       <ClassListClient
         classes={classes}
-        teachers={teachers as unknown as TeacherItem[]}
+        teachers={teacherItems}
+        allSubjects={allSubjects}
         searchTerm={searchParam}
         initialFilter={filterParam}
         selectedCycleParam={cycleParam}
         activeYear={activeYear}
+        totalUnassignedSubjects={totalUnassignedSubjects}
       />
     </div>
   );

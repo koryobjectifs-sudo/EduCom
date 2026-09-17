@@ -68,10 +68,10 @@ export function ClassForm({ teachers, initialData }: { teachers: any[], initialD
               hint="Détermine le regroupement de la classe sur la page Classes."
             >
               <option value="" disabled>Choisir un cycle...</option>
-              <option value="MATERNELLE">Maternelle</option>
+              <option value="PRESCOLAIRE">Maternelle</option>
               <option value="ELEMENTAIRE">Élémentaire</option>
-              <option value="COLLEGE">Collège</option>
-              <option value="LYCEE">Lycée</option>
+              <option value="MOYEN">Collège</option>
+              <option value="SECONDAIRE">Lycée</option>
             </Select>
             <Select
               label="Professeur Principal"
