@@ -64,24 +64,27 @@ async function main() {
     "/dashboard/communications",
     "/dashboard/admin",
     "/dashboard/attendance",
+    "/dashboard/payments/receipt",
   ];
 
-  let canary404Count = 0;
+  let canaryErrorCount = 0;
   for (const r of canaryRoutes) {
     try {
       const res = await fetch(`${BASE}${r}`, { method: "HEAD", redirect: "manual" });
-      if (res.status === 404) canary404Count++;
-    } catch {}
+      if (res.status === 404 || res.status >= 500) canaryErrorCount++;
+    } catch {
+      canaryErrorCount++;
+    }
   }
 
-  if (canaryRoutes.length > 0 && canary404Count / canaryRoutes.length > 0.1) {
+  if (canaryRoutes.length > 0 && canaryErrorCount / canaryRoutes.length > 0.1) {
     console.error("\n" + "=".repeat(65));
-    console.error("⛔ Application non compilée — supprimez .next et relancez");
-    console.error(`   Échec critique : ${canary404Count}/${canaryRoutes.length} routes de démarrage renvoient 404 (> 10%).`);
+    console.error("⛔ Application non compilée ou corrompue — supprimez .next et relancez");
+    console.error(`   Échec critique : ${canaryErrorCount}/${canaryRoutes.length} routes de démarrage renvoient 404/500 (> 10%).`);
     console.error("=".repeat(65) + "\n");
-    throw new Error("Application non compilée — supprimez .next et relancez");
+    throw new Error("Application non compilée ou corrompue — supprimez .next et relancez");
   }
-  console.log("✓ Cache de compilation valide au démarrage (pré-contrôle 404 OK).\n");
+  console.log("✓ Cache de compilation valide au démarrage (pré-contrôle 404/500 OK).\n");
 
   const admin = createAdminClient();
   const stamp = Date.now();
@@ -243,6 +246,13 @@ async function main() {
     "Unhandled Runtime Error",
     "Application error: a client-side exception has occurred",
     'data-testid="error-boundary"',
+    "This page isn’t working",
+    "This page isn't working",
+    "Cette page ne fonctionne pas",
+    "HTTP ERROR 500",
+    "500 Internal Server Error",
+    "build-manifest.json",
+    "ENOENT",
   ];
 
   function detectErrorInHtml(html: string): string | null {
@@ -268,6 +278,37 @@ async function main() {
     const cookieHeader = ownerCookies.map((c) => `${c.name}=${c.value}`).join("; ");
     const ownerCookieHeader = cookieHeader;
 
+    // Contrôle canary authentifié : vérification immédiate des 10 routes maîtresses sous session réelle
+    console.log("\n--- CONTRÔLE CANARY AUTHENTIFIÉ DU CACHE ET DES MANIFESTS ---");
+    const authCanaries = [
+      "/dashboard",
+      "/dashboard/students",
+      "/dashboard/grades",
+      "/dashboard/payments",
+      "/dashboard/documents",
+      "/dashboard/communications",
+      "/dashboard/admin",
+      "/dashboard/attendance",
+      "/dashboard/payments/receipt",
+    ];
+    let authCanaryErrors = 0;
+    for (const r of authCanaries) {
+      try {
+        const res = await fetch(`${BASE}${r}`, { headers: { cookie: ownerCookieHeader }, redirect: "manual" });
+        if (res.status === 404 || res.status >= 500) {
+          console.error(`⛔ Route canary critique en panne : ${r} renvoie HTTP ${res.status}`);
+          authCanaryErrors++;
+        }
+      } catch (err: any) {
+        console.error(`⛔ Route canary exception : ${r} -> ${err.message}`);
+        authCanaryErrors++;
+      }
+    }
+    if (authCanaryErrors > 0) {
+      throw new Error(`Échec critique du contrôle canary authentifié : ${authCanaryErrors} routes en panne`);
+    }
+    console.log("✓ Routes canary authentifiées OK (statuts < 500 et manifests valides).\n");
+
     consoleErrors.length = 0;
     networkErrors.length = 0;
     await cdp.send("Page.navigate", { url: `${BASE}/dashboard` }, session);
@@ -282,9 +323,10 @@ async function main() {
         session,
         `(() => {
           const text = document.body.innerText || "";
-        const hasSkeletons = document.querySelectorAll('section[aria-busy="true"]').length > 0;
-        const hasPedagogy = text.includes("Suivi Pédagogique") || text.includes("Saisie des notes");
-        const hasActivity = text.includes("Activité Récente") || text.includes("Aucune activité");
+          const h1 = document.querySelector("h1")?.innerText || "";
+          const hasSkeletons = document.querySelectorAll('section[aria-busy="true"]').length > 0;
+          const hasPedagogy = text.includes("Suivi Pédagogique") || text.includes("Saisie des notes");
+          const hasActivity = text.includes("Activité Récente") || text.includes("Aucune activité");
           const hasErrorBoundary = document.querySelector('[data-testid="error-boundary"]') !== null;
           const hasError =
             hasErrorBoundary ||
@@ -292,7 +334,12 @@ async function main() {
             text.includes("Une erreur s'est produite") ||
             text.includes("Cannot destructure") ||
             text.includes("Invalid prisma") ||
-            text.includes("Application error");
+            text.includes("Application error") ||
+            text.includes("This page isn’t working") ||
+            text.includes("This page isn't working") ||
+            text.includes("HTTP ERROR 500") ||
+            h1.includes("This page isn") ||
+            h1.includes("ne fonctionne pas");
           return { hasSkeletons, hasPedagogy, hasActivity, hasError, errorText: text.slice(0, 300) };
         })()`
       );
@@ -335,7 +382,12 @@ async function main() {
           text.includes("Une erreur s'est produite") ||
           text.includes("Invalid prisma") ||
           text.includes("Unknown field") ||
-          text.includes("Functions cannot be passed");
+          text.includes("Functions cannot be passed") ||
+          text.includes("This page isn’t working") ||
+          text.includes("This page isn't working") ||
+          text.includes("HTTP ERROR 500") ||
+          h1.includes("This page isn") ||
+          h1.includes("ne fonctionne pas");
         return { text: text.slice(0, 200), hasErrorBanner, h1 };
       })()`
     );
@@ -468,25 +520,25 @@ async function main() {
     // ── VÉRIFICATION DE SANTÉ DU CACHE DE COMPILATION (.next) ──
     console.log("\n--- VÉRIFICATION DU CACHE DE COMPILATION (.next) ---");
     const preflightRoutes = concreteRoutes.slice(0, 10);
-    let preflight404Count = 0;
+    let preflightErrorCount = 0;
     for (const r of preflightRoutes) {
       const probeRes = await fetch(`${BASE}${r.url}`, {
         headers: { cookie: cookieHeader },
         redirect: "manual",
       });
-      if (probeRes.status === 404) preflight404Count++;
+      if (probeRes.status === 404 || probeRes.status >= 500) preflightErrorCount++;
     }
-    if (preflightRoutes.length > 0 && preflight404Count / preflightRoutes.length > 0.1) {
+    if (preflightRoutes.length > 0 && preflightErrorCount / preflightRoutes.length > 0.1) {
       console.error("\n" + "=".repeat(65));
-      console.error("⛔ Application non compilée — supprimez .next et relancez");
-      console.error(`   Échec de santé : ${preflight404Count}/${preflightRoutes.length} routes de démarrage renvoient 404 (> 10%).`);
+      console.error("⛔ Application non compilée ou corrompue — supprimez .next et relancez");
+      console.error(`   Échec de santé : ${preflightErrorCount}/${preflightRoutes.length} routes de démarrage renvoient 404/500 (> 10%).`);
       console.error("=".repeat(65) + "\n");
-      throw new Error("Application non compilée — supprimez .next et relancez");
+      throw new Error("Application non compilée ou corrompue — supprimez .next et relancez");
     }
-    console.log("✓ Cache de compilation valide (pré-contrôle 404 OK).");
+    console.log("✓ Cache de compilation valide (pré-contrôle 404/500 OK).");
 
     let count = 0;
-    let total404Count = 0;
+    let totalErrorCount = 0;
     for (const route of concreteRoutes) {
       count++;
       try {
@@ -496,14 +548,14 @@ async function main() {
         });
 
         const status = res.status;
-        if (status === 404) {
-          total404Count++;
-          if (count >= 10 && total404Count / count > 0.1) {
+        if (status === 404 || status >= 500) {
+          totalErrorCount++;
+          if (count >= 10 && totalErrorCount / count > 0.1) {
             console.error("\n" + "=".repeat(65));
-            console.error("⛔ Application non compilée — supprimez .next et relancez");
-            console.error(`   Arrêt d'urgence : ${total404Count}/${count} routes renvoient 404 (> 10%).`);
+            console.error("⛔ Application non compilée ou corrompue — supprimez .next et relancez");
+            console.error(`   Arrêt d'urgence : ${totalErrorCount}/${count} routes renvoient 404/500 (> 10%).`);
             console.error("=".repeat(65) + "\n");
-            throw new Error("Application non compilée — supprimez .next et relancez");
+            throw new Error("Application non compilée ou corrompue — supprimez .next et relancez");
           }
         }
         const text = await res.text();

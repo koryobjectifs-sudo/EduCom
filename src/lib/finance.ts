@@ -69,12 +69,8 @@ export function expenseCategoryLabel(c: ExpenseCategory | string): string {
 }
 
 /** Modes de paiement, pour la répartition des recettes. */
-export const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  CASH: "Espèces",
-  CHECK: "Chèque",
-  MOBILE_MONEY: "Mobile Money",
-  BANK_TRANSFER: "Virement",
-};
+import { PAYMENT_METHOD_LABELS } from "./finance/constants";
+export { PAYMENT_METHOD_LABELS };
 
 /**
  * Statuts de facture considérés comme **non soldés**.
@@ -410,13 +406,18 @@ export type ExpectedDetail = {
 export type InvoiceOverview = {
   /** Factures visibles par l'acteur. Déjà restreintes par `invoiceScope()`. */
   invoices: {
-    id: string; invoiceNumber?: string | null; title: string; totalAmount: number; status: string; dueDate: Date;
+    id: string;
+    invoiceNumber?: string | null;
+    title: string;
+    totalAmount: number;
+    status: string;
+    dueDate: Date;
     student: { 
       firstName: string; 
       lastName: string;
       enrollments: { class: { id: string, name: string } }[];
     } | null;
-    payments?: { id: string; receiptNumber?: string | null }[];
+    payments?: { id: string; amount: number; receiptNumber?: string | null; createdAt: Date }[];
   }[];
   /** Encaissé sur ces factures — même définition que l'état financier. */
   collected: number;
@@ -427,11 +428,17 @@ export type InvoiceOverview = {
   forecast: number;
   /** Détails du reste à encaisser par élève */
   expectedDetails: ExpectedDetail[];
-  /** Factures dont l'échéance est dépassée et qui ne sont pas soldées. */
+  /** Factures dont l'échéance est dépassée et qui ne sont pas soldées (calculé sur le reliquat). */
   overdueCount: number;
   overdue: number;
   paidCount: number;
   pendingCount: number;
+  /** Total impayé sur factures non entamées */
+  unpaidTotal: number;
+  /** Reliquat dû sur factures partiellement payées */
+  partialRemaining: number;
+  /** Nombre de factures partiellement payées */
+  partialCount: number;
   /** `true` si la vue est restreinte aux factures du parent connecté. */
   restrictedToParent: boolean;
 };
@@ -443,7 +450,7 @@ export async function invoiceOverview(actor: ActorContext): Promise<InvoiceOverv
   const scope = invoiceScope(actor);
   const isParent = actor.role === "PARENT";
 
-  const [expected, invoiceStatusGroups, invoices, collectedSummary, overdueStats] = await Promise.all([
+  const [expected, invoiceStatusGroups, invoices, collectedSummary, overdueStats, partialStats] = await Promise.all([
     expectedMonthlyRevenue(actor),
     prisma.invoice.groupBy({
       by: ["status"],
@@ -467,8 +474,7 @@ export async function invoiceOverview(actor: ActorContext): Promise<InvoiceOverv
           },
         },
         payments: {
-          select: { id: true, receiptNumber: true },
-          take: 1,
+          select: { id: true, amount: true, receiptNumber: true, createdAt: true },
           orderBy: { createdAt: "desc" },
         },
       },
@@ -486,12 +492,30 @@ export async function invoiceOverview(actor: ActorContext): Promise<InvoiceOverv
       ? Promise.resolve([])
       : prisma.$queryRaw<Array<{ overdue_amount: number; overdue_count: number }>>`
           SELECT 
-            COALESCE(SUM("totalAmount"), 0)::int as overdue_amount,
-            COUNT(*)::int as overdue_count
-          FROM "Invoice"
-          WHERE "schoolId" = ${actor.schoolId} 
-            AND "status" IN ('PENDING', 'PARTIAL', 'OVERDUE')
-            AND "dueDate" < NOW()
+            COALESCE(SUM(GREATEST(0, i."totalAmount" - COALESCE(p.paid, 0))), 0)::int as overdue_amount,
+            COUNT(DISTINCT i.id)::int as overdue_count
+          FROM "Invoice" i
+          LEFT JOIN (
+            SELECT "invoiceId", SUM(amount) as paid FROM "Payment" GROUP BY "invoiceId"
+          ) p ON p."invoiceId" = i.id
+          WHERE i."schoolId" = ${actor.schoolId} 
+            AND i."status" IN ('PENDING', 'PARTIAL', 'OVERDUE')
+            AND i."dueDate" < NOW()
+            AND (i."totalAmount" - COALESCE(p.paid, 0)) > 0
+        `,
+    isParent
+      ? Promise.resolve([])
+      : prisma.$queryRaw<Array<{ unpaid_total: number; partial_remaining: number; partial_count: number }>>`
+          SELECT
+            COALESCE(SUM(CASE WHEN i."status" = 'PENDING' THEN i."totalAmount" ELSE 0 END), 0)::int as unpaid_total,
+            COALESCE(SUM(CASE WHEN i."status" = 'PARTIAL' THEN GREATEST(0, i."totalAmount" - COALESCE(p.paid, 0)) ELSE 0 END), 0)::int as partial_remaining,
+            COUNT(CASE WHEN i."status" = 'PARTIAL' THEN 1 END)::int as partial_count
+          FROM "Invoice" i
+          LEFT JOIN (
+            SELECT "invoiceId", SUM(amount) as paid FROM "Payment" GROUP BY "invoiceId"
+          ) p ON p."invoiceId" = i.id
+          WHERE i."schoolId" = ${actor.schoolId}
+            AND i."status" IN ('PENDING', 'PARTIAL')
         `,
   ]);
 
@@ -499,6 +523,9 @@ export async function invoiceOverview(actor: ActorContext): Promise<InvoiceOverv
   let collectedCount = collectedSummary?._count?.id ?? 0;
   let overdue = overdueStats[0]?.overdue_amount ?? 0;
   let overdueCount = overdueStats[0]?.overdue_count ?? 0;
+  let unpaidTotal = partialStats[0]?.unpaid_total ?? 0;
+  let partialRemaining = partialStats[0]?.partial_remaining ?? 0;
+  let partialCount = partialStats[0]?.partial_count ?? 0;
 
   if (isParent) {
     const ids = invoices.map((i) => i.id);
@@ -519,11 +546,23 @@ export async function invoiceOverview(actor: ActorContext): Promise<InvoiceOverv
     const now = new Date();
     overdue = 0;
     overdueCount = 0;
+    unpaidTotal = 0;
+    partialRemaining = 0;
+    partialCount = 0;
 
     for (const inv of invoices) {
       if (!UNSETTLED_INVOICE.includes(String(inv.status))) continue;
-      const due = Math.max(0, inv.totalAmount - (paidByInvoice.get(inv.id) ?? 0));
+      const paid = paidByInvoice.get(inv.id) ?? 0;
+      const due = Math.max(0, inv.totalAmount - paid);
       if (due === 0) continue;
+
+      if (paid === 0) {
+        unpaidTotal += inv.totalAmount;
+      } else {
+        partialRemaining += due;
+        partialCount += 1;
+      }
+
       if (inv.dueDate < now) {
         overdue += due;
         overdueCount += 1;
@@ -546,6 +585,9 @@ export async function invoiceOverview(actor: ActorContext): Promise<InvoiceOverv
     overdueCount,
     paidCount,
     pendingCount,
+    unpaidTotal,
+    partialRemaining,
+    partialCount,
     restrictedToParent: isParent,
   };
 }

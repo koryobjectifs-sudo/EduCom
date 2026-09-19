@@ -460,17 +460,33 @@ function ListeFactures({ factures }: { factures: Student360["finance"]["factures
   if (factures.length === 0) return <Vide icon={ReceiptText}>Aucune facture enregistrée.</Vide>;
   return (
     <ul className="divide-y divide-rule">
-      {factures.map((inv) => (
-        <li key={inv.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
-          <div className="min-w-0">
-            <p className="text-role-body font-semibold text-text tabular-nums">{formatAmount(inv.totalAmount)} FCFA</p>
-            <p className="text-role-meta text-text-faint break-words">
-              {inv.title ? `${inv.title} · ` : ""}échéance {jour(inv.dueDate)}
-            </p>
-          </div>
-          <StatusBadge domain="invoice" status={inv.status} size="sm" />
-        </li>
-      ))}
+      {factures.map((inv) => {
+        const paid = (inv.payments || []).reduce((s, p) => s + p.amount, 0);
+        const remaining = Math.max(0, inv.totalAmount - paid);
+        return (
+          <li key={inv.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-role-body font-semibold text-text tabular-nums">{formatAmount(inv.totalAmount)} FCFA</p>
+                {paid > 0 && remaining > 0 && (
+                  <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/80">
+                    Reliquat : {formatAmount(remaining)} FCFA
+                  </span>
+                )}
+                {remaining === 0 && inv.totalAmount > 0 && (
+                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/80">
+                    Soldée
+                  </span>
+                )}
+              </div>
+              <p className="text-role-meta text-text-faint break-words">
+                {inv.title ? `${inv.title} · ` : ""}échéance {jour(inv.dueDate)}
+              </p>
+            </div>
+            <StatusBadge domain="invoice" status={inv.status} size="sm" />
+          </li>
+        );
+      })}
     </ul>
   );
 }

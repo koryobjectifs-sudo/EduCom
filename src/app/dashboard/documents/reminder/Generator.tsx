@@ -23,6 +23,8 @@ export default function ReminderGenerator({
   const student = invoice?.student;
   const parent = student?.parent;
   const currentClass = student?.enrollments[0]?.class?.name || "Non assigné";
+  const totalPaid = (invoice?.payments || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+  const remainingAmount = invoice ? Math.max(0, invoice.totalAmount - totalPaid) : 0;
 
   const handlePrint = () => {
     window.print();
@@ -78,11 +80,15 @@ export default function ReminderGenerator({
                     className="block w-full rounded-md border-0 py-2 pl-3 pr-8 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-red-600 sm:text-sm"
                   >
                     <option value="">Sélectionner un impayé...</option>
-                    {overdueInvoices.map(inv => (
-                      <option key={inv.id} value={inv.id}>
-                        {inv.student?.firstName} {inv.student?.lastName} - {inv.totalAmount.toLocaleString()} FCFA
-                      </option>
-                    ))}
+                    {overdueInvoices.map((inv: any) => {
+                      const paid = (inv.payments || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+                      const remaining = Math.max(0, inv.totalAmount - paid);
+                      return (
+                        <option key={inv.id} value={inv.id}>
+                          {inv.student?.firstName} {inv.student?.lastName} - Reliquat : {remaining.toLocaleString("fr-FR")} FCFA
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 
@@ -159,8 +165,13 @@ export default function ReminderGenerator({
                       Sauf erreur ou omission de notre part, nous constatons à ce jour que le règlement de la scolarité concernant votre enfant <strong>{student.firstName} {student.lastName}</strong> n'a toujours pas été effectué pour la période en cours.
                     </p>
                     <div className="bg-red-50 p-6 rounded-lg border border-red-100 text-center print:bg-transparent print:border-2 print:border-gray-900">
-                      <p className="text-sm text-gray-600 uppercase font-semibold tracking-wider mb-2">Montant restant dû à ce jour :</p>
-                      <p className="text-3xl font-black text-red-700 print:text-gray-900">{invoice.totalAmount.toLocaleString("fr-FR")} FCFA</p>
+                      <p className="text-sm text-gray-600 uppercase font-semibold tracking-wider mb-2">Reliquat restant dû à ce jour :</p>
+                      <p className="text-3xl font-black text-red-700 print:text-gray-900">{remainingAmount.toLocaleString("fr-FR")} FCFA</p>
+                      {totalPaid > 0 && (
+                        <p className="text-xs text-gray-600 mt-2 font-medium">
+                          (Facture initiale : {invoice.totalAmount.toLocaleString("fr-FR")} FCFA · Déjà réglé : {totalPaid.toLocaleString("fr-FR")} FCFA)
+                        </p>
+                      )}
                       <p className="text-sm text-gray-600 mt-2">
                         <em>(Date d'échéance dépassée : {formatDate(invoice.dueDate)})</em>
                       </p>

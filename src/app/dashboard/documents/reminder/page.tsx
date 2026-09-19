@@ -29,8 +29,13 @@ export default async function ReminderPage({
   const sp = searchParams ? await searchParams : null;
   const invoiceId = sp?.invoiceId;
 
-  const overdueInvoices = await prisma.invoice.findMany({
-    where: { status: "OVERDUE", schoolId },
+  const now = new Date();
+  const rawOverdueInvoices = await prisma.invoice.findMany({
+    where: {
+      schoolId,
+      status: { in: ["PENDING", "PARTIAL", "OVERDUE"] },
+      dueDate: { lt: now },
+    },
     include: {
       student: {
         include: {
@@ -38,8 +43,17 @@ export default async function ReminderPage({
           enrollments: { include: { class: true } },
         },
       },
+      payments: {
+        select: { amount: true },
+      },
     },
     orderBy: { dueDate: "asc" },
+  });
+
+  // Ne retenir que les factures avec un vrai reliquat restant (> 0)
+  const overdueInvoices = rawOverdueInvoices.filter((inv) => {
+    const paid = inv.payments.reduce((sum, p) => sum + p.amount, 0);
+    return inv.totalAmount - paid > 0;
   });
 
   if (invoiceId && !overdueInvoices.some((i) => i.id === invoiceId)) {
@@ -51,6 +65,9 @@ export default async function ReminderPage({
             parent: true,
             enrollments: { include: { class: true } },
           },
+        },
+        payments: {
+          select: { amount: true },
         },
       },
     });

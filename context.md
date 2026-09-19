@@ -1,5 +1,31 @@
 # EduCom SaaS - Contexte du Projet
 
+> **Archivage Baseline Finance (`v40-finance-baseline`) — 19 septembre 2026.**
+> - **Ce qui est archivé** :
+>   - Code source complet : `src/lib/finance/legacy/payments/` (copie intégrale de `src/app/dashboard/payments/` : pages, viewer facture/reçu, composeur manuel, composants clients, actions).
+>   - PDFs de référence : `src/lib/finance/legacy/reference-facture.pdf` (facture actuelle) et `src/lib/finance/legacy/reference-recu.pdf` (reçu actuel), générés sous Chrome réel avec session propriétaire SENG.CO.
+> - **Étiquette Git** : `v40-finance-baseline`.
+> - **Procédure de retour arrière** :
+>   - Pour restaurer le code : `git checkout v40-finance-baseline -- src/app/dashboard/payments/` ou `cp -R src/lib/finance/legacy/payments/ src/app/dashboard/payments/`.
+>   - Aucune modification de base de données n'a été appliquée à ce stade.
+>
+> - **Format standard A4 par défaut** : Correction du réglage par défaut sur les reçus de paiement (`ReceiptViewer.tsx`), qui était erronément initialisé à `A5`. Le format standard par défaut est désormais **A4** sur l'ensemble de la facturation et des reçus.
+> - **Options unifiées et explicites** :
+>   - `A4 (Standard)` : Format officiel pleine page.
+>   - `Demi-A4 (Optimisation feuille)` : Pour économiser le papier (2 reçus ou factures par feuille A4).
+>   - `A5 (Format carnet)` : Format compact.
+>   - Alignement identique sur `ReceiptViewer.tsx`, `InvoiceViewer.tsx` et `NewInvoiceForm` (`form.tsx`).
+> - **Conservation intégrale du format responsive** : Conservation et renforcement de l'adaptation responsive sur mobile/tablette (`flex flex-col sm:flex-row`, typographies fluides `text-sm sm:text-base` / `text-base sm:text-2xl`, totaux et visas empilables sans déborder horizontalement `w-full sm:w-1/2`).
+> - **Alignement charte visuelle du reçu** : Application sur `ReceiptViewer.tsx` des gains de la charte facture (couleur d'accent de l'école, filigrane centré haute fidélité avec opacité calibrée `bulletinWatermarkOpacity`, filtres d'adresse/téléphone propres, `mix-blend-multiply` sur cachet et signature).
+> - **Vérification** : `npx tsc --noEmit` à 0 erreur. 0 push.
+>
+> **Résolution Bug ENOENT build-manifest `/dashboard/payments/receipt` — 19 septembre 2026.**
+> - **Cause racine identifiée** : `ReceiptSelector.tsx` et `ReceiptViewer.tsx` (Client Components `"use client"`) importaient `PAYMENT_METHOD_LABELS` depuis `@/lib/finance.ts`. Ce fichier serveur tire `@/lib/prisma.ts` et le driver `pg`, qui requiert les modules Node natifs (`net`, `tls`, `fs`). Turbopack échouait silencieusement la compilation du bundle navigateur, omettait d'écrire `build-manifest.json`, provoquant l'erreur `ENOENT` au runtime.
+> - **Correctif architectural** : Constantes extraites dans `src/lib/finance/constants.ts` (100% sans code serveur). Fichier déprécié `Generator.tsx` supprimé.
+> - **Preuve Navigateur Réel** : Testé sous Chrome réel (CDP) avec compte `OWNER` : HTTP 200, Titre *"Reçu de Paiement - EduCom"*, H1 *"Reçus de Paiement Officiels"*, 0 erreur. Serveur dev redémarré à blanc et page rechargée : persistance confirmée (HTTP 200). `build:verify` : 100% PASS.
+> - **Garde-fou Smoke Test durci** : Contrôle canary enrichi d'une passe authentifiée sur les 9 routes clés sous cookie de session, et détection des écrans d'erreur natifs Chrome (`This page isn't working`, `ERR_TOO_MANY_REDIRECTS`, `ENOENT`).
+> - **Règles respectées** : 0 push, 0 migration arbitraire.
+>
 > **Chantier Rail & Permissions, Polissage Facture & Parcours Parent Réel — 19 septembre 2026.**
 > - **1. Nettoyage du Rail & Audit Métier par Rôle** :
 >   - *Comptable (ACCOUNTANT)* : Retrait de l'entrée « Documents » du rail. Les pièces scolaires (certificats, dossiers élèves) sont exclues. Ses documents financiers vivent dans **Finance** (Vue financière, Facturation, Paiements, Relances) et Communication.

@@ -54,7 +54,10 @@ export async function loadStudent360(actor: ActorContext, id: string) {
         include: { class: { include: { teacher: true } } },
         orderBy: { academicYear: "desc" },
       },
-      invoices: { orderBy: { createdAt: "desc" } },
+      invoices: {
+        include: { payments: { select: { amount: true } } },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -145,10 +148,20 @@ export async function loadStudent360(actor: ActorContext, id: string) {
     .map((e) => ({ nom: e.nom, moyenne: e.poids > 0 ? e.somme / e.poids : 0, nombre: e.nombre }))
     .sort((a, b) => b.moyenne - a.moyenne);
 
-  const duCumule = student.invoices
-    .filter((i) => i.status === "PENDING" || i.status === "OVERDUE")
-    .reduce((s, i) => s + i.totalAmount, 0);
-  const enRetard = student.invoices.filter((i) => i.status === "OVERDUE").length;
+  const now = new Date();
+  let duCumule = 0;
+  let enRetard = 0;
+
+  for (const inv of student.invoices) {
+    const paid = inv.payments.reduce((sum, p) => sum + p.amount, 0);
+    const remaining = Math.max(0, inv.totalAmount - paid);
+    if (remaining > 0 && inv.status !== "CANCELLED") {
+      duCumule += remaining;
+      if (inv.dueDate < now) {
+        enRetard += 1;
+      }
+    }
+  }
 
   // ⚠️ L'âge est calculé ICI et non au rendu : `Date.now()` pendant le rendu
   // est une lecture impure que le linter React refuse, à juste titre.
