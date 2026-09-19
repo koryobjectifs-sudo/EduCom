@@ -469,6 +469,68 @@ export default function ReviewPortalClient({
     });
   }, [students, activeTab, classFilter, missingPieceFilter, searchQuery]);
 
+  // 3b. Décompte dynamique des pièces manquantes les plus fréquentes
+  const missingPiecesBreakdown = useMemo(() => {
+    const map = new Map<string, { label: string; normKey: string; count: number }>();
+    for (const s of students) {
+      if (s.status === "PENDING" || s.completeness.isCompliant) continue;
+      for (const d of s.docs) {
+        if (d.applicable && d.required && (d.status === "MANQUANT" || d.status === "NON_CONFORME")) {
+          const normKey = (d.shortLabel || d.label)
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .trim();
+          const existing = map.get(normKey);
+          if (existing) {
+            existing.count++;
+          } else {
+            map.set(normKey, {
+              label: d.shortLabel || d.label,
+              normKey,
+              count: 1,
+            });
+          }
+        }
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [students]);
+
+  // Déclencheurs directs d'action groupée (Action Command Center)
+  const handleTriggerBulkRemind = () => {
+    const targetIds = selectedIds.size > 0 ? selectedIds : new Set(filteredList.map((s) => s.id));
+    setSelectedIds(targetIds);
+    setBulkRemindModal(true);
+  };
+
+  const handleTriggerBulkReg = () => {
+    const targetIds = selectedIds.size > 0 ? selectedIds : new Set(filteredList.map((s) => s.id));
+    setSelectedIds(targetIds);
+    setBulkRegModal(true);
+  };
+
+  const handleTriggerBulkUpload = () => {
+    const targetIds = selectedIds.size > 0 ? selectedIds : new Set(filteredList.map((s) => s.id));
+    setSelectedIds(targetIds);
+    setBulkUploadModal(true);
+  };
+
+  const handleTriggerBulkApproveAll = () => {
+    const pendingStudents = filteredList.filter((s) => s.status === "PENDING");
+    if (pendingStudents.length === 0) return;
+    const incompleteCount = pendingStudents.filter((s) => !s.completeness.isCompliant).length;
+    if (incompleteCount > 0) {
+      setConfirmBulkAdmission({
+        students: pendingStudents,
+        incompleteCount,
+      });
+    } else {
+      setSelectedIds(new Set(pendingStudents.map((s) => s.id)));
+      handleBulkApprove();
+    }
+  };
+
   // 4. Chargement de l'URL signée lors de l'ouverture du tiroir
   const activeDrawerDoc = useMemo(() => {
     if (!drawerStudent) return null;
@@ -763,84 +825,347 @@ export default function ReviewPortalClient({
 
   return (
     <div className="space-y-4 pb-20">
-      {/* ── CARTES DE COMPTEURS EN HAUT (Format compact & élégant) ── */}
+      {/* ── CARTES DE COMPTEURS EN HAUT (Format interactif & orienté action) ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         <button
           type="button"
           onClick={() => handleTabChange("todo")}
-          className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden ${
+          className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
             activeTab === "todo"
               ? "bg-amber-50/80 border-amber-300 ring-1.5 ring-amber-400 shadow-xs"
               : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xl font-display font-bold text-slate-900 tracking-tight">{counts.todo}</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100/80 text-amber-700">
-              <Clock className="h-3.5 w-3.5" />
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xl font-display font-bold text-slate-900 tracking-tight">{counts.todo}</span>
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100/80 text-amber-700">
+                <Clock className="h-3.5 w-3.5" />
+              </div>
             </div>
+            <p className="mt-1 text-xs font-semibold text-slate-800">À traiter</p>
+            <p className="text-[10px] text-slate-500 truncate mt-0.5">Admission non tranchée</p>
           </div>
-          <p className="mt-1 text-xs font-semibold text-slate-800">À traiter</p>
-          <p className="text-[10px] text-slate-500 truncate mt-0.5">Admission non tranchée</p>
+          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+            {counts.todo > 0 ? (
+              <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-amber-700 bg-amber-100/90 px-2 py-0.5 rounded-md">
+                👉 {counts.todo} décision{counts.todo > 1 ? "s" : ""}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                ✓ À jour
+              </span>
+            )}
+            <ArrowRight className={`h-3 w-3 ${activeTab === "todo" ? "text-amber-600" : "text-slate-300"}`} />
+          </div>
         </button>
 
         <button
           type="button"
           onClick={() => handleTabChange("missing_docs")}
-          className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden ${
+          className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
             activeTab === "missing_docs"
-              ? "bg-orange-50/80 border-orange-300 ring-1.5 ring-orange-400 shadow-xs"
+              ? "bg-orange-50/90 border-orange-400 ring-2 ring-orange-400/50 shadow-xs"
               : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xl font-display font-bold text-slate-900 tracking-tight">{counts.missing_docs}</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100/80 text-orange-700">
-              <AlertCircle className="h-3.5 w-3.5" />
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xl font-display font-bold text-slate-900 tracking-tight">{counts.missing_docs}</span>
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 text-orange-700">
+                <AlertCircle className="h-3.5 w-3.5" />
+              </div>
             </div>
+            <p className="mt-1 text-xs font-semibold text-slate-800">Pièces manquantes</p>
+            <p className="text-[10px] text-slate-500 truncate mt-0.5">Admis, dossier incomplet</p>
           </div>
-          <p className="mt-1 text-xs font-semibold text-slate-800">Pièces manquantes</p>
-          <p className="text-[10px] text-slate-500 truncate mt-0.5">Admis, dossier incomplet</p>
+          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+            {counts.missing_docs > 0 ? (
+              <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-orange-800 bg-orange-100 px-2 py-0.5 rounded-md border border-orange-200/80 shadow-2xs">
+                👉 {counts.missing_docs} à relancer
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                ✓ 100% complets
+              </span>
+            )}
+            <ArrowRight className={`h-3 w-3 ${activeTab === "missing_docs" ? "text-orange-600" : "text-slate-300"}`} />
+          </div>
         </button>
 
         <button
           type="button"
           onClick={() => handleTabChange("compliant")}
-          className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden ${
+          className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
             activeTab === "compliant"
               ? "bg-emerald-50/80 border-emerald-300 ring-1.5 ring-emerald-400 shadow-xs"
               : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xl font-display font-bold text-slate-900 tracking-tight">{counts.compliant}</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-700">
-              <CheckCircle2 className="h-3.5 w-3.5" />
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xl font-display font-bold text-slate-900 tracking-tight">{counts.compliant}</span>
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-700">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              </div>
             </div>
+            <p className="mt-1 text-xs font-semibold text-slate-800">Complets</p>
+            <p className="text-[10px] text-slate-500 truncate mt-0.5">Admis et dossier conforme</p>
           </div>
-          <p className="mt-1 text-xs font-semibold text-slate-800">Complets</p>
-          <p className="text-[10px] text-slate-500 truncate mt-0.5">Admis et dossier conforme</p>
+          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+              ✓ Dossiers conformes
+            </span>
+            <ArrowRight className={`h-3 w-3 ${activeTab === "compliant" ? "text-emerald-600" : "text-slate-300"}`} />
+          </div>
         </button>
 
         <button
           type="button"
           onClick={() => handleTabChange("all")}
-          className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden ${
+          className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
             activeTab === "all"
               ? "bg-slate-100/90 border-slate-300 ring-1.5 ring-slate-400 shadow-xs"
               : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xl font-display font-bold text-slate-900 tracking-tight">{counts.all}</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
-              <Layers className="h-3.5 w-3.5" />
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xl font-display font-bold text-slate-900 tracking-tight">{counts.all}</span>
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                <Layers className="h-3.5 w-3.5" />
+              </div>
             </div>
+            <p className="mt-1 text-xs font-semibold text-slate-800">Tous</p>
+            <p className="text-[10px] text-slate-500 truncate mt-0.5">Vue globale école</p>
           </div>
-          <p className="mt-1 text-xs font-semibold text-slate-800">Tous</p>
-          <p className="text-[10px] text-slate-500 truncate mt-0.5">Vue globale école</p>
+          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+              Registre global
+            </span>
+            <ArrowRight className={`h-3 w-3 ${activeTab === "all" ? "text-slate-600" : "text-slate-300"}`} />
+          </div>
         </button>
       </div>
+
+      {/* ── BANNIÈRE D'ACTION DIRECTE (ACTION COMMAND CENTER) ── */}
+      {activeTab === "missing_docs" && (
+        <div className="rounded-2xl border border-orange-300/90 bg-gradient-to-br from-orange-50/95 via-white to-amber-50/60 p-4 sm:p-5 shadow-xs space-y-3.5 animate-in fade-in duration-200">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-500 text-white shadow-2xs">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  <span>Action prioritaire</span>
+                </span>
+                <h2 className="text-sm sm:text-base font-bold text-slate-900 font-display">
+                  {counts.missing_docs} dossiers d&apos;élèves admis sont incomplets
+                </h2>
+              </div>
+              <p className="text-xs text-slate-600 max-w-3xl leading-relaxed">
+                Ces élèves sont scolarisés mais ne respectent pas la conformité réglementaire. Poussez à la régularisation immédiate : relancez directement les familles par WhatsApp / SMS avec leur lien de dépôt mobile, accordez un délai administratif ou enregistrez les pièces remises au guichet.
+              </p>
+            </div>
+
+            {/* CTAs d'action directe sans nécessiter de cocher les cases */}
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleTriggerBulkRemind}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-xs hover:shadow transition-all ring-2 ring-indigo-500/20 cursor-pointer"
+                title="Envoyer un message WhatsApp / SMS ciblé aux parents avec lien direct de téléversement"
+              >
+                <Bell className="h-4 w-4 text-indigo-200" />
+                <span>
+                  Relancer les {selectedIds.size > 0 ? selectedIds.size : filteredList.length} familles (WhatsApp/SMS)
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTriggerBulkReg}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white hover:bg-amber-50 text-amber-900 border border-amber-300 font-semibold text-xs shadow-2xs transition-all cursor-pointer"
+                title="Accorder un délai administratif de grâce pour lever le blocage"
+              >
+                <Hourglass className="h-3.5 w-3.5 text-amber-600" />
+                <span>Accorder un délai</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTriggerBulkUpload}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white hover:bg-sky-50 text-sky-900 border border-sky-300 font-semibold text-xs shadow-2xs transition-all cursor-pointer"
+                title="Enregistrer une pièce papier apportée au secrétariat"
+              >
+                <UploadCloud className="h-3.5 w-3.5 text-sky-600" />
+                <span>Déposer au guichet</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Pastilles interactives de pièces manquantes (Quick Filters) */}
+          {missingPiecesBreakdown.length > 0 && (
+            <div className="pt-2.5 border-t border-orange-200/60 flex flex-wrap items-center gap-2 text-xs">
+              <span className="font-semibold text-slate-700 text-[11px] flex items-center gap-1">
+                <Filter className="h-3 w-3 text-orange-600" />
+                <span>Pièces à réclamer en priorité :</span>
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {missingPiecesBreakdown.slice(0, 5).map((item) => {
+                  const isSelected = missingPieceFilter === item.normKey;
+                  return (
+                    <button
+                      key={item.normKey}
+                      type="button"
+                      onClick={() => setMissingPieceFilter(isSelected ? null : item.normKey)}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-orange-600 text-white shadow-xs"
+                          : "bg-white hover:bg-orange-100/70 text-slate-700 border border-orange-200/80 shadow-2xs"
+                      }`}
+                    >
+                      <span>{item.label}</span>
+                      <span
+                        className={`text-[10.5px] px-1.5 py-0.2 rounded-full font-bold ${
+                          isSelected ? "bg-white/20 text-white" : "bg-orange-100 text-orange-800"
+                        }`}
+                      >
+                        {item.count}
+                      </span>
+                    </button>
+                  );
+                })}
+
+                {missingPieceFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setMissingPieceFilter(null)}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                  >
+                    <X className="h-3 w-3" />
+                    <span>Réinitialiser le filtre</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "todo" && (
+        <div className={`rounded-2xl border p-4 sm:p-5 shadow-xs space-y-2 animate-in fade-in duration-200 ${
+          counts.todo > 0
+            ? "border-amber-300 bg-gradient-to-br from-amber-50 via-white to-amber-50/40"
+            : "border-emerald-200 bg-gradient-to-br from-emerald-50/70 via-white to-emerald-50/30"
+        }`}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                {counts.todo > 0 ? (
+                  <>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500 text-white shadow-2xs">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span>Décision requise</span>
+                    </span>
+                    <h2 className="text-sm sm:text-base font-bold text-slate-900 font-display">
+                      {counts.todo} demande{counts.todo > 1 ? "s" : ""} d&apos;admission en attente de décision
+                    </h2>
+                  </>
+                ) : (
+                  <>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-600 text-white shadow-2xs">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span>À jour</span>
+                    </span>
+                    <h2 className="text-sm sm:text-base font-bold text-slate-900 font-display">
+                      Toutes les admissions ont été tranchées
+                    </h2>
+                  </>
+                )}
+              </div>
+              <p className="text-xs text-slate-600 max-w-2xl">
+                {counts.todo > 0
+                  ? "Ces candidats attendent la décision administrative pour être officiellement inscrits dans les classes de l'école."
+                  : "Aucun élève n'est bloqué en attente d'admission. L'action prioritaire se porte sur la collecte des pièces manquantes des élèves déjà admis."}
+              </p>
+            </div>
+
+            {counts.todo > 0 ? (
+              <button
+                type="button"
+                onClick={handleTriggerBulkApproveAll}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all shrink-0 cursor-pointer"
+              >
+                <UserCheck className="h-4 w-4" />
+                <span>Valider l&apos;admission des {filteredList.filter((s) => s.status === "PENDING").length} élèves</span>
+              </button>
+            ) : counts.missing_docs > 0 ? (
+              <button
+                type="button"
+                onClick={() => handleTabChange("missing_docs")}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs shadow-2xs transition-all shrink-0 cursor-pointer"
+              >
+                <span>Passer aux {counts.missing_docs} pièces manquantes</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "compliant" && (
+        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-emerald-50/40 p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-200">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-600 text-white shadow-2xs">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>100% Conforme</span>
+              </span>
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 font-display">
+                {counts.compliant} dossier{counts.compliant > 1 ? "s" : ""} complet{counts.compliant > 1 ? "s" : ""} et réglementaire{counts.compliant > 1 ? "s" : ""}
+              </h2>
+            </div>
+            <p className="text-xs text-slate-600 max-w-2xl">
+              Ces élèves disposent de la totalité des pièces obligatoires vérifiées et validées par le secrétariat.
+            </p>
+          </div>
+
+          {counts.missing_docs > 0 && (
+            <button
+              type="button"
+              onClick={() => handleTabChange("missing_docs")}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow-2xs transition-all shrink-0 cursor-pointer"
+            >
+              <span>Traiter les {counts.missing_docs} dossiers incomplets</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {activeTab === "all" && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-200">
+          <div className="space-y-1">
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 font-display">
+              Registre global de l&apos;école : {counts.all} élèves scolarisés
+            </h2>
+            <p className="text-xs text-slate-600 max-w-2xl">
+              {counts.compliant} complets · {counts.missing_docs} avec pièces manquantes · {counts.todo} en attente d&apos;admission.
+            </p>
+          </div>
+
+          {counts.missing_docs > 0 && (
+            <button
+              type="button"
+              onClick={() => handleTabChange("missing_docs")}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs shadow-2xs transition-all shrink-0 cursor-pointer"
+            >
+              <AlertCircle className="h-3.5 w-3.5" />
+              <span>Voir les {counts.missing_docs} dossiers incomplets</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── BARRE D'OUTILS ET FILTRES ── */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -1389,10 +1714,29 @@ export default function ReviewPortalClient({
                                 )}
                                 <span>Admettre</span>
                               </button>
-                            ) : (
-                              <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 font-medium text-emerald-700 text-xs border border-emerald-200 leading-none">
-                                Admis
+                            ) : student.completeness.isCompliant ? (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 font-semibold text-emerald-700 text-xs border border-emerald-200 leading-none">
+                                <Check className="h-3 w-3" />
+                                <span>Complet</span>
                               </span>
+                            ) : (
+                              <div className="inline-flex items-center gap-1.5">
+                                <span className="text-[11px] font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5 whitespace-nowrap">
+                                  {student.completeness.missingCount} mq.
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedIds(new Set([student.id]));
+                                    setBulkRemindModal(true);
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-all cursor-pointer whitespace-nowrap h-7 shadow-2xs"
+                                  title={`Relancer les parents de ${student.firstName} par WhatsApp / SMS`}
+                                >
+                                  <Bell className="h-3 w-3 text-indigo-600" />
+                                  <span>Relancer</span>
+                                </button>
+                              </div>
                             )}
                           </div>
                         </td>
@@ -1750,6 +2094,21 @@ export default function ReviewPortalClient({
                         <UserCheck className="h-4 w-4" />
                       )}
                       <span>Admettre</span>
+                    </button>
+                  )}
+
+                  {student.status !== "PENDING" && !student.completeness.isCompliant && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedIds(new Set([student.id]));
+                        setBulkRemindModal(true);
+                      }}
+                      className="min-h-[44px] px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-semibold text-xs transition-colors shadow-2xs cursor-pointer"
+                      title="Relancer les parents par WhatsApp / SMS"
+                    >
+                      <Bell className="h-4 w-4 text-indigo-600" />
+                      <span>Relancer</span>
                     </button>
                   )}
                 </div>

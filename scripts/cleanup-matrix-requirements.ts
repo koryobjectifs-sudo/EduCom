@@ -1,4 +1,4 @@
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 
 async function main() {
   console.log("Cleaning up DocumentRequirements and duplicates...");

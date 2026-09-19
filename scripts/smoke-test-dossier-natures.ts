@@ -1,4 +1,4 @@
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { studentFile } from "../src/lib/studentFile";
 import { signStudentDocument } from "../src/app/dashboard/students/[id]/dossier/actions";
 

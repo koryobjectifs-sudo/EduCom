@@ -5,9 +5,10 @@ import {
   ReceiptText, FolderOpen, CheckCircle2, XCircle, Clock, ShieldCheck, MessageCircle, BookOpen,
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
-import { formatAmount } from "@/lib/moneyFormat";
 import type { Student360 } from "./data";
 import { formatDate } from "@/lib/dateUtils";
+import { formatAmount } from "@/lib/moneyFormat";
+import GenerateDocumentDropdown from "@/components/documents/GenerateDocumentDropdown";
 
 /* ═══════════════════ briques communes ═══════════════════ */
 
@@ -542,7 +543,39 @@ export function SectionFamille({ d, health }: { d: Student360; health: boolean }
             </dl>
           </div>
         ) : (
-          <Vide icon={UserIcon}>Aucun responsable légal assigné.</Vide>
+          <div className="rounded-control border border-dashed border-amber-300 bg-amber-50/50 p-4 space-y-3">
+            <div>
+              <p className="text-role-body font-semibold text-text">Aucun responsable légal assigné</p>
+              <p className="text-xs text-text-soft mt-0.5">
+                Cet élève n&apos;a pas de compte tuteur lié. Les notifications et l&apos;accès à l&apos;Espace Famille sont inactifs.
+              </p>
+            </div>
+
+            {d.student.emergencyContact && (
+              <div className="rounded-md bg-white border border-amber-200/60 p-2.5 text-xs text-text-soft">
+                <span className="font-semibold text-text">Coordonnées d&apos;urgence disponibles :</span>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-text">{d.student.emergencyContact}</span>
+                  {d.student.emergencyPhone && (
+                    <span className="inline-flex items-center gap-1 rounded bg-amber-100/70 px-1.5 py-0.5 text-[11px] font-medium text-amber-900">
+                      <Phone className="h-3 w-3" />
+                      {d.student.emergencyPhone}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Link
+                href={`/dashboard/students/dossiers/review?studentId=${d.student.id}`}
+                className="inline-flex items-center gap-1.5 rounded-control bg-primary px-3.5 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition-colors shadow-2xs"
+              >
+                <UserIcon className="h-3.5 w-3.5" />
+                <span>Rattacher un tuteur</span>
+              </Link>
+            </div>
+          </div>
         )}
       </Bloc>
 
@@ -608,33 +641,102 @@ export function SectionFamille({ d, health }: { d: Student360; health: boolean }
 
 export function SectionDocuments({ d, studentId }: { d: Student360; studentId: string }) {
   return (
-    <Bloc
-      title="Dossier de l'élève"
-      action={
-        <Link
-          href={`/dashboard/students/${studentId}/dossier`}
-          className="inline-flex items-center gap-1.5 rounded-control px-2 py-1 text-role-label font-medium text-primary transition-colors hover:bg-sunk pointer-coarse:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-        >
-          <FolderOpen aria-hidden="true" className="h-4 w-4" /> Ouvrir le dossier
-        </Link>
-      }
-    >
-      {/* ⚠️ Les pièces ne sont pas listées ici. Le dossier est un écran à part
-          entière, avec sa checklist, ses catégories de permission et sa
-          validation ; en recopier une liste partielle aurait créé une seconde
-          vérité et laissé croire que tout le dossier tient sur cette fiche. */}
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <Stat label="Pièces courantes" valeur={d.nbDocuments} ton={d.nbDocuments === 0 ? "alerte" : "neutre"} />
-          <Stat label="Photo de l'élève" valeur={d.student.photoPath ? "Oui" : "Non"} ton={d.student.photoPath ? "bon" : "neutre"} />
+    <div className="space-y-6">
+      <Bloc
+        title="Documents officiels & scolaires"
+        action={
+          <GenerateDocumentDropdown
+            context="student"
+            studentId={studentId}
+            studentName={`${d.student.firstName} ${d.student.lastName}`}
+            variant="default"
+          />
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-role-body text-text-soft">
+            Générez directement les documents officiels rattachés à cet élève (avec données pré-remplies, cachet et signatures).
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <Link
+              href={`/dashboard/documents/certificate?studentId=${studentId}`}
+              className="flex items-start gap-3 p-3.5 rounded-xl border border-rule hover:border-primary/40 hover:bg-sunk transition-all group"
+            >
+              <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-text group-hover:text-primary transition-colors">Certificat de scolarité</p>
+                <p className="text-xs text-text-soft mt-0.5">Attestation officielle signée avec cachet</p>
+              </div>
+            </Link>
+
+            <Link
+              href={`/dashboard/grades/report-card?studentId=${studentId}`}
+              className="flex items-start gap-3 p-3.5 rounded-xl border border-rule hover:border-primary/40 hover:bg-sunk transition-all group"
+            >
+              <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                <BookOpen className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-text group-hover:text-primary transition-colors">Bulletin trimestriel</p>
+                <p className="text-xs text-text-soft mt-0.5">Relevé des notes et appréciations</p>
+              </div>
+            </Link>
+
+            <Link
+              href={`/dashboard/documents/info-sheet?studentId=${studentId}`}
+              className="flex items-start gap-3 p-3.5 rounded-xl border border-rule hover:border-primary/40 hover:bg-sunk transition-all group"
+            >
+              <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                <FolderOpen className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-text group-hover:text-primary transition-colors">Fiche de renseignements</p>
+                <p className="text-xs text-text-soft mt-0.5">Dossier d&apos;urgence, état civil et tuteurs</p>
+              </div>
+            </Link>
+
+            <Link
+              href={`/dashboard/documents/certificate?studentId=${studentId}&type=attestation`}
+              className="flex items-start gap-3 p-3.5 rounded-xl border border-rule hover:border-primary/40 hover:bg-sunk transition-all group"
+            >
+              <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-text group-hover:text-primary transition-colors">Attestation de scolarité</p>
+                <p className="text-xs text-text-soft mt-0.5">Certificat allégé pour démarches courantes</p>
+              </div>
+            </Link>
+          </div>
         </div>
-        <p className="text-role-body text-text-soft">
-          {d.nbDocuments === 0
-            ? "Aucune pièce n'a encore été versée au dossier de cet élève."
-            : "La checklist, la validation et le téléchargement des pièces se font dans le dossier."}
-        </p>
-      </div>
-    </Bloc>
+      </Bloc>
+
+      <Bloc
+        title="Dossier d'admission & pièces justificatives"
+        action={
+          <Link
+            href={`/dashboard/students/${studentId}/dossier`}
+            className="inline-flex items-center gap-1.5 rounded-control px-2.5 py-1 text-role-label font-medium text-primary transition-colors hover:bg-sunk pointer-coarse:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            <FolderOpen aria-hidden="true" className="h-4 w-4" /> Ouvrir le dossier
+          </Link>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Stat label="Pièces courantes" valeur={d.nbDocuments} ton={d.nbDocuments === 0 ? "alerte" : "neutre"} />
+            <Stat label="Photo de l'élève" valeur={d.student.photoPath ? "Oui" : "Non"} ton={d.student.photoPath ? "bon" : "neutre"} />
+          </div>
+          <p className="text-role-body text-text-soft">
+            {d.nbDocuments === 0
+              ? "Aucune pièce n'a encore été versée au dossier d'admission de cet élève."
+              : "La checklist, la validation et le téléchargement des pièces justificatives se font dans le dossier."}
+          </p>
+        </div>
+      </Bloc>
+    </div>
   );
 }
 

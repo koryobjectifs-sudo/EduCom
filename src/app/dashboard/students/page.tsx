@@ -1,6 +1,9 @@
 import { PageHeader } from "@/components/ui/PageHeader";
 import StudentsUnifiedClient from "./StudentsUnifiedClient";
+import ParentChildrenView from "./ParentChildrenView";
 import { loadStudentsData, resumeStudents } from "./data";
+
+import { redirect } from "next/navigation";
 
 export interface StudentsPageProps {
   searchParams: Promise<{
@@ -22,6 +25,11 @@ export interface StudentsPageProps {
 export default async function StudentsPage({ searchParams }: StudentsPageProps) {
   const sp = await searchParams;
   const d = await loadStudentsData(sp.annee);
+
+  if (d.userRole === "PARENT") {
+    redirect("/famille/enfants");
+  }
+
 
   return (
     <div className="space-y-6 pb-10">

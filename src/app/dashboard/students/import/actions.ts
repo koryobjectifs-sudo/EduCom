@@ -441,6 +441,11 @@ export async function executeImportStudents(
         // Fusion automatique si nom similaire ou décision explicite
         const targetParent = similarCandidate || candidates[0];
         if (targetParent) {
+          await prisma.schoolMembership.upsert({
+            where: { userId_schoolId_role: { userId: targetParent.id, schoolId, role: "PARENT" } },
+            create: { userId: targetParent.id, schoolId, role: "PARENT" },
+            update: {},
+          });
           assignedParentIds.set(rowNumber, targetParent.id);
           continue;
         }
@@ -459,6 +464,11 @@ export async function executeImportStudents(
         },
         select: { id: true, firstName: true, lastName: true },
       });
+      await prisma.schoolMembership.upsert({
+        where: { userId_schoolId_role: { userId: newParent.id, schoolId, role: "PARENT" } },
+        create: { userId: newParent.id, schoolId, role: "PARENT" },
+        update: {},
+      });
       candidates.push(newParent);
       parentByPhone.set(phoneNorm.normalizedDigits, candidates);
       assignedParentIds.set(rowNumber, newParent.id);
@@ -475,6 +485,11 @@ export async function executeImportStudents(
           schoolId,
         },
         select: { id: true },
+      });
+      await prisma.schoolMembership.upsert({
+        where: { userId_schoolId_role: { userId: newParent.id, schoolId, role: "PARENT" } },
+        create: { userId: newParent.id, schoolId, role: "PARENT" },
+        update: {},
       });
       assignedParentIds.set(rowNumber, newParent.id);
     }
@@ -530,6 +545,10 @@ export async function executeImportStudents(
         });
       }
 
+      const phoneNormRow = normalizePhone(row.emergencyPhone);
+      const contactVal = row.emergencyContact?.trim() || null;
+      const phoneVal = phoneNormRow?.formatted || row.emergencyPhone?.trim() || null;
+
       if (!student) {
         student = await prisma.student.create({
           data: {
@@ -540,7 +559,19 @@ export async function executeImportStudents(
             schoolId,
             matricule: row.matricule?.trim() || null,
             parentId,
+            emergencyContact: contactVal,
+            emergencyPhone: phoneVal,
             status: "ENROLLED",
+          },
+          select: { id: true, firstName: true, lastName: true },
+        });
+      } else if (parentId || contactVal || phoneVal) {
+        student = await prisma.student.update({
+          where: { id: student.id },
+          data: {
+            ...(parentId ? { parentId } : {}),
+            ...(contactVal ? { emergencyContact: contactVal } : {}),
+            ...(phoneVal ? { emergencyPhone: phoneVal } : {}),
           },
           select: { id: true, firstName: true, lastName: true },
         });

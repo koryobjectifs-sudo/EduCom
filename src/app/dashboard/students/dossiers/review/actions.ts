@@ -240,10 +240,11 @@ export async function validateStudentDocumentAction(input: {
           kind: "document.validated",
           title: `Pièce validée — ${doc.student.firstName} ${doc.student.lastName}`,
           body: `Le document « ${docLabel} » a été vérifié et déclaré conforme par l'établissement.`,
-          link: `/dashboard/students/${input.studentId}/dossier`,
+          link: `/famille/actions`,
         },
       });
     }
+
 
     done();
     return { success: true };
@@ -345,10 +346,11 @@ export async function rejectStudentDocumentAction(input: {
           kind: "document.rejected",
           title: `Pièce non conforme — ${doc.student.firstName} ${doc.student.lastName}`,
           body: `Le document « ${docLabel} » n'a pas été accepté. Motif : ${input.reason.trim()}. Veuillez déposer un nouveau document conforme.`,
-          link: `/dashboard/students/${input.studentId}/dossier`,
+          link: `/famille/actions?studentId=${input.studentId}&reqId=${input.requirementId}`,
         },
       });
     }
+
 
     done();
     return { success: true };
@@ -770,9 +772,19 @@ export async function updateStudentParentDirectAction(input: {
         });
       }
 
+      await prisma.schoolMembership.upsert({
+        where: { userId_schoolId_role: { userId: parentUser.id, schoolId, role: "PARENT" } },
+        create: { userId: parentUser.id, schoolId, role: "PARENT" },
+        update: {},
+      });
+
       await prisma.student.update({
         where: { id: input.studentId },
-        data: { parentId: parentUser.id },
+        data: {
+          parentId: parentUser.id,
+          emergencyContact: `${input.firstName} ${input.lastName}`.trim() || undefined,
+          emergencyPhone: input.phone.trim() || undefined,
+        },
       });
     }
 

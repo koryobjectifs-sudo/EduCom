@@ -1,4 +1,4 @@
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { calculateAge, formatStudentAge } from "../src/lib/dateUtils";
 import { hasAccess } from "../src/lib/permissions";
 

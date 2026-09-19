@@ -4,6 +4,7 @@ import { requireSchoolContext } from "@/lib/documentContext";
 import { prisma } from "@/lib/prisma";
 import { sortClasses } from "@/lib/classOrder";
 import { currentAcademicYear } from "@/lib/studentFile";
+import { teacherClassIds } from "@/lib/studentScope";
 import { StudentForm } from "./form";
 
 /**
@@ -43,18 +44,21 @@ export default async function NewStudentPage({
 }: {
   searchParams: Promise<{ annee?: string }>;
 }) {
-  const { schoolId, school } = await requireSchoolContext();
+  const { schoolId, school, user } = await requireSchoolContext();
   const sp = await searchParams;
-  // ⚠️ `?annee=` vient de l'Annuaire (7 septembre 2026) : une admission lancée
-  // depuis une année archivée doit y rattacher l'inscription créée, pas à
-  // l'année en cours. Sans le paramètre (accès direct à cette page), on
-  // retombe sur l'année en cours — comportement d'avant ce chantier.
   const academicYear = sp.annee ?? currentAcademicYear(school);
+
+  const teacherClasses = user.role === "TEACHER"
+    ? await teacherClassIds({ schoolId, userId: user.id, role: user.role })
+    : null;
 
   // ⚠️ Le filtre `schoolId` n'est pas une optimisation : c'est la frontière.
   const classes = sortClasses(
     await prisma.class.findMany({
-      where: { schoolId },
+      where: {
+        schoolId,
+        ...(teacherClasses ? { id: { in: teacherClasses } } : {}),
+      },
       select: { id: true, name: true, cycle: true },
     }),
   );

@@ -23,6 +23,7 @@ import {
 } from "./actions";
 import { ScanDialog } from "./ScanDialog";
 import { SignatureDialog } from "./SignatureDialog";
+import { humanizeDocumentLabel } from "@/lib/documentTitle";
 import { formatDateShort } from "@/lib/dateUtils";
 
 /**
@@ -387,7 +388,7 @@ export function DossierClient({
     if (!f) return;
     send(f, {
       requirementId: null,
-      label: f.name.replace(/\.[^.]+$/, "").slice(0, 120) || f.name,
+      label: humanizeDocumentLabel(f.name.replace(/\.[^.]+$/, "").slice(0, 120), null, cible.categorie),
       category: cible.categorie,
       folderId: cible.folderId,
       dossier: cible.titre,

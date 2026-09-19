@@ -8,11 +8,12 @@ import { auditForEntity, type AuditRecord } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { studentFile } from "@/lib/studentFile";
 import { canSeeHealthData, canSeeCategory } from "@/lib/studentScope";
-import { channels, DIFFUSION_CHANNELS } from "@/lib/channels";
 import { DossierClient } from "./DossierClient";
+import { humanizeDocumentLabel } from "@/lib/documentTitle";
+import { channels, DIFFUSION_CHANNELS } from "@/lib/channels";
 
 const PATH = "/dashboard/students";
-const REVIEW_PATH = "/dashboard/documents/validation";
+const REVIEW_PATH = "/dashboard/grades/validation";
 
 /**
  * Dossier numérique d'un élève — lot 13.
@@ -35,10 +36,18 @@ export default async function DossierPage({
   searchParams?: Promise<{ action?: string; reqId?: string }>;
 }) {
   const { user, schoolId } = await requireSchoolContext();
-  if (!hasAccess(user.role, PATH)) redirect(firstAllowedPath(user.role));
-
   const { id } = await params;
   const { action, reqId } = (await searchParams) || {};
+
+  if (user.role === "PARENT") {
+    const target = reqId
+      ? `/famille/actions?studentId=${id}&reqId=${reqId}`
+      : `/famille/enfants/${id}`;
+    redirect(target);
+  }
+
+  if (!hasAccess(user.role, PATH)) redirect(firstAllowedPath(user.role));
+
   const ctx = { userId: user.id, schoolId, role: user.role };
 
   const file = await studentFile(ctx, id);
@@ -202,7 +211,7 @@ export default async function DossierPage({
         }))}
         loose={file.loose.map((d) => ({
           id: d.id,
-          label: d.label,
+          label: humanizeDocumentLabel(d.label, null, d.category),
           category: String(d.category),
           folderId: d.folderId,
           status: String(d.status),
@@ -214,12 +223,13 @@ export default async function DossierPage({
         canReview={hasAccess(user.role, REVIEW_PATH)}
         events={events.map((e) => {
           const a = actors.find((x) => x.id === e.userId);
+          const rawLabel = typeof e.details.label === "string" ? e.details.label : null;
           return {
             id: e.id,
             action: e.action,
             at: e.createdAt.toISOString(),
             who: a ? `${a.firstName} ${a.lastName}` : "Compte supprimé",
-            label: typeof e.details.label === "string" ? e.details.label : null,
+            label: rawLabel ? humanizeDocumentLabel(rawLabel, null, null) : null,
           };
         })}
         initialAction={action}

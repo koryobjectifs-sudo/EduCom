@@ -12,8 +12,9 @@ import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/Field";
 import { DOC_CATEGORY_LABELS, categoryLabel, formatSize } from "@/lib/studentFileLabels";
 import { checkFile, MAX_BYTES } from "@/lib/studentFileLimits";
-import { pdfFromJpegs, jpegSize, MAX_EDGE, MAX_PAGES } from "@/lib/scan";
 import { analyzeStudentDocument, uploadStudentDocument } from "./actions";
+import { humanizeDocumentLabel } from "@/lib/documentTitle";
+import { pdfFromJpegs, jpegSize, MAX_EDGE, MAX_PAGES } from "@/lib/scan";
 
 /**
  * Ajout d'une pièce au dossier — import ou scan. Lot 14.
@@ -199,7 +200,10 @@ export function ScanDialog({
             continue;
           }
           setAsIs(file);
-          if (!label) setLabel(file.name.replace(/\.[^.]+$/, ""));
+          if (!label) {
+            const clean = file.name.replace(/\.[^.]+$/, "");
+            setLabel(humanizeDocumentLabel(clean, null, category));
+          }
           setStep(1);
           continue;
         }
@@ -210,11 +214,17 @@ export function ScanDialog({
         const page = await toJpegPage(file);
         if (page) {
           setPages((p) => [...p, page]);
-          if (!label) setLabel(file.name.replace(/\.[^.]+$/, ""));
+          if (!label) {
+            const clean = file.name.replace(/\.[^.]+$/, "");
+            setLabel(humanizeDocumentLabel(clean, null, category));
+          }
         } else {
           // Repli honnête : on ne perd pas la pièce, on l'envoie telle quelle.
           setAsIs(file);
-          if (!label) setLabel(file.name.replace(/\.[^.]+$/, ""));
+          if (!label) {
+            const clean = file.name.replace(/\.[^.]+$/, "");
+            setLabel(humanizeDocumentLabel(clean, null, category));
+          }
           toast.info("Cette image n'a pas pu être préparée par le navigateur : elle sera envoyée telle quelle.");
         }
         setStep(1);

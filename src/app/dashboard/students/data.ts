@@ -30,26 +30,36 @@ export async function loadStudentsData(academicYear?: string) {
     ...(teacherClasses ? { id: { in: teacherClasses } } : {}),
   };
 
-  const [studentsData, rawClasses, teachers, yearCounts] = await Promise.all([
-    prisma.student.findMany({
-      where: {
+  const studentWhere: Prisma.StudentWhereInput = user.role === "PARENT"
+    ? { AND: [scope, { schoolId }] }
+    : {
         AND: [
           scope,
           { schoolId },
           { enrollments: { some: { academicYear: annee } } },
         ],
-      },
+      };
+
+  const [studentsData, rawClasses, teachers, yearCounts] = await Promise.all([
+    prisma.student.findMany({
+      where: studentWhere,
       select: {
         id: true,
         firstName: true,
         lastName: true,
+        matricule: true,
         dateOfBirth: true,
         status: true,
         parent: { select: { firstName: true, lastName: true, phone: true } },
-        enrollments: {
-          where: { academicYear: annee },
-          select: { academicYear: true, classId: true, class: { select: { id: true, name: true } } },
-        },
+        enrollments: user.role === "PARENT"
+          ? {
+              select: { academicYear: true, classId: true, class: { select: { id: true, name: true } } },
+              orderBy: { academicYear: "desc" },
+            }
+          : {
+              where: { academicYear: annee },
+              select: { academicYear: true, classId: true, class: { select: { id: true, name: true } } },
+            },
       },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     }),

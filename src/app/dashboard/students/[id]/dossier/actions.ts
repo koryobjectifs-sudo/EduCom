@@ -60,7 +60,7 @@ import type { DocCategory } from "../../../../../generated/prisma/client";
  */
 
 const READ_PATH = "/dashboard/students";
-const REVIEW_PATH = "/dashboard/documents/validation";
+const REVIEW_PATH = "/dashboard/grades/validation";
 
 function revalidateFile(studentId: string) {
   revalidatePath(`/dashboard/students/${studentId}/dossier`);

@@ -245,11 +245,12 @@ export default async function StudentProfilePage({
             <Link href={`/dashboard/students/${student.id}/dossier`} className={ACTION_PRINCIPALE}>
               <FolderOpen aria-hidden="true" className="h-4 w-4" /> Dossier
             </Link>
-            {hasAccess(actor.role, "/dashboard/documents") && (
+            {actor.role !== "PARENT" && (
               <GenerateDocumentDropdown
                 context="student"
                 studentId={student.id}
                 studentName={`${student.firstName} ${student.lastName}`}
+                userRole={actor.role}
                 variant="banner"
               />
             )}
