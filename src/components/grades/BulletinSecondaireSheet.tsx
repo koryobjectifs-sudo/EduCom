@@ -7,7 +7,7 @@ import type {
 } from "@/lib/bulletin/loadOfficialBulletin";
 import { DISTINCTION_LABELS, SANCTION_LABELS, ORIENTATION_LABELS } from "@/lib/notes/conseil";
 
-const fmt = (v: number | null, digits = 2) => (v === null ? "—" : v.toFixed(digits));
+const fmt = (v: number | null | undefined, digits = 2) => (v === null || v === undefined ? "—" : v.toFixed(digits));
 
 function rankLabel(rank: number | null, headcount: number): string {
   if (rank === null) return "Non classé";
@@ -22,6 +22,10 @@ export function BulletinSecondaireSheet({
   isT3,
   monochrome = false,
   hidden = false,
+  accentColor,
+  watermark,
+  watermarkOpacity,
+  logoPosition,
 }: {
   student: OfficialSecondaryStudent;
   school: OfficialSchoolMetadata;
@@ -30,8 +34,23 @@ export function BulletinSecondaireSheet({
   isT3: boolean;
   monochrome?: boolean;
   hidden?: boolean;
+  accentColor?: string | null;
+  watermark?: boolean;
+  watermarkOpacity?: number;
+  logoPosition?: "LEFT" | "CENTER" | "RIGHT";
 }) {
-  const accent = monochrome ? "#1f2937" : school.primaryColor || "#1e40af";
+  const accent = monochrome
+    ? "#1f2937"
+    : accentColor || school.bulletinAccentColor || school.primaryColor || "#1e40af";
+  const effectiveWatermark = watermark ?? school.bulletinWatermark ?? false;
+  const effectiveWatermarkOpacity = watermarkOpacity ?? school.bulletinWatermarkOpacity ?? 0.06;
+  const effectiveLogoPosition = logoPosition || (school.bulletinLogoPosition as "LEFT" | "CENTER" | "RIGHT") || "CENTER";
+
+  const totalMatieres = student.subjects.length;
+  const matieresNotees = student.subjects.filter(
+    (s) => s.mm !== null && s.mm !== undefined
+  ).length;
+  const isIncomplete = matieresNotees > 0 && matieresNotees < totalMatieres;
 
   const distinctionLabel = student.distinctionRetenue
     ? DISTINCTION_LABELS[student.distinctionRetenue as keyof typeof DISTINCTION_LABELS] || student.distinctionRetenue
@@ -55,47 +74,80 @@ export function BulletinSecondaireSheet({
         hidden ? "hidden print:hidden" : ""
       } ${monochrome ? "monochrome" : ""}`}
     >
+      {/* ── FILIGRANE DU LOGO SI ACTIVÉ (Centré sur page A4, 60-70% de largeur) ── */}
+      {effectiveWatermark && school.logo && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden z-0 select-none print:flex"
+        >
+          <img
+            src={school.logo}
+            alt=""
+            className="w-[65%] max-w-[65%] max-h-[65%] object-contain"
+            style={{
+              opacity: effectiveWatermarkOpacity,
+              WebkitPrintColorAdjust: "exact",
+              printColorAdjust: "exact",
+            }}
+          />
+        </div>
+      )}
+
       {/* ── EN-TÊTE OFFICIEL SÉNÉGALAIS ── */}
-      <div className="flex items-start justify-between border-b-2 border-gray-900 pb-2 text-[10px] leading-tight">
+      <div className="relative z-10 flex items-start justify-between border-b-2 border-gray-900 pb-2 text-[10px] leading-tight">
         {/* Colonne Gauche */}
-        <div className="w-[50%] space-y-0.5">
-          <p className="font-semibold uppercase tracking-wider text-gray-600">
-            Région Académique : <span className="font-bold text-gray-900">{school.regionAcademique}</span>
-          </p>
-          <p className="font-semibold uppercase tracking-wider text-gray-600">
-            Inspection d&apos;Académie : <span className="font-bold text-gray-900">{school.inspectionAcademique}</span>
-          </p>
-          <p className="font-semibold uppercase tracking-wider text-gray-600">
-            IEF : <span className="font-bold text-gray-900">{school.inspectionIEF}</span>
-          </p>
-          <p className="font-black text-[12px] uppercase text-gray-900 pt-0.5">{school.name}</p>
-          <p className="font-semibold text-gray-600">
-            Année scolaire : <span className="font-bold text-gray-900">{school.activeAcademicYear}</span>
-          </p>
+        <div className="w-[45%] flex items-start gap-2.5 space-y-0.5">
+          {effectiveLogoPosition === "LEFT" && school.logo && (
+            <div className="flex h-14 w-16 shrink-0 items-center justify-center">
+              <img src={school.logo} alt="" className="max-h-14 max-w-full object-contain" />
+            </div>
+          )}
+          <div className="space-y-0.5">
+            <p className="font-semibold uppercase tracking-wider text-gray-600">
+              Région Académique : <span className="font-bold text-gray-900">{school.regionAcademique}</span>
+            </p>
+            <p className="font-semibold uppercase tracking-wider text-gray-600">
+              Inspection d&apos;Académie : <span className="font-bold text-gray-900">{school.inspectionAcademique}</span>
+            </p>
+            <p className="font-semibold uppercase tracking-wider text-gray-600">
+              IEF : <span className="font-bold text-gray-900">{school.inspectionIEF}</span>
+            </p>
+            <p className="font-black text-[12px] uppercase text-gray-900 pt-0.5">{school.name}</p>
+            <p className="font-semibold text-gray-600">
+              Année scolaire : <span className="font-bold text-gray-900">{school.activeAcademicYear}</span>
+            </p>
+          </div>
         </div>
 
-        {/* Logo au centre si existant */}
-        {school.logo && (
-          <div className="flex h-14 w-20 items-center justify-center">
+        {/* Logo au centre si positionné au centre */}
+        {effectiveLogoPosition === "CENTER" && school.logo && (
+          <div className="flex h-14 w-20 items-center justify-center shrink-0">
             <img src={school.logo} alt="" className="max-h-14 max-w-full object-contain" />
           </div>
         )}
 
         {/* Colonne Droite */}
-        <div className="w-[45%] text-right space-y-0.5">
-          <p className="font-bold uppercase tracking-wider text-gray-900">RÉPUBLIQUE DU SÉNÉGAL</p>
-          <p className="italic text-[9px] text-gray-600">Un Peuple - Un But - Une Foi</p>
-          <p className="font-bold uppercase tracking-wider text-gray-800 text-[9px]">
-            MINISTÈRE DE L&apos;ÉDUCATION NATIONALE
-          </p>
-          <div className="pt-1">
-            <span
-              className="inline-block px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white"
-              style={{ backgroundColor: accent }}
-            >
-              BULLETIN DU {termName.toUpperCase()}
-            </span>
+        <div className="w-[45%] flex items-start justify-end gap-2.5 text-right space-y-0.5">
+          <div className="space-y-0.5">
+            <p className="font-bold uppercase tracking-wider text-gray-900">RÉPUBLIQUE DU SÉNÉGAL</p>
+            <p className="italic text-[9px] text-gray-600">Un Peuple - Un But - Une Foi</p>
+            <p className="font-bold uppercase tracking-wider text-gray-800 text-[9px]">
+              MINISTÈRE DE L&apos;ÉDUCATION NATIONALE
+            </p>
+            <div className="pt-1">
+              <span
+                className="inline-block px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white"
+                style={{ backgroundColor: accent }}
+              >
+                BULLETIN DU {termName.toUpperCase()}
+              </span>
+            </div>
           </div>
+          {effectiveLogoPosition === "RIGHT" && school.logo && (
+            <div className="flex h-14 w-16 shrink-0 items-center justify-center">
+              <img src={school.logo} alt="" className="max-h-14 max-w-full object-contain" />
+            </div>
+          )}
         </div>
       </div>
 
@@ -141,7 +193,7 @@ export function BulletinSecondaireSheet({
       </div>
 
       {/* ── TABLEAU DES DISCIPLINES (SECOND LE MODÈLE DE RÉFÉRENCE) ── */}
-      <div className="mt-2.5 flex-grow">
+      <div className="relative z-10 mt-2.5">
         <table className="w-full border-collapse text-[10px]">
           <thead>
             <tr style={{ backgroundColor: accent, color: "#ffffff" }}>
@@ -172,7 +224,7 @@ export function BulletinSecondaireSheet({
             {student.subjects.map((sub, idx) => (
               <tr
                 key={sub.id}
-                className={idx % 2 === 1 ? "bg-gray-50/70" : "bg-white"}
+                className={idx % 2 === 1 ? "bg-gray-100/40" : "bg-transparent"}
                 style={{ pageBreakInside: "avoid" }}
               >
                 <td className="border border-gray-300 py-1 px-2 font-bold text-gray-900 text-[10.5px]">
@@ -201,7 +253,7 @@ export function BulletinSecondaireSheet({
           </tbody>
           <tfoot>
             {/* Ligne TOTAUX */}
-            <tr className="bg-gray-100 font-bold text-gray-900 border-t-2 border-gray-900">
+            <tr className="bg-gray-100/60 font-bold text-gray-900 border-t-2 border-gray-900">
               <td colSpan={4} className="border border-gray-300 py-1.5 px-2 text-right uppercase tracking-wider text-[10px]">
                 Totaux des coefficients et points
               </td>
@@ -230,12 +282,23 @@ export function BulletinSecondaireSheet({
                 </span>
               </td>
             </tr>
+
+            {/* Avertissement Bulletin Incomplet */}
+            {isIncomplete && (
+              <tr className="bg-amber-50 text-amber-950 border-t-2 border-amber-400">
+                <td colSpan={7} className="border border-gray-900 py-1.5 px-3 text-center">
+                  <span className="text-[10px] font-bold text-amber-900">
+                    ⚠️ Moyenne calculée sur {matieresNotees} matière{matieresNotees > 1 ? "s" : ""} sur {totalMatieres}. Bulletin incomplet.
+                  </span>
+                </td>
+              </tr>
+            )}
           </tfoot>
         </table>
       </div>
 
       {/* ── BAS DE PAGE EN DEUX COLONNES (AVIS CONSEIL & VISAS) ── */}
-      <div className="mt-2.5 grid grid-cols-2 gap-3 text-[10px] border-t border-gray-300 pt-2">
+      <div className="relative z-10 mt-2.5 grid grid-cols-2 gap-3 text-[10px] border-t border-gray-300 pt-2">
         {/* Colonne Gauche : Délibérations du conseil */}
         <div className="rounded border border-gray-300 bg-gray-50/40 p-2.5 space-y-1.5">
           <div className="flex items-center justify-between border-b border-gray-200 pb-1">

@@ -8,55 +8,71 @@ import { pickCurrentTerm } from "@/lib/terms";
 import { sortClasses } from "@/lib/classOrder";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataState } from "@/components/dashboard/DataState";
+import { teacherClassIds } from "@/lib/studentScope";
 import ReportCardGenerator from "./Generator";
 
 export const metadata = { title: "Bulletins | EduCom" };
 
-/**
- * Générateur de bulletins.
- *
- * ═══ LES `searchParams` SONT ENFIN LUS ═══
- *
- * ⚠️ **Quatre écrans envoyaient déjà des paramètres à cette page, qui les
- * jetait tous** : `CompletionClient` (`classId` + `termId`), `StudentListClient`,
- * la fiche élève et `DraftsList` (`studentId`). L'utilisateur cliquait
- * « Générer un bulletin » sur un élève précis et retombait sur trois sélecteurs
- * vides. Quatre chemins morts, corrigés ici.
- *
- * `studentId` seul suffit : la classe se déduit de l'inscription, le trimestre
- * du calendrier. C'est la règle du produit — si EduCom peut savoir, il ne
- * demande pas.
- */
 export default async function ReportCardPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  /**
-   * ⚠️ **Garde ajoutée le 22 août 2026.** Cette page n'en avait AUCUNE : elle
-   * authentifiait, résolvait l'école, et servait les bulletins de toutes les
-   * classes à quiconque était connecté — un **parent** compris, qui héritait du
-   * chemin par le préfixe `/dashboard/documents`. Fuite reproduite en sonde.
-   */
-  const { schoolId, user } = await requirePathAccess("/dashboard/grades/report-card");
+  const { schoolId, user, school } = await requirePathAccess("/dashboard/grades/report-card");
   const role = user.role as RoleType;
   const sp = await searchParams;
   const one = (k: string) => (typeof sp[k] === "string" && sp[k] ? (sp[k] as string) : undefined);
 
-  const studentId = one("studentId") ?? null;
+  let studentId = one("studentId") ?? null;
   let classId = one("classId");
   let termId = one("termId");
   const evaluationId = one("evaluationId");
   const isEmbed = one("embed") === "1";
 
+  // Périmètre enseignant : filtrage strict côté serveur
+  const isTeacher = role === "TEACHER";
+  const allowedClassIds = isTeacher
+    ? await teacherClassIds({ schoolId, userId: user.id, role })
+    : null;
+
+  if (isTeacher && allowedClassIds && allowedClassIds.length === 0) {
+    return (
+      <div className="space-y-6 pb-12">
+        <PageHeader
+          breadcrumb={[
+            { label: "Accueil", href: "/dashboard" },
+            { label: "Notes", href: "/dashboard/grades" },
+            { label: "Bulletins" },
+          ]}
+          title="Bulletins officiels"
+          description={`Consultez et imprimez les bulletins des élèves · Établissement actif : ${school.name}`}
+        />
+        <div className="rounded-xl border border-rule/60 p-8 text-center bg-surface/50">
+          <p className="text-sm text-text-soft">Aucune classe ne vous est affectée dans {school.name}.</p>
+        </div>
+      </div>
+    );
+  }
+
   // ── Résolution de ce qui manque, jamais une question posée à l'utilisateur ──
   if (studentId && !classId) {
     const enrollment = await prisma.enrollment.findFirst({
-      where: { studentId, class: { schoolId } },
+      where: {
+        studentId,
+        class: {
+          schoolId,
+          ...(allowedClassIds ? { id: { in: allowedClassIds } } : {}),
+        },
+      },
       orderBy: { createdAt: "desc" },
       select: { classId: true },
     });
     classId = enrollment?.classId;
+  }
+
+  // Si la classe demandée est hors périmètre enseignant, on l'annule
+  if (classId && allowedClassIds && !allowedClassIds.includes(classId)) {
+    classId = undefined;
   }
 
   const termRows = await prisma.term.findMany({
@@ -66,7 +82,13 @@ export default async function ReportCardPage({
   if (!termId) termId = pickCurrentTerm(termRows).current?.id;
 
   const [classes, evaluations] = await Promise.all([
-    prisma.class.findMany({ where: { schoolId }, select: { id: true, name: true, cycle: true } }),
+    prisma.class.findMany({
+      where: {
+        schoolId,
+        ...(allowedClassIds ? { id: { in: allowedClassIds } } : {}),
+      },
+      select: { id: true, name: true, cycle: true },
+    }),
     termId
       ? prisma.evaluation.findMany({
           where: { schoolId, termId },
@@ -77,28 +99,31 @@ export default async function ReportCardPage({
   ]);
   const ordered = sortClasses(classes as never[]) as unknown as { id: string; name: string }[];
 
-  /**
-   * ⚠️ **PLUS DE SÉLECTEUR VIDE À L'ARRIVÉE.**
-   *
-   * Sans `classId`, l'écran s'ouvrait sur « Choisissez une classe » alors qu'il
-   * connaissait déjà les classes de l'école, le trimestre courant et l'endroit
-   * où des notes existent. Une question posée à l'utilisateur dont le produit a
-   * la réponse est une question de trop.
-   *
-   * ⚠️ **On préfère une classe qui porte des notes sur ce trimestre.** Ouvrir
-   * sur la première classe de l'ordre pédagogique (le CI) donnerait souvent un
-   * bulletin entièrement vide, et l'écran paraîtrait cassé alors qu'il aurait
-   * simplement mal choisi. À défaut de notes nulle part, on retombe sur la
-   * première classe — un bulletin vide est alors la vérité.
-   */
   if (!classId && termId && ordered.length > 0) {
     const notees = await prisma.grade.groupBy({
       by: ["classId"],
-      where: { termId, class: { schoolId } },
+      where: {
+        termId,
+        class: {
+          schoolId,
+          ...(allowedClassIds ? { id: { in: allowedClassIds } } : {}),
+        },
+      },
       _count: { _all: true },
     });
     const avecNotes = new Set(notees.map((g) => g.classId));
     classId = ordered.find((c) => avecNotes.has(c.id))?.id ?? ordered[0].id;
+  }
+
+  // Vérification de cohérence : ignorer le paramètre studentId résiduel s'il n'appartient pas à la classe sélectionnée
+  if (studentId && classId) {
+    const isEnrolledInClass = await prisma.enrollment.findFirst({
+      where: { classId, studentId },
+      select: { id: true },
+    });
+    if (!isEnrolledInClass) {
+      studentId = null; // Paramètre résiduel d'une autre classe ignoré
+    }
   }
 
   const link = (patch: Record<string, string | undefined>) => {
@@ -108,7 +133,10 @@ export default async function ReportCardPage({
     return `/dashboard/grades/report-card?${p.toString()}`;
   };
 
-  const officialData = classId && termId
+  const selectedClassName = ordered.find((c) => c.id === classId)?.name || "la classe";
+
+  const canLoadOfficial = Boolean(classId && termId && (!allowedClassIds || allowedClassIds.includes(classId)));
+  const officialData = canLoadOfficial && classId && termId
     ? await loadOfficialBulletin({ schoolId, classId, termId, studentId })
     : null;
 
@@ -138,7 +166,7 @@ export default async function ReportCardPage({
               { label: "Bulletins" },
             ]}
             title="Bulletins officiels"
-            description="Gabarits officiels conformes au Ministère de l'Éducation Nationale du Sénégal (A4)."
+            description={`Gabarits conformes au Ministère de l'Éducation Nationale (A4) · Établissement actif : ${school.name}`}
           />
         </div>
       )}
@@ -150,11 +178,17 @@ export default async function ReportCardPage({
           <DataState
             kind="empty"
             icon={FileText}
-            title={termRows.length === 0 ? "Aucun trimestre déclaré" : "Aucune classe"}
+            title={
+              termRows.length === 0
+                ? "Aucun trimestre déclaré"
+                : ordered.length === 0
+                ? `Aucune classe dans ${school.name}`
+                : `Aucun élève en ${selectedClassName} à ${school.name}`
+            }
             description={
               termRows.length === 0
-                ? "Déclarez au moins un trimestre pour produire des bulletins."
-                : "Créez une classe et inscrivez-y des élèves pour produire des bulletins."
+                ? `Déclarez au moins un trimestre pour produire des bulletins à ${school.name}.`
+                : `Aucun élève n'est inscrit en ${selectedClassName} pour l'établissement actif (${school.name}).`
             }
             action={{
               label: termRows.length === 0 ? "Configurer le calendrier" : "Ouvrir le registre",
@@ -164,6 +198,7 @@ export default async function ReportCardPage({
         </div>
       ) : (
         <ReportCardGenerator
+          key={`${officialData.school.id}-${officialData.classe.id}-${officialData.term.id}-${officialData.school.bulletinWatermark}`}
           data={officialData}
           canPrint={role !== "TEACHER"}
           focusStudentId={studentId}

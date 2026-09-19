@@ -87,6 +87,10 @@ export type OfficialSchoolMetadata = {
   signature: string | null;
   stamp: string | null;
   primaryColor: string | null;
+  bulletinAccentColor?: string | null;
+  bulletinWatermark?: boolean;
+  bulletinWatermarkOpacity?: number;
+  bulletinLogoPosition?: string;
   activeAcademicYear: string;
   regionAcademique: string;
   inspectionAcademique: string;
@@ -129,6 +133,10 @@ export async function loadOfficialBulletin(params: {
         signature: true,
         stamp: true,
         primaryColor: true,
+        bulletinAccentColor: true,
+        bulletinWatermark: true,
+        bulletinWatermarkOpacity: true,
+        bulletinLogoPosition: true,
         activeAcademicYear: true,
         regionAcademique: true,
         inspectionAcademique: true,
@@ -187,6 +195,10 @@ export async function loadOfficialBulletin(params: {
     signature: school.signature,
     stamp: school.stamp,
     primaryColor: school.primaryColor,
+    bulletinAccentColor: school.bulletinAccentColor ?? null,
+    bulletinWatermark: school.bulletinWatermark ?? false,
+    bulletinWatermarkOpacity: school.bulletinWatermarkOpacity ?? 0.06,
+    bulletinLogoPosition: school.bulletinLogoPosition ?? "CENTER",
     activeAcademicYear: school.activeAcademicYear || "2026-2027",
     regionAcademique: school.regionAcademique || "Dakar",
     inspectionAcademique: school.inspectionAcademique || "Inspection d'Académie de Dakar",
