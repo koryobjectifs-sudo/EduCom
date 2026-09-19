@@ -28,6 +28,8 @@ export default function TeacherAssignmentModal({
 }: TeacherAssignmentModalProps) {
   const [mainClassIds, setMainClassIds] = useState<string[]>(initialMainClassIds);
   const [assignments, setAssignments] = useState<TeachingAssignment[]>(initialAssignments);
+  const [bulkSubjectId, setBulkSubjectId] = useState<string>("");
+  const [bulkClassIds, setBulkClassIds] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
 
@@ -49,6 +51,34 @@ export default function TeacherAssignmentModal({
 
   const removeAssignment = (index: number) => {
     setAssignments(assignments.filter((_, i) => i !== index));
+  };
+
+  const toggleBulkClass = (classId: string) => {
+    setBulkClassIds((prev) =>
+      prev.includes(classId) ? prev.filter((id) => id !== classId) : [...prev, classId]
+    );
+  };
+
+  const selectAllBulkClasses = () => {
+    setBulkClassIds(classes.map((c) => c.id));
+  };
+
+  const deselectAllBulkClasses = () => {
+    setBulkClassIds([]);
+  };
+
+  const handleApplyBulk = () => {
+    if (!bulkSubjectId || bulkClassIds.length === 0) return;
+    const existingKeys = new Set(assignments.map((a) => `${a.classId}:${a.subjectId}`));
+    const newItems: TeachingAssignment[] = [];
+    for (const classId of bulkClassIds) {
+      if (!existingKeys.has(`${classId}:${bulkSubjectId}`)) {
+        newItems.push({ classId, subjectId: bulkSubjectId });
+        existingKeys.add(`${classId}:${bulkSubjectId}`);
+      }
+    }
+    setAssignments([...assignments, ...newItems]);
+    setBulkClassIds([]);
   };
 
   const handleSave = () => {
@@ -146,8 +176,93 @@ export default function TeacherAssignmentModal({
                 </p>
               </div>
               <Button type="button" variant="secondary" size="sm" onClick={addAssignment} icon={<Plus className="h-4 w-4" />}>
-                Ajouter
+                Ajouter une ligne
               </Button>
+            </div>
+
+            {/* Outil d'affectation en masse */}
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold text-text">Affectation rapide en masse</h4>
+                  <p className="text-xs text-text-soft">
+                    Sélectionnez une matière et cochez les classes concernées pour les ajouter d'un coup.
+                  </p>
+                </div>
+                {bulkClassIds.length > 0 && (
+                  <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    {bulkClassIds.length} classe{bulkClassIds.length > 1 ? "s" : ""} cochée{bulkClassIds.length > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <select
+                  value={bulkSubjectId}
+                  onChange={(e) => setBulkSubjectId(e.target.value)}
+                  className="flex-1 rounded-control border border-rule bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Sélectionner une matière...</option>
+                  {subjects.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={selectAllBulkClasses}
+                    className="text-xs text-primary hover:underline px-2 py-1"
+                  >
+                    Tout cocher
+                  </button>
+                  <span className="text-text-faint text-xs">·</span>
+                  <button
+                    type="button"
+                    onClick={deselectAllBulkClasses}
+                    className="text-xs text-text-soft hover:underline px-2 py-1"
+                  >
+                    Tout décocher
+                  </button>
+                </div>
+              </div>
+
+              <div className="max-h-36 overflow-y-auto rounded-lg border border-rule bg-surface p-2 grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                {classes.map((c) => {
+                  const isChecked = bulkClassIds.includes(c.id);
+                  return (
+                    <label
+                      key={c.id}
+                      className={`flex items-center gap-2 rounded px-2 py-1 text-xs cursor-pointer select-none transition-colors ${
+                        isChecked ? "bg-primary/10 font-medium text-primary" : "hover:bg-sunk text-text"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleBulkClass(c.id)}
+                        className="h-3.5 w-3.5 rounded border-rule text-primary focus:ring-primary"
+                      />
+                      <span className="truncate">{c.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary"
+                  onClick={handleApplyBulk}
+                  disabled={!bulkSubjectId || bulkClassIds.length === 0}
+                  icon={<Plus className="h-4 w-4" />}
+                >
+                  Ajouter {bulkClassIds.length > 0 ? `(${bulkClassIds.length})` : ""} aux enseignements
+                </Button>
+              </div>
             </div>
 
             {assignments.length === 0 ? (

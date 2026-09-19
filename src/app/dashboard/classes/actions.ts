@@ -41,6 +41,7 @@ export async function createClass(formData: FormData) {
   const cycle = normalizeOrDeduceCycle(rawCycle, name);
   const serie = formData.get("serie") as string | null;
 
+  let createdId: string | null = null;
   try {
     const created = await prisma.class.create({
       data: {
@@ -52,6 +53,7 @@ export async function createClass(formData: FormData) {
         academicYear: dbUser.school.activeAcademicYear,
       }
     });
+    createdId = created.id;
     await attachCurriculumSubjectsToClass(created.id);
   } catch (error) {
     console.error("Error creating class:", error);
@@ -59,7 +61,7 @@ export async function createClass(formData: FormData) {
   }
 
   revalidatePath("/dashboard/classes");
-  redirect("/dashboard/classes");
+  redirect(`/dashboard/classes/${createdId}`);
 }
 
 export async function createClassInline(formData: FormData) {

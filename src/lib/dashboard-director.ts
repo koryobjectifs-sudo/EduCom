@@ -205,6 +205,8 @@ export type DirectorDashboardSnapshot = {
     students: boolean;
     validation: boolean;
     pedagogie: boolean;
+    attendance: boolean;
+    settings: boolean;
   };
   hasDemoData: boolean;
   kpis: DirectorKPIs;
@@ -256,8 +258,10 @@ export async function getDirectorDashboardSnapshot(
   const scope = {
     money: hasAccess(role, "/dashboard/payments"),
     students: hasAccess(role, "/dashboard/students"),
-    validation: hasAccess(role, "/dashboard/documents/validation"),
+    validation: hasAccess(role, "/dashboard/grades/validation") || hasAccess(role, "/dashboard/documents/validation"),
     pedagogie: hasAccess(role, "/dashboard/grades") || hasAccess(role, "/dashboard/settings/pedagogie"),
+    attendance: hasAccess(role, "/dashboard/attendance"),
+    settings: hasAccess(role, "/dashboard/settings"),
   };
 
   // 1. REQUÊTES EN BATCH DU SOCLE BLOQUANT (KPIs, Alertes, Finances, Assiduité, Effectifs)
@@ -804,6 +808,61 @@ export async function getDirectorDashboardSnapshot(
     });
   }
 
+  // Urgent : Matières sans enseignant affecté (bloque la saisie des notes)
+  if (scope.pedagogie) {
+    const [classSubjects, schoolAssignments] = await Promise.all([
+      prisma.classSubject.findMany({
+        where: { class: { schoolId } },
+        select: { classId: true, subjectId: true },
+      }),
+      prisma.teachingAssignment.findMany({
+        where: { schoolId, subjectId: { not: null } },
+        select: { classId: true, subjectId: true },
+      }),
+    ]);
+    const assignedSet = new Set(schoolAssignments.map((a) => `${a.classId}:${a.subjectId}`));
+    const unassignedSubjectsCount = classSubjects.filter(
+      (cs) => !assignedSet.has(`${cs.classId}:${cs.subjectId}`)
+    ).length;
+
+    if (unassignedSubjectsCount > 0) {
+      actionsRequired.push({
+        id: "unassigned_subjects",
+        severity: "urgent",
+        category: "pedagogy",
+        title: `${unassignedSubjectsCount} matière${unassignedSubjectsCount > 1 ? "s" : ""} sans enseignant`,
+        description: "Les professeurs ne peuvent pas saisir leurs notes.",
+        count: unassignedSubjectsCount,
+        badgeText: `${unassignedSubjectsCount} sans prof`,
+        href: "/dashboard/classes?view=teachers",
+        cta: "Affecter en masse",
+        icon: "users",
+      });
+    }
+  }
+
+  // Urgent : Élèves sans parent rattaché (bloquant pour l'Espace Famille et notifications)
+  const unlinkedParentsCount = scope.students
+    ? await prisma.student.count({
+        where: { schoolId, parentId: null, status: "ENROLLED" },
+      })
+    : 0;
+
+  if (scope.students && unlinkedParentsCount > 0) {
+    actionsRequired.push({
+      id: "unlinked_parents",
+      severity: "urgent",
+      category: "admission",
+      title: `${unlinkedParentsCount} élève${unlinkedParentsCount > 1 ? "s" : ""} sans parent rattaché`,
+      description: "Ces familles ne reçoivent aucune notification.",
+      count: unlinkedParentsCount,
+      badgeText: `${unlinkedParentsCount} sans parent`,
+      href: "/dashboard/students",
+      cta: "Rattacher les familles",
+      icon: "users",
+    });
+  }
+
   // Urgent : Aucun élève importé alors que des classes existent
   if (scope.students && classesList.length > 0 && totalStudentsCount === 0) {
     actionsRequired.push({
@@ -844,7 +903,7 @@ export async function getDirectorDashboardSnapshot(
       title: "Bulletins à valider",
       description: `${submittedReportCardsCount} bulletin${submittedReportCardsCount > 1 ? "s" : ""} transmis par les enseignants`,
       count: submittedReportCardsCount,
-      href: "/dashboard/documents/validation",
+      href: "/dashboard/grades/validation",
       cta: "Relire et approuver",
       icon: "file-check",
     });
@@ -896,7 +955,9 @@ export async function getDirectorDashboardSnapshot(
   }
 
   // 8. KPIS STRIP (3 à 5 indicateurs essentiels)
-  const urgentCount = actionsRequired.filter((a) => a.severity === "urgent").length;
+  // Filtrage strict : Aucune action requise ne doit pointer vers un chemin interdit au rôle
+  const authorizedActionsRequired = actionsRequired.filter((a) => hasAccess(role, a.href));
+  const urgentCount = authorizedActionsRequired.filter((a) => a.severity === "urgent").length;
 
   const countsByYear: Record<string, number> = {};
   for (const yc of enrollmentCountsByYear) {
@@ -957,7 +1018,7 @@ export async function getDirectorDashboardSnapshot(
     hasDemoData: demoClassCount > 0,
     kpis,
     financialCommand,
-    actionsRequired,
+    actionsRequired: authorizedActionsRequired,
     enrollment: enrollmentData,
     attendanceToday: attendanceTodayData,
     academic: null as any,

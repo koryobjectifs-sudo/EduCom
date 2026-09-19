@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useEffect, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -132,7 +132,15 @@ export default function ClassListClient({
   const searchTerm = externalSearchTerm || internalSearch;
 
   // Mode d'affichage principal : Vue par classe vs Vue par enseignant (Affectation en masse)
-  const [mainViewMode, setMainViewMode] = useState<"classes" | "bulk_teachers">("classes");
+  const [mainViewMode, setMainViewMode] = useState<"classes" | "bulk_teachers">(() => {
+    return searchParams.get("view") === "teachers" ? "bulk_teachers" : "classes";
+  });
+
+  useEffect(() => {
+    if (searchParams.get("view") === "teachers") {
+      setMainViewMode("bulk_teachers");
+    }
+  }, [searchParams]);
 
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [classToDelete, setClassToDelete] = useState<string | null>(null);

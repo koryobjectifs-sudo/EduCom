@@ -10,6 +10,10 @@ interface DirectorHeaderProps {
   todayFormatted: string;
   currentPeriodContext: string;
   urgentCount: number;
+  scope?: {
+    money?: boolean;
+    students?: boolean;
+  };
 }
 
 export default function DirectorHeader({
@@ -19,6 +23,7 @@ export default function DirectorHeader({
   todayFormatted,
   currentPeriodContext,
   urgentCount,
+  scope,
 }: DirectorHeaderProps) {
   const greetingName = firstName ? firstName : "la Direction";
 
@@ -73,22 +78,26 @@ export default function DirectorHeader({
             </div>
           </div>
 
-          {/* Boutons d'actions rapides */}
+          {/* Boutons d'actions rapides : affichage conditionné strictement aux permissions réelles */}
           <div className="flex items-center gap-2 shrink-0">
-            <Link
-              href="/dashboard/students"
-              className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-control bg-white text-[#0E2541] px-3 text-xs font-semibold hover:bg-blue-50 active:scale-[0.98] transition-all shadow-sm whitespace-nowrap"
-            >
-              <UserPlus className="h-3.5 w-3.5 text-[#0E2541] shrink-0" />
-              <span>Nouvel élève</span>
-            </Link>
-            <Link
-              href="/dashboard/payments"
-              className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-control bg-[#539BEB] text-white px-3 text-xs font-semibold hover:bg-[#4389d6] active:scale-[0.98] transition-all shadow-sm whitespace-nowrap"
-            >
-              <CreditCard className="h-3.5 w-3.5 shrink-0" />
-              <span>Facturation</span>
-            </Link>
+            {Boolean(scope?.students) && (
+              <Link
+                href="/dashboard/students"
+                className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-control bg-white text-[#0E2541] px-3 text-xs font-semibold hover:bg-blue-50 active:scale-[0.98] transition-all shadow-sm whitespace-nowrap"
+              >
+                <UserPlus className="h-3.5 w-3.5 text-[#0E2541] shrink-0" />
+                <span>Nouvel élève</span>
+              </Link>
+            )}
+            {Boolean(scope?.money) && (
+              <Link
+                href="/dashboard/payments"
+                className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-control bg-[#539BEB] text-white px-3 text-xs font-semibold hover:bg-[#4389d6] active:scale-[0.98] transition-all shadow-sm whitespace-nowrap"
+              >
+                <CreditCard className="h-3.5 w-3.5 shrink-0" />
+                <span>Facturation</span>
+              </Link>
+            )}
           </div>
         </div>
       </div>

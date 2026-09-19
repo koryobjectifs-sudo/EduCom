@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { UserPlus, Trash2, Loader2, TriangleAlert, Users, BookOpen, AlertTriangle } from "lucide-react";
 import { createAssignment, deleteAssignment } from "../../grades/actions";
 
@@ -49,6 +50,13 @@ export default function AssignmentsPanel({
   const [warning, setWarning] = useState<string | null>(null);
 
   const selectedTeacher = teachers.find((t) => t.id === teacherId);
+
+  // Matières non affectées dans cette classe
+  const hasClassWideTeacher = assignments.some((a) => !a.subjectId);
+  const assignedSubjectIds = new Set(assignments.map((a) => a.subjectId).filter(Boolean));
+  const unassignedSubjects = hasClassWideTeacher
+    ? []
+    : subjects.filter((s) => !assignedSubjectIds.has(s.id));
 
   // Filtrage des enseignants recommandés si une matière est choisie
   const recommendedTeachers = subjectId
@@ -121,10 +129,50 @@ export default function AssignmentsPanel({
         </p>
       )}
 
+      {unassignedSubjects.length > 0 && (
+        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 text-amber-950">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1.5 text-xs flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-bold text-amber-950">
+                  {unassignedSubjects.length} matière{unassignedSubjects.length > 1 ? "s" : ""} sans enseignant
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded-full">
+                  Saisie bloquée
+                </span>
+              </div>
+              <p className="text-amber-800 text-[11.5px] leading-relaxed">
+                Les professeurs ne peuvent pas saisir leurs notes tant qu&apos;ils ne sont pas rattachés.
+              </p>
+              <div className="pt-1 flex flex-wrap gap-1.5">
+                {unassignedSubjects.map((s) => (
+                  <span
+                    key={s.id}
+                    className="inline-flex items-center px-2 py-0.5 rounded-md bg-white border border-amber-200 text-[11px] font-medium text-amber-900 shadow-2xs"
+                  >
+                    {s.name}
+                  </span>
+                ))}
+              </div>
+              <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between">
+                <span className="text-[11px] text-amber-800">Affecter plusieurs classes à la fois :</span>
+                <Link
+                  href="/dashboard/classes?view=teachers"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 hover:underline"
+                >
+                  Vue globale par enseignant →
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-1.5 mb-4">
         {assignments.length === 0 && (
           <p className="text-[13px] text-gray-400 italic bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-2.5">
-            Aucune affectation. Le professeur principal garde la main sur toutes les matières.
+            Aucune affectation. Utilisez le formulaire ci-dessous pour désigner les enseignants de chaque matière.
           </p>
         )}
         {assignments.map((a) => (

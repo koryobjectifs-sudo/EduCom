@@ -6,6 +6,7 @@ import { requireSchoolContext } from "@/lib/documentContext";
 import { hasAccess, type RoleType } from "@/lib/permissions";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { currentAcademicYear } from "@/lib/studentFile";
+import { teacherClassIds } from "@/lib/studentScope";
 import ClassListClient, { type ClassItem, type TeacherItem } from "./ClassListClient";
 
 export const metadata = {
@@ -29,6 +30,10 @@ export default async function ClassesPage({ searchParams }: ClassesPageProps) {
     redirect("/dashboard");
   }
 
+  const teacherClasses = role === "TEACHER"
+    ? await teacherClassIds({ schoolId, userId: user.id, role })
+    : null;
+
   const sp = await searchParams;
   const filterParam = sp?.filter === "unassigned" ? "unassigned" : "all";
   const cycleParam = sp?.cycle || null;
@@ -37,7 +42,10 @@ export default async function ClassesPage({ searchParams }: ClassesPageProps) {
 
   const [rawClasses, teachers, allAssignments, allSubjects] = await Promise.all([
     prisma.class.findMany({
-      where: { schoolId },
+      where: {
+        schoolId,
+        ...(teacherClasses ? { id: { in: teacherClasses } } : {}),
+      },
       include: {
         teacher: {
           select: { id: true, firstName: true, lastName: true },

@@ -45,7 +45,7 @@ export default function AcademicProgressSection({ academic }: AcademicProgressSe
             <ArrowRight className="h-3 w-3" />
           </Link>
           <Link
-            href="/dashboard/documents/validation"
+            href="/dashboard/grades/validation"
             className="inline-flex h-7.5 items-center gap-1 rounded-control bg-primary hover:bg-primary-hover px-2.5 text-xs font-semibold text-white transition-colors shadow-2xs"
           >
             <span>Validation des bulletins</span>
@@ -183,7 +183,7 @@ export default function AcademicProgressSection({ academic }: AcademicProgressSe
           </div>
 
           <Link
-            href="/dashboard/documents/validation"
+            href="/dashboard/grades/validation"
             className="text-role-meta font-semibold text-primary hover:underline flex items-center gap-1"
           >
             <span>Espace relecture</span>

@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Edit, Users, BookOpen, GraduationCap, Calendar, User } from "lucide-react";
+import { ArrowLeft, Edit, Users, BookOpen, GraduationCap, Calendar, User, AlertTriangle } from "lucide-react";
 import AssignmentsPanel from "./AssignmentsPanel";
 import { StatusBadge } from "@/components/ui/Badge";
 import GenerateDocumentDropdown from "@/components/documents/GenerateDocumentDropdown";
+import { teacherClassIds } from "@/lib/studentScope";
 
 export default async function ClassProfilePage({
   params,
@@ -19,6 +21,17 @@ export default async function ClassProfilePage({
 
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
   if (!dbUser) return null;
+
+  if (dbUser.role === "TEACHER") {
+    const teacherClasses = await teacherClassIds({
+      schoolId: dbUser.schoolId,
+      userId: dbUser.id,
+      role: dbUser.role,
+    });
+    if (!teacherClasses.includes(id)) {
+      redirect("/dashboard/classes");
+    }
+  }
 
   const classData = await prisma.class.findUnique({
     where: { id, schoolId: dbUser.schoolId },
@@ -95,8 +108,42 @@ export default async function ClassProfilePage({
 
   const canEditAssignments = ["OWNER", "ADMIN", "SECRETARY"].includes(dbUser.role);
 
+  const hasClassWideAssignment = assignments.some((a) => !a.subjectId);
+  const assignedSubjectIds = new Set(assignments.map((a) => a.subjectId).filter(Boolean));
+  const unassignedClassSubjects = hasClassWideAssignment
+    ? []
+    : classSubjects.filter((cs) => !assignedSubjectIds.has(cs.subjectId));
+  const unassignedSubjectsCount = unassignedClassSubjects.length;
+
   return (
     <div className="space-y-6 max-w-7xl pb-12 mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Alerte si des matières n'ont aucun enseignant affecté */}
+      {unassignedSubjectsCount > 0 && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50/90 p-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-800">
+                <AlertTriangle className="h-5 w-5 text-amber-700" />
+              </span>
+              <div>
+                <h4 className="text-sm font-bold text-amber-950">
+                  {unassignedSubjectsCount} matière{unassignedSubjectsCount > 1 ? "s" : ""} sans enseignant dans cette classe
+                </h4>
+                <p className="text-xs text-amber-800 mt-0.5">
+                  Les professeurs ne peuvent pas saisir leurs notes tant qu&apos;ils ne sont pas affectés.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/classes?view=teachers"
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-amber-700 transition-colors shrink-0 shadow-sm"
+            >
+              Affectation en masse →
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Banner / Header */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary-hover text-white shadow-xl">
         {/* Background Decorative Elements */}

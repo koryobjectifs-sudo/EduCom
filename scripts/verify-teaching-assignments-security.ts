@@ -11,7 +11,7 @@
  *   npm run script -- scripts/verify-teaching-assignments-security.ts
  */
 
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { editableSubjectIds, teacherWorkspace } from "../src/lib/gradeEntry";
 import { assignSubjectTeacher, assignTeacherDirectly, assignTeacherBulk } from "../src/app/dashboard/classes/actions";
 
