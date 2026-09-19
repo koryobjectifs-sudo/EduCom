@@ -26,6 +26,12 @@ export default async function FamilyLayout({
   const userName = [user.firstName, user.lastName].filter(Boolean).join(" ") || "Parent";
   const themeStyle = schoolThemeStyle(school.primaryColor);
 
+  let devSwitcher: React.ReactNode = null;
+  if (process.env.NODE_ENV !== "production") {
+    const DevRoleSwitcher = (await import("@/components/dev/DevRoleSwitcher")).default;
+    devSwitcher = <DevRoleSwitcher currentRole={role} variant="famille" />;
+  }
+
   return (
     <div style={themeStyle} className="contents">
       <FamilyShell
@@ -36,6 +42,7 @@ export default async function FamilyLayout({
         userName={userName}
         userRole={role}
         pendingActionsCount={pendingReminders.length}
+        devSwitcher={devSwitcher}
       >
         {children}
       </FamilyShell>

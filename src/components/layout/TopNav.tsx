@@ -3,7 +3,7 @@
 import { LogOut, Globe, ChevronDown, Shield } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
-import { changeTestRole } from "@/app/dashboard/actions";
+import DevRoleSwitcher from "@/components/dev/DevRoleSwitcher";
 import { toast } from "sonner";
 import MobileNav from "./MobileNav";
 
@@ -43,8 +43,6 @@ import MobileNav from "./MobileNav";
  * fuite, et cela fonctionne hors ligne.
  */
 
-const ALL_TEST_ROLES = ["OWNER", "ADMIN", "SECRETARY", "ACCOUNTANT", "TEACHER", "ASSISTANT", "PARENT"];
-
 export default function TopNav({
   schoolName,
   schoolLogo,
@@ -57,17 +55,12 @@ export default function TopNav({
   userName?: string;
 }) {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const roleMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setProfileMenuOpen(false);
-      }
-      if (roleMenuRef.current && !roleMenuRef.current.contains(event.target as Node)) {
-        setRoleMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -78,7 +71,6 @@ export default function TopNav({
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         setProfileMenuOpen(false);
-        setRoleMenuOpen(false);
       }
     }
     document.addEventListener("keydown", onKeyDown);
@@ -124,53 +116,7 @@ export default function TopNav({
         {/* Droite : actions réelles */}
         <div className="flex shrink-0 items-center gap-1.5">
           {process.env.NODE_ENV !== "production" && (
-            <div className="relative" ref={roleMenuRef}>
-              <button
-                type="button"
-                onClick={() => setRoleMenuOpen(!roleMenuOpen)}
-                aria-expanded={roleMenuOpen}
-                aria-haspopup="menu"
-                title="Changer de rôle (développement)"
-                className="inline-flex h-7.5 items-center gap-1.5 rounded-control border border-warning/30 bg-warning/10 px-2 text-role-meta font-medium text-warning transition-colors hover:bg-warning/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-              >
-                <Shield aria-hidden="true" className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{roleLabel}</span>
-                <ChevronDown aria-hidden="true" className={`h-3 w-3 transition-transform ${roleMenuOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              {roleMenuOpen && (
-                <div role="menu" className="absolute right-0 top-full z-50 mt-1.5 w-48 overflow-hidden rounded-surface border border-rule bg-surface p-1 shadow-overlay">
-                  <p className="px-2.5 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-text-faint">
-                    Tester en tant que
-                  </p>
-                  {ALL_TEST_ROLES.map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      role="menuitem"
-                      onClick={async () => {
-                        setRoleMenuOpen(false);
-                        const res = await changeTestRole(r);
-                        if (res.success && res.targetPath) {
-                          window.location.href = res.targetPath;
-                        } else if (res.success) {
-                          window.location.href = "/dashboard";
-                        } else {
-                          toast.error("Erreur de changement de rôle : " + res.error);
-                        }
-                      }}
-                      className={`flex w-full items-center rounded-control px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                        userRole === r
-                          ? "bg-warning/10 text-warning"
-                          : "text-text-soft hover:bg-sunk hover:text-text"
-                      }`}
-                    >
-                      {r}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <DevRoleSwitcher currentRole={userRole} variant="famille" />
           )}
 
           <Link

@@ -5,7 +5,8 @@ import { useState, useRef, useEffect } from "react";
 import { LayoutDashboard, Globe, Shield, LogOut, ChevronUp, Camera, UploadCloud, Trash2, Loader2, Minus, Plus } from "lucide-react";
 import { type NavSpace } from "@/lib/navigation";
 import { getNavIcon } from "./nav-icons";
-import { changeTestRole, updateUserAvatar } from "@/app/dashboard/actions";
+import { updateUserAvatar } from "@/app/dashboard/actions";
+import DevRoleSwitcher from "@/components/dev/DevRoleSwitcher";
 import { toast } from "sonner";
 
 export interface AppRailProps {
@@ -17,8 +18,6 @@ export interface AppRailProps {
   userName?: string;
   userAvatar?: string | null;
 }
-
-const ALL_TEST_ROLES = ["OWNER", "ADMIN", "SECRETARY", "ACCOUNTANT", "TEACHER", "ASSISTANT", "PARENT"];
 
 export default function AppRail({
   spaces,
@@ -32,7 +31,6 @@ export default function AppRail({
   const initial = schoolName?.trim() ? schoolName.trim().charAt(0).toUpperCase() : "E";
   const isDashboardActive = !activeSpaceId;
 
-  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [density, setDensity] = useState<string>("normal");
   const [currentAvatar, setCurrentAvatar] = useState<string | null>(userAvatar || null);
@@ -46,7 +44,6 @@ export default function AppRail({
     }
   }, [userAvatar]);
 
-  const roleRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,9 +59,6 @@ export default function AppRail({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (roleRef.current && !roleRef.current.contains(e.target as Node)) {
-        setRoleMenuOpen(false);
-      }
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileMenuOpen(false);
       }
@@ -290,50 +284,7 @@ export default function AppRail({
 
         {/* Sélecteur de rôle test (développement uniquement) */}
         {process.env.NODE_ENV !== "production" && (
-          <div className="relative" ref={roleRef}>
-            <button
-              type="button"
-              onClick={() => setRoleMenuOpen(!roleMenuOpen)}
-              aria-expanded={roleMenuOpen}
-              title={`Rôle test : ${roleLabel}`}
-              className="flex h-8 w-8 items-center justify-center rounded-control text-amber-300 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 transition-colors"
-            >
-              <Shield className="h-4 w-4" />
-            </button>
-
-            {roleMenuOpen && (
-              <div
-                role="menu"
-                className="absolute bottom-0 left-full ml-2 w-48 overflow-hidden rounded-surface border border-rule bg-surface p-1 shadow-overlay z-50 text-slate-800 animate-in fade-in zoom-in-95"
-              >
-                <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-                  Tester en tant que
-                </p>
-                {ALL_TEST_ROLES.map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    role="menuitem"
-                    onClick={async () => {
-                      setRoleMenuOpen(false);
-                      const res = await changeTestRole(r);
-                      if (res.success && res.targetPath) {
-                        window.location.href = res.targetPath;
-                      } else {
-                        window.location.href = "/dashboard";
-                      }
-                    }}
-                    className={`flex w-full items-center justify-between rounded-control px-2 py-1 text-xs transition-colors hover:bg-sunk ${
-                      userRole === r ? "font-semibold text-primary" : "text-text"
-                    }`}
-                  >
-                    <span>{r.charAt(0) + r.slice(1).toLowerCase()}</span>
-                    {userRole === r && <span className="text-[10px] text-primary">Actif</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <DevRoleSwitcher currentRole={userRole} variant="dashboard" />
         )}
 
         {/* Avatar Profil utilisateur & Menu */}

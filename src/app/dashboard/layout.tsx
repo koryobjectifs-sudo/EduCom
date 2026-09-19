@@ -47,6 +47,26 @@ export default async function DashboardLayout({
 
   // 1. AIGUILLAGE SERVEUR PARENT : Redirection transparente vers l'Espace Famille (/famille)
   if (userRole === "PARENT") {
+    // S'assurer qu'un compte qui TESTE en tant que parent garde une porte de sortie :
+    // La redirection /dashboard → /famille ne s'applique qu'aux comptes réellement parents,
+    // jamais à un ADMIN/staff en mode test qui tente d'accéder au dashboard.
+    let isDevTesting = false;
+    if (process.env.NODE_ENV !== "production") {
+      const simulatedRoleCookie = cookieStore.get("educom_dev_simulated_role")?.value;
+      const hasAdminMembership = memberships.some((m) =>
+        ["ADMIN", "OWNER", "TEACHER", "SECRETARY", "ACCOUNTANT"].includes(m.role)
+      );
+      const isStaffEmail = !dbUser.email.endsWith("@parent.educom.local");
+      if (simulatedRoleCookie === "PARENT" || hasAdminMembership || isStaffEmail) {
+        isDevTesting = true;
+      }
+    }
+
+    if (isDevTesting) {
+      // Échappement automatique : l'admin en test accédant au dashboard est rétabli dans son rôle réel
+      redirect("/api/dev/reset-role?role=ADMIN");
+    }
+
     const headersList = await headers();
     const pathname = headersList.get("x-pathname") || "/dashboard";
 

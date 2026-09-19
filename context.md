@@ -1,5 +1,17 @@
 # EduCom SaaS - Contexte du Projet
 
+> **Chantier Rattrapage Tuteurs & Sélecteur de Rôle Dev — 19 septembre 2026.**
+> - **1. Audit & Rattrapage des 359 Élèves sans Tuteur (SENG.CO)** :
+>   - *Audit des 120 téléphones distincts* : 119 fratries de 3 enfants, 1 fratrie de 2 enfants (359 élèves au total). 0 cas au-delà de 4 enfants, 0 discordance de nom de famille (100% de concordance fratrie).
+>   - *Exécution réelle (`APPLY=1`)* : Script optimisé par lot (`scripts/catchup-unlinked-guardians.ts`). 359 élèves rattachés à leurs 120 tuteurs respectifs en base.
+>   - *État final de SENG.CO* : 381 élèves rattachés sur 388 (98,2%). Les 7 élèves restants n'ont aucun contact/téléphone et sont listés pour traitement manuel par l'établissement.
+> - **2. Sélecteur de Rôle Dev & Mode Test Réel** :
+>   - *Correction des clés de rôle* : Remplacement de la clé invalide `COMPTABLE` par le rôle Prisma canonique `ACCOUNTANT` (erreur `PrismaClientValidationError` résolue). Suppression du rôle fantôme `DIRECTION` (inexistant dans l'énumération et la matrice de permissions ; absorbé par `ADMIN` et `OWNER`).
+>   - *Simulation Enseignant Réel* : En mode `TEACHER`, le compte de test clone automatiquement les affectations d'un enseignant réel de l'établissement (ex: Jean Senghor avec CI, CE1, CE2, 6e, Terminale S2) au lieu de rester une coquille vide sans matières.
+>   - *Verrouillage strict Zéro Fuite* : Sécurisation de `/dashboard/attendance`, `/dashboard/grades/bulletin`, `/dashboard/grades/report-card` et `/dashboard/grades` via `teacherClassIds` ; un enseignant sans affectation voit 0 classe et un message explicite, sans jamais aucun repli sur « tout afficher ».
+>   - *Désenclavement du Dashboard & Étanchéité* : Dans `src/app/dashboard/layout.tsx`, la redirection parent ignore les comptes staff/admin en test. Étanchéité production validée par `scripts/verify-no-dev-tools-in-prod.ts` (11/11 PASS).
+> - **Validation Globale** : TypeScript strict (`npx tsc --noEmit`) : 0 erreur. 0 commit, 0 push.
+>
 > **Chantier Résolution des 5 Points Avant Staging & Unification Espace Famille — 19 septembre 2026.**
 > - **1. Diagnostic Base de Données & Contexte École Active** :
 >   - *État réel de la base SENG.CO* : 100% intacte (5 élèves réels en 4e, 20 notes associées, 388 élèves réels au total, aucun élève touché hors `TEST_`). Aucun PITR requis.
@@ -5730,3 +5742,27 @@ motif par motif depuis qu'un `grep` combiné avait échoué en silence
 **Règle des itérations.** `V1 OG → Expérience A → RETURN TO V1 OG → Expérience B`.
 Une expérience ne devient jamais la nouvelle baseline : seule une approbation
 explicite de Kory peut en établir une. Le protocole complet vit dans `rappel.md`.
+
+## À retirer avant déploiement en production
+
+Ces fichiers et blocs de code sont des outils de développement stricts, isolés de la production (`process.env.NODE_ENV !== 'production'`), destinés à être supprimés en une fois lors de la phase de release finale :
+
+1. **Sélecteur de rôle dev & Bascule à chaud** :
+   - `src/components/dev/DevRoleSwitcher.tsx` : Composant de sélection de rôle pour les tests dans les shells `/dashboard` et `/famille`.
+   - `src/app/actions/dev.ts` : Server Action `changeTestRole` permettant de changer dynamiquement le rôle d'un utilisateur en dev.
+   - `src/app/api/dev/reset-role/route.ts` : Route d'échappement HTTP autonome hors shells (`/api/dev/reset-role?role=ADMIN`) pour rétablir le rôle réel en base.
+   - `src/components/dev/DevPanel.tsx` : Panneau flottant de configuration du mode test local (rôle, date simulée, période).
+   - `src/app/dev/onboarding/page.tsx` : Route locale `/dev/onboarding` pour tester l'onboarding sans session Supabase.
+   - `src/app/api/dev/setup/route.ts` : Route `/api/dev/setup` d'initialisation et purge des données de test locales (`TEST_SCHOOL_DEV`).
+
+2. **Bypasses et simulations dev dans le code applicatif** :
+   - `src/lib/schoolContext.ts` (lignes 74-121) : Interception des cookies `dev_test_school_id` et `dev_test_user_id`.
+   - `src/app/dashboard/page.tsx` (lignes 41-48) : Interception des cookies `dev_test_date` et `dev_test_period`.
+   - `src/app/dashboard/actions.ts` (lignes 32-37 & 99-104) : Support `dev_test_user_id` dans `switchActiveSchool` et `updateSchoolSettings`.
+   - `src/components/dashboard/WhatsAppConnectionWidget.tsx` (lignes 262-266) : Mention et simulation dev de connexion WhatsApp.
+
+3. **Scripts de démonstration et fixtures de test** :
+   - `scripts/clean-demo-data.ts` : Nettoyage des comptes `direction@demo.local`, `enseignant@demo.local`, `secretariat@demo.local`, `onboarding@demo.local` et école `École de Démo EduCom`.
+   - `scripts/cleanup-test-data.ts` : Nettoyage des fixtures `TEST_*`.
+   - `scripts/cleanup-test-users.ts` : Nettoyage des utilisateurs de test.
+   - `scripts/verify-no-dev-tools-in-prod.ts` : Test d'étanchéité automatisé (11 contrôles validant le blocage absolu en production).

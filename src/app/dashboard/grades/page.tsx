@@ -3,6 +3,7 @@ import { ClipboardList, FileText, Calendar, Clock, TrendingDown, ShieldAlert } f
 import { requireSchoolContext } from "@/lib/documentContext";
 import { prisma } from "@/lib/prisma";
 import { sortClasses } from "@/lib/classOrder";
+import { teacherClassIds } from "@/lib/studentScope";
 import ParentGradesView from "./ParentGradesView";
 
 export const metadata = {
@@ -47,12 +48,10 @@ export default async function GradesEntryChoicePage() {
   const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
   let classWhere: any = { schoolId };
   if (isTeacher) {
+    const classIds = await teacherClassIds({ schoolId, userId: user.id, role: user.role });
     classWhere = {
       schoolId,
-      OR: [
-        { teacherId: user.id },
-        { assignments: { some: { teacherId: user.id } } },
-      ],
+      id: { in: classIds },
     };
   }
 

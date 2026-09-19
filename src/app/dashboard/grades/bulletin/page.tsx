@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { sortClasses } from "@/lib/classOrder";
+import { teacherClassIds } from "@/lib/studentScope";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -38,12 +39,14 @@ export default async function GradesPage({
 
   let classWhere: any = { schoolId: dbUser.schoolId };
   if (isTeacher) {
+    const classIds = await teacherClassIds({
+      schoolId: dbUser.schoolId,
+      userId: dbUser.id,
+      role: dbUser.role,
+    });
     classWhere = {
       schoolId: dbUser.schoolId,
-      OR: [
-        { teacherId: dbUser.id },
-        { assignments: { some: { teacherId: dbUser.id } } },
-      ],
+      id: { in: classIds },
     };
   }
 

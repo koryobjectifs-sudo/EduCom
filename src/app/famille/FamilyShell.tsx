@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Users, CheckCircle2, FileText, LogOut, Bell, Shield, GraduationCap, CreditCard, User } from "lucide-react";
 import SchoolContextSwitcher from "@/components/layout/SchoolContextSwitcher";
+import DevRoleSwitcher from "@/components/dev/DevRoleSwitcher";
 import { type ActiveMembershipInfo } from "@/lib/schoolContext";
 
 export interface FamilyShellProps {
@@ -14,6 +15,7 @@ export interface FamilyShellProps {
   userName?: string;
   userRole: string;
   pendingActionsCount: number;
+  devSwitcher?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -25,6 +27,7 @@ export default function FamilyShell({
   userName = "Parent d'élève",
   userRole,
   pendingActionsCount,
+  devSwitcher,
   children,
 }: FamilyShellProps) {
   const pathname = usePathname();
@@ -52,6 +55,25 @@ export default function FamilyShell({
 
   return (
     <div className="min-h-screen bg-ground flex flex-col selection:bg-primary/20">
+      {/* 0. Bandeau Mode Test (Développement uniquement) */}
+      {process.env.NODE_ENV !== "production" && (
+        <aside aria-label="Avertissement mode test" className="bg-amber-500 text-amber-950 px-4 py-1.5 text-xs font-medium flex items-center justify-between border-b border-amber-600/30 shrink-0">
+          <div className="flex items-center gap-2">
+            <Shield className="h-3.5 w-3.5 shrink-0" />
+            <span>Mode test actif : rôle simulé <strong>{userRole}</strong></span>
+          </div>
+          <div className="flex items-center gap-3">
+            <DevRoleSwitcher currentRole={userRole} variant="famille" />
+            <a
+              href="/api/dev/reset-role?role=ADMIN"
+              className="inline-flex items-center gap-1 rounded bg-amber-950/10 hover:bg-amber-950/20 px-2 py-0.5 text-[11px] font-bold transition-colors"
+            >
+              Retour Admin
+            </a>
+          </div>
+        </aside>
+      )}
+
       {/* 1. Header Desktop & Tablette */}
       <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-rule bg-surface/95 backdrop-blur-md px-4 sm:px-6">
         {/* Identité Établissement + Sélecteur Multi-Écoles */}
@@ -107,8 +129,9 @@ export default function FamilyShell({
           })}
         </nav>
 
-        {/* Profil / Déconnexion */}
+        {/* Profil / Déconnexion & Switcher Dev */}
         <div className="flex items-center gap-2">
+          {devSwitcher}
           <div className="hidden sm:block text-right">
             <p className="text-xs font-semibold text-text truncate max-w-[150px]">{userName}</p>
             <p className="text-[10px] text-text-muted">Espace Parent</p>

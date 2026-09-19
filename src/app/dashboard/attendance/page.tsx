@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ClipboardCheck, FileWarning, Clock, Users } from "lucide-react";
 import { hasAccess } from "@/lib/permissions";
 import NotifyAbsenceButton from "./NotifyAbsenceButton";
+import { teacherClassIds } from "@/lib/studentScope";
+import { sortClasses } from "@/lib/classOrder";
 
 export default async function AttendancePage() {
   const { schoolId, user } = await requireSchoolContext();
@@ -13,23 +15,12 @@ export default async function AttendancePage() {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
-  // If TEACHER, we show their assigned classes
+  // If TEACHER, we show their assigned classes strictly
   if (role === "TEACHER") {
-    const assignments = await prisma.teachingAssignment.findMany({
-      where: { teacherId: user.id },
-      include: { class: true }
-    });
-    
-    // Also consider them as a main teacher if Class.teacherId = user.id
-    const primaryClasses = await prisma.class.findMany({
-      where: { teacherId: user.id, schoolId }
-    });
-
-    const classMap = new Map();
-    assignments.forEach(a => classMap.set(a.classId, a.class));
-    primaryClasses.forEach(c => classMap.set(c.id, c));
-    
-    const classes = Array.from(classMap.values());
+    const classIds = await teacherClassIds({ schoolId, userId: user.id, role });
+    const classes = classIds.length > 0
+      ? sortClasses(await prisma.class.findMany({ where: { id: { in: classIds }, schoolId } }))
+      : [];
 
     return (
       <div className="mx-auto max-w-3xl space-y-8 pb-20">
