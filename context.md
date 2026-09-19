@@ -1,5 +1,24 @@
 # EduCom SaaS - Contexte du Projet
 
+> **Chantier Rail & Permissions, Polissage Facture & Parcours Parent Réel — 19 septembre 2026.**
+> - **1. Nettoyage du Rail & Audit Métier par Rôle** :
+>   - *Comptable (ACCOUNTANT)* : Retrait de l'entrée « Documents » du rail. Les pièces scolaires (certificats, dossiers élèves) sont exclues. Ses documents financiers vivent dans **Finance** (Vue financière, Facturation, Paiements, Relances) et Communication.
+>   - *Audit du rail par rôle* :
+>     - `OWNER` / `ADMIN` : Scolarité, Pédagogie, Finance, Communication, Documents, Administration (6 espaces).
+>     - `SECRETARY` : Scolarité, Communication, Documents (3 espaces).
+>     - `ACCOUNTANT` : Finance, Communication (2 espaces).
+>     - `TEACHER` : Pédagogie, Communication (2 espaces).
+>     - `PARENT` : Espace dédié `/famille` (Accueil, Mes Enfants, Actions, Notes, Paiements, Documents, Mon Compte).
+>   - *Intégrité navigation* : `scripts/verify-navigation-integrity.ts` à 100% conforme (60/60 routes rattachées sans orpheline).
+> - **2. Polissage Facture (`/dashboard/payments/new` & `InvoiceViewer.tsx`)** :
+>   - *Numéro séquentiel* : Création de `peekNextInvoiceNumber` dans `src/lib/finance/numbering.ts` ; affichage direct du numéro officiel séquentiel (`FAC-2026-XXXX`) avec couleur d'accent et sous-titre clair « Numéro attribué à l'enregistrement » (non modifiable).
+>   - *Adresse & Chiffre orphelin* : Suppression du « 3 » orphelin en base sur SENG.CO. Filtres défensifs `cleanAddress` et `cleanPhone` interdisant tout chiffre ou valeur orpheline ; affichage de l'adresse réelle ou rien si non renseignée.
+>   - *Visas, Filigrane & Charte* : Récupération du logo, cachet et signature depuis les Paramètres de l'école ; cachet à côté de la signature avec `mix-blend-multiply` ; filigrane large et centré (65% largeur, opacité 0.06 alignée sur le bulletin) ; intégration de la couleur d'accent de l'établissement sur les titres, bordures et montants.
+> - **3. Parcours Parent Réel (SENG.CO)** :
+>   - Test de bout en bout sur données réelles (élève Therese Senghor, parent Philo Gomis, exigence Acte d'état civil).
+>   - Cycle complet validé : demande école $\rightarrow$ notification & deep link $\rightarrow$ connexion OTP parent $\rightarrow$ téléversement $\rightarrow$ résolution auto du rappel $\rightarrow$ approbation école $\rightarrow$ archivage historique $\rightarrow$ cycle de correction (rejet avec motif en rouge, remplacement avec chaînage `supersedesId`, resoumission et validation finale). 0 blocage détecté.
+> - **Validation Globale** : TypeScript strict (`npx tsc --noEmit`) : 0 erreur. Navigation (60/60 PASS). 0 push, 0 déploiement.
+>
 > **Chantier Rattrapage Tuteurs & Sélecteur de Rôle Dev — 19 septembre 2026.**
 > - **1. Audit & Rattrapage des 359 Élèves sans Tuteur (SENG.CO)** :
 >   - *Audit des 120 téléphones distincts* : 119 fratries de 3 enfants, 1 fratrie de 2 enfants (359 élèves au total). 0 cas au-delà de 4 enfants, 0 discordance de nom de famille (100% de concordance fratrie).

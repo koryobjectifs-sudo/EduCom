@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSchoolContext } from "@/lib/documentContext";
 import { hasAccess, firstAllowedPath } from "@/lib/permissions";
+import { peekNextInvoiceNumber } from "@/lib/finance/numbering";
 import { NewInvoiceForm } from "./form";
 
 const PATH = "/dashboard/payments/new";
@@ -45,5 +46,7 @@ export default async function NewInvoicePage({
     orderBy: { lastName: "asc" },
   });
 
-  return <NewInvoiceForm students={students} school={school} initialStudentId={studentId ?? null} />;
+  const nextInvoiceNumber = await peekNextInvoiceNumber(prisma, schoolId);
+
+  return <NewInvoiceForm students={students} school={school} initialStudentId={studentId ?? null} nextInvoiceNumber={nextInvoiceNumber} />;
 }

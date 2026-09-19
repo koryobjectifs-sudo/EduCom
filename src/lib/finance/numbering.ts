@@ -38,6 +38,32 @@ export async function getNextInvoiceNumber(
 }
 
 /**
+ * Prévisualise le prochain numéro séquentiel d'une facture sans incrémenter la séquence.
+ */
+export async function peekNextInvoiceNumber(
+  client: any,
+  schoolId: string,
+  date: Date = new Date()
+): Promise<string> {
+  const year = date.getFullYear();
+  const seq = await client.documentSequence.findUnique({
+    where: {
+      schoolId_type_year: {
+        schoolId,
+        type: "INVOICE",
+        year,
+      },
+    },
+    select: {
+      lastNumber: true,
+    },
+  });
+  const nextNumber = (seq?.lastNumber ?? 0) + 1;
+  const padded = String(nextNumber).padStart(4, "0");
+  return `FAC-${year}-${padded}`;
+}
+
+/**
  * Génère le numéro séquentiel officiel d'un reçu pour un établissement donné.
  * Format : REC-YYYY-0001 (incrément atomique par école et par année).
  */

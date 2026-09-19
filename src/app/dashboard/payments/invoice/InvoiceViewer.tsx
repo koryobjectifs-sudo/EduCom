@@ -23,6 +23,22 @@ export default function InvoiceViewer({
   const totalPaid = payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
   const remainingAmount = Math.max(0, totalAmount - totalPaid);
 
+  const accentColor = school?.bulletinAccentColor || school?.primaryColor || "#0284C7";
+
+  const cleanAddress = (() => {
+    if (!school?.address) return null;
+    const t = school.address.trim();
+    if (/^\d{1,3}$/.test(t) || t.length < 3) return null;
+    return t;
+  })();
+
+  const cleanPhone = (() => {
+    if (!school?.phone) return null;
+    const t = school.phone.trim();
+    if (/^\d{1,3}$/.test(t) || t.length < 6) return null;
+    return t;
+  })();
+
   useEffect(() => {
     const studentName = student ? `${student.firstName} ${student.lastName}` : "Élève";
     const num = invoice.invoiceNumber || invoice.id.slice(0, 8).toUpperCase();
@@ -88,14 +104,24 @@ export default function InvoiceViewer({
             paperFormat === "A4-half" ? "p-8" : "p-12"
           } shadow-xl border border-gray-200 flex flex-col relative print:border-none print:shadow-none print:p-0 print:w-full print:max-w-none z-10 print:min-h-0 mx-auto origin-top`}
         >
-          {/* Subtle watermark */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none z-0">
-            {school?.logo ? (
-              <img src={school.logo} alt="" className="w-[70%] h-[70%] object-contain" />
-            ) : (
-              <div className="w-[400px] h-[400px] rounded-full bg-blue-600 blur-3xl opacity-20" />
-            )}
-          </div>
+          {/* Filigrane du logo centré (identique au bulletin) */}
+          {school?.logo && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden z-0 select-none print:flex"
+            >
+              <img
+                src={school.logo}
+                alt=""
+                className="w-[65%] max-w-[65%] max-h-[65%] object-contain"
+                style={{
+                  opacity: school?.bulletinWatermarkOpacity ?? 0.06,
+                  WebkitPrintColorAdjust: "exact",
+                  printColorAdjust: "exact",
+                }}
+              />
+            </div>
+          )}
 
           {/* Document Header */}
           <div
@@ -115,7 +141,8 @@ export default function InvoiceViewer({
                   <div
                     className={`flex ${
                       paperFormat === "A4-half" ? "h-8 w-8 text-xs" : "h-12 w-12 text-lg"
-                    } flex-shrink-0 items-center justify-center rounded-xl bg-primary text-white font-bold`}
+                    } flex-shrink-0 items-center justify-center rounded-xl text-white font-bold`}
+                    style={{ backgroundColor: accentColor }}
                   >
                     {school?.name ? school.name.charAt(0).toUpperCase() : "E"}
                   </div>
@@ -128,9 +155,11 @@ export default function InvoiceViewer({
                   >
                     {school?.name || "Établissement Scolaire"}
                   </h1>
-                  <p className={`${paperFormat === "A4-half" ? "text-[10px]" : "text-xs"} text-gray-500`}>
-                    {school?.address || "Sénégal"}
-                  </p>
+                  {cleanAddress && (
+                    <p className={`${paperFormat === "A4-half" ? "text-[10px]" : "text-xs"} text-gray-500`}>
+                      {cleanAddress}
+                    </p>
+                  )}
                 </div>
               </div>
               <div
@@ -138,7 +167,7 @@ export default function InvoiceViewer({
                   paperFormat === "A4-half" ? "text-[9px]" : "text-[11px]"
                 } text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5`}
               >
-                {school?.phone && <span>Tél : {school.phone}</span>}
+                {cleanPhone && <span>Tél : {cleanPhone}</span>}
                 {school?.email && <span>Email : {school.email}</span>}
               </div>
             </div>
@@ -147,14 +176,16 @@ export default function InvoiceViewer({
               <span
                 className={`inline-block ${
                   paperFormat === "A4-half" ? "text-xs sm:text-sm" : "text-base sm:text-2xl"
-                } font-black text-gray-900 tracking-wider uppercase`}
+                } font-black tracking-wider uppercase`}
+                style={{ color: accentColor }}
               >
                 FACTURE SCOLARITÉ
               </span>
               <p
                 className={`${
                   paperFormat === "A4-half" ? "text-[10px]" : "text-sm"
-                } font-mono font-bold text-primary mt-0.5`}
+                } font-mono font-bold mt-0.5`}
+                style={{ color: accentColor }}
               >
                 N° {invoice.invoiceNumber || `#${invoice.id.slice(0, 8).toUpperCase()}`}
               </p>
@@ -231,7 +262,7 @@ export default function InvoiceViewer({
           {/* Lignes de facturation */}
           <div className={`${paperFormat === "A4-half" ? "mt-3" : "mt-6"} flex-1`}>
             <table className={`w-full text-left ${paperFormat === "A4-half" ? "text-xs" : "text-sm"}`}>
-              <thead className="border-b-2 border-gray-900">
+              <thead className="border-b-2" style={{ borderColor: accentColor }}>
                 <tr>
                   <th
                     className={`${
@@ -319,14 +350,14 @@ export default function InvoiceViewer({
                   <img
                     src={school.stamp}
                     alt="Cachet de l'établissement"
-                    className={`${paperFormat === "A4-half" ? "h-14" : "h-20"} object-contain`}
+                    className={`${paperFormat === "A4-half" ? "h-14" : "h-20"} object-contain mix-blend-multiply`}
                   />
                 )}
                 {school?.signature && (
                   <img
                     src={school.signature}
                     alt="Signature de la direction"
-                    className={`${paperFormat === "A4-half" ? "h-10" : "h-14"} object-contain`}
+                    className={`${paperFormat === "A4-half" ? "h-10" : "h-14"} object-contain mix-blend-multiply`}
                   />
                 )}
                 {!school?.stamp && !school?.signature && (

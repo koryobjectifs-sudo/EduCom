@@ -24,7 +24,35 @@ type InvoiceItem = {
   quantity: number;
 };
 
-export function NewInvoiceForm({ students, school, initialStudentId }: { students: Student[], school?: any, initialStudentId?: string | null }) {
+export function NewInvoiceForm({
+  students,
+  school,
+  initialStudentId,
+  nextInvoiceNumber,
+}: {
+  students: Student[];
+  school?: any;
+  initialStudentId?: string | null;
+  nextInvoiceNumber?: string;
+}) {
+  const accentColor = school?.bulletinAccentColor || school?.primaryColor || "#0284C7";
+
+  const cleanAddress = (() => {
+    if (!school?.address) return null;
+    const t = school.address.trim();
+    if (/^\d{1,3}$/.test(t) || t.length < 3) return null;
+    return t;
+  })();
+
+  const cleanPhone = (() => {
+    if (!school?.phone) return null;
+    const t = school.phone.trim();
+    if (/^\d{1,3}$/.test(t) || t.length < 6) return null;
+    return t;
+  })();
+
+  const contactParts = [school?.email, cleanPhone].filter(Boolean);
+
   const [state, formAction, isPending] = useActionState(
     async (prevState: any, formData: FormData) => {
       const res = await createInvoice(formData);
@@ -66,6 +94,7 @@ export function NewInvoiceForm({ students, school, initialStudentId }: { student
   ]);
   const [notes, setNotes] = useState("Merci pour votre confiance.");
   const [signatureData, setSignatureData] = useState<string | null>(null);
+  const effectiveSignature = signatureData || school?.signature || null;
   const [isSendMenuOpen, setIsSendMenuOpen] = useState(false);
   const [paperFormat, setPaperFormat] = useState<"A4" | "A5" | "A4-half">("A4");
   const [mobileTab, setMobileTab] = useState<"form" | "preview">("form");
@@ -351,7 +380,7 @@ export function NewInvoiceForm({ students, school, initialStudentId }: { student
             {/* NOTES & SIGNATURE SECTION */}
             {/* NOTES & SIGNATURE SECTION */}
             <div className="rounded-2xl border border-border bg-white shadow-sm p-3">
-              <h2 className="text-xs font-semibold text-text-primary ml-1 mb-2">Notes & Signature</h2>
+              <h2 className="text-xs font-semibold text-text-primary ml-1 mb-2">Notes & Visas</h2>
               
               <div className="space-y-2">
                 <div>
@@ -360,9 +389,26 @@ export function NewInvoiceForm({ students, school, initialStudentId }: { student
                     className="block w-full rounded-xl border-none bg-secondary/50 py-2 px-3 text-base lg:text-xs text-text-primary placeholder:text-text-muted focus:bg-white focus:ring-2 focus:ring-primary/20 focus:outline-none shadow-none transition-all resize-none" />
                 </div>
                 
-                <div className="bg-secondary/30 rounded-xl p-3">
-                  <SignaturePad onSignatureChange={setSignatureData} />
-                </div>
+                {school?.signature || school?.stamp ? (
+                  <div className="bg-secondary/30 rounded-xl p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {school.stamp && (
+                        <img src={school.stamp} alt="Cachet" className="h-10 max-w-[60px] object-contain mix-blend-multiply" />
+                      )}
+                      {school.signature && (
+                        <img src={school.signature} alt="Signature" className="h-8 max-w-[60px] object-contain mix-blend-multiply" />
+                      )}
+                      <div>
+                        <p className="text-xs font-medium text-gray-800">Cachet &amp; signature officiels</p>
+                        <p className="text-[10px] text-gray-500">Configurés dans les Paramètres</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-secondary/30 rounded-xl p-3">
+                    <SignaturePad onSignatureChange={setSignatureData} />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -398,14 +444,24 @@ export function NewInvoiceForm({ students, school, initialStudentId }: { student
               className={`bg-white ${paperFormat === "A4-half" ? "p-8" : "p-12"} shadow-xl border border-gray-200 flex flex-col relative print:border-none print:shadow-none print:p-0 print:max-w-none z-10 print:min-h-0`}
             >
               
-              {/* Subtle background watermark */}
-              <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none z-0">
-                {school?.logo ? (
-                  <img src={school.logo} alt="Watermark" className="w-[80%] h-[80%] object-contain" />
-                ) : (
-                  <div className="w-[500px] h-[500px] rounded-full bg-blue-600 blur-3xl opacity-20"></div>
-                )}
-              </div>
+              {/* Filigrane du logo centré (identique au bulletin) */}
+              {school?.logo && (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden z-0 select-none print:flex"
+                >
+                  <img
+                    src={school.logo}
+                    alt=""
+                    className="w-[65%] max-w-[65%] max-h-[65%] object-contain"
+                    style={{
+                      opacity: school?.bulletinWatermarkOpacity ?? 0.06,
+                      WebkitPrintColorAdjust: "exact",
+                      printColorAdjust: "exact",
+                    }}
+                  />
+                </div>
+              )}
 
               <div className={`flex flex-col sm:flex-row justify-between sm:items-start gap-4 sm:gap-2 print:flex-row print:items-start border-b border-gray-100 relative z-10 ${paperFormat === "A4-half" ? "pb-4 mb-4" : "pb-8 mb-8"}`}>
                 <div className="flex-1 min-w-0 pr-0 sm:pr-4 print:pr-4">
@@ -413,20 +469,42 @@ export function NewInvoiceForm({ students, school, initialStudentId }: { student
                     {school?.logo ? (
                       <img src={school.logo} alt="Logo" className={`${paperFormat === "A4-half" ? "h-6 w-6" : "h-10 w-10"} object-contain rounded-lg shadow-sm flex-shrink-0`} />
                     ) : (
-                      <div className={`flex ${paperFormat === "A4-half" ? "h-6 w-6 text-xs" : "h-10 w-10 text-lg"} flex-shrink-0 items-center justify-center rounded-xl bg-primary text-white font-semibold`}>
+                      <div
+                        className={`flex ${paperFormat === "A4-half" ? "h-6 w-6 text-xs" : "h-10 w-10 text-lg"} flex-shrink-0 items-center justify-center rounded-xl text-white font-semibold`}
+                        style={{ backgroundColor: accentColor }}
+                      >
                         {school?.name ? school.name.charAt(0).toUpperCase() : "E"}
                       </div>
                     )}
-                    <span className={`${paperFormat === "A4-half" ? "text-xs sm:text-base" : "text-xs sm:text-xl"} font-semibold text-gray-900 tracking-tight whitespace-normal break-words max-w-full leading-snug`}>{school?.name || "Établissement Sans Nom"}</span>
+                    <span className={`${paperFormat === "A4-half" ? "text-xs sm:text-base" : "text-xs sm:text-xl"} font-bold text-gray-900 tracking-tight whitespace-normal break-words max-w-full leading-snug`}>{school?.name || "Établissement Scolaire"}</span>
                   </div>
-                  <div className={`mt-3 ${paperFormat === "A4-half" ? "text-[10px]" : "text-xs"} text-gray-500 flex flex-col gap-0.5`}>
-                    <span className="whitespace-normal break-words leading-relaxed">{school?.address || "Adresse non renseignée"}</span>
-                    <span className="whitespace-nowrap truncate">{[school?.email, school?.phone].filter(Boolean).join(" • ")}</span>
-                  </div>
+                  {(cleanAddress || contactParts.length > 0) && (
+                    <div className={`mt-2.5 ${paperFormat === "A4-half" ? "text-[10px]" : "text-xs"} text-gray-500 flex flex-col gap-0.5`}>
+                      {cleanAddress && (
+                        <span className="whitespace-normal break-words leading-relaxed">{cleanAddress}</span>
+                      )}
+                      {contactParts.length > 0 && (
+                        <span className="whitespace-nowrap truncate">{contactParts.join(" • ")}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="text-left sm:text-right print:text-right flex-shrink-0 max-w-full sm:max-w-[50%] print:max-w-[50%]">
-                  <h2 className={`${paperFormat === "A4-half" ? "text-sm sm:text-base" : "text-sm sm:text-2xl"} font-light text-gray-900 uppercase tracking-widest whitespace-normal sm:whitespace-nowrap print:whitespace-nowrap`}>{title || "Facture"}</h2>
-                  <p className={`${paperFormat === "A4-half" ? "text-[10px]" : "text-sm"} text-gray-500 mt-1 font-medium`}>N° officiel attribué à l'enregistrement</p>
+                  <h2
+                    className={`${paperFormat === "A4-half" ? "text-sm sm:text-base" : "text-sm sm:text-2xl"} font-black uppercase tracking-widest whitespace-normal sm:whitespace-nowrap print:whitespace-nowrap`}
+                    style={{ color: accentColor }}
+                  >
+                    {title || "Facture"}
+                  </h2>
+                  <p
+                    className={`${paperFormat === "A4-half" ? "text-[10px]" : "text-sm"} font-mono font-bold mt-1`}
+                    style={{ color: accentColor }}
+                  >
+                    N° {nextInvoiceNumber || `FAC-${new Date().getFullYear()}-0001`}
+                  </p>
+                  <p className={`${paperFormat === "A4-half" ? "text-[8px]" : "text-[10px]"} text-gray-400 mt-0.5 italic`}>
+                    Numéro attribué à l&apos;enregistrement
+                  </p>
                 </div>
               </div>
 
@@ -458,7 +536,7 @@ export function NewInvoiceForm({ students, school, initialStudentId }: { student
 
               <div className={`${paperFormat === "A4-half" ? "mt-2" : "mt-6"}`}>
                 <table className={`w-full text-left ${paperFormat === "A4-half" ? "text-xs" : "text-sm"}`}>
-                  <thead className="border-b-2 border-gray-900">
+                  <thead className="border-b-2" style={{ borderColor: accentColor }}>
                     <tr>
                       <th className={`${paperFormat === "A4-half" ? "py-1.5 text-[9px]" : "py-2 text-xs"} font-semibold text-gray-900 uppercase tracking-wider`}>DESCRIPTION</th>
                       <th className={`${paperFormat === "A4-half" ? "py-1.5 text-[9px]" : "py-2 text-xs"} font-semibold text-gray-900 uppercase tracking-wider text-center w-16`}>QTÉ</th>
@@ -499,14 +577,29 @@ export function NewInvoiceForm({ students, school, initialStudentId }: { student
                   </div>
                   
                   <div className={`${paperFormat === "A4-half" ? "mt-4" : "mt-8"}`}>
-                    <div className={`${paperFormat === "A4-half" ? "h-10" : "h-16"} flex items-end`}>
-                      {signatureData ? (
-                        <img src={signatureData} alt="Signature/Cachet" className={`max-w-[200px] object-contain mix-blend-multiply ${paperFormat === "A4-half" ? "max-h-10" : "max-h-16"}`} />
-                      ) : (
+                    <p className={`${paperFormat === "A4-half" ? "text-[8px]" : "text-[10px]"} font-bold text-gray-500 uppercase tracking-wider mb-2`}>
+                      Pour l&apos;administration de l&apos;établissement
+                    </p>
+                    <div className={`flex items-center gap-4 ${paperFormat === "A4-half" ? "h-14" : "h-20"}`}>
+                      {school?.stamp && (
+                        <img
+                          src={school.stamp}
+                          alt="Cachet"
+                          className={`${paperFormat === "A4-half" ? "h-12" : "h-16"} max-w-[120px] object-contain mix-blend-multiply`}
+                        />
+                      )}
+                      {effectiveSignature && (
+                        <img
+                          src={effectiveSignature}
+                          alt="Signature"
+                          className={`${paperFormat === "A4-half" ? "h-10" : "h-14"} max-w-[120px] object-contain mix-blend-multiply`}
+                        />
+                      )}
+                      {!school?.stamp && !effectiveSignature && (
                         <span className={`text-gray-300 italic ${paperFormat === "A4-half" ? "text-[10px]" : "text-xs"}`}>Signature non définie</span>
                       )}
                     </div>
-                    <div className={`w-40 border-t border-gray-300 mt-2 pt-1 font-semibold uppercase tracking-wider text-gray-400 ${paperFormat === "A4-half" ? "text-[8px]" : "text-[10px]"}`}>
+                    <div className={`w-44 border-t border-gray-300 mt-2 pt-1 font-semibold uppercase tracking-wider text-gray-400 ${paperFormat === "A4-half" ? "text-[8px]" : "text-[10px]"}`}>
                       Cachet et Signature
                     </div>
                   </div>
@@ -522,9 +615,9 @@ export function NewInvoiceForm({ students, school, initialStudentId }: { student
                       <span>Taxes (0%)</span>
                       <span>0 FCFA</span>
                     </div>
-                    <div className={`flex justify-between items-center font-semibold text-gray-900 ${paperFormat === "A4-half" ? "text-base" : "text-sm sm:text-xl"}`}>
+                    <div className={`flex justify-between items-center font-bold text-gray-900 ${paperFormat === "A4-half" ? "text-base" : "text-sm sm:text-xl"}`}>
                       <span>Total Net</span>
-                      <span>{totalAmount.toLocaleString("fr-FR")} FCFA</span>
+                      <span style={{ color: accentColor }}>{totalAmount.toLocaleString("fr-FR")} FCFA</span>
                     </div>
                   </div>
                 </div>
