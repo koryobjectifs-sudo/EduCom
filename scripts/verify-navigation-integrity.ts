@@ -86,7 +86,10 @@ for (const route of dashboardRoutes) {
     } else if (route.startsWith("/dashboard/students") && spaceId !== "students") {
       misassignedRoutes.push({ route, expected: "students", got: spaceId });
       failCount++;
-    } else if (route.startsWith("/dashboard/documents") && spaceId !== "documents") {
+    } else if (route === "/dashboard/documents/reminder" && spaceId !== "finance") {
+      misassignedRoutes.push({ route, expected: "finance", got: spaceId });
+      failCount++;
+    } else if (route.startsWith("/dashboard/documents") && route !== "/dashboard/documents/reminder" && spaceId !== "documents") {
       misassignedRoutes.push({ route, expected: "documents", got: spaceId });
       failCount++;
     } else if (route.startsWith("/dashboard/communications") && spaceId !== "comms") {

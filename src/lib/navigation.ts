@@ -135,11 +135,7 @@ export const NAV_SPACES: NavSpace[] = [
           { id: "finance-overview", name: "Vue financière", href: "/dashboard/payments", icon: "CreditCard", short: "Vue" },
           { id: "invoicing", name: "Facturation", href: "/dashboard/payments/new", icon: "FileText", short: "Facturation" },
           { id: "payments", name: "Paiements", href: "/dashboard/payments/receipt", icon: "ClipboardList", short: "Paiements" },
-          // ⚠️ Pas de "Recouvrement" distinct : la lettre de relance vit sous
-          // `/dashboard/documents/reminder` (space "documents", invariant de
-          // `verify-navigation-integrity.ts`). La relocaliser sous Finance
-          // aurait cassé ce garde-fou pour un gain incertain — laissé de côté
-          // plutôt que déplacé sans certitude.
+          { id: "reminders", name: "Relances", href: "/dashboard/documents/reminder", icon: "FileText", short: "Relances" },
         ],
       },
     ],

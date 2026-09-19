@@ -100,13 +100,13 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
   ],
 
 
-  // Le comptable édite factures et reçus : ils vivent dans `/dashboard/documents`,
-  // qui lui manquait. `/dashboard/invoices` a été retiré — cette route n'existe
-  // pas dans l'application, l'entrée était morte.
+  // Le comptable travaille dans Finance : factures, reçus et relances de paiement.
+  // Il n'a rien à faire dans le centre documentaire général (certificats, scolarité).
   ACCOUNTANT: [
     "/dashboard$",
     "/dashboard/payments",
-    "/dashboard/documents",
+    "/dashboard/documents/reminder",
+    "/dashboard/documents/centre",
     "/dashboard/communications",
     "/dashboard/admin/reports",
   ],
