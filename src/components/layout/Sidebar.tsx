@@ -3,39 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { RoleType } from "@/lib/permissions";
-import { visibleSections, isActive, type NavItem } from "@/lib/navigation";
+import { visibleSections, getActiveNavItemHref, type NavItem } from "@/lib/navigation";
 import { getNavIcon } from "./nav-icons";
-
-/**
- * Navigation persistante du tableau de bord.
- *
- * ═══ CE QUI CHANGE, ET POURQUOI ═══
- *
- * L'ancienne version était un rail de **56 px portant neuf icônes sans
- * libellés**, révélés au survol dans une infobulle en `pointer-events-none`.
- * Quatre défauts, tous corrigés ici :
- *
- * 1. **Pas de libellés.** Une secrétaire passe sa journée dans l'outil : chaque
- *    navigation lui demandait de reconnaître un pictogramme. Les libellés sont
- *    désormais permanents.
- * 2. **Deux rubriques partageaient l'icône `FileText`** — « Saisie des notes »
- *    et « Documents » étaient indiscernables. Icônes dédoublonnées.
- * 3. **Neuf couleurs, une par rubrique.** Aucune information encodée. La
- *    couleur est maintenant réservée à l'élément actif.
- * 4. **Infobulles inaccessibles au clavier et au lecteur d'écran** (0
- *    `aria-label` sur le rail). Le libellé visible règle le problème à la source.
- *
- * ═══ ÉTAT ACTIF : SOBRE MAIS SANS AMBIGUÏTÉ ═══
- *
- * Trois signaux simultanés, dont deux non colorés : un fond très pâle, un texte
- * et une icône en `primary`, et un `aria-current="page"`. Pas de barre, pas
- * d'ombre portée, pas de déplacement — l'élément actif se lit d'un coup d'œil
- * sans attirer l'œil plus que le contenu de la page.
- *
- * Le `primary` vient de `--color-primary`, surchargé par `School.primaryColor`
- * au niveau du layout (lot 02) : la navigation suit automatiquement la charte de
- * l'école, sans code de thème ici.
- */
 
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   const Icon = getNavIcon(item.icon);
@@ -64,6 +33,8 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
 export function SidebarNav({ userRole }: { userRole: string }) {
   const pathname = usePathname();
   const sections = visibleSections(userRole as RoleType);
+  const allItems = sections.flatMap((s) => s.items);
+  const activeHref = getActiveNavItemHref(allItems, pathname);
 
   return (
     <nav aria-label="Navigation principale" className="flex flex-col gap-3.5">
@@ -75,7 +46,7 @@ export function SidebarNav({ userRole }: { userRole: string }) {
             </h2>
           )}
           {section.items.map((item) => (
-            <NavLink key={item.href} item={item} active={isActive(item.href, pathname)} />
+            <NavLink key={item.href} item={item} active={item.href === activeHref} />
           ))}
         </div>
       ))}

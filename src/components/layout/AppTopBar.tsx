@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import MobileNav from "./MobileNav";
 import { type NavSpace } from "@/lib/navigation";
 import GlobalSearch from "./GlobalSearch";
+import SchoolContextSwitcher from "./SchoolContextSwitcher";
+import { type ActiveMembershipInfo } from "@/lib/schoolContext";
 
 export interface AppTopBarProps {
   schoolName?: string;
@@ -12,6 +14,8 @@ export interface AppTopBarProps {
   userName?: string;
   userAvatar?: string | null;
   activeSpace?: NavSpace;
+  activeSchoolId?: string;
+  memberships?: ActiveMembershipInfo[];
 }
 
 export default function AppTopBar({
@@ -19,6 +23,8 @@ export default function AppTopBar({
   schoolLogo,
   userRole = "OWNER",
   activeSpace,
+  activeSchoolId,
+  memberships,
 }: AppTopBarProps) {
   return (
     <header
@@ -30,14 +36,15 @@ export default function AppTopBar({
         <div className="flex min-w-0 items-center gap-2 sm:gap-2.5 shrink-0">
           <MobileNav schoolName={schoolName} schoolLogo={schoolLogo} userRole={userRole} />
 
-          {/* Nom de l'établissement au-dessus de la sidebar */}
-          <span
-            data-tronque-volontaire
-            title={schoolName ?? "EduCom"}
-            className="font-bold text-xs sm:text-sm text-white truncate max-w-[130px] sm:max-w-[180px] lg:max-w-[220px]"
-          >
-            {schoolName ?? "EduCom"}
-          </span>
+          {/* Sélecteur contextuel d'établissement (affiche menu si multi-écoles, sinon nom simple) */}
+          <SchoolContextSwitcher
+            currentSchoolName={schoolName ?? "EduCom"}
+            currentSchoolId={activeSchoolId}
+            userRole={userRole}
+            memberships={memberships}
+            variant="topbar"
+          />
+
 
           {/* Flèches Précédent / Suivant (Historique Navigateur) */}
           <div className="hidden sm:flex items-center gap-0.5 text-white/70">

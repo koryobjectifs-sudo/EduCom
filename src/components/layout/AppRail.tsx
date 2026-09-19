@@ -316,8 +316,12 @@ export default function AppRail({
                     role="menuitem"
                     onClick={async () => {
                       setRoleMenuOpen(false);
-                      await changeTestRole(r);
-                      window.location.reload();
+                      const res = await changeTestRole(r);
+                      if (res.success && res.targetPath) {
+                        window.location.href = res.targetPath;
+                      } else {
+                        window.location.href = "/dashboard";
+                      }
                     }}
                     className={`flex w-full items-center justify-between rounded-control px-2 py-1 text-xs transition-colors hover:bg-sunk ${
                       userRole === r ? "font-semibold text-primary" : "text-text"

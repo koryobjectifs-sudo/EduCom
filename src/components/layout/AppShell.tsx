@@ -5,6 +5,7 @@ import AppRail from "./AppRail";
 import ContextualSidebar from "./ContextualSidebar";
 import AppTopBar from "./AppTopBar";
 import { type NavSpace, getActiveSpaceId } from "@/lib/navigation";
+import { type ActiveMembershipInfo } from "@/lib/schoolContext";
 
 export interface AppShellProps {
   spaces: NavSpace[];
@@ -15,6 +16,8 @@ export interface AppShellProps {
   userName?: string;
   userAvatar?: string | null;
   emailVerified?: boolean;
+  activeSchoolId?: string;
+  memberships?: ActiveMembershipInfo[];
   children: React.ReactNode;
 }
 
@@ -27,6 +30,8 @@ export default function AppShell({
   userName,
   userAvatar,
   emailVerified = false,
+  activeSchoolId,
+  memberships,
   children,
 }: AppShellProps) {
   const pathname = usePathname();
@@ -59,7 +64,10 @@ export default function AppShell({
           userName={userName}
           userAvatar={userAvatar}
           activeSpace={activeSpace ?? undefined}
+          activeSchoolId={activeSchoolId}
+          memberships={memberships}
         />
+
 
         {/* Espace de travail : Sidebar Contextuelle + Main View (Arrondi Slack-style appliqué au coin supérieur gauche) */}
         <div className="flex min-w-0 flex-1 overflow-hidden print:overflow-visible md:rounded-tl-2xl border-t border-l border-black/15 shadow-xs">

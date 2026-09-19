@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { type NavSpace, type NavItem } from "@/lib/navigation";
+import { type NavSpace, type NavItem, getActiveNavItemHref } from "@/lib/navigation";
 import { getNavIcon } from "./nav-icons";
 import SidebarResizeHandle from "./SidebarResizeHandle";
 
@@ -79,6 +79,8 @@ export default function ContextualSidebar({
 }: ContextualSidebarProps) {
   const [currentWidth, setCurrentWidth] = useState(initialWidth);
   const collapsed = currentWidth <= 52;
+  const allItems = space.sections.flatMap((s) => s.items);
+  const activeHref = getActiveNavItemHref(allItems, currentPath ?? null);
 
   return (
     <aside
@@ -100,11 +102,7 @@ export default function ContextualSidebar({
             )}
             <div className="space-y-0.5">
               {section.items.map((item) => {
-                const active = currentPath ? (
-                  item.href === "/dashboard"
-                    ? currentPath === "/dashboard"
-                    : currentPath === item.href || currentPath.startsWith(`${item.href}/`)
-                ) : false;
+                const active = item.href === activeHref;
 
                 return (
                   <NavLink

@@ -151,8 +151,13 @@ export default function TopNav({
                       onClick={async () => {
                         setRoleMenuOpen(false);
                         const res = await changeTestRole(r);
-                        if (res.success) window.location.reload();
-                        else toast.error("Erreur de changement de rôle : " + res.error);
+                        if (res.success && res.targetPath) {
+                          window.location.href = res.targetPath;
+                        } else if (res.success) {
+                          window.location.href = "/dashboard";
+                        } else {
+                          toast.error("Erreur de changement de rôle : " + res.error);
+                        }
                       }}
                       className={`flex w-full items-center rounded-control px-2.5 py-1.5 text-xs font-medium transition-colors ${
                         userRole === r

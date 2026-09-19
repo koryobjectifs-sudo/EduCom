@@ -1,8 +1,10 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
+  Home,
   Users, 
   FileText, 
   GraduationCap, 
@@ -13,10 +15,18 @@ import {
   ArrowRight,
   Upload,
   PenTool,
+  Shield,
+  ChevronDown,
 } from "lucide-react";
+
 
 import { useTranslation } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { changeTestRole } from "@/app/dashboard/actions";
+import { type ActiveMembershipInfo } from "@/lib/schoolContext";
+import SchoolContextSwitcher from "./SchoolContextSwitcher";
+
+const ALL_TEST_ROLES = ["OWNER", "ADMIN", "SECRETARY", "ACCOUNTANT", "TEACHER", "ASSISTANT", "PARENT"];
 
 export interface ParentReminderItem {
   id: string;
@@ -34,6 +44,8 @@ export interface ParentLayoutProps {
   userName?: string;
   emailVerified?: boolean;
   activeReminders?: ParentReminderItem[];
+  activeSchoolId?: string;
+  memberships?: ActiveMembershipInfo[];
   children: React.ReactNode;
 }
 
@@ -43,6 +55,8 @@ export default function ParentLayout({
   userName,
   emailVerified = false,
   activeReminders = [],
+  activeSchoolId,
+  memberships,
   children,
 }: ParentLayoutProps) {
   const pathname = usePathname();
@@ -54,13 +68,29 @@ export default function ParentLayout({
     .map((w: string) => w.charAt(0).toUpperCase())
     .join("");
 
+  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
+  const roleMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (roleMenuRef.current && !roleMenuRef.current.contains(e.target as Node)) {
+        setRoleMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const parentNavItems = [
-    { href: "/dashboard/students", label: t("nav", "myChildren"), icon: Users },
-    { href: "/dashboard/documents", label: t("nav", "myDossiers"), icon: FileText },
-    { href: "/dashboard/grades", label: t("nav", "myGrades"), icon: GraduationCap },
+    { href: "/famille", label: "Accueil", icon: Home },
+    { href: "/famille/enfants", label: t("nav", "myChildren"), icon: Users },
+    { href: "/dashboard/grades/bulletin", label: t("nav", "myGrades"), icon: GraduationCap },
+    { href: "/famille/documents", label: t("nav", "myDossiers"), icon: FileText },
     { href: "/dashboard/payments", label: t("nav", "myPayments"), icon: CreditCard },
     { href: "/dashboard/settings", label: t("nav", "myAccount"), icon: User },
   ];
+
+
 
   function isItemActive(href: string) {
     if (!pathname) return false;
@@ -85,10 +115,12 @@ export default function ParentLayout({
               {schoolName.charAt(0).toUpperCase()}
             </div>
           )}
-          <div>
-            <h1 className="text-xs font-bold text-text leading-tight">{schoolName}</h1>
-            <p className="text-[10.5px] text-text-soft font-medium">Espace Famille</p>
-          </div>
+          <SchoolContextSwitcher
+            currentSchoolName={schoolName}
+            currentSchoolId={activeSchoolId}
+            memberships={memberships}
+            variant="parent"
+          />
         </div>
 
         {/* Navigation Desktop (≥ 768px) */}
@@ -115,7 +147,55 @@ export default function ParentLayout({
         </nav>
 
         {/* Profil & Sélecteur de langue & Déconnexion */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {process.env.NODE_ENV !== "production" && (
+            <div className="relative" ref={roleMenuRef}>
+              <button
+                type="button"
+                onClick={() => setRoleMenuOpen(!roleMenuOpen)}
+                aria-expanded={roleMenuOpen}
+                title="Changer de rôle (développement)"
+                className="inline-flex h-7.5 items-center gap-1.5 rounded-control border border-warning/40 bg-warning/10 px-2 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                <Shield aria-hidden="true" className="h-3.5 w-3.5" />
+                <span>Parent</span>
+                <ChevronDown aria-hidden="true" className={`h-3 w-3 transition-transform ${roleMenuOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {roleMenuOpen && (
+                <div role="menu" className="absolute right-0 top-full z-50 mt-1.5 w-48 overflow-hidden rounded-surface border border-rule bg-surface p-1 shadow-overlay">
+                  <p className="px-2.5 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-text-faint">
+                    Tester en tant que
+                  </p>
+                  {ALL_TEST_ROLES.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      role="menuitem"
+                      onClick={async () => {
+                        setRoleMenuOpen(false);
+                        const res = await changeTestRole(r);
+                        if (res.success && res.targetPath) {
+                          window.location.href = res.targetPath;
+                        } else if (res.success) {
+                          window.location.href = "/dashboard";
+                        }
+                      }}
+                      className={`flex w-full items-center justify-between rounded-control px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                        r === "PARENT"
+                          ? "bg-warning/15 text-warning font-bold"
+                          : "text-text-soft hover:bg-sunk hover:text-text"
+                      }`}
+                    >
+                      <span>{r.charAt(0) + r.slice(1).toLowerCase()}</span>
+                      {r === "PARENT" && <span className="text-[10px] text-warning">Actif</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <LanguageSwitcher compact />
 
           <div className="flex items-center gap-2">

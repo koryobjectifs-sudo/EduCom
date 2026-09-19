@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { getVisibleSpaces, isActive } from "@/lib/navigation";
+import { getVisibleSpaces, getActiveNavItemHref } from "@/lib/navigation";
 import { getNavIcon } from "./nav-icons";
 
 export interface MobileNavProps {
@@ -25,6 +25,8 @@ export default function MobileNav({
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const spaces = getVisibleSpaces(userRole);
+  const allItems = spaces.flatMap((s) => s.sections.flatMap((sec) => sec.items));
+  const activeHref = getActiveNavItemHref(allItems, pathname);
 
   useEffect(() => {
     setOpen(false);
@@ -131,7 +133,7 @@ export default function MobileNav({
                       {space.sections.map((section) =>
                         section.items.map((item) => {
                           const ItemIcon = getNavIcon(item.icon);
-                          const active = isActive(item.href, pathname);
+                          const active = item.href === activeHref;
                           return (
                             <Link
                               key={item.id}
