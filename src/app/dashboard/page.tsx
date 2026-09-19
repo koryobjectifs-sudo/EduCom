@@ -22,7 +22,7 @@ export default async function DashboardHome() {
 
   // ⚠️ GARDE SERVEUR : Interdit le chargement de données financières/globales
   // si le rôle n'a pas accès à l'accueil (ex. PARENT). Redirection immédiate.
-  if (!hasAccess(user.role, "/dashboard$")) {
+  if (!hasAccess(user.role, "/dashboard")) {
     redirect(firstAllowedPath(user.role));
   }
 

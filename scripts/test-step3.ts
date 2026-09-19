@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 
 async function test() {
   const schoolId = "c5e484f1-2e4d-44f9-a403-f68e4f54bec8";

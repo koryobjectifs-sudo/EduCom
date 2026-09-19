@@ -51,6 +51,38 @@ async function main() {
   console.log("=== DÉMARRAGE DU SMOKE TEST EXHAUSTIF DU DASHBOARD ===");
   if (!chromeAvailable()) throw new Error("Google Chrome introuvable");
 
+  // ── 0. VÉRIFICATION IMMÉDIATE AU DÉMARRAGE DU CACHE DE COMPILATION (.next) ──
+  console.log("\n--- CONTRÔLE PRÉALABLE DU SERVEUR ET DU CACHE .next ---");
+  const canaryRoutes = [
+    "/",
+    "/login",
+    "/dashboard",
+    "/dashboard/students",
+    "/dashboard/grades",
+    "/dashboard/payments",
+    "/dashboard/documents",
+    "/dashboard/communications",
+    "/dashboard/admin",
+    "/dashboard/attendance",
+  ];
+
+  let canary404Count = 0;
+  for (const r of canaryRoutes) {
+    try {
+      const res = await fetch(`${BASE}${r}`, { method: "HEAD", redirect: "manual" });
+      if (res.status === 404) canary404Count++;
+    } catch {}
+  }
+
+  if (canaryRoutes.length > 0 && canary404Count / canaryRoutes.length > 0.1) {
+    console.error("\n" + "=".repeat(65));
+    console.error("⛔ Application non compilée — supprimez .next et relancez");
+    console.error(`   Échec critique : ${canary404Count}/${canaryRoutes.length} routes de démarrage renvoient 404 (> 10%).`);
+    console.error("=".repeat(65) + "\n");
+    throw new Error("Application non compilée — supprimez .next et relancez");
+  }
+  console.log("✓ Cache de compilation valide au démarrage (pré-contrôle 404 OK).\n");
+
   const admin = createAdminClient();
   const stamp = Date.now();
 
@@ -432,7 +464,29 @@ async function main() {
 
     // Remise de la résolution Desktop par défaut
     await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 2, mobile: false }, session);
+
+    // ── VÉRIFICATION DE SANTÉ DU CACHE DE COMPILATION (.next) ──
+    console.log("\n--- VÉRIFICATION DU CACHE DE COMPILATION (.next) ---");
+    const preflightRoutes = concreteRoutes.slice(0, 10);
+    let preflight404Count = 0;
+    for (const r of preflightRoutes) {
+      const probeRes = await fetch(`${BASE}${r.url}`, {
+        headers: { cookie: cookieHeader },
+        redirect: "manual",
+      });
+      if (probeRes.status === 404) preflight404Count++;
+    }
+    if (preflightRoutes.length > 0 && preflight404Count / preflightRoutes.length > 0.1) {
+      console.error("\n" + "=".repeat(65));
+      console.error("⛔ Application non compilée — supprimez .next et relancez");
+      console.error(`   Échec de santé : ${preflight404Count}/${preflightRoutes.length} routes de démarrage renvoient 404 (> 10%).`);
+      console.error("=".repeat(65) + "\n");
+      throw new Error("Application non compilée — supprimez .next et relancez");
+    }
+    console.log("✓ Cache de compilation valide (pré-contrôle 404 OK).");
+
     let count = 0;
+    let total404Count = 0;
     for (const route of concreteRoutes) {
       count++;
       try {
@@ -442,6 +496,16 @@ async function main() {
         });
 
         const status = res.status;
+        if (status === 404) {
+          total404Count++;
+          if (count >= 10 && total404Count / count > 0.1) {
+            console.error("\n" + "=".repeat(65));
+            console.error("⛔ Application non compilée — supprimez .next et relancez");
+            console.error(`   Arrêt d'urgence : ${total404Count}/${count} routes renvoient 404 (> 10%).`);
+            console.error("=".repeat(65) + "\n");
+            throw new Error("Application non compilée — supprimez .next et relancez");
+          }
+        }
         const text = await res.text();
         const contentError = detectErrorInHtml(text);
 

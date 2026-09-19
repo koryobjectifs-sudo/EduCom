@@ -3,6 +3,7 @@ import { ClipboardList, FileText, Calendar, Clock, TrendingDown, ShieldAlert } f
 import { requireSchoolContext } from "@/lib/documentContext";
 import { prisma } from "@/lib/prisma";
 import { sortClasses } from "@/lib/classOrder";
+import ParentGradesView from "./ParentGradesView";
 
 export const metadata = {
   title: "Saisie de notes & Évaluations | EduCom",
@@ -11,6 +12,36 @@ export const metadata = {
 
 export default async function GradesEntryChoicePage() {
   const { schoolId, user } = await requireSchoolContext();
+
+  if (user.role === "PARENT") {
+    const children = await prisma.student.findMany({
+      where: { schoolId, parentId: user.id },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        enrollments: {
+          take: 1,
+          orderBy: { createdAt: "desc" },
+          select: {
+            academicYear: true,
+            class: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    });
+
+    const items = children.map((c) => ({
+      id: c.id,
+      firstName: c.firstName,
+      lastName: c.lastName,
+      className: c.enrollments[0]?.class?.name || "Non assigné",
+      academicYear: c.enrollments[0]?.academicYear,
+    }));
+
+    return <ParentGradesView children={items} />;
+  }
 
   const isTeacher = user.role === "TEACHER";
   const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
@@ -321,10 +352,17 @@ export default async function GradesEntryChoicePage() {
                     ) : (
                       <div className="mt-2.5">
                         <span className="text-[11px] text-amber-700 font-medium">
-                          Aucune matière configurée ·{" "}
-                          <Link href="/dashboard/settings/pedagogie" className="underline hover:text-amber-900 font-semibold">
-                            Configurer
-                          </Link>
+                          Aucune matière configurée
+                          {isAdmin ? (
+                            <>
+                              {" · "}
+                              <Link href="/dashboard/settings/pedagogie" className="underline hover:text-amber-900 font-semibold">
+                                Configurer
+                              </Link>
+                            </>
+                          ) : (
+                            " · Contacter l'administration"
+                          )}
                         </span>
                       </div>
                     )}

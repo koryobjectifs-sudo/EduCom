@@ -1,7 +1,6 @@
 import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
-import { prisma } from "@/lib/prisma";
 import { hasAccess, RoleType } from "@/lib/permissions";
+import { resolveSchoolContext, ActiveMembershipInfo } from "@/lib/schoolContext";
 
 /**
  * Contexte d'autorisation commun aux server actions.
@@ -13,6 +12,7 @@ import { hasAccess, RoleType } from "@/lib/permissions";
  * alors *quel établissement* la requête écrit.
  *
  * SÉCURITÉ ABSOLUE :
+ * - Résolution contextuelle multi-écoles (SchoolMembership).
  * - Bloque toute action si l'adresse e-mail de l'utilisateur n'est pas confirmée.
  */
 
@@ -22,6 +22,9 @@ export type ActionContext = {
   role: RoleType;
   emailVerified: boolean;
   school?: { id: string; name: string; activeAcademicYear: string | null } | null;
+  memberships?: ActiveMembershipInfo[];
+  activeMembership?: ActiveMembershipInfo | null;
+  isFallback?: boolean;
 };
 
 export type ActionAuth =
@@ -33,83 +36,26 @@ export type ActionContextOptions = {
 };
 
 /**
- * Authentifie l'appelant et résout son établissement.
+ * Authentifie l'appelant et résout son établissement actif selon ses droits vérifiés.
  *
  * @param requiredPath Chemin dont l'accès est exigé (ex. `/dashboard/settings`).
- *   Si omis, seule l'authentification est vérifiée.
+ *   Si omis, seule l'authentification et l'adhésion active sont vérifiées.
  * @param options Options d'autorisation (ex. allowUnverifiedEmail pour renvoi d'e-mail).
  */
 export const requireActionContext = cache(async function requireActionContext(
   requiredPath?: string,
   options?: ActionContextOptions
 ): Promise<ActionAuth> {
-  // Support Local Test Mode (Dev uniquement)
-  if (process.env.NODE_ENV === "development") {
-    const { cookies } = await import("next/headers");
-    const cookieStore = await cookies();
-    const testSchoolId = cookieStore.get("dev_test_school_id")?.value;
-    const testUserId = cookieStore.get("dev_test_user_id")?.value;
-    
-    if (testSchoolId && testUserId) {
-      const dbUser = await prisma.user.findUnique({
-        where: { id: testUserId },
-        include: { school: { select: { id: true, name: true, activeAcademicYear: true } } },
-      });
-      if (dbUser && dbUser.schoolId === testSchoolId) {
-        const role = dbUser.role as RoleType;
-        if (requiredPath && !hasAccess(role, requiredPath)) {
-          return { ok: false, error: "Vous n'avez pas les droits nécessaires pour cette action (Dev Mode)." };
-        }
-        if (!options?.allowUnverifiedEmail && !dbUser.emailVerified) {
-          return { ok: false, error: "Confirmation d'e-mail requise. Veuillez vérifier votre boîte mail avant d'effectuer cette action." };
-        }
-        return {
-          ok: true,
-          ctx: {
-            userId: dbUser.id,
-            schoolId: testSchoolId,
-            role,
-            emailVerified: dbUser.emailVerified ?? false,
-            school: dbUser.school,
-          },
-        };
-      }
-    }
-  }
-
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Non autorisé — vous devez être connecté." };
-
-  let dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: {
-      id: true,
-      email: true,
-      schoolId: true,
-      role: true,
-      emailVerified: true,
-      school: { select: { id: true, name: true, activeAcademicYear: true } },
-    },
+  const result = await resolveSchoolContext({
+    allowUnverifiedEmail: options?.allowUnverifiedEmail,
   });
-  if (!dbUser) return { ok: false, error: "Utilisateur introuvable." };
-  if (!dbUser.schoolId) return { ok: false, error: "Aucun établissement rattaché à ce compte." };
 
-  // Synchronisation automatique si confirmé dans Supabase Auth (ex: via Google OAuth ou lien de confirmation)
-  if (!dbUser.emailVerified && user.email_confirmed_at) {
-    await prisma.user.update({
-      where: { id: dbUser.id },
-      data: { emailVerified: true },
-    });
-    dbUser = { ...dbUser, emailVerified: true };
+  if (!result.ok) {
+    return { ok: false, error: result.error };
   }
 
-  // ⚠️ SÉCURITÉ : Blocage des actions serveurs si e-mail non vérifié
-  if (!options?.allowUnverifiedEmail && !dbUser.emailVerified) {
-    return { ok: false, error: "Confirmation d'e-mail requise. Veuillez vérifier votre boîte mail avant d'effectuer cette action." };
-  }
-
-  const role = dbUser.role as RoleType;
+  const { context } = result;
+  const role = context.role;
 
   if (requiredPath && !hasAccess(role, requiredPath)) {
     return { ok: false, error: "Vous n'avez pas les droits nécessaires pour cette action." };
@@ -118,11 +64,15 @@ export const requireActionContext = cache(async function requireActionContext(
   return {
     ok: true,
     ctx: {
-      userId: dbUser.id,
-      schoolId: dbUser.schoolId,
+      userId: context.user.id,
+      schoolId: context.schoolId,
       role,
-      emailVerified: dbUser.emailVerified ?? false,
-      school: dbUser.school,
+      emailVerified: context.user.emailVerified ?? false,
+      school: context.school,
+      memberships: context.memberships,
+      activeMembership: context.activeMembership,
+      isFallback: context.isFallback,
     },
   };
 });
+

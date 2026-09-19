@@ -35,15 +35,7 @@ export class WhatsAppClient {
       });
     }
 
-    // Fallback to Env for local dev/testing
-    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
-    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-
-    if (!accessToken || !phoneNumberId) {
-      throw new Error("WhatsApp is not configured for this school.");
-    }
-
-    return new WhatsAppClient({ accessToken, phoneNumberId });
+    throw new Error("WhatsApp is not configured for this school.");
   }
 
   /**

@@ -10,7 +10,14 @@ import { urlSupabase, cleAnonSupabase } from './config'
  * - Tout compte non confirmé est redirigé vers /verify-email.
  */
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next()
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-pathname', request.nextUrl.pathname)
+
+  let response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  })
 
   const supabase = createServerClient(
     urlSupabase(),
@@ -32,21 +39,31 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const chemin = request.nextUrl.pathname
-  const protege = chemin.startsWith('/dashboard') || chemin.startsWith('/onboarding') || chemin.startsWith('/welcome')
-  const pageAuth = chemin === '/login' || chemin === '/register'
+  const isFamilleLogin = chemin === '/famille/login'
+  const protege =
+    chemin.startsWith('/dashboard') ||
+    chemin.startsWith('/onboarding') ||
+    chemin.startsWith('/welcome') ||
+    (chemin.startsWith('/famille') && !isFamilleLogin)
+  const pageAuth = chemin === '/login' || chemin === '/register' || isFamilleLogin
   const isVerifyEmailPage = chemin === '/verify-email'
 
   if (!user && protege) {
     const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    url.pathname = chemin.startsWith('/famille') ? '/famille/login' : '/login'
     url.searchParams.set('suite', chemin)
     return NextResponse.redirect(url)
   }
 
-  // ⚠️ BLOCAGE STRICT COMPTE NON CONFIRMÉ
+  // ⚠️ BLOCAGE STRICT COMPTE NON CONFIRMÉ (Exemption sécurisée pour les parents authentifiés par téléphone ou faux e-mails)
   const isEmailConfirmed = Boolean(user?.email_confirmed_at)
+  const isPhoneConfirmed = Boolean(user?.phone_confirmed_at)
+  const isParent =
+    user?.user_metadata?.role === 'PARENT' ||
+    (Boolean(user?.email) && user!.email!.endsWith('@parent.educom.local'))
+  const isAccountActive = isEmailConfirmed || isPhoneConfirmed || isParent
 
-  if (user && !isEmailConfirmed && protege) {
+  if (user && !isAccountActive && protege) {
     const url = request.nextUrl.clone()
     url.pathname = '/verify-email'
     if (user.email) {
@@ -55,17 +72,17 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && isEmailConfirmed && isVerifyEmailPage) {
+  if (user && isAccountActive && isVerifyEmailPage) {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = isParent ? '/famille' : '/dashboard'
     url.search = ''
     return NextResponse.redirect(url)
   }
 
-  if (user && isEmailConfirmed && pageAuth) {
+  if (user && isAccountActive && pageAuth) {
     if (!request.nextUrl.searchParams.has('erreur')) {
       const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
+      url.pathname = isParent ? '/famille' : '/dashboard'
       url.search = ''
       return NextResponse.redirect(url)
     }

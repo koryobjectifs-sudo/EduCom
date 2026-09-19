@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FileStack, FolderOpen, ClipboardCheck } from "lucide-react";
 
-export function DocumentsTabs({ canValidate = false }: { canValidate?: boolean }) {
+export function DocumentsTabs() {
   const pathname = usePathname() || "";
 
   const tabs = [
@@ -12,7 +12,7 @@ export function DocumentsTabs({ canValidate = false }: { canValidate?: boolean }
       name: "Documents produits",
       href: "/dashboard/documents",
       icon: FileStack,
-      isActive: pathname === "/dashboard/documents" || (pathname.startsWith("/dashboard/documents") && !pathname.startsWith("/dashboard/documents/templates") && !pathname.startsWith("/dashboard/documents/validation") && !pathname.startsWith("/dashboard/documents/drafts")),
+      isActive: pathname === "/dashboard/documents" || (pathname.startsWith("/dashboard/documents") && !pathname.startsWith("/dashboard/documents/templates") && !pathname.startsWith("/dashboard/documents/drafts")),
     },
     {
       name: "Modèles",
@@ -20,13 +20,14 @@ export function DocumentsTabs({ canValidate = false }: { canValidate?: boolean }
       icon: FolderOpen,
       isActive: pathname.startsWith("/dashboard/documents/templates"),
     },
-    ...(canValidate ? [{
-      name: "Validation de bulletins",
-      href: "/dashboard/documents/validation",
+    {
+      name: "Actions & Contrôle",
+      href: "/dashboard/students/dossiers/review",
       icon: ClipboardCheck,
-      isActive: pathname.startsWith("/dashboard/documents/validation"),
-    }] : []),
+      isActive: pathname.startsWith("/dashboard/students/dossiers/review"),
+    },
   ];
+
 
   return (
     <div className="border-b border-gray-200 mb-6">

@@ -182,9 +182,8 @@ export async function sendDocumentReminder(
     return { success: false, error: "Élève ou document introuvable." };
   }
 
-  // Action directe : pas de page intermédiaire
-  const actionKind = req.nature === "SIGNATURE" ? "sign" : "deposit";
-  const actionUrl = `/dashboard/students/${student.id}/dossier?action=${actionKind}&reqId=${req.id}`;
+  // Action directe sur l'Espace Famille : aucun écran intermédiaire
+  const actionUrl = `/famille/actions?studentId=${student.id}&reqId=${req.id}`;
 
   const actionText = req.nature === "SIGNATURE" ? "Lisez et signez-le en quelques secondes." : "Déposez-le en quelques secondes.";
   const message = `Le dossier de ${student.firstName} est incomplet. Il manque ${req.label.toLowerCase()}. ${actionText}`;
@@ -197,7 +196,7 @@ export async function sendDocumentReminder(
       const wa = await WhatsAppClient.forSchool(actor.schoolId);
       const cleanPhone = check.parent.phone.replace(/\D/g, "");
       if (cleanPhone) {
-        await wa.sendTextMessage(cleanPhone, `${message}\nLien direct : ${process.env.NEXT_PUBLIC_APP_URL || ""}${actionUrl}`);
+        await wa.sendTextMessage(cleanPhone, `${message}\nLien direct : ${process.env.NEXT_PUBLIC_SITE_URL || ""}${actionUrl}`);
         channelUsed = "WHATSAPP";
       }
     } catch (err) {
@@ -350,8 +349,7 @@ export async function sendBulkDocumentReminders(
     // Créer les rappels pour les pièces ciblées
     const piecesLabels = actionableReqs.map((r) => r.label).join(", ");
     const primaryReq = actionableReqs[0];
-    const actionKind = primaryReq.nature === "SIGNATURE" ? "sign" : "deposit";
-    const actionUrl = `/dashboard/students/${s.id}/dossier?action=${actionKind}&reqId=${primaryReq.id}`;
+    const actionUrl = `/famille/actions?studentId=${s.id}&reqId=${primaryReq.id}`;
     const message = `Le dossier de ${s.firstName} est incomplet. Pièce(s) manquante(s) : ${piecesLabels}. Déposez-les en quelques secondes.`;
 
     let channelUsed = "IN_APP";
@@ -360,7 +358,7 @@ export async function sendBulkDocumentReminders(
         const wa = await WhatsAppClient.forSchool(actor.schoolId);
         const cleanPhone = s.parent.phone.replace(/\D/g, "");
         if (cleanPhone) {
-          await wa.sendTextMessage(cleanPhone, `${message}\nLien direct : ${process.env.NEXT_PUBLIC_APP_URL || ""}${actionUrl}`);
+          await wa.sendTextMessage(cleanPhone, `${message}\nLien direct : ${process.env.NEXT_PUBLIC_SITE_URL || ""}${actionUrl}`);
           channelUsed = "WHATSAPP";
         }
       } catch (err) {
@@ -379,7 +377,7 @@ export async function sendBulkDocumentReminders(
             channel: channelUsed,
             status: "PENDING",
             message: `Le dossier de ${s.firstName} est incomplet. Il manque ${r.label}. ${r.nature === "SIGNATURE" ? "Lisez et signez-le en quelques secondes." : "Déposez-le en quelques secondes."}`,
-            actionUrl: `/dashboard/students/${s.id}/dossier?action=${r.nature === "SIGNATURE" ? "sign" : "deposit"}&reqId=${r.id}`,
+            actionUrl: `/famille/actions?studentId=${s.id}&reqId=${r.id}`,
             sentById: actor.userId,
           },
         })

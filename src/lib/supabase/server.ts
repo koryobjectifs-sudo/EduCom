@@ -3,7 +3,19 @@ import { cookies } from 'next/headers'
 import { urlSupabase, cleAnonSupabase } from './config'
 
 export async function createClient() {
-  const cookieStore = await cookies()
+  let cookieStore: any = null
+  try {
+    cookieStore = await cookies()
+  } catch {
+    // Hors contexte requête HTTP (scripts de test)
+  }
+
+  if (!cookieStore) {
+    const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
+    return createSupabaseClient(urlSupabase(), cleAnonSupabase(), {
+      auth: { persistSession: false },
+    }) as any
+  }
 
   return createServerClient(
     urlSupabase(),

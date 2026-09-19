@@ -14,7 +14,7 @@
  *
  * ESSAI À BLANC PAR DÉFAUT. `APPLY=1` pour écrire.
  */
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { createHash } from "crypto";
 
 const APPLY = process.env.APPLY === "1";

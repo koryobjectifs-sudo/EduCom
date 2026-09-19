@@ -87,7 +87,7 @@ export async function getSecondaireContextWithActor(
     const firstAllowed = classSubjects.find((cs) =>
       editable === "ALL" ? true : editable.has(cs.subjectId),
     );
-    if (!firstAllowed) return { ok: false, error: "Aucune matière ne vous est affectée dans cette classe." };
+    if (!firstAllowed) return { ok: false, error: "Vous n'êtes affecté à aucune matière dans cette classe. Contactez la direction de votre établissement." };
     activeSubjectId = firstAllowed.subjectId;
   }
 
@@ -186,7 +186,10 @@ export async function getSecondaireContextWithActor(
       schoolId: actor.schoolId,
       ...(actor.role === "TEACHER"
         ? {
-            assignments: { some: { teacherId: actor.userId } },
+            OR: [
+              { teacherId: actor.userId },
+              { assignments: { some: { teacherId: actor.userId } } },
+            ],
           }
         : {}),
     },

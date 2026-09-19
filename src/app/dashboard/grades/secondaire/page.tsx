@@ -56,9 +56,11 @@ export default async function SecondairePage({
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <p className="font-semibold">{ctx.error}</p>
-            <p className="text-xs text-amber-700 mt-1">
-              Rattachez les matières de cette classe pour débloquer la saisie des devoirs, compositions et bulletins.
-            </p>
+            {isAdmin && (
+              <p className="text-xs text-amber-700 mt-1">
+                Rattachez les matières de cette classe pour débloquer la saisie des devoirs, compositions et bulletins.
+              </p>
+            )}
           </div>
           {isAdmin && (
             <Link

@@ -1,5 +1,5 @@
 import { phoneSchema, schoolNameSchema, personNameSchema, emailSchema } from "../src/lib/validations";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 
 async function main() {
   console.log("=== TEST VALIDATIONS ===");

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { getContrastRatioAgainstWhite, isValidHexColor, PRESET_SCHOOL_COLORS, DEFAULT_EDUCOM_NAVY, schoolThemeStyle } from "@/lib/theme";
+import SharedColorPicker from "@/components/ui/SharedColorPicker";
 
 export default function SettingsClient({
   school,
@@ -720,109 +721,26 @@ export default function SettingsClient({
             );
           })()}
 
-            {/* Filtres par Catégorie de Palettes */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
-              <span className="text-[11px] font-medium text-text-muted mr-1 flex items-center gap-1">
-                <Palette className="w-3 h-3" /> Palettes :
-              </span>
-              {(["Tous", "Aurora", "Classiques", "Nature & Frais", "Chauds & Solaires", "Distinction & Prune"] as const).map((cat) => {
-                const isActive = selectedColorCategory === cat;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setSelectedColorCategory(cat)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-                      isActive
-                        ? "bg-slate-900 text-white font-semibold shadow-xs"
-                        : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
-                    }`}
-                  >
-                    {cat} {cat === "Tous" ? `(${PRESET_SCHOOL_COLORS.length})` : ""}
-                  </button>
-                );
-              })}
-            </div>
+            {/* Palette Partagée 36 Teintes (12 teintes × 3 intensités) + Champ libre + Contraste */}
+            <SharedColorPicker
+              mode="shell"
+              value={formData.primaryColor || ""}
+              onChange={(newColor) => {
+                setFormData((prev) => ({ ...prev, primaryColor: newColor }));
+                if (typeof document !== "undefined" && isValidHexColor(newColor)) {
+                  document.documentElement.style.setProperty("--color-frame-bg", newColor);
+                  document.documentElement.style.setProperty("--color-topbar-bg", newColor);
+                  document.documentElement.style.setProperty("--color-rail-bg", newColor);
+                  document.documentElement.style.setProperty("--color-sidebar-bg", `color-mix(in srgb, ${newColor} 7%, #F8FAFC)`);
+                  document.documentElement.style.setProperty("--color-sidebar-hover", `color-mix(in srgb, ${newColor} 12%, #F1F5F9)`);
+                  document.documentElement.style.setProperty("--color-sidebar-active", `color-mix(in srgb, ${newColor} 16%, #FFFFFF)`);
+                  document.documentElement.style.setProperty("--color-rail-accent", newColor);
+                }
+              }}
+              label="Palette officielle de l'établissement (Shell, Rail & TopBar)"
+            />
 
-            {/* Grille de Couleurs Prédéfinies */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 pt-1">
-              {(selectedColorCategory === "Tous"
-                ? PRESET_SCHOOL_COLORS
-                : PRESET_SCHOOL_COLORS.filter((c) => c.group === selectedColorCategory)
-              ).map((c) => {
-                const isSelected = formData.primaryColor?.toLowerCase() === c.hex.toLowerCase();
-                return (
-                  <button
-                    key={c.hex}
-                    type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, primaryColor: c.hex }))}
-                    title={`${c.label} (${c.hex})`}
-                    className={`flex items-center gap-2 p-1.5 rounded-xl border text-left transition-all ${
-                      isSelected
-                        ? "bg-white border-slate-900 shadow-xs ring-2 ring-slate-900/15 font-bold"
-                        : "bg-white/70 border-border hover:bg-white hover:border-slate-300 hover:shadow-2xs"
-                    }`}
-                  >
-                    <span
-                      className="h-5 w-5 shrink-0 rounded-lg shadow-2xs border border-black/10 flex items-center justify-center text-white text-[10px]"
-                      style={{ backgroundColor: c.hex }}
-                    >
-                      {isSelected && "✓"}
-                    </span>
-                    <span className="text-xs text-text truncate">{c.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Pipette & Champ Libre Hexadécimal + Validation WCAG + Bouton de confirmation */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/60">
-              <div className="flex items-center gap-3 flex-wrap">
-                <label htmlFor="primaryColorHex" className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-text-muted" />
-                  Sélecteur libre (millions de teintes) :
-                </label>
-                <div className="flex items-center gap-1.5 bg-white border border-border rounded-xl px-2 py-1 shadow-2xs">
-                  <input
-                    type="color"
-                    id="primaryColorPicker"
-                    value={formData.primaryColor?.startsWith("#") && formData.primaryColor.length === 7 ? formData.primaryColor : "#9C0F15"}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, primaryColor: e.target.value }))}
-                    className="h-6 w-6 rounded-md cursor-pointer border-0 bg-transparent p-0"
-                    title="Pipette libre"
-                  />
-                  <input
-                    type="text"
-                    id="primaryColorHex"
-                    name="primaryColor"
-                    value={formData.primaryColor}
-                    onChange={handleChange}
-                    placeholder="#9C0F15"
-                    maxLength={7}
-                    className="w-24 border-0 bg-transparent text-xs font-mono font-semibold text-text uppercase focus:ring-0 focus:outline-none p-0"
-                  />
-                </div>
-
-                {/* Avertissement de Contraste WCAG si < 4.5:1 contre blanc */}
-                {(() => {
-                  const hex = formData.primaryColor;
-                  if (!hex || !isValidHexColor(hex)) return null;
-                  const ratio = getContrastRatioAgainstWhite(hex);
-
-                  if (ratio < 4.5) {
-                    return (
-                      <div className="flex items-center gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-xl">
-                        <span>⚠️ Contraste : <strong>{ratio}:1</strong> (recommandé ≥ 4.5:1)</span>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div className="flex items-center gap-1 text-[11px] text-emerald-700 font-medium bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-xl">
-                      <span>✓ Contraste optimal ({ratio}:1)</span>
-                    </div>
-                  );
-                })()}
-              </div>
+            <div className="flex items-center justify-end pt-3 border-t border-border/60">
 
               {/* Bouton secondaire de validation directe */}
               <button

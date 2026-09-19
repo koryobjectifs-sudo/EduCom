@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireActionContext } from "@/lib/actionContext";
 import { hasAccess, type RoleType } from "@/lib/permissions";
+import { studentWhereFor, teacherClassIds } from "@/lib/studentScope";
 
 export interface SearchResultItem {
   id: string;
@@ -30,7 +31,7 @@ export async function globalSearchAction(query: string): Promise<{ items: Search
 
   // 1. ÉLÈVES (si l'utilisateur a accès aux élèves)
   if (hasAccess(userRole, "/dashboard/students")) {
-    const studentWhere: any = {
+    let studentWhere: any = {
       schoolId,
       OR: [
         { firstName: { contains: q, mode: "insensitive" } },
@@ -42,6 +43,11 @@ export async function globalSearchAction(query: string): Promise<{ items: Search
     // Si parent, limiter strictement à ses enfants
     if (userRole === "PARENT") {
       studentWhere.parentId = userId;
+    } else if (userRole === "TEACHER") {
+      const scope = await studentWhereFor({ userId, schoolId, role: userRole });
+      studentWhere = {
+        AND: [scope, studentWhere],
+      };
     }
 
     const students = await prisma.student.findMany({
@@ -76,9 +82,14 @@ export async function globalSearchAction(query: string): Promise<{ items: Search
 
   // 2. CLASSES (si l'utilisateur a accès aux classes)
   if (hasAccess(userRole, "/dashboard/classes")) {
+    const teacherClasses = userRole === "TEACHER"
+      ? await teacherClassIds({ userId, schoolId, role: userRole })
+      : null;
+
     const classes = await prisma.class.findMany({
       where: {
         schoolId,
+        ...(teacherClasses ? { id: { in: teacherClasses } } : {}),
         name: { contains: q, mode: "insensitive" },
       },
       take: 4,

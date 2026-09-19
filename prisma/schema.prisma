@@ -99,10 +99,16 @@ model School {
   inspectionAcademique String? // ex. "Dakar"
   inspectionIEF        String? // ex. "Plateau"
   regionAcademique     String? // ex. "Dakar"
+  /// Personnalisation des bulletins officiels
+  bulletinAccentColor      String?
+  bulletinWatermark        Boolean  @default(false)
+  bulletinWatermarkOpacity Float    @default(0.08)
+  bulletinLogoPosition     String   @default("CENTER")
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   users            User[]
+  memberships      SchoolMembership[]
   students         Student[]
   classes          Class[]
   invoices         Invoice[]
@@ -213,9 +219,31 @@ model User {
   waConversations WhatsAppConversation[]
   actionLinks     ActionLink[]
   documentReminders DocumentReminder[] @relation("ParentReminders")
+  memberships       SchoolMembership[]
 
   @@index([schoolId])
   @@index([managerId])
+}
+
+/// Rattachement contextuel multi-établissements (Phase 1 simplification) :
+/// Un utilisateur possède UNE identité EduCom, rattachée à une ou plusieurs écoles
+/// avec un rôle distinct par établissement.
+model SchoolMembership {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  role      Role     @default(PARENT)
+  isPrimary Boolean  @default(false)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, schoolId, role])
+  @@index([userId])
+  @@index([schoolId])
+  @@index([userId, active])
 }
 
 /// Journal d'activité : « qui a fait quoi, quand, sur quel objet, avec quel

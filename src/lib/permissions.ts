@@ -62,54 +62,22 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
   OWNER: ["*"],
   ADMIN: ["*"],
 
-  // Un enseignant saisit les notes : `/dashboard/grades` manquait, ce qui
-  // verrouillait la rubrique pour les seuls utilisateurs à qui l'écran est
-  // destiné — tout le module leur était inaccessible.
+  // Un enseignant saisit les notes et fait l'appel de ses classes :
+  // il n'a pas accès au registre administratif (/dashboard/students, /dashboard/classes).
   TEACHER: [
     "/dashboard$",
-    "/dashboard/students",
-    "/dashboard/classes",
-    /**
-     * ⚠️ RÉGRESSION CORRIGÉE (22 août 2026). L'« Annuaire »
-     * (`/dashboard/directory`) a REMPLACÉ les rubriques « Élèves » et
-     * « Classes » dans la navigation, mais cette table n'a pas suivi :
-     * l'écran principal du secrétariat était devenu invisible à tout le monde
-     * sauf à la direction, alors que ces rôles gardaient l'accès aux mêmes
-     * données par `/dashboard/students`.
-     *
-     * Cette ligne ne donne donc AUCUN droit nouveau — elle rétablit l'accès à
-     * une vue fusionnée de ce qui est déjà autorisé juste en dessous. La portée
-     * des données reste bornée par `studentScope()` et le périmètre de classes.
-     */
-    "/dashboard/directory",
     "/dashboard/grades",
     "/dashboard/communications",
 
     // ⚠️ BUG CORRIGÉ (3 septembre 2026). `/dashboard/attendance` a toute une
     // branche dédiée à l'enseignant (choix de SA classe, appel) et la
-    // sidebar déclare l'entrée « Présences » sous « Enseignement » — mais
-    // ce chemin manquait ici. Résultat : l'écran renvoyait silencieusement
-    // vers l'accueil, et le lien n'apparaissait même pas dans son menu. La
-    // portée reste bornée à ses classes par le code de la page elle-même.
+    // sidebar déclare l'entrée « Présences » sous « Enseignement ».
     "/dashboard/attendance",
 
     // ═══ Lot 15 — centre documentaire ═══
-    //
-    // ⚠️ **Accordé explicitement, et à ce seul chemin.** `TEACHER` n'a PAS
-    // `/dashboard/documents` : sans cette ligne, le centre lui serait fermé,
-    // alors que la liste de fournitures de sa classe fait partie de son travail.
-    // Il n'obtient pas pour autant le hub de génération — le chemin est plus
-    // précis que le préfixe, et c'est voulu.
-    //
-    // ⚠️ Ce que l'enseignant VOIT est ensuite borné ligne par ligne par
-    // `documentScope()` : documents publiés, de portée établissement ou de SES
-    // classes. Le chemin ouvre la porte, la portée décide du contenu.
     "/dashboard/documents/centre",
 
-    // Lot 12 — l'enseignant a son propre rapport : ses classes, ses saisies,
-    // l'état de ses bulletins. `buildReport()` borne la vue à ses classes
-    // (affectation ou titularité) ; il n'accède à aucun chiffre financier,
-    // aucune section « finance » n'étant produite pour son rôle.
+    // Lot 12 — rapport enseignant : ses classes, ses saisies.
     "/dashboard/admin/reports",
   ],
 
@@ -117,15 +85,20 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
   // Un parent n'a accès qu'aux routes EXPLICITEMENT listées avec terminaison exacte ($).
   // Toute nouvelle route créée sur /dashboard est INTERDITE par défaut aux parents.
   PARENT: [
+    // Espace Famille dédié (Phase 3)
+    "/famille",
+
+    // Compatibilité ascendante dashboard existant
+    "/dashboard/grades$",
+    "/dashboard/payments$",
+    "/dashboard/documents$",
+    "/dashboard/documents/centre$",
+    "/dashboard/settings$",
     "/dashboard/students$",
     "/dashboard/students/[id]$",
     "/dashboard/students/[id]/dossier$",
-    "/dashboard/documents$",
-    "/dashboard/documents/centre$",
-    "/dashboard/grades$",
-    "/dashboard/payments$",
-    "/dashboard/settings$",
   ],
+
 
   // Le comptable édite factures et reçus : ils vivent dans `/dashboard/documents`,
   // qui lui manquait. `/dashboard/invoices` a été retiré — cette route n'existe
@@ -154,6 +127,7 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
     // notifier une absence, alors que l'écran a été construit pour lui.
     "/dashboard/attendance",
     "/dashboard/documents",
+    "/dashboard/grades/validation",
     "/dashboard/team",
 
     /**
@@ -207,6 +181,7 @@ export const ROLE_DENIALS: Partial<Record<RoleType, string[]>> = {
   // et même raison que le refus sur l'espace de validation.
   PARENT: [
     "/dashboard/documents/validation",
+    "/dashboard/grades/validation",
     "/dashboard/payments/expenses",
     "/dashboard/payments/statement",
     "/dashboard/payments/review",
@@ -282,6 +257,7 @@ export const ROLE_DENIALS: Partial<Record<RoleType, string[]>> = {
   // Exactement le principe qui empêche un enseignant d'approuver ses bulletins.
   ACCOUNTANT: [
     "/dashboard/documents/validation",
+    "/dashboard/grades/validation",
     "/dashboard/payments/review",
     // Lot 15 — voir ci-dessous : publier un document officiel est un acte de
     // direction, pas une tâche de service.
@@ -301,10 +277,12 @@ export const ROLE_DENIALS: Partial<Record<RoleType, string[]>> = {
   // bulletins — celui qui prépare n'approuve pas.
   ASSISTANT: [
     "/dashboard/documents/validation",
+    "/dashboard/grades/validation",
     "/dashboard/documents/centre/gestion",
   ],
   TEACHER: [
     "/dashboard/documents/validation",
+    "/dashboard/grades/validation",
     "/dashboard/documents/centre/gestion",
     // Lot 18/3 — le conseil de classe (distinctions, sanctions, orientation)
     // est réservé à la direction. `TEACHER` hérite de `/dashboard/grades` par
@@ -370,7 +348,27 @@ export function hasAccess(role: RoleType | string, path: string): boolean {
  * vers le premier chemin autorisé du rôle garantit une cible atteignable, sans
  * accorder aucun droit supplémentaire.
  */
+/**
+ * Pages d'accueil explicites par rôle.
+ * ⚠️ Règle absolue : Ne jamais laisser l'ordre d'une liste blanche décider de la
+ * page d'atterrissage. Un parent atterrit sur ses bulletins/notes, jamais sur "students".
+ */
+export const ROLE_HOME_PATHS: Partial<Record<RoleType, string>> = {
+  PARENT: "/famille", // Espace Famille dédié (Phase 3)
+  TEACHER: "/dashboard",
+
+  ACCOUNTANT: "/dashboard",
+  SECRETARY: "/dashboard",
+  ASSISTANT: "/dashboard",
+  ADMIN: "/dashboard",
+  OWNER: "/dashboard",
+};
+
 export function firstAllowedPath(role: RoleType | string): string {
+  // Page d'accueil explicite par rôle
+  const explicit = ROLE_HOME_PATHS[role as RoleType];
+  if (explicit) return explicit;
+
   const permissions = ROLE_PERMISSIONS[role as RoleType];
   if (!permissions || permissions.length === 0) return "/login";
   if (permissions.includes("*")) return "/dashboard";

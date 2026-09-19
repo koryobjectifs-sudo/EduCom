@@ -14,7 +14,7 @@
  * jeton dans un fichier de sauvegarde recréerait le secret en clair sur disque,
  * ce qui est précisément le problème qu'on répare.
  */
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { writeFileSync } from "fs";
 
 const APPLY = process.env.APPLY === "1";

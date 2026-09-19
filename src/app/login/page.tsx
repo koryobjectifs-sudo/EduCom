@@ -119,6 +119,23 @@ function LoginForm() {
           Accédez à l'espace de votre établissement.
         </p>
 
+        {/* Passerelle directe Espace Famille / Téléphone */}
+        <div className="mt-4 mb-2">
+          <Link
+            href={suite ? `/famille/login?suite=${encodeURIComponent(suite)}` : "/famille/login"}
+            className="flex items-center justify-between w-full p-3 rounded-[12px] bg-primary/5 hover:bg-primary/10 border border-primary/20 text-primary text-[13px] font-medium transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <Smartphone className="h-4 w-4" />
+              <span>Espace Famille (Parents)</span>
+            </div>
+            <div className="flex items-center gap-1 text-[12px] font-semibold">
+              <span>Par téléphone</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </div>
+          </Link>
+        </div>
+
           {/* ⚠️ `role="alert"` : l'échec doit être annoncé, pas seulement coloré. */}
           {messageLien && !erreur && (
             <p

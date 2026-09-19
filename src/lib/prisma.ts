@@ -7,7 +7,13 @@ const globalForPrisma = global as unknown as { prisma?: PrismaClient; pool?: Poo
 
 const connectionString = `${process.env.DATABASE_URL}`;
 
-const parsedLimit = parseInt(new URL(connectionString).searchParams.get("connection_limit") || "5", 10);
+let schema: string | undefined;
+let parsedLimit = 5;
+try {
+  const parsedUrl = new URL(connectionString);
+  parsedLimit = parseInt(parsedUrl.searchParams.get("connection_limit") || "5", 10);
+  schema = parsedUrl.searchParams.get("schema") || undefined;
+} catch {}
 
 const pool =
   globalForPrisma.pool ||
@@ -20,9 +26,9 @@ const pool =
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.pool = pool;
 
-const adapter = new PrismaPg(pool);
+const adapter = new PrismaPg(pool, schema ? { schema } : undefined);
 
-export const prisma =
+const basePrisma =
   globalForPrisma.prisma ||
   new PrismaClient({
     adapter,
@@ -33,4 +39,61 @@ export const prisma =
     ],
   });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = basePrisma;
+
+if (process.env.NODE_ENV !== "production") {
+  const EXPECTED_MODELS = [
+    "user",
+    "school",
+    "student",
+    "class",
+    "enrollment",
+    "grade",
+    "reportCard",
+    "evaluation",
+    "term",
+    "subject",
+    "invoice",
+    "payment",
+    "attendance",
+    "schoolDocument",
+    "studentDocument",
+    "documentReminder",
+    "documentFolder",
+    "message",
+    "whatsAppConversation",
+    "teachingAssignment",
+  ] as const;
+
+  const missing = EXPECTED_MODELS.filter((m) => (basePrisma as any)[m] === undefined);
+  if (missing.length > 0) {
+    const errorMsg = "Client Prisma obsolète — relancez prisma generate et redémarrez";
+    console.error(`\n[PRISMA GUARD] ⛔ Modèle(s) manquant(s) sur le client Prisma : ${missing.join(", ")}`);
+    console.error(`[PRISMA GUARD] ⛔ ${errorMsg}\n`);
+    throw new Error(errorMsg);
+  }
+}
+
+export const prisma =
+  process.env.NODE_ENV !== "production"
+    ? new Proxy(basePrisma, {
+        get(target, prop, receiver) {
+          const val = Reflect.get(target, prop, receiver);
+          if (
+            val === undefined &&
+            typeof prop === "string" &&
+            !prop.startsWith("$") &&
+            !prop.startsWith("_") &&
+            prop !== "then" &&
+            prop !== "toJSON"
+          ) {
+            const errorMsg = "Client Prisma obsolète — relancez prisma generate et redémarrez";
+            console.error(`\n[PRISMA GUARD] ⛔ Modèle '${prop}' introuvable sur le client Prisma.`);
+            console.error(`[PRISMA GUARD] ⛔ ${errorMsg}\n`);
+            throw new Error(errorMsg);
+          }
+          return val;
+        },
+      })
+    : basePrisma;
+

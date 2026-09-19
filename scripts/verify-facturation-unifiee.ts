@@ -1,4 +1,4 @@
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { getNextInvoiceNumber, getNextReceiptNumber, formatXOF, amountInWordsXOF } from "../src/lib/finance/numbering";
 import { hasAccess, RoleType } from "../src/lib/permissions";
 

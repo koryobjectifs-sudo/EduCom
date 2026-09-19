@@ -29,7 +29,6 @@ export default async function TemplatesHub() {
   const { schoolId, school, user } = await requireSchoolContext();
   const role = user.role as RoleType;
 
-  const canValidate = hasAccess(role, "/dashboard/documents/validation");
   const canEditSettings = hasAccess(role, "/dashboard/settings");
 
   const requests = await prisma.documentRequest.findMany({
@@ -95,7 +94,7 @@ export default async function TemplatesHub() {
         }
       />
 
-      <DocumentsTabs canValidate={canValidate} />
+      <DocumentsTabs />
 
       {/* ── 1. En-tête et Mentions Légales de l'Établissement ── */}
       <section className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">

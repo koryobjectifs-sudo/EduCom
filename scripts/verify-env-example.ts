@@ -54,7 +54,7 @@ const PLATEFORME = new Set([
   // permanence, silencieusement, et sans que personne s'en aperçoive.
   "EDUCOM_ALLOW_PRODUCTION",
   // Idem : sélection de cible d'un script, jamais une configuration durable.
-  "SCHOOL_ID", "APPLY", "CLEAN",
+  "SCHOOL_ID", "APPLY", "CLEAN", "EDUCOM_IS_TEST",
 ]);
 
 /** Variables lues par le code, sous leurs DEUX formes d'accès. */

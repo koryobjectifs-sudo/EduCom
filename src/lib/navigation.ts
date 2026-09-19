@@ -9,6 +9,7 @@ export type NavIconName =
   | "Settings"
   | "BarChart3"
   | "ClipboardList"
+  | "ClipboardCheck"
   | "FileText"
   | "MessageSquare"
   | "BookOpen"
@@ -94,6 +95,7 @@ export const NAV_SPACES: NavSpace[] = [
           // ⚠️ Route déjà réelle et existante (chantier documents, phase 1) :
           // `/dashboard/grades/report-card` — aucun lien inventé.
           { id: "report-card", name: "Bulletins", href: "/dashboard/grades/report-card", icon: "FileText", short: "Bulletins" },
+          { id: "grades-validation", name: "Validation", href: "/dashboard/grades/validation", icon: "ClipboardCheck", short: "Validation" },
           { id: "attendance", name: "Présences", href: "/dashboard/attendance", icon: "ClipboardList", short: "Présences" },
         ],
       },
@@ -212,9 +214,19 @@ export const NAV_SPACES: NavSpace[] = [
 /**
  * Renvoie la liste des Espaces Métier autorisés pour ce rôle,
  * avec leurs sous-sections filtrées par `hasAccess()`.
+ *
+ * ⚠️ Règle stricte (Audit des rôles) :
+ * Chaque entrée de rail ne s'affiche que si le rôle a réellement le droit
+ * de l'exécuter côté serveur (`hasAccess` sur `space.defaultHref`).
+ * Le droit est vérifié sur la destination, JAMAIS déduit d'un sous-élément de l'espace.
  */
 export function getVisibleSpaces(role: RoleType | string): NavSpace[] {
   return NAV_SPACES.map((space) => {
+    // 1. Vérification stricte du droit d'entrée dans l'espace (non déduit de l'espace)
+    if (!hasAccess(role, space.defaultHref)) {
+      return null;
+    }
+
     const authorizedSections = space.sections
       .map((sec) => ({
         ...sec,
@@ -222,14 +234,16 @@ export function getVisibleSpaces(role: RoleType | string): NavSpace[] {
       }))
       .filter((sec) => sec.items.length > 0);
 
-    const firstAllowedHref = authorizedSections[0]?.items[0]?.href ?? space.defaultHref;
+    if (authorizedSections.length === 0) {
+      return null;
+    }
 
     return {
       ...space,
-      defaultHref: firstAllowedHref,
+      defaultHref: space.defaultHref,
       sections: authorizedSections,
     };
-  }).filter((space) => space.sections.length > 0);
+  }).filter((space): space is NavSpace => space !== null);
 }
 
 /**
@@ -275,6 +289,51 @@ export function isActive(href: string, pathname: string | null): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
   const hrefPath = href.split("?")[0];
   return pathname === hrefPath || pathname.startsWith(`${hrefPath}/`);
+}
+
+/**
+ * Détermine l'unique entrée de navigation active pour le chemin courant.
+ *
+ * ⚠️ Règle stricte d'exclusivité : UNE SEULE entrée active à la fois.
+ * 1. Correspondance EXACTE du pathname en priorité absolue.
+ * 2. Si aucune correspondance exacte n'existe (ex: sous-page /dashboard/students/[id]),
+ *    on retient la correspondance par préfixe la plus spécifique (plus long préfixe).
+ */
+export function getActiveNavItemHref(items: NavItem[], pathname: string | null): string | null {
+  if (!pathname || items.length === 0) return null;
+
+  // 1. Correspondance exacte du pathname
+  for (const item of items) {
+    const itemPath = item.href.split("?")[0];
+    if (itemPath === pathname) {
+      return item.href;
+    }
+    // Alias vers Bulletins
+    if (itemPath === "/dashboard/grades/report-card" && pathname === "/dashboard/grades/bulletin") {
+      return item.href;
+    }
+  }
+
+  // 2. Si aucune correspondance exacte, correspondance par préfixe la plus spécifique
+  const prefixCandidates = items
+    .filter((item) => {
+      const itemPath = item.href.split("?")[0];
+      if (itemPath === "/dashboard") return false;
+      return pathname.startsWith(`${itemPath}/`);
+    })
+    .sort((a, b) => b.href.split("?")[0].length - a.href.split("?")[0].length);
+
+  if (prefixCandidates.length > 0) {
+    return prefixCandidates[0].href;
+  }
+
+  // 3. Cas particulier de l'accueil
+  if (pathname === "/dashboard") {
+    const home = items.find((it) => it.href === "/dashboard");
+    if (home) return home.href;
+  }
+
+  return null;
 }
 
 /**

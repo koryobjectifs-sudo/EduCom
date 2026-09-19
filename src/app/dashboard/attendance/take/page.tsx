@@ -1,6 +1,7 @@
 import { requireSchoolContext } from "@/lib/documentContext";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { teacherClassIds } from "@/lib/studentScope";
 import { getAttendanceForClass } from "../actions";
 import { TakeAttendanceClient } from "./TakeAttendanceClient";
 
@@ -9,7 +10,7 @@ export default async function TakeAttendancePage({
 }: {
   searchParams: Promise<{ classId?: string; date?: string }>;
 }) {
-  const { schoolId } = await requireSchoolContext();
+  const { schoolId, user } = await requireSchoolContext();
   const sp = await searchParams;
   
   if (!sp.classId) {
@@ -17,6 +18,18 @@ export default async function TakeAttendancePage({
   }
 
   const classId = sp.classId;
+
+  if (user.role === "TEACHER") {
+    const teacherClasses = await teacherClassIds({
+      schoolId,
+      userId: user.id,
+      role: user.role,
+    });
+    if (!teacherClasses.includes(classId)) {
+      redirect("/dashboard/attendance");
+    }
+  }
+
   const targetClass = await prisma.class.findFirst({
     where: { id: classId, schoolId }
   });

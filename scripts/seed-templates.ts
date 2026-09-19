@@ -1,4 +1,4 @@
-import { prisma } from '../src/lib/prisma';
+import { prisma } from "./_env";
 
 async function run() {
   const school = await prisma.school.findFirst();

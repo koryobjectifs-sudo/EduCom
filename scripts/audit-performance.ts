@@ -1,4 +1,4 @@
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 import { getDirectorDashboardSnapshot } from "../src/lib/dashboard-director";
 import { loadStudentsData } from "../src/app/dashboard/students/data";
 import { invoiceOverview } from "../src/lib/finance";

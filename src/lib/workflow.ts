@@ -116,8 +116,8 @@ export const reportCardWorkflow: WorkflowDefinition<ReportCardState> = {
     { from: "DRAFT",     to: "VALIDATED", label: "Valider la saisie",        requiredPath: "/dashboard/grades" },
     { from: "VALIDATED", to: "DRAFT",     label: "Rouvrir pour correction",  requiredPath: "/dashboard/grades" },
     { from: "VALIDATED", to: "SUBMITTED", label: "Déposer au secrétariat",   requiredPath: "/dashboard/grades" },
-    { from: "SUBMITTED", to: "APPROVED",  label: "Approuver",                requiredPath: "/dashboard/documents/validation" },
-    { from: "SUBMITTED", to: "RETURNED",  label: "Renvoyer pour correction", requiredPath: "/dashboard/documents/validation", commentRequired: true },
+    { from: "SUBMITTED", to: "APPROVED",  label: "Approuver",                requiredPath: "/dashboard/grades/validation" },
+    { from: "SUBMITTED", to: "RETURNED",  label: "Renvoyer pour correction", requiredPath: "/dashboard/grades/validation", commentRequired: true },
     { from: "RETURNED",  to: "DRAFT",     label: "Reprendre la saisie",      requiredPath: "/dashboard/grades" },
   ],
 };

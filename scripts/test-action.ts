@@ -1,5 +1,5 @@
 import { createStaffMember } from '../src/app/dashboard/team/actions';
-import { prisma } from '../src/lib/prisma';
+import { prisma } from "./_env";
 import { createClient } from '@supabase/supabase-js';
 
 async function run() {

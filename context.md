@@ -1,5 +1,420 @@
 # EduCom SaaS - Contexte du Projet
 
+> **Chantier Résolution des 5 Points Avant Staging & Unification Espace Famille — 19 septembre 2026.**
+> - **1. Diagnostic Base de Données & Contexte École Active** :
+>   - *État réel de la base SENG.CO* : 100% intacte (5 élèves réels en 4e, 20 notes associées, 388 élèves réels au total, aucun élève touché hors `TEST_`). Aucun PITR requis.
+>   - *Cause du "0 bulletin"* : Cookie multi-école pointant sur un établissement aux classes vides, ou paramètre `studentId` résiduel d'une autre classe dans l'URL.
+>   - *Correctif appliqué* : Nom de l'école active affiché en permanence dans le bandeau et le fil d'Ariane (`src/app/dashboard/grades/report-card/page.tsx`), message d'état vide explicite nominatif ("Aucun élève en 4e à SENG.CO ACADEMY"), et purge automatique du `studentId` d'URL s'il n'appartient pas à la classe sélectionnée.
+> - **2. Affectations Enseignants en Masse & Alerte Direction** :
+>   - Ajout dans `src/app/dashboard/team/TeacherAssignmentModal.tsx` d'un module d'affectation groupée rapide : sélection d'une matière, grille de sélection des classes avec "Tout cocher / Tout décocher", et validation groupée d'un clic.
+>   - Vérification de l'alerte direction dans `src/lib/dashboard-director.ts` (`unassigned_subjects`) intégrée dans "À traiter" ("X matières sans enseignant — Les professeurs ne peuvent pas saisir leurs notes").
+> - **3. Correction des 3 Anomalies du Bulletin** :
+>   - *Fermeture panneau* : Bouton bascule fiabilisé (`e.stopPropagation()`), croix de fermeture dédiée en haut à droite, et fermeture automatique 800ms après enregistrement réussi (`src/app/dashboard/grades/report-card/Generator.tsx`).
+>   - *Palette de teintes* : Intégration de la grille complète de 36 teintes (12 teintes × 3 intensités) via `SharedColorPicker` partagé avec le shell, assorti d'un avertissement de contraste WCAG non bloquant.
+>   - *Filigrane* : `useEffect` de synchronisation systématique à la lecture de `data.school`, assurant que la préférence de filigrane est correctement restaurée au rechargement.
+> - **4. Unification Espace Famille & Élimination du Double Portail** :
+>   - *Aiguillage serveur* : Dans `src/app/dashboard/layout.tsx`, toute requête sous `/dashboard/*` émanant d'un compte `PARENT` est redirigée vers son équivalent sous `/famille/*` (`/famille/notes`, `/famille/paiements`, `/famille/compte`, `/famille/documents`, `/famille/enfants/[id]`). L'ancien Espace B devient inatteignable.
+>   - *Nouveaux écrans créés* : `/famille/notes` (notes et bulletins officiels), `/famille/paiements` (facturation, échéances, soldes et historique), `/famille/compte` (profil et paramètres parent).
+>   - *Documents école intégrés* : Documents institutionnels (règlements, calendrier, circulaires) intégrés directement dans `/famille/documents` via `listDocuments` et `DownloadDocButton` avec téléchargement sécurisé par URL signée ; suppression du lien externe vers `/dashboard/documents/centre`.
+>   - *Cause du "Aucun élève rattaché"* : 366 élèves sur 388 dans SENG.CO ont `parentId = null`. Le parent disposait d'un `SchoolMembership(role: PARENT)` dans l'école, mais aucun enregistrement `Student.parentId` n'était rattaché à son identifiant utilisateur lors des imports précédents.
+> - **Validation Globale** : TypeScript strict (`npx tsc --noEmit`) : 0 erreur. 0 commit, 0 push.
+>
+> **Chantier Landing Page — Hero Section Éditoriale & Preuve Visuelle — 19 septembre 2026.**
+> - **Objectif** : Transformer la Hero section d'EduCom en s'inspirant d'une composition SaaS moderne équilibrée en 2 colonnes (typographie forte, proposition de valeur claire pour les écoles sénégalaises, CTAs contrastés, cartes de preuve produit et photographie humaine haute résolution en situation réelle d'usage).
+> - **1. Composition & Intégration Visuelle (`src/components/landing/HeroSection.tsx`)** :
+>   - *Colonne gauche* : Badge d'autorité local ("Écoles privées du Sénégal"), titre fort ("Une école plus simple à gérer commence par sa digitalisation"), sous-titre centré sur l'annuaire, les bulletins officiels et la liaison WhatsApp/SMS, boutons d'action ("Commencer gratuitement" + "Découvrir le produit"), réassurance conforme ("14 jours d'essai gratuit"), et deux cartes d'immersion produit ("Bulletins Officiels Sénégal" & "Liaison Famille Directe").
+>   - *Colonne droite* : Intégration d'une photographie éditoriale authentique (`public/marketing/hero-educom.jpg`) mettant en valeur une directrice / enseignante sénégalaise sur tablette dans un environnement scolaire lumineux, avec cadre adouci (`rounded-[24px]`) et badge flottant de réassurance juridique ("Plateforme Déployée à Dakar — Annuaire, bulletins & pièces certifiés conformes").
+> - **2. Validation Technique & Régression** :
+>   - TypeScript strict (`npx tsc --noEmit`) : 0 erreur.
+>   - Rendu HTTP local (`http://localhost:3000/`) : 200 OK.
+>   - Asset image (`/marketing/hero-educom.jpg`) : 200 OK.
+>   - Suites de tests préservées : Phase 2 (30/30), Phase 3 (26/26), Phase 4 (23/23), Phase 5 (17/17), Phase 6 (35/35), Navigation (60/60).
+>
+> **Chantier Simplification Identité & Workflows — Phase 8 : Staging Contrôlé & Test Produit Réel — 19 septembre 2026.**
+> - **Objectif** : Valider les flux réels de bout en bout sur l'environnement de staging contrôlé (Staff $\rightarrow$ Demande $\rightarrow$ Notification $\rightarrow$ Deep Link $\rightarrow$ OTP $\rightarrow$ Exécution $\rightarrow$ Revue $\rightarrow$ Correction $\rightarrow$ Approbation), identifier les dysfonctionnements et sécuriser l'expérience.
+> - **1. Correction Critique UX / Routage Parent Mobile** :
+>   - *Anomalie identifiée* : `/famille/login` était enveloppé par `src/app/famille/layout.tsx`, lequel exécutait systématiquement `requireFamilyContext()`. Faute de session active, le parent non authentifié était immédiatement redirigé en 307 vers `/login` administratif, rompant l'accès direct par SMS/WhatsApp.
+>   - *Résolution pérenne* : Injection de l'en-tête `x-pathname` dans `src/lib/supabase/middleware.ts` sur la requête transmise, et contournement conditionnel de `requireFamilyContext()` dans `FamilyLayout` si la route courante est `/famille/login`. `/famille/login` répond désormais en `HTTP 200 OK`, et les accès non authentifiés aux deep links préservent intégralement leurs paramètres (`/famille/login?studentId=...&reqId=...&suite=...`).
+> - **2. Validation du Cycle Réel de Staging (`scripts/test-phase8-staging-journey.ts`)** :
+>   - *Journey 1 (Nominal)* : Création d'exigence $\rightarrow$ Relance personnel $\rightarrow$ Deep-link direct $\rightarrow$ OTP 6 chiffres $\rightarrow$ Signature parente tactile scellée $\rightarrow$ Statut `TO_VERIFY` $\rightarrow$ Approbation staff $\rightarrow$ Scellement `VALIDATED` $\rightarrow$ Disparition de la file active.
+>   - *Journey 2 (Correction)* : Dépôt initial $\rightarrow$ Rejet motivé secrétariat $\rightarrow$ Conservation du motif $\rightarrow$ Ré-émission parente avec chaînage `supersedesId` $\rightarrow$ Approbation finale.
+>   - *Journey 3 (Multi-Écoles)* : Parent rattaché à École A et École B $\rightarrow$ Cloisonnement strict des actions visibles par école active $\rightarrow$ Rejet de toute soumission croisée.
+>   - *Journey 4 (Multi-Enfants)* : Identification explicite et nominative de chaque enfant dans la même école (zéro libellé orphelin ou ambigu).
+>   - *Journey 5 (Canaux de communication)* : Audit de la passerelle WhatsApp/SMS et activation du garde-fou anti-saturation 48h (`TOO_FREQUENT`).
+> - **3. Bilan Tests & Intégrité Globale** :
+>   - TypeScript strict (`npx tsc --noEmit`) : 0 erreur.
+>   - Suite Staging (`scripts/test-phase8-staging-journey.ts`) : 23/23 PASS.
+>   - Phase 2 (Contexte & Multi-Écoles) : 30/30 PASS.
+>   - Phase 3 (Espace Famille) : 26/26 PASS.
+>   - Phase 4 (Auth Téléphone OTP) : 23/23 PASS.
+>   - Phase 5 (Action Center) : 17/17 PASS.
+>   - Phase 6 (Durcissement Sécurité) : 35/35 PASS.
+>   - Intégrité Navigation : 60/60 routes conformes.
+>   - Vérification Environnement : 12/12 contrôles conformes.
+>   - **0 schéma Prisma modifié, 0 commit, 0 push, 0 déploiement en production.**
+>
+> **Chantier Simplification Identité & Workflows — Phase 7 : Stabilisation Globale & Audit de Préparation Pré-Production — 18 septembre 2026.**
+> - **Objectif** : Audit exhaustif de préparation à la pré-production sans ajout de complexité, sans nouvelle dépendance d'infrastructure automatique, sans modification de schéma Prisma, avec vérification complète de la sécurité, des performances, de la navigation, des variables d'environnement et des flux parent/personnel.
+> - **1. Audit d'Architecture & Continuité OTP** :
+>   - Évaluation de topologie : L'implémentation durcie en mémoire (HMAC-SHA256, sel CSPRNG, pepper applicatif, timingSafeEqual, rate limiting, AuditLog) est stable et sécurisée pour un déploiement mono-instance ou multi-instances avec affinité de session (sticky sessions).
+>   - Recommandation pré-production : Aucune table `ParentOtp` ni instance Redis n'est créée prématurément. Si la cible d'hébergement s'avère être une architecture serverless multi-lambdas sans affinité, la plus petite solution de production consistera en une table PostgreSQL dédiée non indexée ou un store Redis éphémère avec TTL.
+>   - Secret applicatif : `OTP_SECRET` a été documenté explicitement dans `.env.example` pour découpler le pepper de la clé Supabase `SUPABASE_SERVICE_ROLE_KEY`.
+> - **2. Hardening & Rectifications mineures effectuées** :
+>   - `src/lib/parentReminder.ts` : Uniformisation de la variable de domaine vers `NEXT_PUBLIC_SITE_URL` (éliminant la variable orpheline `NEXT_PUBLIC_APP_URL`).
+>   - `src/lib/whatsapp/client.ts` : Suppression du repli non documenté `process.env.WHATSAPP_ACCESS_TOKEN` au profit de l'authentification scolaire par tenant (`School.whatsappAccessToken`).
+>   - `scripts/verify-env-example.ts` : Prise en compte de `EDUCOM_IS_TEST` dans les exclusions de plateforme (12/12 vérifications passées avec succès).
+> - **3. Validation Globale & Sas de Pré-Production** :
+>   - TypeScript : `npx tsc --noEmit` $\rightarrow$ 0 erreur.
+>   - Phase 2 (Contexte & Multi-Écoles) : 30/30 PASS.
+>   - Phase 3 (Espace Famille & Isolation Parent) : 26/26 PASS.
+>   - Phase 4 (Authentification Parent Téléphone + OTP) : 23/23 PASS.
+>   - Phase 5 (Centre d'Actions Documentaires) : 17/17 PASS.
+>   - Phase 6 (Durcissement Sécurité & 14 Scénarios) : 35/35 PASS.
+>   - Navigation (Intégrité des 60 routes) : 60/60 PASS.
+>   - Environnement (`.env.example` vs code) : 12/12 PASS.
+>   - **0 schéma Prisma modifié, 0 commit, 0 push, 0 déploiement.**
+>
+> **Chantier Simplification Identité & Workflows — Phase 6 : Durcissement de la Sécurité & Consolidation de l'Action Center — 18 septembre 2026.**
+> - **Objectif** : Durcir et consolider le socle technique et cryptographique sans étendre la surface produit, sans migration Prisma destructive, avec traçabilité AuditLog et couverture des 14 scénarios de sécurité critiques.
+> - **1. Durcissement OTP & Traçabilité (`src/lib/otp.ts` & `src/app/famille/login/actions.ts`)** :
+>   - Cryptographie : Sel CSPRNG 16 octets + secret pepper applicatif (`OTP_PEPPER`) combinés en double HMAC-SHA256, comparaison `timingSafeEqual`, validation stricte du format 6 chiffres, purge automatique des entrées expirées (`cleanExpiredOtps`).
+>   - Événements AuditLog : Journalisation de `parentAuth.otpRequested`, `parentAuth.otpFailed`, `parentAuth.otpVerified`, `parentAuth.otpRateLimited`. Zéro code OTP brut ni secret stocké, numéros masqués (+221 ••• •• XX).
+>   - Topologie multi-instances : Pour l'architecture actuelle (mono-instance / sessions collantes), le store en mémoire durci répond au besoin sans nouvelle dépendance d'infrastructure. Pour les déploiements serverless multi-lambdas sans affinité, migration documentée vers table DB dédiée `ParentOtp` ou clé Redis.
+> - **2. Consolidation Action Center & Sécurité Serveur** :
+>   - Validation serveur systématique Fail-Closed : `student.parentId === user.id` ET `student.schoolId === activeSchoolId`.
+>   - Scellement probatoire : Interdiction stricte de modifier un document déjà `VALIDATED`.
+>   - Workflow de correction : Motif de rejet obligatoire, affichage explicite sur la carte parent mobile 390px, ré-émission avec chaînage `supersedesId` et traçabilité de transition.
+>   - Passerelle des relances groupées : Alignement de l'URL WhatsApp dans `sendBulkDocumentReminders` vers `/famille/actions?studentId=...&reqId=...`.
+> - **3. Validation & Intégrité** :
+>   - `npx tsc --noEmit` : 0 erreur (TypeScript strict).
+>   - `scripts/test-phase6-security-hardening.ts` : 35/35 tests PASS (100% des 14 scénarios critiques validés).
+>   - `scripts/test-phase5-document-action-center.ts` : 17/17 tests PASS.
+>   - `scripts/test-phase4-parent-auth.ts` : 23/23 tests PASS.
+>   - `scripts/test-phase3-family-space.ts` : 26/26 tests PASS.
+>   - `scripts/test-phase2-context-resolution.ts` : 30/30 tests PASS.
+>   - `scripts/verify-navigation-integrity.ts` : 60/60 routes conformes.
+>   - 0 modification de schéma Prisma, 0 commit, 0 push, 0 déploiement.
+>
+> **Chantier Simplification Identité & Workflows — Phase 5 : Centre d'Actions Documentaires (Document Action Center) — 18 septembre 2026.**
+> - **Objectif** : Transformer la gestion documentaire passive en un flux orienté action complet (DOCUMENT → ACTION → RESPONSABLE → NOTIFICATION → EXÉCUTION MOBILE → REVUE → RÉSOLUTION).
+> - **1. Revue de Sécurité de l'OTP (Phase 4)** :
+>   - Secret & Hachage : HMAC-SHA256, sel 16 octets CSPRNG, `timingSafeEqual`, anti-brute force (5 essais), expiration 10 minutes, cooldown 60s, rate limiting.
+>   - Verdict : **REQUIRES HARDENING** (à terme : persistance hors mémoire DB/Redis pour topologies multi-instances distribuées et ajout d'événements dans `AuditLog`). Le socle cryptographique et l'intégration JIT Supabase Auth restent conservés.
+> - **2. Modèle d'Action & Architecture de Données** :
+>   - **0 nouvelle table créée** : `DocumentRequirement` (règles et nature), `StudentDocument` (pièces et statut : `TO_VERIFY`, `VALIDATED`, `REJECTED`), `DocumentReminder` (assignation parent et relance), `AuditLog` et `WorkflowTransition` (traçabilité probatoire) couvrent 100% du besoin. L'Action Center est une couche applicative et de présentation unifiée.
+> - **3. Action Center Famille (/famille/actions) & Action Runner Mobile (390px)** :
+>   - `src/app/famille/actions/actions.ts` : `submitParentSignatureAction` (signature tactile avec canvas, attestation sur l'honneur, génération d'HTML certifié scellé SHA-256 dans Storage, statut `TO_VERIFY`, résolution automatique des rappels, audit et notification staff) et `submitParentUploadAction` (validation MIME et magic bytes, photo/dépôt direct).
+>   - `FamilyActionCenterClient.tsx` : Interface mobile 390px ordonnée par statut (« À traiter », « En cours de vérification », « Conformes & Validées »).
+>   - Deep-Link Runner : Lorsque le parent clique sur un lien de relance (`?studentId=...&reqId=...`), l'action runner s'ouvre instantanément sans navigation intermédiaire.
+> - **4. Correction des Passerelles et Liens de Relance** :
+>   - `src/lib/parentReminder.ts` : URLs d'action corrigées pour pointer directement vers `/famille/actions?studentId=...&reqId=...`.
+>   - `src/app/dashboard/students/[id]/dossier/page.tsx` : Redirection transparente des parents vers `/famille/actions` ou `/famille/enfants/[id]` s'ils accèdent à l'ancien chemin dossier.
+>   - `src/app/dashboard/students/dossiers/review/actions.ts` : Liens de notifications de validation et de rejet orientés vers `/famille/actions`.
+>   - `src/app/dashboard/documents/DocumentsTabs.tsx` : Ajout de l'onglet « Actions & Contrôle » vers `/dashboard/students/dossiers/review`.
+> - **5. Validation & Intégrité** :
+>   - `npx tsc --noEmit` : 0 erreur (TypeScript strict).
+>   - `scripts/test-phase5-document-action-center.ts` : 17/17 tests PASS (100% des 12 scénarios requis : visibilité école active, refus inter-écoles, parent isolé, refus élève tiers, multi-écoles cloisonné, bascule contextuelle, deep-link rejeté si non autorisé, scellement post-validation, rejet motivé, disparition après validation, intégrité audit).
+>   - `scripts/test-phase4-parent-auth.ts` : 23/23 tests PASS (non-régression Phase 4).
+>   - `scripts/test-phase3-family-space.ts` : 26/26 tests PASS (non-régression Phase 3).
+>   - `scripts/test-phase2-context-resolution.ts` : 30/30 tests PASS (non-régression Phase 2).
+>   - `scripts/verify-navigation-integrity.ts` : 60/60 routes conformes.
+>   - Sas de validation : 0 commit / push / déploiement.
+>
+> **Chantier Simplification Identité & Workflows — Phase 4 : Authentification Parent (Téléphone + OTP) — 18 septembre 2026.**
+
+> - **Objectif** : Introduire une authentification parent ultra-simple, mobile-first, par numéro de téléphone + OTP sans mot de passe, tout en préservant intégralement l'authentification e-mail existante et sans rupture pour les 79 comptes parents en base.
+> - **1. Audit préliminaire réel (10 points)** :
+>   - 79 comptes parents existants (76 avec téléphone unique, 3 sans téléphone, 0 doublon).
+>   - 74 faux e-mails (@parent.educom.local) créés lors des imports élèves, dont 78 n'avaient jamais été injectés dans Supabase `auth.users`.
+>   - Provider SMS Supabase non configuré (`Unsupported phone provider`) : solution native bâtie sur le provisionnement JIT Supabase Auth (`admin.createUser({ id: parent.id })`) et la validation de session SSR via `admin.generateLink({ type: 'magiclink' })` + `@supabase/ssr` `verifyOtp`.
+> - **2. Socle technique déployé** :
+>   - `src/lib/phone.ts` : Normalisation canonique E.164 (`+221XXXXXXXXX`), détection locale sénégalaise (77, 78, 76, 75, 70), extraction des variantes de recherche multi-formats.
+>   - `src/lib/otp.ts` : Génération cryptographique de code 6 chiffres, stockage avec hash HMAC-SHA256, expiration 10 minutes, protection brute-force (max 5 tentatives), cooldown de renvoi (60s), rate limiting (max 4 dispatches / 10 min).
+>   - `src/app/famille/login/actions.ts` : Server actions `requestParentOtp` (éligibilité parent, contrôle doublons sans fusion sauvage, expédition WhatsApp/SMS) et `verifyParentOtp` (validation OTP, JIT provisioning Supabase Auth avec `id = parent.id`, émission cookies HTTP-only de session SSR, mise à jour `emailVerified: true`, préservation deep-links).
+> - **3. Interface Mobile-First (/famille/login)** :
+>   - UX optimisée 390px : Étape 1 Saisie téléphone $\rightarrow$ Étape 2 Code 6 chiffres avec compte à rebours de renvoi.
+>   - Passerelle directe depuis `/login` (« Espace Famille - Par téléphone ») et lien vers connexion classique avec mot de passe.
+> - **4. Sécurité, Proxy et Contexte** :
+>   - `src/lib/supabase/middleware.ts` : Protection de `/famille` avec redirection vers `/famille/login?suite=...`. Exemption de blocage `/verify-email` pour les comptes parents authentifiés par téléphone ou faux e-mails.
+>   - `src/lib/schoolContext.ts` : Exemption vérification e-mail pour les parents dans `resolveSchoolContext()`.
+>   - `src/lib/supabase/server.ts` : Résilience de `createClient()` hors contexte HTTP pour les scripts de test automatisés.
+> - **5. Validation & Intégrité** :
+>   - `npx tsc --noEmit` : 0 erreur.
+>   - `scripts/test-phase4-parent-auth.ts` : 23/23 tests PASS (couverture intégrale des 18 tests requis : OTP valide/invalide/expiré, inconnu, mono-école, multi-écoles, multi-enfants, cloisonnement, sécurité URL/cookies, legacy e-mail, liens de relance WhatsApp, logout, refresh, deep-link, doublons).
+>   - `scripts/test-phase2-context-resolution.ts` : 30/30 tests PASS (non-régression Phase 2).
+>   - `scripts/test-phase3-family-space.ts` : 26/26 tests PASS (non-régression Phase 3).
+>   - `scripts/verify-navigation-integrity.ts` : 60/60 routes conformes.
+>   - Validation Gate : 0 commit / push / déploiement.
+>
+> **Chantier Simplification Identité & Workflows — Phase 3 : Espace Famille & Expérience Parent (/famille/*) — 18 septembre 2026.**
+> - **Objectif** : Découpler l'expérience parent du `/dashboard` administratif et établir un Espace Famille dédié, orienté action, centré sur l'enfant et pensé mobile-first.
+> - **1. Architecture d'information `/famille/*` déployée** :
+>   - `/famille` : Accueil famille priorisant l'école active, les alertes de relance prioritaires avec CTA direct, les cartes enfants et les accès rapides.
+>   - `/famille/enfants` : Registre des enfants scolarisés dans l'établissement actif avec statut et classe.
+>   - `/famille/enfants/[id]` : Fiche détaillée de l'enfant avec jauge de complétude et liste unifiée des pièces (Conforme, En cours, À corriger avec motif, Manquante) avec boutons directs Déposer/Signer.
+>   - `/famille/actions` : Centre de suivi des démarches et des relances de l'établissement (signatures, dépôts).
+>   - `/famille/documents` : Hub documentaire officiel par élève et accès au centre documentaire public.
+> - **2. Coquille dédiée Mobile-First (`FamilyShell.tsx` & `layout.tsx`)** :
+>   - Navigation inférieure tactile sur mobile (390px friendly) avec pastilles de notification dynamiques, header épuré avec `SchoolContextSwitcher`.
+> - **3. Isolation et sécurité des données (`requireFamilyContext`)** :
+>   - Règle stricte : `parentId = user.id AND schoolId = activeSchoolId`. Zéro mélange d'enfants entre différentes écoles d'un même parent.
+>   - Contrôle d'accès élève validé par `canSeeStudent` et `studentFile` (renvoi `null` sur élève tiers).
+> - **4. Permissions et transition progressive** :
+>   - `ROLE_HOME_PATHS.PARENT = "/famille"`.
+>   - Redirection transparente des parents depuis `/dashboard/students` vers `/famille/enfants`.
+>   - Préservation des routes documentaires et financières existantes sans régression.
+> - **5. Validation & Intégrité** :
+>   - `npx tsc --noEmit` : 0 erreur.
+>   - `scripts/test-phase3-family-space.ts` : 26/26 tests PASS (TEST 1 à TEST 9 couverts à 100%).
+>   - `scripts/test-phase2-context-resolution.ts` : 30/30 tests PASS (non-régression Phase 2).
+>   - `scripts/verify-navigation-integrity.ts` : 100% conforme sur les 60 routes.
+>   - Zéro commit / push / déploiement (conformément au sas de validation).
+>
+> **Chantier Simplification Identité & Workflows — Phase 2 : Contexte d'Établissement, Résolution des Rôles & Bascule Multi-Écoles — 18 septembre 2026.**
+> - **Objectif** : Rendre la résolution du contexte d'établissement et de rôle déterministe, sécurisée et centralisée, sans dépendre du modèle mono-école rigide tout en conservant le fallback legacy.
+> - **1. Moteur centralisé `resolveSchoolContext()` (`src/lib/schoolContext.ts`)** :
+>   - Ordre de priorité strict : Authentification → Contrôle e-mail → Adhésions actives (`SchoolMembership`) → Cookie `educom_active_school` vérifié → Adhésion primaire (`isPrimary: true`) → Fallback `User.schoolId` / `User.role`.
+>   - Sécurité multi-locataire absolue : un cookie falsifié ciblant une école non rattachée est strictement ignoré au profit du repli primaire autorisé.
+>   - Les rôles distincts par école sont résolus dynamiquement (ex. Enseignant à l'école A, Comptable à l'école B).
+> - **2. Intégration globale sans rupture** :
+>   - `src/lib/documentContext.ts` (`requireSchoolContext`) et `src/lib/actionContext.ts` (`requireActionContext`) unifiés sur `resolveSchoolContext()`.
+>   - Server action `switchActiveSchool(targetSchoolId)` ajoutée dans `src/app/dashboard/actions.ts` avec contrôle d'adhésion active et pose du cookie sécurisé.
+> - **3. Composant d'interface `SchoolContextSwitcher.tsx`** :
+>   - Règle Friction Sweet Spot : simple texte statique pour les utilisateurs mono-école (zéro clic superflu), sélecteur contextuel élégant avec rôles affichés dès lors que l'utilisateur possède plusieurs adhésions actives.
+>   - Intégré dans `AppTopBar.tsx` (shell interne) et `ParentLayout.tsx` (espace parent).
+> - **4. Validation & Intégrité** :
+>   - `npx tsc --noEmit` : 0 erreur.
+>   - Suite automatisée `scripts/test-phase2-context-resolution.ts` : 30/30 tests PASS (TEST 1 à TEST 8 couverts à 100%).
+>   - `scripts/verify-navigation-integrity.ts` : 100% conforme sur les 60 routes.
+>   - Zéro commit / push / déploiement (conformément au sas de validation).
+>
+> **Chantier Simplification Identité & Workflows — Phase 1 : Identité & SchoolMembership — 18 septembre 2026.**
+> - **Objectif** : Transition progressive du modèle mono-école (`User.schoolId`) vers le modèle multi-écoles (`SchoolMembership`) sans rupture de l'existant.
+> - **1. Modèle `SchoolMembership` ajouté dans Prisma** :
+>   - Champs : `id`, `userId`, `schoolId`, `role`, `isPrimary` (défaut true), `active` (défaut true), `createdAt`, `updatedAt`.
+>   - Contrainte d'unicité : `@@unique([userId, schoolId, role])`.
+>   - Index : `[userId]`, `[schoolId]`, `[active]`.
+>   - Relations : `User.memberships`, `School.memberships` avec `onDelete: Cascade`.
+>   - **Préservation stricte** : `User.schoolId` maintenu intact comme mécanisme de compatibilité/fallback immédiat.
+> - **2. Synchronisation de la base de données** :
+>   - Schéma synchronisé avec succès (`npx prisma db push`).
+>   - Client Prisma régénéré (`npx prisma generate`).
+> - **3. Rétro-alimentation des données (Migration douce)** :
+>   - Script : `scripts/seed-memberships-from-users.ts`.
+>   - Règle 10 respectée : insertion par lot (`createMany`, `skipDuplicates: true`).
+>   - 95 adhésions primaires actives créées pour les 95 utilisateurs existants de la base.
+> - **4. Validation & Intégrité** :
+>   - `npx tsc --noEmit` : 0 erreur de compilation.
+>   - `scripts/verify-navigation-integrity.ts` : 100% conforme sur les 60 routes.
+>   - Zéro commit / push / déploiement (conformément au sas de validation).
+>
+> **Transformation Active de l'Examen des Dossiers en Centre d'Action (Action Command Center) — 18 septembre 2026.**
+> - **Problème résolu** : L'examen des dossiers (`/dashboard/students/dossiers/review`) se comportait comme une grille d'audit passive ("compliance review") sans indication ni incitation claire à l'action pour les 176 dossiers incomplets.
+> - **1. Badges d'action directs sur les 4 cartes KPI** :
+>   - Carte « À traiter » : Affiche `👉 X décision(s) requise(s)` si > 0, ou `✓ À jour` si 0.
+>   - Carte « Pièces manquantes » : Badge d'action prioritaire `👉 176 à relancer (Action requise)`.
+>   - Carte « Complets » : `✓ Dossiers conformes`.
+>   - Carte « Tous » : `Registre global`.
+> - **2. Bannière Hero "Action Command Center"** :
+>   - Déclenchée selon l'onglet actif directement sous les 4 cartes (au-dessus des filtres).
+>   - **Sur « Pièces manquantes » (176)** :
+>     - Diagnostic et directive clairs : *« 176 dossiers d'élèves admis sont incomplets — Poussez à la régularisation immédiate : relancez directement les familles par WhatsApp / SMS avec leur lien de dépôt mobile, accordez un délai administratif ou enregistrez les pièces remises au guichet. »*
+>     - **3 boutons d'action groupée immédiate à 1 clic** (fonctionnent instantanément sur l'ensemble de la sélection ou de la liste, sans obliger à cocher chaque case individuellement) :
+>       - `[ 📲 Relancer les 176 familles (WhatsApp / SMS) ]` (ouvre la modale de notification groupée ciblée).
+>       - `[ ⏳ Accorder un délai ]` (modale de grâce/régularisation administrative).
+>       - `[ 📥 Déposer au guichet ]` (numérisation/dépôt rapide pour pièces papier remises au secrétariat).
+>     - **Pastilles de filtrage rapide par pièce la plus manquante** : Décompte dynamique des 5 pièces les plus critiques (ex. Extrait de naissance, Certificat médical, etc.) avec clic pour filtrer immédiatement la table et cibler la relance.
+>   - **Sur « À traiter »** : CTA pour valider toutes les admissions en 1 clic ou lien direct vers les 176 pièces manquantes si 0 en attente.
+> - **3. Actions directes par élève (Bureau & Mobile)** :
+>   - Bureau : Colonne de droite enrichie d'un badge de manque et d'un bouton `[ 🔔 Relancer ]` individuel direct pour chaque élève admis avec dossier incomplet (en remplacement du badge passif "Admis").
+>   - Mobile : Bouton direct `[ 🔔 Relancer ]` sur la carte de chaque élève incomplet.
+> - **4. Passerelle d'action depuis le Centre documentaire (`/dashboard/documents`)** :
+>   - Bannière d'alerte orientée action invitant à traiter les dossiers incomplets et relancer les familles via lien direct.
+> - **Validation technique** :
+>   - `npx tsc --noEmit` : 0 erreur.
+>   - `verify-navigation-integrity.ts` : 100% conforme sur 60 routes.
+>   - Zéro commit Git (conformément aux règles).
+>
+> **Livraison des 4 Points — Restauration 4e, Fermeture Panneau, Palette 36 Teintes & Persistance Filigrane — 18 septembre 2026.**
+> - **1. Restauration des élèves et notes de 4e (Résolu)** :
+>   - Les 5 élèves de 4e de SENG.CO (Abdoulaye Ba, Aïssatou Diop, Mamadou Ndiaye, Fatou Sarr, Ibrahima Fall) et l'élève de 6e (Ibrahima Fall) ont été restaurés avec succès depuis la sauvegarde JSON.
+>   - Leurs noms ont été assainis (préfixe `TEST_` retiré pour éviter toute purge future).
+>   - Les 5 inscriptions et les 20 notes en 4e (ainsi que les 14 notes en 6e) sont réinjectées et reliées intactes.
+> - **2. Fermeture du panneau de personnalisation (Résolu)** :
+>   - `Generator.tsx` : Le bouton "Personnaliser" bascule désormais visuellement (icône X / Palette, libellé "Fermer" / "Personnaliser").
+>   - Bouton croix `X` ajouté en haut à droite du panneau.
+>   - Fermeture automatique du panneau 1,2s après confirmation de l'enregistrement ("Enregistrer pour l'école").
+> - **3. Palette partagée de 36 couleurs (Résolu)** :
+>   - `src/lib/colorPalette.ts` : 12 teintes de base (Rouge, Orange, Ambre, Vert, Émeraude, Sarcelle, Cyan, Bleu, Indigo, Violet, Rose, Ardoise) × 3 intensités (claire, moyenne, foncée) = 36 choix calibrés.
+>   - `src/components/ui/SharedColorPicker.tsx` : Composant partagé unique pour le bulletin (`mode="bulletin"`) et les réglages de l'école (`mode="shell"`).
+>   - Grille organisée par teinte avec swatches, champ libre hexadécimal, sélecteur natif du navigateur (`input type="color"`).
+>   - Contrôle du contraste WCAG en direct : avertissement ambre non bloquant si < 4.5:1 sur fond blanc pour le shell, rappel d'encre noire pour le bulletin.
+>   - Teinte claire de sidebar générée automatiquement (`color-mix 7%`), y compris pour les teintes les plus foncées.
+>   - Aperçu en direct immédiat sur le shell (`document.documentElement.style`) et sur les bulletins (`accentColor`) avant enregistrement.
+> - **4. Persistance et relecture du filigrane (Résolu)** :
+>   - `actions.ts` : `revalidatePath` étendu à `/dashboard/grades/bulletin` en plus de `/dashboard/grades/report-card`.
+>   - La case "Logo en filigrane de fond" et l'opacité se synchronisent fidèlement avec l'état en base (activé à 6% par défaut).
+> - **Validation technique** :
+>   - `npx tsc --noEmit` : 0 erreur.
+>   - Script de validation E2E : 100% conforme sur les 4 points.
+>   - Zéro commit effectué.
+>
+> **Nettoyage Production, Visibilité des Affectations & Analyse des Tests — 18 septembre 2026.**
+> - **Nettoyage de Production (Validé & Appliqué)** :
+>   - Sauvegarde préalable : `scripts/backups/backup_test_data_1789734222293.json`.
+>   - Nettoyage réel via `APPLY=1 npm run script -- scripts/cleanup-test-data.ts` : 117 écoles de test, 65 élèves TEST_ et 116 comptes de test supprimés.
+>   - État final en production : 12 écoles (dont les 6 écoles réelles préservées : SENG.CO ACADEMY 382 élèves, Queen School 1000 élèves, SAINT JEAN PAUL INSTITUT 1000 élèves, Mbin Waly Senghor 16 classes, Group Scolaire Kory 12 classes, École primaire Sainte Bernadette 6 classes), 2 388 élèves réels, 95 utilisateurs et 80 classes.
+> - **Visibilité et Affectation des Matières (815 matières sans prof résolues en UX)** :
+>   - Tableau de bord Direction : Alerte ajoutée dans "À traiter" (`actionsRequired`) : *"X matières sans enseignant — Les professeurs ne peuvent pas saisir leurs notes."* avec CTA direct *"Affecter en masse"* vers `/dashboard/classes?view=teachers`.
+>   - Création / Fiche de classe : Affichage immédiat d'une bannière d'avertissement chiffrée avec liste des matières orphelines et lien direct vers l'affectation en masse (`/dashboard/classes?view=teachers`). Redirection post-création vers la fiche de la classe créée.
+>   - `ClassListClient.tsx` : Bascule automatique sur la vue par enseignant (`mainViewMode = "bulk_teachers"`) si `?view=teachers` est dans l'URL.
+> - **Revue des Tests — Fonctions isolées vs Composants montés** :
+>   - `scripts/verify-single-active-nav.ts` (testait `getActiveNavItemHref` en pure isolation logique plutôt que le rendu DOM de `Sidebar`/`ContextualSidebar`).
+>   - `scripts/verify-bulletin-improvements.ts` (testait les formules arithmétiques de moyennes et coefficients au lieu du rendu React des bulletins et des styles d'impression A4).
+>   - `scripts/verify-role-home-actions.ts` (testait les correspondances théoriques de la map de permissions sans exécuter les guards de page ni simuler la session utilisateur).
+>   - `scripts/verify-gardes.ts` (testait les validations de chaînes Zod/regex sans monter les formulaires).
+>   - `scripts/verify-dossiers-matrix.ts` (testait la matrice de critères sans tester `DossierClient.tsx`).
+> - **Validation technique** :
+>   - `npx tsc --noEmit` : 0 erreur. Aucun commit effectué.
+>
+> **Correctifs Rôles, Régression Navigation Sidebar, Affectations & Stabilisation — 18 septembre 2026.**
+> - **Filigrane du Bulletin (Taille, Centrage et Impression A4)** :
+>   - *Correction* : Filigrane configuré à 65% de la largeur utile (`w-[65%] max-w-[65%] max-h-[65%] object-contain`), centré horizontalement et verticalement sur toute la page A4 en arrière-plan (`z-0`, `pointer-events-none`).
+>   - *Translucence des tableaux* : Retrait du fond blanc opaque des lignes pour que le filigrane soit visible sous le tableau tout en gardant une lisibilité maximale des notes et textes.
+>   - *Stabilité à l'impression* : `.bulletin-sheet` reçoit `min-height: 275mm !important` en `@media print` et `WebkitPrintColorAdjust: "exact"`, garantissant le centrage géométrique sur A4 même sur bulletin presque vide sans décalage ni saut de page.
+>   - *Opacité* : Réglable de 2% à 25%, valeur par défaut ajustée à 6% (0.06).
+>   - *Sécurisation runtime* : `fmt` sécurisé contre les valeurs `undefined` sur les bulletins incomplets/vides.
+> - **Accueil Parent** :
+>   - `ROLE_HOME_PATHS.PARENT` fixé à `/dashboard/students` (vue « Mes enfants scolarisés » sous `ParentLayout` avec `ParentChildrenView`).
+>   - `ParentLayout.tsx` : navigation réordonnée avec « Mes enfants » en tête.
+> - **Régression 1 (Sidebar Notes & Bulletins actifs)** :
+>   - *Cause* : `ContextualSidebar.tsx` (utilisé par `AppShell`) n'appelait pas `getActiveNavItemHref` et utilisait une condition locale `startsWith()` surchargée.
+>   - *Correction* : Branché sur `getActiveNavItemHref(allItems, currentPath)`.
+>   - *Garde-fou* : `scripts/verify-single-active-nav.ts` mis à jour et validé sur 60 routes (exactement 1 entrée active partout).
+> - **Régression 2 (Enseignant sans matière affectée)** :
+>   - Message reformulé : *"Vous n'êtes affecté à aucune matière dans cette classe. Contactez la direction de votre établissement."* et masquage du CTA/injonction pour les enseignants.
+>   - *Audit base* : 815 couples (classe, matière) sont sans enseignant sur 818 au total (99.6%). C'est un trou de données : la table `TeachingAssignment` a été créée sans peuplement initial des classes existantes.
+> - **Stabilisation Pré-Production** :
+>   - *Isolation des tests* : `.env.test` cible `schema=test` ; `exigerSchemaTestPourTests()` dans `scripts/_env.ts` bloque immédiatement toute exécution de test sur `schema=public`.
+>   - *Simulation de nettoyage* : 117 écoles de test, 65 élèves `TEST_`, 116 comptes de test identifiés. Les 6 écoles réelles (7 entités en base) sont préservées.
+>   - *Déploiement* : 46 commits d'avance sur `origin/main`. Les 21 migrations et le parcours complet (inscription, onboarding, import, facturation, dashboard) ont été validés avec succès sur base vierge via `scripts/test-e2e-blank-deployment.ts`.
+>   - Zéro commit ou tag créé conformément aux consignes.
+>
+> **Chantier Stabilisation des Rôles, Garde Prisma & Fail-Fast Smoke Test — 18 septembre 2026.**
+> - **Point 1 — Espace Parent (Accueil explicite)** :
+>   - `ROLE_HOME_PATHS` introduit dans `src/lib/permissions.ts` avec `PARENT: "/dashboard/grades"` ; `firstAllowedPath("PARENT")` renvoie explicitement `/dashboard/grades` (Notes & Bulletins). Un parent n'atterrit plus sur "students".
+>   - `ParentLayout.tsx` : `parentNavItems` réordonné avec Notes (`/dashboard/grades`) en tête, suppression de l'entrée directe "students".
+>   - Migration vers `/famille` différée après la stabilisation conformément à l'arbitrage.
+> - **Point 2 — Nettoyage du tableau de bord & du rail par rôle** :
+>   - `DirectorHeader.tsx` : Boutons "Nouvel élève" et "Facturation" conditionnés strictement par `Boolean(scope?.students)` et `Boolean(scope?.money)`. `SECRETARY` et `ASSISTANT` ne voient plus "Facturation", `ACCOUNTANT` ne voit plus "Nouvel élève".
+>   - `DirectorDashboard.tsx` : `DailyAttendanceSection` masquée si `!scope.attendance` (`ACCOUNTANT` ne voit plus "Feuille d'appel"). `PedagogySetupCard` et "Préparer la rentrée" masqués si `!scope.settings`.
+>   - `src/lib/navigation.ts` : `getVisibleSpaces` exige désormais `hasAccess(role, space.defaultHref)` côté serveur (le droit n'est plus déduit de l'espace). TEACHER n'a plus l'entrée de rail "Scolarité", SECRETARY n'a plus l'entrée "Pédagogie".
+>   - Test de conformité : `scripts/verify-role-home-actions.ts` valide que 100% des actions et entrées de rail affichées sur l'accueil sont autorisées côté serveur pour chaque rôle.
+> - **Point 3 — La garde Prisma** :
+>   - `src/lib/prisma.ts` : Vérification des modèles attendus au démarrage en dev et Proxy intercepteur. Affiche et lève : *"Client Prisma obsolète — relancez prisma generate et redémarrez"* dès qu'un modèle est manquant.
+> - **Point 4 — Détection de cache .next corrompu dans le smoke test** :
+>   - `scripts/smoke-test-all-routes.ts` : Contrôle préalable immédiat au démarrage et en cours d'exécution. Si plus de 10% des routes renvoient 404, arrêt immédiat avec *"Application non compilée — supprimez .next et relancez"*.
+>   - Test unitaire : `scripts/verify-cache-guard.ts` valide le déclenchement immédiat au-delà du seuil de 10%.
+> - **Validation technique** :
+>   - `npx tsc --noEmit` : 0 erreur.
+>   - `npm run test:script scripts/verify-role-home-actions.ts` : 100% succès.
+>   - `npm run test:script scripts/verify-cache-guard.ts` : 100% succès.
+>   - Zéro commit ou tag créé conformément aux consignes.
+> 
+> **Chantier Résolution Boucle Redirection Rôles & Vues Dédiées Enseignant/Parent — 17 septembre 2026.**
+> - **Correction boucle infinie `/dashboard`** :
+>   - *Cause* : Dans `src/app/dashboard/page.tsx`, l'appel `hasAccess(user.role, "/dashboard$")` testait littéralement `"/dashboard$"` contre la regex `^/dashboard$`, renvoyant `false` pour tous les rôles non-joker (`TEACHER`, `SECRETARY`, `ACCOUNTANT`, `ASSISTANT`). Cela déclenchait `redirect(firstAllowedPath(user.role))` qui pour l'enseignant renvoyait vers `/dashboard` (boucle infinie de redirection, `destination stream closed early`, écran blanc).
+>   - *Correction* : Remplacé par `hasAccess(user.role, "/dashboard")`.
+> - **Changement de rôle fluide sans piège d'URL** :
+>   - L'action `changeTestRole` (`src/app/dashboard/actions.ts`) calcule et retourne désormais `targetPath` (`/dashboard` pour le personnel, `firstAllowedPath("PARENT")` = `/dashboard/students` pour les parents).
+>   - `TopNav.tsx` et `AppRail.tsx` naviguent vers `targetPath` au lieu d'un `window.location.reload()` qui réinjectait l'utilisateur sur une URL d'administration interdite à son nouveau rôle.
+>   - Intégration du sélecteur de rôle développeur (`Shield`) dans `ParentLayout.tsx` pour permettre de quitter le rôle Parent en développement sans blocage.
+> - **Vues dédiées Espace Parent** :
+>   - *Notes* (`ParentGradesView.tsx`) : Affiche les livrets et bulletins des enfants du parent au lieu de la matrice de saisie administrative.
+>   - *Scolarité* (`ParentChildrenView.tsx`) : Affiche les cartes individuelles des enfants scolarisés avec accès direct à leur dossier et bulletins, au lieu de l'annuaire scolaire global.
+>   - *Documents* (`src/app/dashboard/documents/page.tsx`) : Données strictement bornées au foyer (`SchoolDocument` publiés pour `FAMILIES`, `StudentDocument` et reçus de paiement restreints à `parentId`). Masquage des onglets modèles et brouillons réservés au personnel.
+> - **Cloisonnement & Robustesse Enseignant** :
+>   - `/dashboard/grades` : Le lien « Configurer » pour les classes sans matière est réservé à l'administration (`isAdmin`), évitant aux enseignants la redirection depuis `/dashboard/settings/pedagogie`.
+>   - `/dashboard/documents` : Redirection transparente vers `/dashboard/documents/centre`.
+>   - `src/app/dashboard/layout.tsx` : Sécurisation par optional chaining de `r.requirement?.label` dans les relances parents.
+> - **Validation technique** :
+>   - `npx tsc --noEmit` : 0 erreur.
+>   - `npm run test:script scripts/verify-documents-improvements.ts` : 100% succès.
+>   - Zéro commit ou tag créé.
+> 
+> **Chantier Documents & Navigation Pédagogique — 17 septembre 2026.**
+> - **Point 1 — Boutons contextuels de génération & Suppression du bandeau** :
+>   - *Composant porteur* : `GenerateDocumentDropdown` (`src/components/documents/GenerateDocumentDropdown.tsx`).
+>   - *Écrans hébergeant le composant* : Fiche élève (`/dashboard/students/[id]`), Fiche classe (`/dashboard/classes/[id]`), Facture (`InvoiceViewer.tsx`), Reçu (`ReceiptViewer.tsx`).
+>   - *Diagnostic de disparition sur fiche élève* : 1) Le bouton était conditionné par `hasAccess(actor.role, "/dashboard/documents")`, or les enseignants n'ont pas accès à la bibliothèque de documents (bloquant l'affichage) ; 2) Il manquait dans l'onglet « Documents » de la fiche élève.
+>   - *Corrections* : Le dropdown adapte ses actions selon le rôle (l'enseignant ne voit que Bulletin et Fiche de renseignements ; l'administration voit Certificat et Attestation) ; ajout de l'action dans l'en-tête et dans l'onglet Documents ; bandeau d'explication retiré de la bibliothèque (`DocumentsLibraryClient.tsx`).
+> - **Point 2 — Validation des bulletins déplacée dans Pédagogie** :
+>   - *Nouvelles routes* : `/dashboard/grades/validation` et `/dashboard/grades/validation/impression`.
+>   - *Redirection permanente* : Anciennes URLs `/dashboard/documents/validation/*` redirigées en 308 permanent.
+>   - *Navigation & Permissions* : Entrée « Validation » ajoutée dans la barre de navigation sous Pédagogie (à côté de Bulletins), réservée à la Direction et au Secrétariat (enseignants et parents bloqués).
+>   - *Onglets Documents épurés* : `DocumentsTabs.tsx` ne conserve que 2 entrées : « Documents produits » et « Modèles ».
+> - **Point 3 — Assainissement des identifiants techniques dans la bibliothèque** :
+>   - *Cause* : L'import direct de fichiers sans exigence préalable stockait le nom du fichier ou un hash technique (ex: `0bcb337a51bc5f1b58e7ec567033b4f7`) comme label de document.
+>   - *Correction* : Module `src/lib/documentTitle.ts` (`humanizeDocumentLabel`), détection regex des hashs hexadécimaux, UUIDs et motifs smartphone/scanner (IMG_, DOC_, SCAN_), avec repli sur le libellé de l'exigence ou la catégorie métier (« Pièce d'inscription », « Fiche médicale », etc.).
+>   - *Nettoyage en base* : Entrée corrigée sur le schéma de développement.
+> - **Validation technique** :
+>   - `npx tsc --noEmit` : 0 erreur.
+>   - `npm run test:script scripts/verify-documents-improvements.ts` : 100% succès.
+>   - Zéro commit ou tag créé.
+> 
+> **Chantier Bulletins Scolaires & Périmètre Enseignant — 17 septembre 2026.**
+> - **Point 1 — Faille de périmètre Enseignant (Résolu côté serveur)** :
+>   - *Audit exhaustif* : Les pages qui chargeaient les classes via `prisma.class.findMany({ where: { schoolId } })` sans filtrer par `teacherClassIds` permettaient à un professeur de voir des classes hors de son périmètre.
+>   - *Corrections serveur* :
+>     - `/dashboard/grades/report-card` : classes restreintes à `teacherClassIds` ; `classId` d'URL verrouillé au périmètre autorisé ; chargement du bulletin officiel bloqué pour classes hors périmètre.
+>     - `/dashboard/classes` : liste des classes restreinte à `teacherClassIds` pour le rôle `TEACHER`.
+>     - `/dashboard/classes/[id]` : garde serveur redirigeant vers `/dashboard/classes` si tentative d'accès à une classe hors périmètre.
+>     - `/dashboard/attendance/take` : garde serveur interdisant l'appel d'une classe non affectée.
+>     - `search-actions.ts` : recherche globale d'élèves restreinte via `studentWhereFor` et recherche de classes filtrée par `teacherClassIds`.
+>     - `/dashboard/students/new` : sélecteur de classe d'admission restreint aux classes de l'enseignant.
+>     - `grades/secondaire/actions.ts` : `accessibleClassesDb` inclut titularité (`Class.teacherId`) et affectations.
+>   - *Test automatisé* : `scripts/verify-teacher-class-isolation.ts` valide 6/6 écrans et gardes en base de test.
+> - **Point 2 — Entrées simultanées actives dans la Sidebar (Résolu)** :
+>   - *Cause* : La sidebar utilisait `pathname.startsWith(href + "/")`, ce qui activait à la fois `/dashboard/grades` (Notes) et `/dashboard/grades/bulletin` ou `report-card` (Bulletins).
+>   - *Correction* : Fonction `getActiveNavItemHref(items, pathname)` dans `src/lib/navigation.ts` avec priorité stricte à la correspondance exacte (`report-card` mappé sur `bulletin`), puis préfixe le plus long pour les sous-pages.
+>   - *Test* : `scripts/verify-single-active-nav.ts` et `verify-navigation-integrity.ts` (58/58 routes validées).
+> - **Point 3 — Layout du Bulletin (Suppression du vide énorme)** :
+>   - *Correction* : Suppression de `flex-grow` sur le conteneur du tableau des notes dans `BulletinSecondaireSheet.tsx` et `BulletinElementaireSheet.tsx`. Le bloc de délibération/visas remonte immédiatement sous le tableau, et le blanc résiduel se place naturellement en bas de la page A4.
+> - **Point 4 — Personnalisation et persistance établissement** :
+>   - *Schéma Prisma* : Ajout de 4 champs sur `School` : `bulletinAccentColor` (String?), `bulletinWatermark` (Boolean @default(false)), `bulletinWatermarkOpacity` (Float @default(0.08)), `bulletinLogoPosition` (String @default("CENTER")).
+>   - *Migration SQL* : `20260917200000_bulletin_customization` déployée avec succès sur schémas `test` et `public`.
+>   - *UI & Server Action* : Volet « Personnaliser le bulletin » dans `Generator.tsx` avec sélecteur de couleur, filigrane et position du logo (Gauche, Centre, Droite). Action `saveSchoolBulletinSettings` pour sauvegarde école.
+> - **Point de vérification — Avertissement bulletin incomplet** :
+>   - Avertissement affiché en pied de tableau dans les bulletins secondaire et élémentaire : *"⚠️ Moyenne calculée sur X matière(s) sur Y. Bulletin incomplet."* si au moins 1 matière est notée et qu'il reste des matières sans note.
+> - **Validation technique** :
+>   - `npx tsc --noEmit` : 0 erreur.
+>   - Suite de tests `scripts/verify-bulletin-improvements.ts` : 100% succès.
+>   - Zéro commit ou tag posé conformément à la consigne.
+> 
+> **Chantier Stabilisation & Préparation du Déploiement — 17 septembre 2026.**
+> - **Commits et Tags Git posés (4 autorisés)** :
+>   - `v23-pieces-natures` (`e24a8db`) : 3 natures de pièces (UPLOAD, SIGNATURE, AUTO) & scellement probatoire SHA-256.
+>   - `v24-affectation-matieres` (`6f6c493`) : affectation matières collège/lycée, vue globale & garde de cycle.
+>   - `v25-permissions-enseignant` (`c5670d1`) : permissions strictes de saisie de notes, dashboard enseignant & déduplication.
+>   - `v26-relance-parent` (`d6843b5`) : relance parent in-app/WhatsApp, délai 48h, deep links dépôt/signature.
+> - **Étape 1 — Isolation absolue des tests (Schéma Postgres séparé & Garde-fou)** :
+>   - Fichier `.env.test` configuré sur le schéma PostgreSQL dédié `test` (`DATABASE_URL=...&schema=test`, `EDUCOM_ENV="test"`).
+>   - `src/lib/prisma.ts` adapté pour transmettre dynamiquement `{ schema }` à l'adaptateur `PrismaPg`.
+>   - Garde-fou strict dans `scripts/_env.ts` (`exigerSchemaTestPourTests`) : si un script de test tente de tourner sur le schéma `public`, il est immédiatement bloqué avec code de sortie 1 et message explicite.
+>   - Scripts `npm test` et `npm run test:script` créés dans `package.json` pointant systématiquement sur `.env.test`.
+> - **Étape 2 — Audit & Simulation de nettoyage production (`cleanup-test-data.ts`)** :
+>   - Simulation exécutée sans `APPLY=1` (aucune écriture) :
+>     - **117 écoles de test** identifiées pour suppression.
+>     - **72 élèves de test** (65 `TEST_` dans SENG.CO + 7 dans les écoles de test).
+>     - **229 comptes utilisateurs** de test identifiés.
+>     - Données rattachées : 72 inscriptions, 34 notes, 3 factures, 19 classes, 3 332 exigences documentaires.
+>     - **6 écoles réelles préservées intactes** : SENG.CO ACADEMY (447 élèves, 83 users), SAINT JEAN PAUL INSTITUT (1 000 élèves, 3 users), Queen School (1 000 élèves, 2 users), Mbin Waly Senghor, Group Scolaire Kory, Sainte Bernadette.
+> - **Étape 3 — État de déploiement & Test base vierge** :
+>   - Écart Git : **46 commits** d'avance sur `origin/main` (`5991754`).
+>   - Migrations : **16 migrations** s'appliqueront dans l'ordre chronologique (du renommage des cycles à la numérotation séquentielle).
+>   - Test de déploiement à blanc (`test-e2e-blank-deployment.ts`) : validé à 100% sur schéma éphémère (migrate deploy + cycle complet Inscription → Onboarding → Import → Facture séquentielle → Dashboard).
+>   - Gaps réels pour une école : Emploi du temps non branché (PDF vierge seulement), passerelle WhatsApp soumise à validation Meta, pas de passerelle Wave/Orange Money automatique.
+
 > **Chantier Relance du Parent depuis l'École (Notification In-App & Action Directe) — 17 septembre 2026.**
 > - **Action directe dans la modale de dépôt (`ReviewPortalClient.tsx`)** :
 >   - Troisième action ajoutée sur « Déposer <pièce> » : *Demander au parent*.

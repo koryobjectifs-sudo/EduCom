@@ -52,6 +52,7 @@
  * `.env.example` : l'y écrire désarmerait la protection en permanence.
  */
 import { prisma } from "../src/lib/prisma";
+import path from "node:path";
 
 export { prisma };
 
@@ -161,6 +162,63 @@ export function exigerEnvironnementSur(): void {
   }
 }
 
+/** Schéma PostgreSQL ciblé par la connexion actuelle. */
+export function schemaCible(): string {
+  try {
+    const url = new URL(process.env.DATABASE_URL ?? "");
+    return (url.searchParams.get("schema") || "public").toLowerCase();
+  } catch {
+    return "public";
+  }
+}
+
+/** Détecte si le script en cours d'exécution est un script de test / vérification. */
+export function estScriptDeTest(): boolean {
+  if (process.env.NODE_ENV === "test" || process.env.EDUCOM_IS_TEST === "1") return true;
+
+  const scriptPath = process.argv[1] || "";
+  const scriptName = path.basename(scriptPath);
+
+  // Exceptions explicites : scripts d'administration/nettoyage de données en production
+  if (
+    scriptName === "cleanup-test-data.ts" ||
+    scriptName === "cleanup-test-users.ts" ||
+    scriptName === "deduplicate-classes-students.ts" ||
+    scriptName === "deduplicate-students-and-enrollments.ts" ||
+    scriptName === "fix-class-cycles.ts" ||
+    scriptName === "merge-duplicate-classes.ts" ||
+    scriptName === "migrate-requirement-natures.ts" ||
+    scriptName === "migrate-classes-academic-year.ts" ||
+    scriptName === "harden-rls.ts"
+  ) {
+    return false;
+  }
+
+  // Tout script de test, vérification, audit, benchmark, simulation
+  return /^(test-|verify-|smoke-test-|audit-|benchmark-|simulate-)/i.test(scriptName);
+}
+
+/** Garde-fou absolu : interdit formellement l'exécution de tests sur le schéma 'public'. */
+export function exigerSchemaTestPourTests(): void {
+  const schema = schemaCible();
+  const isTest = estScriptDeTest();
+  const scriptName = process.argv[1] ? path.basename(process.argv[1]) : "script inconnu";
+
+  if (isTest && schema === "public") {
+    console.error(`\n${ROUGE}⛔ REFUS STRICT — GARDE-FOU SCHÉMA DE TEST ACTIF${FIN}\n`);
+    console.error(`   Script de test : ${scriptName}`);
+    console.error(`   Schéma ciblé   : "${schema}" (${ROUGE}INTERDIT POUR LES TESTS${FIN})\n`);
+    console.error("   Ce script crée, modifie ou supprime des données de test.");
+    console.error("   Il est STRICTEMENT INTERDIT de faire tourner des tests sur le schéma 'public'.");
+    console.error("   C'est cette omission qui a généré 116 écoles fantômes en production.\n");
+    console.error(`   ${GRIS}Exécutez ce script avec la configuration de test isolée (.env.test) :${FIN}`);
+    console.error(`   👉 npm run test:script -- scripts/${scriptName}\n`);
+    process.exit(1);
+  }
+}
+
 // ⚠️ Effet de bord à l'import : c'est le principe même. Un garde-fou qu'il faut
 // penser à appeler est un garde-fou qu'on oublie d'appeler.
 exigerEnvironnementSur();
+exigerSchemaTestPourTests();
+

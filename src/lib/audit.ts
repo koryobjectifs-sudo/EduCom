@@ -88,6 +88,7 @@ export type AuditEntity =
   | "workflow"
   | "school"
   | "user"
+  | "parentAuth"
   | "class"
   // Lot 12.1 — référentiel financier. `feeItem` porte l'historique des
   // montants (ancien → nouveau) : aucune table de révision n'a été créée,

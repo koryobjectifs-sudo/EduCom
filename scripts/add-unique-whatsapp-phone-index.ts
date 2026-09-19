@@ -13,7 +13,7 @@
  *
  * ⚠️ ESSAI À BLANC PAR DÉFAUT. `APPLY=1` pour écrire.
  */
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 
 const APPLY = process.env.APPLY === "1";
 const INDEX = "School_whatsappPhoneNumberId_key";

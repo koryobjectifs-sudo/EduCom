@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { prisma } from '../src/lib/prisma';
+import { prisma } from "./_env";
 import { buildReport } from '../src/lib/reports';
 import { resolvePeriod } from '../src/lib/finance';
 

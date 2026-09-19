@@ -1,0 +1,107 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
+import { hasAccess, type RoleType } from "@/lib/permissions";
+import { sortClasses } from "@/lib/classOrder";
+import ValidationClient from "./ValidationClient";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { FileText } from "lucide-react";
+import Link from "next/link";
+
+export const metadata = {
+  title: "Validation des bulletins | EduCom",
+};
+
+export default async function ValidationPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) redirect("/login");
+
+  if (!hasAccess(dbUser.role as RoleType, "/dashboard/grades/validation")) {
+    redirect("/dashboard/grades");
+  }
+
+  const cards = await prisma.reportCard.findMany({
+    where: { schoolId: dbUser.schoolId, status: { in: ["SUBMITTED", "RETURNED", "APPROVED"] } },
+    include: {
+      class: true,
+      term: true,
+      evaluation: true,
+    },
+    orderBy: { submittedAt: "desc" },
+  });
+
+  const teacherIds = [...new Set(cards.map((c) => c.submittedById ?? c.validatedById).filter(Boolean))] as string[];
+  const teachers = teacherIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: teacherIds } },
+        select: { id: true, firstName: true, lastName: true },
+      })
+    : [];
+  const teacherById = new Map(teachers.map((t) => [t.id, `${t.firstName} ${t.lastName}`]));
+
+  const grouped = new Map<string, any>();
+  for (const c of cards) {
+    const key = `${c.classId}::${c.evaluationId}`;
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        key,
+        classId: c.classId,
+        className: c.class.name,
+        cycle: c.class.cycle,
+        termId: c.termId,
+        termName: c.term.name,
+        evaluationId: c.evaluationId,
+        evaluationName: c.evaluation.name,
+        teacher: teacherById.get((c.submittedById ?? c.validatedById) as string) ?? "—",
+        submittedAt: c.submittedAt?.toISOString() ?? null,
+        returnedReason: c.returnedReason,
+        counts: { SUBMITTED: 0, RETURNED: 0, APPROVED: 0 },
+        total: 0,
+      });
+    }
+    const g = grouped.get(key);
+    g.counts[c.status] = (g.counts[c.status] ?? 0) + 1;
+    g.total++;
+  }
+
+  const submissions = [...grouped.values()].sort((a, b) => {
+    const rank = (g: any) => (g.counts.SUBMITTED > 0 ? 0 : g.counts.RETURNED > 0 ? 1 : 2);
+    const byRank = rank(a) - rank(b);
+    if (byRank !== 0) return byRank;
+    return sortClasses([
+      { name: a.className, cycle: a.cycle },
+      { name: b.className, cycle: b.cycle },
+    ])[0].name === a.className
+      ? -1
+      : 1;
+  });
+
+  return (
+    <div className="space-y-6 pb-10">
+      <PageHeader
+        breadcrumb={[
+          { label: "Accueil", href: "/dashboard" },
+          { label: "Pédagogie", href: "/dashboard/grades" },
+          { label: "Validation des bulletins" },
+        ]}
+        title="Validation des bulletins"
+        description="Le travail déposé par les enseignants titulaires. Relisez les notes et appréciations, renvoyez pour correction si nécessaire, puis validez pour autoriser l'impression officielle."
+        actions={
+          <Link
+            href="/dashboard/grades/report-card"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-control border border-rule bg-surface px-4 text-role-body font-semibold text-text shadow-card transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
+          >
+            <FileText aria-hidden="true" className="h-4 w-4" />
+            Consulter les bulletins
+          </Link>
+        }
+      />
+
+      <ValidationClient submissions={submissions} />
+    </div>
+  );
+}

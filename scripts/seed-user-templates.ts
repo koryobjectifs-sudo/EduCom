@@ -1,4 +1,4 @@
-import { prisma } from '../src/lib/prisma';
+import { prisma } from "./_env";
 
 async function run() {
   const user = await prisma.user.findFirst({ where: { email: "koryobjectifs@gmail.com" } });

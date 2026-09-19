@@ -579,7 +579,7 @@ export async function dashboardSnapshot(
   const scope = {
     money: hasAccess(role, "/dashboard/payments"),
     students: hasAccess(role, "/dashboard/students"),
-    validation: hasAccess(role, "/dashboard/documents/validation"),
+    validation: hasAccess(role, "/dashboard/grades/validation") || hasAccess(role, "/dashboard/documents/validation"),
     // Direction et secrétariat : les seuls à pouvoir agir sur la configuration
     // pédagogique. Annoncer un manque à qui ne peut pas le combler est du bruit.
     pedagogie: hasAccess(role, "/dashboard/settings/pedagogie"),
@@ -739,7 +739,7 @@ export async function dashboardSnapshot(
       label: "Bulletins à relire",
       detail: `${submittedReportCards} bulletin${submittedReportCards > 1 ? "s" : ""} transmis par les enseignants`,
       count: submittedReportCards,
-      href: "/dashboard/documents/validation",
+      href: "/dashboard/grades/validation",
       cta: "Relire",
       icon: "clipboard",
     });

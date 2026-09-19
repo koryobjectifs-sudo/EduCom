@@ -16,8 +16,67 @@ export async function changeTestRole(newRole: string) {
     data: { role: newRole as any }
   });
 
-  return { success: true };
+  const { firstAllowedPath } = await import("@/lib/permissions");
+  const targetPath = newRole === "PARENT" ? firstAllowedPath("PARENT") : "/dashboard";
+
+  return { success: true, targetPath };
 }
+
+/**
+ * Bascule le contexte d'établissement actif de l'utilisateur.
+ * Vérifie strictement que l'utilisateur possède un SchoolMembership actif pour targetSchoolId.
+ */
+export async function switchActiveSchool(targetSchoolId: string) {
+  let targetUserId: string | null = null;
+
+  if (process.env.NODE_ENV === "development") {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const testUserId = cookieStore.get("dev_test_user_id")?.value;
+    if (testUserId) targetUserId = testUserId;
+  }
+
+  if (!targetUserId) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "Non connecté" };
+    targetUserId = user.id;
+  }
+
+  const resolvedUserId = targetUserId as string;
+
+  // ⚠️ SÉCURITÉ : Vérification de l'adhésion active
+  const membership = await prisma.schoolMembership.findFirst({
+    where: {
+      userId: resolvedUserId,
+      schoolId: targetSchoolId,
+      active: true,
+    },
+  });
+
+  if (!membership) {
+    return {
+      success: false,
+      error: "Accès refusé : vous ne possédez pas d'adhésion active dans cet établissement.",
+    };
+  }
+
+  const { ACTIVE_SCHOOL_COOKIE_NAME } = await import("@/lib/schoolContext");
+  const { cookies } = await import("next/headers");
+  const cookieStore = await cookies();
+  cookieStore.set(ACTIVE_SCHOOL_COOKIE_NAME, targetSchoolId, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30, // 30 jours
+    sameSite: "lax",
+    httpOnly: true,
+  });
+
+  const { firstAllowedPath } = await import("@/lib/permissions");
+  const targetPath = membership.role === "PARENT" ? firstAllowedPath("PARENT") : "/dashboard";
+
+  return { success: true, targetPath, role: membership.role };
+}
+
 
 export async function setSidebarCollapsed(collapsed: boolean) {
   const { cookies } = await import("next/headers");
@@ -51,10 +110,12 @@ export async function updateUserAvatar(avatar: string | null) {
     targetUserId = user.id;
   }
 
+  const resolvedUserId = targetUserId as string;
+
   // Si suppression d'avatar
   if (!avatar) {
     await prisma.user.update({
-      where: { id: targetUserId },
+      where: { id: resolvedUserId },
       data: { avatar: null },
     });
     const { revalidatePath } = await import("next/cache");
@@ -76,7 +137,7 @@ export async function updateUserAvatar(avatar: string | null) {
 
   try {
     await prisma.user.update({
-      where: { id: targetUserId },
+      where: { id: resolvedUserId },
       data: { avatar },
     });
 

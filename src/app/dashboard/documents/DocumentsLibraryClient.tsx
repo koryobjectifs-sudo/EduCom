@@ -83,42 +83,6 @@ export default function DocumentsLibraryClient({
 
   return (
     <div className="space-y-6">
-      {/* ── Banner d'orientation Produit : On ne va plus dans Documents pour créer ── */}
-      <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3.5">
-          <div className="h-9 w-9 rounded-xl bg-blue-600/10 text-blue-700 flex items-center justify-center shrink-0 mt-0.5">
-            <Info className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold text-slate-900">
-              Bibliothèque documentaire
-            </h2>
-            <p className="text-xs text-slate-600 mt-0.5 max-w-2xl leading-relaxed">
-              Retrouvez, consultez et re-téléchargez les documents officiels déjà produits. Pour créer un nouveau certificat, bulletin ou reçu, lancez l&apos;action directement depuis la fiche de l&apos;élève ou de la classe.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href="/dashboard/students"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors shadow-2xs"
-          >
-            <GraduationCap className="h-4 w-4" />
-            Voir les élèves
-            <ArrowRight className="h-3 w-3" />
-          </Link>
-          <Link
-            href="/dashboard/classes"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors shadow-2xs"
-          >
-            <Layers className="h-4 w-4" />
-            Structure
-            <ArrowRight className="h-3 w-3" />
-          </Link>
-        </div>
-      </div>
-
       {/* ── Barre de Contrôle : Recherche et Filtres intégrés ── */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

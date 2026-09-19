@@ -365,6 +365,7 @@ export async function returnReportCardsToTeacher(
       });
     }
 
+    revalidatePath("/dashboard/grades/validation");
     revalidatePath("/dashboard/documents/validation");
     return { success: true, count: res.count };
   } catch (error: any) {
@@ -411,6 +412,7 @@ export async function approveReportCards(classId: string, evaluationId: string) 
       });
     }
 
+    revalidatePath("/dashboard/grades/validation");
     revalidatePath("/dashboard/documents/validation");
     return { success: true, count: res.count };
   } catch (error: any) {
@@ -1146,7 +1148,7 @@ export async function saveCouncilComment(input: {
   if (!dbUser) return { error: "Utilisateur introuvable" };
 
   const { hasAccess } = await import("@/lib/permissions");
-  if (!hasAccess(dbUser.role as never, "/dashboard/documents/validation")) {
+  if (!hasAccess(dbUser.role as never, "/dashboard/grades/validation") && !hasAccess(dbUser.role as never, "/dashboard/documents/validation")) {
     return { error: "Seule la direction peut renseigner l'avis du conseil." };
   }
 
@@ -1172,6 +1174,7 @@ export async function saveCouncilComment(input: {
       update: { generalComment: comment || null },
     });
     revalidatePath("/dashboard/grades/report-card");
+    revalidatePath("/dashboard/grades/validation");
     revalidatePath("/dashboard/documents/validation");
     return { success: true };
   } catch (error: unknown) {

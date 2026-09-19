@@ -25,6 +25,7 @@ export interface GenerateDocumentDropdownProps {
   className?: string;
   invoiceId?: string;
   paymentId?: string;
+  userRole?: string;
   variant?: "banner" | "default" | "subtle";
   align?: "left" | "right";
   classNameButton?: string;
@@ -38,6 +39,7 @@ export default function GenerateDocumentDropdown({
   className,
   invoiceId,
   paymentId,
+  userRole,
   variant = "default",
   align = "right",
   classNameButton,
@@ -73,15 +75,16 @@ export default function GenerateDocumentDropdown({
   // Options configuration per context
   const getOptions = () => {
     switch (context) {
-      case "student":
+      case "student": {
+        const isTeacher = userRole === "TEACHER";
         return [
-          {
+          ...(!isTeacher ? [{
             title: "Certificat de scolarité",
             description: "Attestation officielle signée avec cachet",
             href: `/dashboard/documents/certificate?studentId=${studentId}`,
             icon: FileBadge,
             badge: "Officiel",
-          },
+          }] : []),
           {
             title: "Bulletin trimestriel",
             description: "Relevé des notes et appréciations",
@@ -96,14 +99,15 @@ export default function GenerateDocumentDropdown({
             icon: Contact2,
             badge: "Administratif",
           },
-          {
+          ...(!isTeacher ? [{
             title: "Attestation de scolarité",
             description: "Certificat allégé pour démarches courantes",
             href: `/dashboard/documents/certificate?studentId=${studentId}&type=attestation`,
             icon: CheckCircle2,
             badge: "Attestation",
-          },
+          }] : []),
         ];
+      }
 
       case "class":
         return [

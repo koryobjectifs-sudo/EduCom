@@ -1,4 +1,4 @@
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "./_env";
 
 // Écoles légitimes à NE JAMAIS supprimer
 const PRESERVED_SCHOOL_NAMES = [

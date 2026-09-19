@@ -426,7 +426,7 @@ async function secretariatSections(actor: ActorContext, period: Period): Promise
 
   // Le secrétariat voit l'espace de validation ; l'assistant non. La portée est
   // décidée depuis `hasAccess()`, pas depuis une seconde table de rôles.
-  const seesValidation = hasAccess(actor.role, "/dashboard/documents/validation");
+  const seesValidation = hasAccess(actor.role, "/dashboard/grades/validation") || hasAccess(actor.role, "/dashboard/documents/validation");
 
   const [
     enrolled, pending, newStudents, prevNewStudents,
