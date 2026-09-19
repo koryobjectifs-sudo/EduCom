@@ -1,7 +1,7 @@
 import { requireSchoolContext } from "@/lib/documentContext";
 import { redirect } from "next/navigation";
 import { schoolThemeStyle } from "@/lib/theme";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { getVisibleSpaces } from "@/lib/navigation";
 import AppShell from "@/components/layout/AppShell";
 import ParentLayout from "@/components/layout/ParentLayout";
@@ -11,7 +11,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user: dbUser, school } = await requireSchoolContext();
+  const { user: dbUser, school, schoolId, memberships } = await requireSchoolContext();
 
   if (!school) {
     redirect("/login?erreur=espace_absent");
@@ -45,33 +45,35 @@ export default async function DashboardLayout({
 
   const themeStyle = schoolThemeStyle(primaryColor);
 
-  // 1. AIGUILLAGE SERVEUR PARENT : Application dédiée simplifiée (RSC)
+  // 1. AIGUILLAGE SERVEUR PARENT : Redirection transparente vers l'Espace Famille (/famille)
   if (userRole === "PARENT") {
-    const { getActiveParentReminders } = await import("@/lib/parentReminder");
-    const reminders = await getActiveParentReminders(dbUser.id);
-    const serializedReminders = reminders.map((r) => ({
-      id: r.id,
-      studentName: `${r.student.firstName} ${r.student.lastName}`,
-      requirementLabel: r.requirement.label,
-      nature: r.requirement.nature,
-      actionUrl: r.actionUrl,
-      message: r.message,
-      createdAt: r.createdAt.toISOString(),
-    }));
+    const headersList = await headers();
+    const pathname = headersList.get("x-pathname") || "/dashboard";
 
-    return (
-      <div style={themeStyle} className="contents">
-        <ParentLayout
-          schoolName={schoolName}
-          schoolLogo={schoolLogo}
-          userName={userName}
-          emailVerified={emailVerified}
-          activeReminders={serializedReminders}
-        >
-          {children}
-        </ParentLayout>
-      </div>
-    );
+    if (pathname.startsWith("/dashboard/grades")) {
+      redirect("/famille/notes");
+    }
+    if (pathname.startsWith("/dashboard/payments")) {
+      redirect("/famille/paiements");
+    }
+    if (pathname.startsWith("/dashboard/settings")) {
+      redirect("/famille/compte");
+    }
+    if (pathname.startsWith("/dashboard/documents")) {
+      redirect("/famille/documents");
+    }
+    if (pathname.startsWith("/dashboard/students/")) {
+      const parts = pathname.split("/");
+      const studentId = parts[3];
+      if (studentId && studentId !== "new") {
+        redirect(`/famille/enfants/${studentId}`);
+      }
+      redirect("/famille/enfants");
+    }
+    if (pathname.startsWith("/dashboard/students")) {
+      redirect("/famille/enfants");
+    }
+    redirect("/famille");
   }
 
   // 2. SHELL APPLICATIF INTERNE BI-ÉTAGÉ (RSC)
@@ -88,9 +90,12 @@ export default async function DashboardLayout({
         userName={userName}
         userAvatar={userAvatar}
         emailVerified={emailVerified}
+        activeSchoolId={schoolId}
+        memberships={memberships}
       >
         {children}
       </AppShell>
     </div>
   );
+
 }
