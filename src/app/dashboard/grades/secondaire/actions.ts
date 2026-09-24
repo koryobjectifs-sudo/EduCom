@@ -51,6 +51,7 @@ export type SecondaireContext =
       classId: string; className: string;
       subjectId: string; subjectName: string; coefficient: number;
       termId: string; termName: string;
+      canEdit: boolean;
       allTerms: { id: string; name: string }[];
       allSubjects: { id: string; name: string; coefficient: number | null }[];
       allClasses: { id: string; name: string }[];
@@ -79,20 +80,27 @@ export async function getSecondaireContextWithActor(
         noSubjects: true,
       };
     }
-    const editable = await editableSubjectIds(
-      { id: actor.userId, role: actor.role },
-      classId,
-      classSubjects.map((cs) => cs.subjectId),
-    );
-    const firstAllowed = classSubjects.find((cs) =>
-      editable === "ALL" ? true : editable.has(cs.subjectId),
-    );
-    if (!firstAllowed) return { ok: false, error: "Vous n'êtes affecté à aucune matière dans cette classe. Contactez la direction de votre établissement." };
-    activeSubjectId = firstAllowed.subjectId;
+    if (actor.role === "TEACHER") {
+      const editable = await editableSubjectIds(
+        { id: actor.userId, role: actor.role },
+        classId,
+        classSubjects.map((cs) => cs.subjectId),
+      );
+      const firstAllowed = classSubjects.find((cs) =>
+        editable === "ALL" ? true : editable.has(cs.subjectId),
+      );
+      if (!firstAllowed) return { ok: false, error: "Vous n'êtes affecté à aucune matière dans cette classe. Contactez la direction de votre établissement." };
+      activeSubjectId = firstAllowed.subjectId;
+    } else {
+      activeSubjectId = classSubjects[0].subjectId;
+    }
   }
 
   const perm = await assertCanEditSecondaireSubject({ userId: actor.userId, role: actor.role }, classId, activeSubjectId);
-  if (!perm.ok) return { ok: false, error: perm.error };
+  const canEdit = perm.ok;
+  if (!canEdit && actor.role === "TEACHER") {
+    return { ok: false, error: perm.error };
+  }
 
   const [classe, subject, enrollments, terms] = await Promise.all([
     prisma.class.findUniqueOrThrow({ where: { id: classId }, select: { name: true } }),
@@ -212,6 +220,7 @@ export async function getSecondaireContextWithActor(
     classId, className: classe.name,
     subjectId: activeSubjectId, subjectName: subject.name, coefficient,
     termId: term.id, termName: term.name,
+    canEdit,
     allTerms,
     allSubjects,
     allClasses,

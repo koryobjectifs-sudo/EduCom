@@ -104,6 +104,11 @@ model School {
   bulletinWatermark        Boolean  @default(false)
   bulletinWatermarkOpacity Float    @default(0.08)
   bulletinLogoPosition     String   @default("CENTER")
+  /// Coordonnées de règlement et mentions de facture
+  waveNumber               String?
+  orangeMoneyNumber        String?
+  cashDeskHours            String? // ex: "Du lundi au vendredi de 08h à 15h30"
+  invoiceLateConsequence   String? // ex: "Tout retard au-delà du 10 entraîne la suspension de l'accès en classe"
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -381,6 +386,7 @@ model Student {
   actionLinks           ActionLink[]
   whatsAppConversations WhatsAppConversation[]
   documentReminders     DocumentReminder[]
+  invoiceItems          InvoiceItem[]
 
   @@index([schoolId])
   @@index([parentId])
@@ -465,6 +471,7 @@ model Invoice {
   id            String        @id @default(uuid())
   invoiceNumber String? // Numérotation séquentielle officielle par école (ex: FAC-2026-0001)
   title         String // e.g., "Facture - Octobre"
+  month         String? // Format YYYY-MM (ex: "2026-10") pour facturation périodique famille
   totalAmount   Float         @default(0)
   status        InvoiceStatus @default(PENDING)
   dueDate       DateTime
@@ -491,6 +498,7 @@ model Invoice {
   @@index([schoolId, status])
   @@index([schoolId, dueDate])
   @@index([schoolId, status, dueDate])
+  @@index([schoolId, month])
 }
 
 model InvoiceItem {
@@ -502,9 +510,13 @@ model InvoiceItem {
   invoiceId String
   invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
 
   @@index([invoiceId])
+  @@index([studentId])
 }
 
 enum PaymentMethod {

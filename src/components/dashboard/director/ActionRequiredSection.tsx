@@ -66,17 +66,19 @@ export default function ActionRequiredSection({ items }: ActionRequiredSectionPr
 
       {/* Liste des actions */}
       {items.length === 0 ? (
-        <div className="py-8 text-center">
-          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-pill bg-emerald-50 text-emerald-600">
-            <CheckCircle2 className="h-5 w-5" />
+        <div className="py-5 text-center flex items-center justify-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-pill bg-emerald-50 text-emerald-600 shrink-0">
+            <CheckCircle2 className="h-4 w-4" />
           </div>
-          <h3 className="mt-2 text-xs font-semibold text-text">Aucune action bloquante</h3>
-          <p className="mt-0.5 text-role-meta text-text-soft max-w-sm mx-auto">
-            Tous les dossiers, paiements, bulletins et configurations pédagogiques sont à jour.
-          </p>
+          <div className="text-left">
+            <h3 className="text-xs font-semibold text-text">Aucune action bloquante</h3>
+            <p className="text-[11px] text-text-soft">
+              Tous les dossiers, paiements, bulletins et paramètres pédagogiques sont à jour.
+            </p>
+          </div>
         </div>
       ) : (
-        <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {items.map((item) => {
             const isUrgent = item.severity === "urgent";
             const isWatch = item.severity === "watch";

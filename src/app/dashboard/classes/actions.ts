@@ -1,5 +1,7 @@
 "use server";
 
+import { requireActionContext } from "@/lib/actionContext";
+
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -20,6 +22,10 @@ function normalizeOrDeduceCycle(rawCycle: string | null | undefined, className: 
 }
 
 export async function createClass(formData: FormData) {
+  // 23 sept. 2026 — aucune garde de rôle : un PARENT ou un enseignant pouvait
+  // créer, renommer ou supprimer des classes en appel direct.
+  const guard = await requireActionContext("/dashboard/classes");
+  if (!guard.ok) return { error: guard.error };
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non autorisé" };
@@ -65,6 +71,10 @@ export async function createClass(formData: FormData) {
 }
 
 export async function createClassInline(formData: FormData) {
+  // 23 sept. 2026 — aucune garde de rôle : un PARENT ou un enseignant pouvait
+  // créer, renommer ou supprimer des classes en appel direct.
+  const guard = await requireActionContext("/dashboard/classes");
+  if (!guard.ok) return { error: guard.error };
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non autorisé" };
@@ -108,6 +118,10 @@ export async function createClassInline(formData: FormData) {
 }
 
 export async function updateClass(id: string, formData: FormData) {
+  // 23 sept. 2026 — aucune garde de rôle : un PARENT ou un enseignant pouvait
+  // créer, renommer ou supprimer des classes en appel direct.
+  const guard = await requireActionContext("/dashboard/classes");
+  if (!guard.ok) return { error: guard.error };
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non autorisé" };
@@ -391,6 +405,10 @@ export async function assignTeacherBulk(
 }
 
 export async function deleteClass(id: string) {
+  // 23 sept. 2026 — aucune garde de rôle : un PARENT ou un enseignant pouvait
+  // créer, renommer ou supprimer des classes en appel direct.
+  const guard = await requireActionContext("/dashboard/classes");
+  if (!guard.ok) return { error: guard.error };
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non autorisé" };
@@ -428,6 +446,10 @@ export async function deleteClass(id: string) {
 }
 
 export async function generateDefaultClasses() {
+  // 23 sept. 2026 — aucune garde de rôle : un PARENT ou un enseignant pouvait
+  // créer, renommer ou supprimer des classes en appel direct.
+  const guard = await requireActionContext("/dashboard/classes");
+  if (!guard.ok) return { error: guard.error };
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non autorisé" };
@@ -490,6 +512,8 @@ export async function generateDefaultClasses() {
 }
 
 export async function generateCycleClasses(cycleId: string) {
+  const guard = await requireActionContext("/dashboard/classes");
+  if (!guard.ok) return { error: guard.error };
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non autorisé" };

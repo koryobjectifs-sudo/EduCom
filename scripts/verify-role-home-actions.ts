@@ -29,7 +29,7 @@ function runTest() {
   // ── 1. ESPACE PARENT (Atterrissage explicite) ──
   console.log("[1] VÉRIFICATION ACCUEIL ESPACE PARENT");
   const parentHome = firstAllowedPath("PARENT");
-  assert(parentHome === "/dashboard/students", `firstAllowedPath("PARENT") renvoie bien "/dashboard/students" (reçu : ${parentHome})`);
+  assert(parentHome === "/famille", `firstAllowedPath("PARENT") renvoie l'Espace Famille "/famille" (reçu : ${parentHome})`);
   assert(hasAccess("PARENT", parentHome), `Le rôle PARENT a bien l'accès serveur à sa page d'accueil (${parentHome})`);
 
   // ── 2. ENTRÉES DU RAIL PAR RÔLE (Vérification côté serveur, non déduit de l'espace) ──

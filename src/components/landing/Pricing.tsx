@@ -151,7 +151,7 @@ export default function Pricing({ sansEntete = false }: { sansEntete?: boolean }
             <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-ink-faint">
               Tarifs
             </p>
-            <h2 className="mt-4 font-display text-[1.625rem] font-semibold leading-[1.2] tracking-[-0.02em] text-m-ink sm:text-[2.125rem]">
+            <h2 className="mt-4 font-display text-[2rem] font-semibold leading-[1.1] tracking-[-0.03em] text-m-ink sm:text-[2.75rem]">
               Un prix par école, pas par élève.
             </h2>
             <p className="mt-4 text-[15px] leading-[1.65] text-m-ink-soft">

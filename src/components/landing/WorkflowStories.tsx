@@ -7,46 +7,21 @@ import {
   CheckCircle2,
   Printer,
   GraduationCap,
-  MessageCircle,
-  AlertTriangle,
   UserPlus,
   Users,
+  FileText,
+  FileCheck,
 } from "lucide-react";
 import ScreenFrame from "./ScreenFrame";
 
 /**
- * « Quatre parcours » — passe d'ajustement du 7 septembre 2026.
- *
- * Remplace `ConnectedSystem.tsx` (supprimé). Kory a demandé quatre récits de
- * bout en bout précis — facturation, notes/bulletins, présences, admission —
- * plutôt qu'une chaîne unique de onze étapes. Raconter Notes et Présences une
- * deuxième fois dans un mécanisme séparé aurait répété le même message sous
- * une autre forme (ce que le brief interdit explicitement) : les quatre
- * onglets ABSORBENT donc l'ancienne chaîne au lieu de s'y ajouter.
- *
- * ⚠️ « Admission » n'est PAS un formulaire self-service côté parent — ce
- * produit n'en a pas (vérifié : aucune route parent d'admission n'existe,
- * `students/new` est un écran staff). Reformulé honnêtement : le secrétariat
- * inscrit l'élève, le dossier existe, il rejoint l'annuaire.
- *
- * ═══ MÉCANIQUE ═══
- *
- * Quatre onglets en pilule (même langage que `RolesSection`). Chaque onglet
- * défile automatiquement ses étapes — barre de progression par étape,
- * fondu enchaîné du panneau (même technique `AnimatePresence` que le reste de
- * la page). Pause au survol/focus. Chaque étape est aussi cliquable
- * directement. `prefers-reduced-motion` coupe l'avance automatique — les
- * étapes restent navigables à la main.
- *
- * ═══ CE QUI EST RÉEL, CE QUI EST UN MOCKUP ═══
- *
- * `chaine-notes.png`, `chaine-presences.png`, `fiche-aissatou.png` sont de
- * vraies captures, déjà utilisées ailleurs sur la page (même dossier, preuve
- * répétée à dessein). La facturation n'a pas de capture — `/dashboard/payments/
- * invoice` est authentifié et aucune capture live n'a été prise cette passe ;
- * ses quatre écrans sont des mockups construits, jamais présentés comme réels.
- * Les étapes de validation/impression (notes, présences, admission) sont pour
- * la même raison des mockups courts plutôt que des captures dédiées.
+ * « Quatre parcours majeurs » — Repositionnement marketing.
+ * 
+ * Aligné sur les 4 leviers de valeur immédiate du produit actuel :
+ * 1. Admissions & Dossiers élèves
+ * 2. Notes & Bulletins officiels Sénégal
+ * 3. Facturation & Reçus de paiement
+ * 4. Documents administratifs automatiques
  */
 const STEP_MS = 4200;
 const TICK_MS = 60;
@@ -56,218 +31,28 @@ type Histoire = { id: string; nom: string; etapes: Etape[] };
 
 const HISTOIRES: Histoire[] = [
   {
-    id: "facturation",
-    nom: "Facturation",
-    etapes: [
-      {
-        titre: "Le gestionnaire ouvre les paiements",
-        detail: "Un élève, un trimestre, un montant à régler — pas une feuille à retrouver.",
-        visuel: (
-          <ScreenFrame label="Paiements — Aïssatou Ndiaye">
-            <div className="flex items-center justify-between border-b border-m-line-soft pb-3">
-              <p className="text-[13.5px] font-medium text-m-ink">Frais de scolarité — Trimestre 2</p>
-              <p className="text-[13.5px] font-semibold tabular-nums text-m-ink-soft">45 000 FCFA</p>
-            </div>
-            <div className="mt-3 flex items-center gap-2 text-[12.5px] font-semibold text-m-accent-deep">
-              <Receipt aria-hidden="true" className="h-4 w-4" />
-              Générer la facture
-            </div>
-          </ScreenFrame>
-        ),
-      },
-      {
-        titre: "La facture est générée",
-        detail: "Numérotée, calculée, datée — automatiquement.",
-        visuel: (
-          <ScreenFrame label="Facture N°2026-0142">
-            <div className="flex items-start gap-3">
-              <Receipt aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-m-accent-deep" />
-              <div>
-                <p className="text-[15px] font-semibold text-m-ink">Facture N°2026-0142</p>
-                <p className="mt-1 text-[13px] text-m-ink-soft">Aïssatou Ndiaye · CM2 · 7 septembre 2026</p>
-                <p className="mt-2 font-display text-[1.5rem] font-semibold tabular-nums text-m-ink">45 000 FCFA</p>
-              </div>
-            </div>
-          </ScreenFrame>
-        ),
-      },
-      {
-        titre: "Elle est validée",
-        detail: "Un contrôle avant l'impression, pas après.",
-        visuel: (
-          <ScreenFrame label="Facture N°2026-0142">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 aria-hidden="true" className="h-6 w-6 shrink-0 text-m-signal" />
-              <div>
-                <p className="text-[15px] font-semibold text-m-ink">Validée</p>
-                <p className="mt-1 text-[13px] text-m-ink-soft">Par la direction, avant remise à la famille.</p>
-              </div>
-            </div>
-          </ScreenFrame>
-        ),
-      },
-      {
-        titre: "Prête à imprimer",
-        detail: "Le même document, prêt pour la famille — rien à retaper.",
-        visuel: (
-          <ScreenFrame label="Facture N°2026-0142">
-            <div className="flex items-center gap-3">
-              <Printer aria-hidden="true" className="h-6 w-6 shrink-0 text-m-accent-deep" />
-              <p className="text-[14px] font-medium text-m-ink-soft">Facture-2026-0142.pdf</p>
-            </div>
-          </ScreenFrame>
-        ),
-      },
-    ],
-  },
-  {
-    id: "notes",
-    nom: "Notes & bulletins",
-    etapes: [
-      {
-        titre: "L'enseignant saisit les notes",
-        detail: "Trimestre par trimestre, matière par matière.",
-        visuel: (
-          <ScreenFrame
-            label="Notes — Mathématiques"
-            src="/marketing/chaine-notes.png"
-            alt="Écran réel de saisie des notes en CM2, Mathématiques"
-            width={2400}
-            height={1000}
-            sizes="(min-width: 1024px) 620px, 90vw"
-          />
-        ),
-      },
-      {
-        titre: "Le directeur valide",
-        detail: "Un contrôle avant publication aux familles — le cachet de l'école, pas juste une case cochée.",
-        visuel: (
-          <ScreenFrame label="Notes — Mathématiques">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 shrink-0 -rotate-6 items-center justify-center rounded-full border-[2.5px] border-m-signal">
-                <span className="text-center text-[9px] font-bold uppercase leading-tight tracking-wide text-m-signal">
-                  Approuvé
-                </span>
-              </div>
-              <p className="text-[14px] font-medium text-m-ink-soft">Validées par la direction, avant publication aux familles.</p>
-            </div>
-          </ScreenFrame>
-        ),
-      },
-      {
-        titre: "Le bulletin est généré",
-        detail: "Moyenne calculée, mise en page automatique.",
-        visuel: (
-          <ScreenFrame label="Bulletin — CM2, Trimestre 2">
-            <div className="flex items-center gap-4">
-              <GraduationCap aria-hidden="true" className="h-8 w-8 shrink-0 text-m-accent-deep" />
-              <div>
-                <p className="font-display text-[1.75rem] font-semibold tabular-nums text-m-ink">12,8/20</p>
-                <p className="mt-1 text-[13px] text-m-ink-soft">moyenne générale, calculée automatiquement</p>
-              </div>
-            </div>
-          </ScreenFrame>
-        ),
-      },
-      {
-        titre: "Le secrétariat imprime",
-        detail: "Le même document, sans le retaper.",
-        visuel: (
-          <ScreenFrame label="Bulletin — CM2, Trimestre 2">
-            <div className="flex items-center gap-3">
-              <Printer aria-hidden="true" className="h-6 w-6 shrink-0 text-m-accent-deep" />
-              <p className="text-[14px] font-medium text-m-ink-soft">Bulletin-CM2-T2.pdf</p>
-            </div>
-          </ScreenFrame>
-        ),
-      },
-    ],
-  },
-  {
-    id: "presences",
-    nom: "Présences",
-    etapes: [
-      {
-        titre: "L'enseignant ouvre sa classe",
-        detail: "Présente ou absente, en un geste.",
-        visuel: (
-          <ScreenFrame
-            label="Présences — CM2"
-            src="/marketing/chaine-presences.png"
-            alt="Écran réel de saisie des présences en CM2, Aïssatou Ndiaye marquée absente"
-            width={2400}
-            height={950}
-            sizes="(min-width: 1024px) 620px, 90vw"
-          />
-        ),
-      },
-      {
-        titre: "Une absence est enregistrée",
-        detail: "Immédiatement — pas reconstituée depuis un cahier le soir.",
-        visuel: (
-          <ScreenFrame label="Présences — aujourd'hui">
-            <div className="flex items-center gap-4">
-              <AlertTriangle aria-hidden="true" className="h-7 w-7 shrink-0 text-m-alert" />
-              <div>
-                <p className="font-display text-[1.5rem] font-semibold tabular-nums text-m-ink">1 absence</p>
-                <p className="mt-1 text-[13px] text-m-ink-soft">Aïssatou Ndiaye, CM2</p>
-              </div>
-            </div>
-          </ScreenFrame>
-        ),
-      },
-      {
-        titre: "Sa famille est prévenue",
-        detail: "Un message part vers le bon contact, depuis son dossier.",
-        visuel: (
-          <ScreenFrame label="Message WhatsApp">
-            <div className="flex items-start gap-3">
-              <MessageCircle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-m-accent-deep" />
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-m-ink-faint">À : Mme Ndiaye</p>
-                <p className="mt-1.5 text-[14px] leading-[1.5] text-m-ink">« Aïssatou est absente ce matin. »</p>
-              </div>
-            </div>
-          </ScreenFrame>
-        ),
-      },
-      {
-        titre: "Le directeur le voit",
-        detail: "Sans appeler le secrétariat ni consulter un cahier.",
-        visuel: (
-          <ScreenFrame label="Pilotage — aujourd'hui">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 aria-hidden="true" className="h-6 w-6 shrink-0 text-m-signal" />
-              <p className="text-[14px] font-medium text-m-ink-soft">Absence signalée et déjà répondue</p>
-            </div>
-          </ScreenFrame>
-        ),
-      },
-    ],
-  },
-  {
     id: "admission",
-    nom: "Admission",
+    nom: "Inscriptions & Dossiers",
     etapes: [
       {
         titre: "Le secrétariat inscrit l'élève",
-        detail: "Une seule fois — tout le reste s'appuie dessus.",
+        detail: "Nom, classe, date de naissance, tuteur — une seule saisie initiale rapide.",
         visuel: (
-          <ScreenFrame label="Nouvel élève">
+          <ScreenFrame label="Nouvelle admission — Secrétariat">
             <div className="flex items-start gap-3">
               <UserPlus aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-m-accent-deep" />
               <div className="space-y-2 text-[13px]">
-                <p className="text-m-ink-soft">Nom · <span className="font-medium text-m-ink">Aïssatou Ndiaye</span></p>
-                <p className="text-m-ink-soft">Classe · <span className="font-medium text-m-ink">CM2</span></p>
-                <p className="text-m-ink-soft">Parent · <span className="font-medium text-m-ink">Mme Ndiaye</span></p>
+                <p className="text-m-ink-soft">Élève · <span className="font-medium text-m-ink">Aïssatou Ndiaye</span></p>
+                <p className="text-m-ink-soft">Niveau & Classe · <span className="font-medium text-m-ink">CM2 A (Élémentaire)</span></p>
+                <p className="text-m-ink-soft">Parent référent · <span className="font-medium text-m-ink">Mme Ndiaye (+221 77 ...)</span></p>
               </div>
             </div>
           </ScreenFrame>
         ),
       },
       {
-        titre: "Son dossier existe",
-        detail: "Identité, classe, famille : déjà réunis, rien à ressaisir.",
+        titre: "Le dossier numérique est créé",
+        detail: "Matricule attribué automatiquement, pièces d'état civil rattachées sans paperasse égarée.",
         visuel: (
           <ScreenFrame
             label="Dossier — Aïssatou Ndiaye"
@@ -280,17 +65,191 @@ const HISTOIRES: Histoire[] = [
         ),
       },
       {
-        titre: "Il rejoint l'annuaire",
-        detail: "Visible par son enseignant, sans ressaisie.",
+        titre: "Intégration directe à l'annuaire",
+        detail: "L'élève apparaît instantanément dans la classe : prêt pour les notes, les présences et la scolarité.",
         visuel: (
-          <ScreenFrame label="Annuaire — CM2">
+          <ScreenFrame label="Annuaire officiel — CM2 A">
             <div className="flex items-start gap-3">
               <Users aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-m-accent-deep" />
-              <ul className="space-y-1.5 text-[13.5px] text-m-ink-soft">
-                <li className="font-semibold text-m-ink">Aïssatou Ndiaye</li>
-                <li>Moussa Diop</li>
-                <li>Fatou Sarr</li>
+              <ul className="space-y-1.5 text-[13.5px] text-m-ink-soft w-full">
+                <li className="font-semibold text-m-ink flex items-center justify-between">
+                  <span>Aïssatou Ndiaye</span>
+                  <span className="text-[11px] font-normal text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Inscrite</span>
+                </li>
+                <li className="flex items-center justify-between">
+                  <span>Moussa Diop</span>
+                  <span className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Inscrit</span>
+                </li>
+                <li className="flex items-center justify-between">
+                  <span>Fatou Sarr</span>
+                  <span className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Inscrite</span>
+                </li>
               </ul>
+            </div>
+          </ScreenFrame>
+        ),
+      },
+    ],
+  },
+  {
+    id: "notes",
+    nom: "Notes & Bulletins",
+    etapes: [
+      {
+        titre: "L'enseignant saisit les notes",
+        detail: "Grille claire et fluide adaptée au système sénégalais, avec ou sans sous-matières.",
+        visuel: (
+          <ScreenFrame
+            label="Notes — Mathématiques"
+            src="/marketing/chaine-notes.png"
+            alt="Écran réel de saisie des notes en CM2, Mathématiques"
+            width={2400}
+            height={1000}
+            sizes="(min-width: 1024px) 620px, 90vw"
+          />
+        ),
+      },
+      {
+        titre: "Calculs automatiques",
+        detail: "Moyennes, coefficients, totaux et rangs sont calculés sans aucune erreur de calculatrice.",
+        visuel: (
+          <ScreenFrame label="Calculs & Moyennes — Automatique">
+            <div className="flex items-center gap-4">
+              <GraduationCap aria-hidden="true" className="h-8 w-8 shrink-0 text-m-accent-deep" />
+              <div>
+                <p className="font-display text-[1.75rem] font-semibold tabular-nums text-m-ink">14,85 / 20</p>
+                <p className="mt-1 text-[13px] text-m-ink-soft">Moyenne générale calculée · Rang : 3e / 38 élèves</p>
+              </div>
+            </div>
+          </ScreenFrame>
+        ),
+      },
+      {
+        titre: "Le bulletin officiel est prêt",
+        detail: "Mise en page conforme primaire ou secondaire, visas, prêt à imprimer ou remettre aux parents.",
+        visuel: (
+          <ScreenFrame label="Bulletin officiel Sénégal — PDF">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Printer aria-hidden="true" className="h-6 w-6 shrink-0 text-m-accent-deep" />
+                <div>
+                  <p className="text-[14px] font-semibold text-m-ink">Bulletin-T1-CM2.pdf</p>
+                  <p className="text-[12px] text-m-ink-soft">En-tête officiel, tableau des disciplines & visa direction</p>
+                </div>
+              </div>
+              <span className="rounded-pill bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 border border-emerald-200">Conforme</span>
+            </div>
+          </ScreenFrame>
+        ),
+      },
+    ],
+  },
+  {
+    id: "facturation",
+    nom: "Facturation & Reçus",
+    etapes: [
+      {
+        titre: "Gestion des frais scolaires",
+        detail: "Inscriptions et mensualités configurées par niveau, avec vision claire des échéances.",
+        visuel: (
+          <ScreenFrame label="Frais de scolarité — Aïssatou Ndiaye">
+            <div className="flex items-center justify-between border-b border-m-line-soft pb-3">
+              <p className="text-[13.5px] font-medium text-m-ink">Mensualité Novembre 2026</p>
+              <p className="text-[13.5px] font-semibold tabular-nums text-m-ink-soft">45 000 FCFA</p>
+            </div>
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-[12px] text-m-ink-soft">Statut : En attente</span>
+              <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-m-accent-deep">
+                <Receipt aria-hidden="true" className="h-4 w-4" />
+                Générer la facture
+              </div>
+            </div>
+          </ScreenFrame>
+        ),
+      },
+      {
+        titre: "Facture numérotée générée",
+        detail: "Numérotation séquentielle officielle, mention de la classe et du payeur.",
+        visuel: (
+          <ScreenFrame label="Facture N°FAC-2026-0142">
+            <div className="flex items-start gap-3">
+              <Receipt aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-m-accent-deep" />
+              <div>
+                <p className="text-[15px] font-semibold text-m-ink">Facture N°FAC-2026-0142</p>
+                <p className="mt-1 text-[13px] text-m-ink-soft">Aïssatou Ndiaye · CM2 A · 45 000 FCFA</p>
+                <p className="mt-2 text-[12px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded w-fit border border-emerald-200">Enregistrée en comptabilité</p>
+              </div>
+            </div>
+          </ScreenFrame>
+        ),
+      },
+      {
+        titre: "Reçu officiel délivré",
+        detail: "Format A4 standard ou Demi-A4 économique, avec logo et cachet de l'école prêts pour la famille.",
+        visuel: (
+          <ScreenFrame label="Reçu officiel — Paiement validé">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 aria-hidden="true" className="h-6 w-6 shrink-0 text-m-signal" />
+              <div>
+                <p className="text-[14px] font-semibold text-m-ink">Reçu N°REC-2026-0142</p>
+                <p className="text-[12px] text-m-ink-soft">Format A4 ou Demi-A4 · Tampon et visa intégrés</p>
+              </div>
+            </div>
+          </ScreenFrame>
+        ),
+      },
+    ],
+  },
+  {
+    id: "documents",
+    nom: "Documents scolaires",
+    etapes: [
+      {
+        titre: "Sélectionnez le document demandé",
+        detail: "Certificat de scolarité, attestation d'inscription, convocation ou fiche de radiation.",
+        visuel: (
+          <ScreenFrame label="Générateur de pièces officielles">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between rounded-lg border border-m-line bg-white p-2.5">
+                <div className="flex items-center gap-2 text-[13px] font-medium text-m-ink">
+                  <FileText className="h-4 w-4 text-m-accent-deep" />
+                  Certificat de scolarité
+                </div>
+                <span className="text-[11px] font-semibold text-m-accent-deep">1 clic</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-m-line/50 bg-white/60 p-2.5 text-m-ink-soft text-[13px]">
+                <div className="flex items-center gap-2">
+                  <FileCheck className="h-4 w-4 text-m-ink-faint" />
+                  Attestation d&apos;inscription
+                </div>
+              </div>
+            </div>
+          </ScreenFrame>
+        ),
+      },
+      {
+        titre: "Données injectées sans retaper",
+        detail: "Identité de l'élève, classe, année scolaire et coordonnées sont remplies automatiquement.",
+        visuel: (
+          <ScreenFrame label="Prévisualisation officielle">
+            <div className="border border-m-line bg-white p-3 rounded text-[12px] space-y-1.5 text-m-ink">
+              <p className="font-bold text-center border-b pb-1 text-m-ink">CERTIFICAT DE SCOLARITÉ</p>
+              <p className="text-m-ink-soft">« Le Directeur certifie que l&apos;élève <strong className="text-m-ink">Aïssatou Ndiaye</strong> est régulièrement inscrit(e) en classe de <strong className="text-m-ink">CM2 A</strong> pour l&apos;année scolaire en cours. »</p>
+            </div>
+          </ScreenFrame>
+        ),
+      },
+      {
+        titre: "Prêt à remettre au parent",
+        detail: "En-tête officiel de l'école, cachet et signature : le parent repart avec son document en 30 secondes.",
+        visuel: (
+          <ScreenFrame label="Document finalisé">
+            <div className="flex items-center gap-3">
+              <Printer aria-hidden="true" className="h-6 w-6 shrink-0 text-m-accent-deep" />
+              <div>
+                <p className="text-[14px] font-semibold text-m-ink">Certificat-Scolarite-Aissatou.pdf</p>
+                <p className="text-[12px] text-m-ink-soft">Cachet officiel et signature de la direction appliqués</p>
+              </div>
             </div>
           </ScreenFrame>
         ),
@@ -340,16 +299,17 @@ export default function WorkflowStories() {
   }, [histoireId, etapeIndex, pause, reduitMotion, histoire.etapes.length]);
 
   return (
-    <section id="systeme" className="scroll-mt-20 bg-m-card">
-      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-        <div className="mx-auto max-w-xl text-center">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-ink-faint">Le système</p>
-          <h2 className="mt-4 font-display text-[1.625rem] font-semibold leading-[1.2] tracking-[-0.02em] text-m-ink sm:text-[2.125rem]">
-            Quatre parcours réels, montrés en train de se dérouler.
+    <section id="parcours" className="scroll-mt-20 bg-m-card relative">
+      <div id="systeme" className="absolute -top-20" />
+      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-accent-deep">EduCom en action</p>
+          <h2 className="mt-4 font-display text-[2rem] font-semibold leading-[1.1] tracking-[-0.03em] text-m-ink sm:text-[2.75rem]">
+            De l&apos;inscription au bulletin, une seule saisie.
           </h2>
           <p className="mt-4 text-[15px] leading-[1.65] text-m-ink-soft">
-            Ce qu&apos;une seule fiche élève déclenche automatiquement, dans le produit tel
-            qu&apos;il existe aujourd&apos;hui.
+            De l&apos;admission d&apos;un élève à l&apos;édition de ses bulletins et reçus :
+            l&apos;information circule sans double saisie et sans calculatrice.
           </p>
         </div>
 
@@ -418,6 +378,18 @@ export default function WorkflowStories() {
               </motion.div>
             </AnimatePresence>
           </div>
+        </div>
+
+        {/* Opérations de soutien (Tier 3) — ex-`SupportingOperations`, ramenées à une ligne. */}
+        <div id="operations" className="mx-auto mt-14 flex max-w-4xl scroll-mt-24 flex-col items-center gap-4 border-t border-m-line-soft pt-10 sm:flex-row sm:justify-center">
+          <span className="shrink-0 text-[12px] font-semibold uppercase tracking-[0.12em] text-m-ink-faint">Et aussi</span>
+          <ul className="flex flex-wrap justify-center gap-2">
+            {["Import Excel de l'annuaire", "Présences élèves et enseignants", "Liaison famille par WhatsApp", "Sondages en ligne"].map((t) => (
+              <li key={t} className="rounded-pill bg-m-paper px-3.5 py-2 text-[13px] font-medium text-m-ink-soft ring-1 ring-m-line-soft">
+                {t}
+              </li>
+            ))}
+          </ul>
         </div>
 
         <p className="mx-auto mt-10 max-w-lg text-center text-[12.5px] leading-relaxed text-m-ink-faint">

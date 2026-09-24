@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Users, TrendingUp, AlertTriangle, CheckCircle, Clock, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Users, TrendingUp, CheckCircle2, Clock, ArrowUpRight, ShieldAlert } from "lucide-react";
 import type { DirectorKPIs } from "@/lib/dashboard-director";
 
 interface DirectorKpiStripProps {
@@ -14,7 +14,7 @@ interface DirectorKpiStripProps {
 }
 
 export default function DirectorKpiStrip({ kpis, scope }: DirectorKpiStripProps) {
-  const { activeStudents, recovery, overdue, attendanceToday, urgentActionsCount } = kpis;
+  const { activeStudents, recovery, attendanceToday, urgentActionsCount } = kpis;
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -22,11 +22,11 @@ export default function DirectorKpiStrip({ kpis, scope }: DirectorKpiStripProps)
       {scope.students ? (
         <Link
           href="/dashboard/students"
-          className="group relative flex flex-col justify-between rounded-surface bg-surface p-3.5 sm:p-4 shadow-sm border border-rule hover:border-primary/50 hover:shadow-subtle transition-all"
+          className="group relative flex flex-col justify-between rounded-surface bg-surface p-4 shadow-sm border border-rule hover:border-primary/50 hover:shadow-subtle transition-all"
         >
           <div className="flex items-center justify-between">
             <span className="text-[10.5px] font-semibold uppercase tracking-wider text-text-soft">
-              Effectif Actif · {activeStudents.academicYear}
+              Effectif Actif
             </span>
             <div className="flex h-7.5 w-7.5 items-center justify-center rounded-control bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
               <Users className="h-4 w-4" />
@@ -35,83 +35,99 @@ export default function DirectorKpiStrip({ kpis, scope }: DirectorKpiStripProps)
 
           <div className="my-2">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-xl sm:text-2xl font-bold tracking-tight text-text">
+              <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-text">
                 {activeStudents.count.toLocaleString("fr-FR")}
               </span>
-              <span className="text-role-meta font-medium text-text-soft">
-                élèves inscrits ({activeStudents.academicYear})
-              </span>
+              <span className="text-role-meta font-medium text-text-soft">élèves</span>
             </div>
 
-            {activeStudents.prevYear && activeStudents.prevYearCount > 0 && activeStudents.count < activeStudents.prevYearCount ? (
-              <div className="mt-2 rounded-control bg-secondary/30 border border-rule p-2 text-left text-role-meta text-text-soft space-y-0.5">
-                <div className="font-semibold text-text">Année scolaire {activeStudents.academicYear}</div>
-                <div className="text-[11px] leading-tight text-text-soft">
-                  <span className="font-medium text-text">{activeStudents.count} élève{activeStudents.count > 1 ? "s" : ""} inscrit{activeStudents.count > 1 ? "s" : ""}</span> pour {activeStudents.academicYear}.{" "}
-                  <span>{activeStudents.prevYearCount.toLocaleString("fr-FR")} élèves étaient inscrits en {activeStudents.prevYear}.</span>
-                </div>
-                <div className="pt-0.5 font-semibold text-primary group-hover:underline text-[11px]">
-                  Voir les effectifs {activeStudents.prevYear} →
-                </div>
-              </div>
-            ) : (
-              <div className="mt-1.5 flex items-center gap-1.5 text-role-meta">
-                {activeStudents.new30d > 0 ? (
-                  <span className="inline-flex items-center gap-0.5 rounded-pill bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700">
-                    <TrendingUp className="h-2.5 w-2.5" />
-                    +{activeStudents.new30d} sur 30j
-                  </span>
-                ) : (
-                  <span className="text-text-faint">Effectif stable</span>
-                )}
+            <div className="mt-1 flex items-center gap-1.5 text-xs">
+              {activeStudents.new30d > 0 ? (
+                <span className="inline-flex items-center gap-0.5 rounded-pill bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700">
+                  <TrendingUp className="h-3 w-3" />
+                  +{activeStudents.new30d} sur 30j
+                </span>
+              ) : (
+                <span className="text-text-soft">Effectif stable</span>
+              )}
 
-                {activeStudents.pendingCount > 0 && (
-                  <span className="rounded-pill bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700">
-                    {activeStudents.pendingCount} en attente
-                  </span>
-                )}
-              </div>
-            )}
+              {activeStudents.pendingCount > 0 && (
+                <span className="rounded-pill bg-amber-50 px-1.5 py-0.5 font-semibold text-amber-700">
+                  {activeStudents.pendingCount} en attente
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center justify-between pt-1.5 border-t border-rule text-role-meta text-text-soft group-hover:text-primary font-medium">
-            <span>Consulter le registre</span>
+          <div className="flex items-center justify-between pt-2 border-t border-rule text-role-meta text-text-soft group-hover:text-primary font-medium">
+            <span>Annuaire des élèves</span>
             <ArrowUpRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </Link>
       ) : (
-        <div className="relative flex flex-col justify-between rounded-surface bg-surface p-3.5 sm:p-4 shadow-sm border border-rule">
+        <div className="flex flex-col justify-between rounded-surface bg-surface p-4 shadow-sm border border-rule">
+          <span className="text-[10.5px] font-semibold uppercase tracking-wider text-text-soft">Effectif</span>
+          <span className="text-2xl font-bold text-text">{activeStudents.count}</span>
+          <span className="text-role-meta text-text-faint">Accès restreint</span>
+        </div>
+      )}
+
+      {/* 2. PRÉSENCE DU JOUR */}
+      {scope.attendance !== false ? (
+        <Link
+          href="/dashboard/attendance"
+          className="group relative flex flex-col justify-between rounded-surface bg-surface p-4 shadow-sm border border-rule hover:border-primary/50 hover:shadow-subtle transition-all"
+        >
           <div className="flex items-center justify-between">
             <span className="text-[10.5px] font-semibold uppercase tracking-wider text-text-soft">
-              Effectif Actif · {activeStudents.academicYear}
+              Présence Aujourd&apos;hui
             </span>
-            <div className="flex h-7.5 w-7.5 items-center justify-center rounded-control bg-primary/10 text-primary">
-              <Users className="h-4 w-4" />
+            <div className="flex h-7.5 w-7.5 items-center justify-center rounded-control bg-blue-50 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+              <Clock className="h-4 w-4" />
             </div>
           </div>
 
           <div className="my-2">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-xl sm:text-2xl font-bold tracking-tight text-text">
-                {activeStudents.count.toLocaleString("fr-FR")}
+              <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-text">
+                {attendanceToday.rate !== null ? `${attendanceToday.rate} %` : "—"}
               </span>
               <span className="text-role-meta font-medium text-text-soft">
-                élèves inscrits ({activeStudents.academicYear})
+                {attendanceToday.isRecorded ? "taux du jour" : "appel en cours"}
               </span>
+            </div>
+
+            <div className="mt-1 flex items-center gap-1.5 text-xs text-text-soft">
+              {attendanceToday.isRecorded ? (
+                <span>
+                  <strong className="text-emerald-700 font-semibold">{attendanceToday.presentCount} présents</strong>
+                  {attendanceToday.absentCount > 0 && ` · ${attendanceToday.absentCount} absents`}
+                </span>
+              ) : (
+                <span className="text-amber-700 font-medium">Pointage non débuté</span>
+              )}
             </div>
           </div>
 
-          <div className="pt-1.5 border-t border-rule text-role-meta text-text-faint font-medium">
-            <span>Effectif global de l&apos;école</span>
+          <div className="flex items-center justify-between pt-2 border-t border-rule text-role-meta text-text-soft group-hover:text-primary font-medium">
+            <span>
+              {attendanceToday.classesRecordedCount}/{attendanceToday.classesTotalCount} classes pointées
+            </span>
+            <ArrowUpRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
+        </Link>
+      ) : (
+        <div className="flex flex-col justify-between rounded-surface bg-surface p-4 shadow-sm border border-rule text-text-faint">
+          <span className="text-[10.5px] font-semibold uppercase tracking-wider">Assiduité</span>
+          <span className="text-role-meta">Accès restreint</span>
         </div>
       )}
 
-      {/* 2. RECOUVREMENT FINANCIER */}
+      {/* 3. RECOUVREMENT FINANCIER */}
       {scope.money ? (
         <Link
           href="/dashboard/payments"
-          className="group relative flex flex-col justify-between rounded-surface bg-surface p-3.5 sm:p-4 shadow-sm border border-rule hover:border-emerald-400/50 hover:shadow-subtle transition-all"
+          className="group relative flex flex-col justify-between rounded-surface bg-surface p-4 shadow-sm border border-rule hover:border-emerald-400/50 hover:shadow-subtle transition-all"
         >
           <div className="flex items-center justify-between">
             <span className="text-[10.5px] font-semibold uppercase tracking-wider text-text-soft">
@@ -124,172 +140,86 @@ export default function DirectorKpiStrip({ kpis, scope }: DirectorKpiStripProps)
 
           <div className="my-2">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-xl sm:text-2xl font-bold tracking-tight text-text">
+              <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-text">
                 {recovery.rate !== null ? `${recovery.rate} %` : "—"}
               </span>
-              <span className="text-role-meta font-medium text-text-soft">des factures</span>
+              <span className="text-role-meta font-medium text-text-soft">collecté</span>
             </div>
 
-            {/* Barre de progression */}
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-sunk">
-              <div
-                className="h-full rounded-full bg-emerald-600 transition-all"
-                style={{ width: `${Math.min(100, recovery.rate ?? 0)}%` }}
-              />
+            <div className="mt-1 text-xs text-text-soft truncate">
+              <strong className="text-emerald-700 font-semibold">{recovery.collected.toLocaleString("fr-FR")} FCFA</strong>
+              {" "}encaissés
             </div>
-
-            <p className="mt-1.5 text-role-meta text-text-soft truncate">
-              <span className="font-semibold text-text">
-                {recovery.collected.toLocaleString("fr-FR")} FCFA
-              </span>{" "}
-              sur {recovery.expected.toLocaleString("fr-FR")} FCFA
-            </p>
           </div>
 
-          <div className="flex items-center justify-between pt-1.5 border-t border-rule text-role-meta text-text-soft group-hover:text-emerald-700 font-medium">
-            <span>Détail des encaissements</span>
+          <div className="flex items-center justify-between pt-2 border-t border-rule text-role-meta text-text-soft group-hover:text-emerald-700 font-medium">
+            <span>Facturation & Reçus</span>
             <ArrowUpRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </Link>
       ) : (
-        <div className="flex flex-col justify-between rounded-surface bg-sunk p-3.5 sm:p-4 border border-dashed border-rule text-text-faint">
+        <div className="flex flex-col justify-between rounded-surface bg-surface p-4 shadow-sm border border-rule text-text-faint">
           <span className="text-[10.5px] font-semibold uppercase tracking-wider">Recouvrement</span>
-          <p className="text-xs font-medium">Information financière réservée à la gestion</p>
           <span className="text-role-meta">Accès restreint</span>
         </div>
       )}
 
-      {/* 3. TOTAL IMPAYÉS & RETARDS */}
-      {scope.money ? (
-        <Link
-          href="/dashboard/payments"
-          className="group relative flex flex-col justify-between rounded-surface bg-surface p-3.5 sm:p-4 shadow-sm border border-rule hover:border-danger/50 hover:shadow-subtle transition-all"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10.5px] font-semibold uppercase tracking-wider text-text-soft">
-              Impayés échus
-            </span>
-            <div className="flex h-7.5 w-7.5 items-center justify-center rounded-control bg-red-50 text-danger group-hover:bg-danger group-hover:text-white transition-colors">
-              <AlertTriangle className="h-4 w-4" />
-            </div>
-          </div>
-
-          <div className="my-2">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-xl sm:text-2xl font-bold tracking-tight text-danger">
-                {overdue.totalAmount > 0 ? `${(overdue.totalAmount / 1_000_000).toFixed(1)} M` : "0"}
-              </span>
-              <span className="text-role-meta font-medium text-text-soft">FCFA en retard</span>
-            </div>
-
-            <div className="mt-1.5 flex items-center gap-1.5 text-role-meta">
-              {overdue.affectedFamilies > 0 ? (
-                <span className="inline-flex items-center gap-1 rounded-pill bg-red-50 px-1.5 py-0.5 font-semibold text-danger">
-                  {overdue.affectedFamilies} famille{overdue.affectedFamilies > 1 ? "s" : ""}
-                </span>
-              ) : (
-                <span className="text-emerald-600 font-medium">Aucun retard</span>
-              )}
-
-              {overdue.invoicesCount > 0 && (
-                <span className="text-text-faint">
-                  ({overdue.invoicesCount} facture{overdue.invoicesCount > 1 ? "s" : ""})
-                </span>
-              )}
-            </div>
-
-            <p className="mt-1.5 text-role-meta text-text-soft truncate">
-              {overdue.totalAmount > 0 ? `${overdue.totalAmount.toLocaleString("fr-FR")} FCFA à régulariser` : "Situation financière à jour"}
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between pt-1.5 border-t border-rule text-role-meta text-text-soft group-hover:text-danger font-medium">
-            <span>Relancer les familles</span>
-            <ArrowUpRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        </Link>
-      ) : (
-        <div className="flex flex-col justify-between rounded-surface bg-sunk p-3.5 sm:p-4 border border-dashed border-rule text-text-faint">
-          <span className="text-[10.5px] font-semibold uppercase tracking-wider">Impayés</span>
-          <p className="text-xs font-medium">Information financière réservée à la gestion</p>
-          <span className="text-role-meta">Accès restreint</span>
-        </div>
-      )}
-
-      {/* 4. PRÉSENCE DU JOUR */}
-      {scope.attendance !== false ? (
-        <Link
-          href="/dashboard/attendance"
-          className="group relative flex flex-col justify-between rounded-surface bg-surface p-3.5 sm:p-4 shadow-sm border border-rule hover:border-primary/50 hover:shadow-subtle transition-all"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10.5px] font-semibold uppercase tracking-wider text-text-soft">
-              Assiduité Aujourd&apos;hui
-            </span>
-            <div className="flex h-7.5 w-7.5 items-center justify-center rounded-control bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-              <Clock className="h-4 w-4" />
-            </div>
-          </div>
-
-          <div className="my-2">
-            {attendanceToday.isRecorded ? (
-              <>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-xl sm:text-2xl font-bold tracking-tight text-text">
-                    {attendanceToday.rate !== null ? `${attendanceToday.rate} %` : "—"}
-                  </span>
-                  <span className="text-role-meta font-medium text-text-soft">
-                    {attendanceToday.isFullSchoolRecorded ? "toute l'école" : "classes appelées"}
-                  </span>
-                </div>
-
-                <div className="mt-1.5 flex items-center gap-1.5 text-role-meta">
-                  <span className="inline-flex items-center gap-0.5 rounded-pill bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700">
-                    {attendanceToday.presentCount} présent{attendanceToday.presentCount > 1 ? "s" : ""}
-                  </span>
-                  {attendanceToday.absentCount > 0 && (
-                    <span className="rounded-pill bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700">
-                      {attendanceToday.absentCount} absent{attendanceToday.absentCount > 1 ? "s" : ""}
-                    </span>
-                  )}
-                  {!attendanceToday.isFullSchoolRecorded && (
-                    <span className="rounded-pill bg-blue-50 px-1.5 py-0.5 font-semibold text-primary">
-                      {attendanceToday.classesRecordedCount}/{attendanceToday.classesTotalCount} cl.
-                    </span>
-                  )}
-                </div>
-
-                <p className="mt-1.5 text-role-meta text-text-soft truncate">
-                  {attendanceToday.presentCount} / {attendanceToday.totalRecordedStudents} élèves appelés
-                </p>
-              </>
+      {/* 4. ACTIONS & POINTS À ARBITRER */}
+      <a
+        href="#a-traiter"
+        className={`group relative flex flex-col justify-between rounded-surface p-4 shadow-sm border transition-all ${
+          urgentActionsCount > 0
+            ? "bg-amber-50/40 border-amber-200/90 hover:border-amber-400 hover:shadow-subtle"
+            : "bg-surface border-rule hover:border-emerald-400/50 hover:shadow-subtle"
+        }`}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-[10.5px] font-semibold uppercase tracking-wider text-text-soft">
+            Points à Traiter
+          </span>
+          <div
+            className={`flex h-7.5 w-7.5 items-center justify-center rounded-control transition-colors ${
+              urgentActionsCount > 0
+                ? "bg-amber-100 text-amber-700 group-hover:bg-amber-600 group-hover:text-white"
+                : "bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white"
+            }`}
+          >
+            {urgentActionsCount > 0 ? (
+              <ShieldAlert className="h-4 w-4" />
             ) : (
-              <>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-base font-bold text-amber-700">Appel en attente</span>
-                </div>
-                <p className="mt-1.5 text-role-meta text-text-soft">
-                  0 sur {attendanceToday.classesTotalCount} classes ont validé l&apos;appel aujourd&apos;hui.
-                </p>
-                <div className="mt-1.5 inline-flex items-center gap-1 rounded-pill bg-amber-50 px-1.5 py-0.5 text-role-meta font-medium text-amber-800">
-                  Démarrer l&apos;appel
-                </div>
-              </>
+              <CheckCircle2 className="h-4 w-4" />
             )}
           </div>
-
-          <div className="flex items-center justify-between pt-1.5 border-t border-rule text-role-meta text-text-soft group-hover:text-primary font-medium">
-            <span>Gérer les présences</span>
-            <ArrowUpRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        </Link>
-      ) : (
-        <div className="flex flex-col justify-between rounded-surface bg-sunk p-3.5 sm:p-4 border border-dashed border-rule text-text-faint">
-          <span className="text-[10.5px] font-semibold uppercase tracking-wider">Assiduité</span>
-          <p className="text-xs font-medium">Suivi de présence réservé au secrétariat et aux enseignants</p>
-          <span className="text-role-meta">Accès restreint</span>
         </div>
-      )}
+
+        <div className="my-2">
+          <div className="flex items-baseline gap-1.5">
+            <span
+              className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${
+                urgentActionsCount > 0 ? "text-amber-800" : "text-emerald-700"
+              }`}
+            >
+              {urgentActionsCount}
+            </span>
+            <span className="text-role-meta font-medium text-text-soft">
+              {urgentActionsCount > 1 ? "arbitrages requis" : "arbitrage requis"}
+            </span>
+          </div>
+
+          <div className="mt-1 text-xs">
+            {urgentActionsCount > 0 ? (
+              <span className="font-semibold text-amber-700">Intervention conseillée</span>
+            ) : (
+              <span className="font-semibold text-emerald-700">Tous les voyants au vert</span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-2 border-t border-rule text-role-meta text-text-soft group-hover:text-text font-medium">
+          <span>{urgentActionsCount > 0 ? "Examiner les points" : "Voir le journal"}</span>
+          <ArrowUpRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+      </a>
     </div>
   );
 }

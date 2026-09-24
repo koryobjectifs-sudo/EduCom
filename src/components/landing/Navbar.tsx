@@ -26,9 +26,8 @@ import { Menu, X, ChevronDown } from "lucide-react";
  * chantier précédent.
  */
 const PRODUIT_LIENS = [
-  { nom: "Le système", href: "/#systeme", description: "Facturation, notes, présences, admission — en direct." },
-  { nom: "Le produit", href: "/#produit", description: "L'écran réel, pas une maquette." },
-  { nom: "Les rôles", href: "/#roles", description: "Chacun ne voit que ce qui le concerne." },
+  { nom: "EduCom en action", href: "/#parcours", description: "Inscriptions, notes, bulletins, factures, documents." },
+  { nom: "Comment ça marche", href: "/#etapes", description: "Créez votre espace, importez votre liste, le reste suit." },
   { nom: "Le pilotage", href: "/#pilotage", description: "Ce que le directeur voit, sans le demander." },
 ];
 
@@ -113,10 +112,10 @@ export default function Navbar() {
               Se connecter
             </Link>
             <Link
-              href="/register"
+              href="/#demo"
               className="inline-flex h-10 items-center rounded-control bg-m-ink px-5 text-[15px] font-semibold text-white transition-colors hover:bg-m-ink/85"
             >
-              Commencer gratuitement
+              Réserver une démo
             </Link>
           </div>
 
@@ -146,11 +145,11 @@ export default function Navbar() {
               ))}
               <div className="mt-4 flex flex-col gap-2 pb-2">
                 <Link
-                  href="/register"
+                  href="/#demo"
                   onClick={() => setOuvert(false)}
                   className="inline-flex h-12 items-center justify-center rounded-control bg-m-ink px-5 text-base font-semibold text-white"
                 >
-                  Commencer gratuitement
+                  Réserver une démo
                 </Link>
                 <Link
                   href="/login"

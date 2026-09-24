@@ -36,12 +36,12 @@ const ATTENTION = [
 export default function DirectorPilot() {
   return (
     <section id="pilotage" className="scroll-mt-20 bg-m-card">
-      <div className="mx-auto max-w-5xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+      <div className="mx-auto max-w-5xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <div className="max-w-2xl">
           <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-ink-faint">
             Le pilotage
           </p>
-          <h2 className="mt-4 font-display text-[1.625rem] font-semibold leading-[1.2] tracking-[-0.02em] text-m-ink sm:text-[2.125rem]">
+          <h2 className="mt-4 font-display text-[2rem] font-semibold leading-[1.1] tracking-[-0.03em] text-m-ink sm:text-[2.75rem]">
             Vous ne devriez pas avoir à le demander à trois personnes.
           </h2>
           <p className="mt-4 text-[15px] leading-[1.65] text-m-ink-soft">

@@ -160,35 +160,34 @@ export async function getConseilContextWithActor(
     }
   }
 
-  // Présences automatiques depuis le module Attendance
+  // Présences automatiques consolidées depuis le registre d'appel (Attendance)
   const attendanceCountsMap = new Map<string, { excuses: number; absents: number }>();
   let hasAttendanceModuleData = false;
 
-  if (term.startDate && term.endDate) {
-    const agg = await prisma.attendance.groupBy({
-      by: ["studentId", "status"],
-      where: {
-        schoolId: actor.schoolId,
-        classId,
-        studentId: { in: studentIds },
-        date: { gte: term.startDate, lte: term.endDate },
-        status: { in: ["ABSENT", "EXCUSED"] },
-      },
-      _count: { _all: true },
-    });
+  const dateFilter = term.startDate && term.endDate ? { gte: term.startDate, lte: term.endDate } : undefined;
+  const agg = await prisma.attendance.groupBy({
+    by: ["studentId", "status"],
+    where: {
+      schoolId: actor.schoolId,
+      classId,
+      studentId: { in: studentIds },
+      ...(dateFilter ? { date: dateFilter } : {}),
+      status: { in: ["ABSENT", "EXCUSED"] },
+    },
+    _count: { _all: true },
+  });
 
-    if (agg.length > 0) {
-      hasAttendanceModuleData = true;
-      for (const row of agg) {
-        const cur = attendanceCountsMap.get(row.studentId) ?? { excuses: 0, absents: 0 };
-        if (row.status === "EXCUSED") cur.excuses += row._count._all;
-        if (row.status === "ABSENT") cur.absents += row._count._all;
-        attendanceCountsMap.set(row.studentId, cur);
-      }
+  if (agg.length > 0) {
+    hasAttendanceModuleData = true;
+    for (const row of agg) {
+      const cur = attendanceCountsMap.get(row.studentId) ?? { excuses: 0, absents: 0 };
+      if (row.status === "EXCUSED") cur.excuses += row._count._all;
+      if (row.status === "ABSENT") cur.absents += row._count._all;
+      attendanceCountsMap.set(row.studentId, cur);
     }
   }
 
-  // TermReviews existantes
+  // TermReviews existantes (délibérations du conseil)
   const reviews = await prisma.termReview.findMany({
     where: { classId, termId: term.id, studentId: { in: studentIds } },
   });
@@ -202,8 +201,9 @@ export async function getConseilContextWithActor(
     const prop = proposerDistinction(mg);
 
     const att = attendanceCountsMap.get(e.studentId);
-    const absJust = rev?.absencesJustifiees ?? att?.excuses ?? 0;
-    const absNonJust = rev?.absencesNonJustifiees ?? att?.absents ?? 0;
+    // Les absences proviennent strictement du registre d'appel
+    const absJust = att?.excuses ?? rev?.absencesJustifiees ?? 0;
+    const absNonJust = att?.absents ?? rev?.absencesNonJustifiees ?? 0;
 
     return {
       studentId: e.studentId,

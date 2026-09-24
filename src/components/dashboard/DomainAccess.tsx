@@ -52,7 +52,7 @@ export default function DomainAccess({ scope }: { scope: DashboardSnapshot["scop
       label: "Administration",
       description: "Gérer l'équipe, les paramètres et la configuration",
       icon: Settings,
-      href: "/dashboard/admin",
+      href: "/dashboard/settings",
       show: scope.money,
     },
   ].filter((d) => d.show);

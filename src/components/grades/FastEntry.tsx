@@ -4,10 +4,22 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import { ArrowLeft, ArrowRight, BookOpen, Check, CheckCircle2, GraduationCap, Send } from "lucide-react";
 import {
-  ArrowLeft, ArrowRight, Check, CheckCircle2, Loader2, TriangleAlert, ChevronDown,
-  GraduationCap, Send,
-} from "lucide-react";
+  CalculationRule,
+  ContextField,
+  ContextSelect,
+  ContextValue,
+  EntryHead,
+  EntryHeader,
+  EntryHelp,
+  EntryRow,
+  EntryTable,
+  NoteCell,
+  StudentCell,
+  Th,
+  type SaveState,
+} from "@/components/grades/entry/GradeEntryKit";
 import { saveOneGrade } from "@/app/dashboard/grades/saisie/actions";
 import type { EntryContext } from "@/lib/gradeEntry";
 
@@ -38,7 +50,7 @@ import type { EntryContext } from "@/lib/gradeEntry";
  * sur 10, sans que rien ne l'annonce.
  */
 
-type RowState = "idle" | "saving" | "saved" | "error";
+type RowState = SaveState;
 
 export default function FastEntry({ ctx }: { ctx: EntryContext }) {
   const router = useRouter();
@@ -51,7 +63,6 @@ export default function FastEntry({ ctx }: { ctx: EntryContext }) {
   const [states, setStates] = useState<Record<string, RowState>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   /**
@@ -132,188 +143,154 @@ export default function FastEntry({ ctx }: { ctx: EntryContext }) {
     timers.current[studentId] = setTimeout(() => commit(studentId, raw), 700);
   };
 
-  const onBlur = (studentId: string) => {
+  const onBlur = (studentId: string, raw: string) => {
     clearTimeout(timers.current[studentId]);
-    void commit(studentId, drafts[studentId] ?? "");
-  };
-
-  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number, studentId: string) => {
-    if (e.key !== "Enter") return;
-    e.preventDefault();
-    clearTimeout(timers.current[studentId]);
-    void commit(studentId, drafts[studentId] ?? "");
-    const next = e.shiftKey ? index - 1 : index + 1;
-    inputs.current[next]?.focus();
-    inputs.current[next]?.select();
+    void commit(studentId, raw);
   };
 
   const complete = total > 0 && filled === total;
 
+  // Un coefficient unique s'affiche dans l'en-tête, comme sur la saisie secondaire ;
+  // s'il varie d'une ligne à l'autre, il reste visible en colonne.
+  const coefs = new Set(rows.map((r) => r.coefficient));
+  const uniformCoef = coefs.size === 1 ? [...coefs][0] : null;
+
+  const url = (patch: Record<string, string>, dropEval = false) => {
+    const p = new URLSearchParams({
+      class: ctx.klass.id,
+      subject: ctx.subject.id,
+      term: ctx.term.id,
+      eval: ctx.evaluation.id,
+      ...patch,
+    });
+    // Changer de trimestre invalide l'évaluation : elle appartient au
+    // trimestre précédent et n'existe pas dans le nouveau.
+    if (dropEval) p.delete("eval");
+    return `/dashboard/grades/saisie?${p.toString()}`;
+  };
+
+  const subjectLabel = ctx.subject.groupName ? `${ctx.subject.groupName} › ${ctx.subject.name}` : ctx.subject.name;
+
   return (
     <div className="space-y-4 pb-12">
-      {/* ═══ Le contexte, toujours visible ═══ */}
-      <header className="rounded-surface border border-rule bg-surface px-5 py-4 shadow-card">
-        <Link
-          href="/dashboard/grades"
-          className="inline-flex items-center gap-1.5 text-role-meta font-medium text-text-soft transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-        >
-          <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5" />
-          Mes classes
-        </Link>
+      <Link
+        href="/dashboard/grades"
+        className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500 transition-colors hover:text-gray-900"
+      >
+        <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5" /> Mes classes
+      </Link>
 
-        <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div className="min-w-0">
-            <h1 className="text-[26px] font-semibold leading-tight tracking-tight text-text">
-              {ctx.klass.name}
-              <span className="text-text-faint"> · </span>
-              {ctx.subject.groupName && (
-                <span className="text-role-section font-medium text-text-soft">
-                  {ctx.subject.groupName}{" "}
-                  <span className="text-text-faint">›</span>{" "}
-                </span>
-              )}
-              {ctx.subject.name}
-            </h1>
-            <p className="mt-1 text-role-body text-text-soft">
-              {ctx.term.name} <span className="text-text-faint">·</span> {ctx.evaluation.name}
-              {/* ⚠️ La date vient de la configuration pédagogique. Elle s'affiche
-                  ICI parce que c'est l'écran où l'enseignant travaille : si la
-                  direction déplace la composition, il le voit sans chercher.
-                  Aucune date n'est inventée — absente, elle ne s'affiche pas. */}
-              {ctx.evaluation.date && (
-                <span className="text-text-faint">
-                  {" · "}
-                  {new Date(ctx.evaluation.date).toLocaleDateString("fr-FR", {
-                    day: "numeric", month: "long", year: "numeric",
-                  })}
-                </span>
-              )}
-              <span className="text-text-faint"> · {total} élève{total > 1 ? "s" : ""}</span>
-            </p>
-          </div>
-
-          {/* ⚠️ Les sélecteurs existent mais restent DISCRETS : ils servent les cas
-              exceptionnels. Le comportement par défaut est déjà résolu. */}
-          <div className="flex flex-wrap items-center gap-2">
-            {ctx.subjectChoices.length > 1 && (
-              <Picker
-                label="Matière"
-                value={ctx.subject.id}
-                param="subject"
-                options={ctx.subjectChoices.map((s) => ({
-                  id: s.id,
-                  label: s.groupName ? `${s.groupName} › ${s.name}` : s.name,
-                }))}
-                ctx={ctx}
-              />
-            )}
-            {ctx.evaluationChoices.length > 1 && (
-              <Picker label="Évaluation" value={ctx.evaluation.id} param="eval" options={ctx.evaluationChoices.map((e) => ({ id: e.id, label: e.name }))} ctx={ctx} />
-            )}
-            {ctx.termChoices.length > 1 && (
-              <Picker label="Trimestre" value={ctx.term.id} param="term" options={ctx.termChoices.map((t) => ({ id: t.id, label: t.name }))} ctx={ctx} />
-            )}
-          </div>
-        </div>
+      <EntryHeader
+        title={subjectLabel}
+        classLabel={ctx.klass.name}
+        coefficient={uniformCoef}
+        notesCount={filled}
+        meta={
+          <>
+            {ctx.term.name} · {ctx.evaluation.name}
+            {/* ⚠️ La date vient de la configuration pédagogique. Elle s'affiche
+                ICI parce que c'est l'écran où l'enseignant travaille : si la
+                direction déplace la composition, il le voit sans chercher.
+                Aucune date n'est inventée — absente, elle ne s'affiche pas. */}
+            {ctx.evaluation.date &&
+              ` · ${new Date(ctx.evaluation.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`}
+            {` · ${total} élève${total > 1 ? "s" : ""}`}
+          </>
+        }
+        terms={ctx.termChoices.map((t) => ({ id: t.id, name: t.name }))}
+        activeTermId={ctx.term.id}
+        termHref={(termId) => url({ term: termId }, true)}
+      >
+        <ContextField label="Classe">
+          <ContextValue>{ctx.klass.name}</ContextValue>
+        </ContextField>
+        <ContextField label="Matière" icon={<BookOpen aria-hidden="true" className="h-3 w-3" />}>
+          {ctx.subjectChoices.length > 1 ? (
+            <ContextSelect
+              ariaLabel="Matière"
+              value={ctx.subject.id}
+              onChange={(id) => router.push(url({ subject: id }))}
+              options={ctx.subjectChoices.map((s) => ({
+                id: s.id,
+                label: s.groupName ? `${s.groupName} › ${s.name}` : s.name,
+              }))}
+            />
+          ) : (
+            <ContextValue>{subjectLabel}</ContextValue>
+          )}
+        </ContextField>
+        <ContextField label="Évaluation">
+          {ctx.evaluationChoices.length > 1 ? (
+            <ContextSelect
+              ariaLabel="Évaluation"
+              value={ctx.evaluation.id}
+              onChange={(id) => router.push(url({ eval: id }))}
+              options={ctx.evaluationChoices.map((e) => ({ id: e.id, label: e.name }))}
+            />
+          ) : (
+            <ContextValue>{ctx.evaluation.name}</ContextValue>
+          )}
+        </ContextField>
 
         {/* ═══ Progression ═══ */}
-        <div className="mt-4 border-t border-rule pt-3.5">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <p className="text-role-body font-semibold text-text">
-              <span className="tabular-nums">{filled}</span>
-              <span className="text-text-faint"> / {total}</span> note{total > 1 ? "s" : ""} saisie{filled > 1 ? "s" : ""}
-            </p>
-            <p className={`text-role-meta font-medium ${complete ? "text-success" : "text-text-soft"}`}>
-              {complete ? "✓ Évaluation complète" : `${remaining} élève${remaining > 1 ? "s" : ""} reste${remaining > 1 ? "nt" : ""} à noter`}
-            </p>
-          </div>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-pill bg-sunk">
+        <div className="w-full sm:w-56 sm:ml-auto">
+          <p className={`text-[11px] font-medium ${complete ? "text-emerald-700" : "text-gray-500"}`}>
+            {complete
+              ? "✓ Évaluation complète"
+              : `${remaining} élève${remaining > 1 ? "s" : ""} reste${remaining > 1 ? "nt" : ""} à noter`}
+          </p>
+          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-pill bg-gray-100">
             <motion.div
-              className={`h-full rounded-pill ${complete ? "bg-success" : "bg-primary"}`}
+              className={`h-full rounded-pill ${complete ? "bg-emerald-500" : "bg-primary"}`}
               initial={reduce ? false : { width: 0 }}
               animate={{ width: `${pct}%` }}
               transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             />
           </div>
         </div>
-      </header>
+      </EntryHeader>
 
-      {/* ═══ La liste ═══ */}
-      <div className="overflow-hidden rounded-surface border border-rule bg-surface shadow-card">
-        <table className="w-full">
-          <caption className="sr-only">
-            Notes de {ctx.subject.name} — {ctx.klass.name}, {ctx.evaluation.name}
-          </caption>
-          <thead>
-            <tr className="border-b border-rule bg-ground/70 text-left">
-              <th scope="col" className="px-3 sm:px-5 py-2.5 text-role-meta font-semibold uppercase tracking-wider text-text-faint">
-                Élève
-              </th>
-              <th scope="col" className="w-[120px] sm:w-[168px] px-2 sm:px-3 py-2.5 text-role-meta font-semibold uppercase tracking-wider text-text-faint">
-                Note <span className="normal-case text-text-faint">/ {ctx.defaultMax}</span>
-              </th>
-              <th scope="col" className="hidden sm:table-cell w-[92px] px-3 py-2.5 text-role-meta font-semibold uppercase tracking-wider text-text-faint">
-                Coef.
-              </th>
-              <th scope="col" className="w-[40px] sm:w-[132px] px-2 sm:px-5 py-2.5 text-right sm:text-left text-role-meta font-semibold uppercase tracking-wider text-text-faint">
-                <span className="sr-only">État</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-rule">
-            {rows.map((r, i) => {
-              const state = states[r.studentId] ?? "idle";
-              const err = errors[r.studentId];
-              const value = drafts[r.studentId] ?? "";
-              return (
-                <tr key={r.studentId} className="transition-colors duration-150 hover:bg-sunk/40">
-                  <th scope="row" className="px-3 sm:px-5 py-2 text-left font-normal truncate max-w-[120px] sm:max-w-none">
-                    <span className="text-role-body font-medium text-text">
-                      {r.lastName} <span className="hidden sm:inline">{r.firstName}</span><span className="sm:hidden">{r.firstName.charAt(0)}.</span>
-                    </span>
-                  </th>
+      <EntryTable caption={`Notes de ${ctx.subject.name} — ${ctx.klass.name}, ${ctx.evaluation.name}`}>
+        <EntryHead>
+          <tr>
+            <Th kind="student">Élève</Th>
+            <Th kind="note" sub={`/ ${ctx.defaultMax}`}>
+              {ctx.evaluation.name}
+            </Th>
+            {uniformCoef === null && <Th kind="note">Coef.</Th>}
+          </tr>
+        </EntryHead>
+        <tbody>
+          {rows.map((r, i) => (
+            <EntryRow key={r.studentId}>
+              <StudentCell lastName={r.lastName} firstName={r.firstName} />
+              <NoteCell
+                row={i}
+                col="note"
+                ariaLabel={`Note de ${r.firstName} ${r.lastName}, sur ${r.max}`}
+                value={drafts[r.studentId] ?? ""}
+                state={states[r.studentId] ?? "idle"}
+                error={errors[r.studentId]}
+                onChange={(raw) => onChange(r.studentId, raw)}
+                onBlur={(raw) => onBlur(r.studentId, raw)}
+              />
+              {uniformCoef === null && (
+                <td className="border-l border-b border-gray-100 px-2 py-2 text-center text-sm tabular-nums text-gray-600">
+                  {r.coefficient}
+                </td>
+              )}
+            </EntryRow>
+          ))}
+        </tbody>
+      </EntryTable>
 
-                  <td className="px-2 sm:px-3 py-2">
-                    <div className="flex items-center gap-1 sm:gap-1.5">
-                      <input
-                        ref={(el) => { inputs.current[i] = el; }}
-                        type="text"
-                        inputMode="decimal"
-                        aria-label={`Note de ${r.firstName} ${r.lastName}, sur ${r.max}`}
-                        aria-invalid={state === "error"}
-                        value={value}
-                        onChange={(e) => onChange(r.studentId, e.target.value)}
-                        onBlur={() => onBlur(r.studentId)}
-                        onKeyDown={(e) => onKeyDown(e, i, r.studentId)}
-                        onFocus={(e) => e.currentTarget.select()}
-                        className={`h-11 w-[64px] sm:w-[76px] rounded-control border bg-surface px-2 sm:px-2.5 py-2 text-base font-semibold tabular-nums text-text transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/40 ${
-                          state === "error" ? "border-danger bg-danger/5" : "border-rule focus:border-primary/40"
-                        }`}
-                      />
-                      <span className="text-[11px] sm:text-[13px] tabular-nums text-text-faint">/ {r.max}</span>
-                    </div>
-                    {err && <p className="mt-1 text-[11px] sm:text-role-meta font-medium text-danger">{err}</p>}
-                  </td>
+      <EntryHelp />
 
-                  <td className="hidden sm:table-cell px-3 py-2 text-role-body tabular-nums text-text-soft">{r.coefficient}</td>
-
-                  <td className="px-2 sm:px-5 py-2 text-right sm:text-left">
-                    <StatusCell state={state} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <p className="text-role-meta text-text-faint">
-        <kbd className="rounded border border-rule bg-sunk px-1.5 py-0.5 font-sans">Entrée</kbd> passe à
-        l&apos;élève suivant · <kbd className="rounded border border-rule bg-sunk px-1.5 py-0.5 font-sans">Maj</kbd>
-        {" + "}
-        <kbd className="rounded border border-rule bg-sunk px-1.5 py-0.5 font-sans">Entrée</kbd> revient en arrière ·
-        chaque note est enregistrée automatiquement.
-      </p>
+      <CalculationRule>
+        Évaluation notée sur {ctx.defaultMax}
+        {uniformCoef != null ? ` (coefficient ${uniformCoef})` : ""}.
+        Les notes sont enregistrées automatiquement à la sortie du champ et prises en compte dans le calcul du bulletin du {ctx.term.name}.
+      </CalculationRule>
 
       <NextStep ctx={ctx} filled={filled} total={total} />
     </div>
@@ -430,78 +407,5 @@ function NextStep({ ctx, filled, total }: { ctx: EntryContext; filled: number; t
         </ul>
       )}
     </section>
-  );
-}
-
-/** L'état d'une ligne. Le mot double toujours l'icône. */
-function StatusCell({ state }: { state: RowState }) {
-  if (state === "saving") {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-role-meta text-text-faint" title="Enregistrement">
-        <Loader2 aria-hidden="true" className="h-4 w-4 sm:h-3.5 sm:w-3.5 animate-spin" />
-        <span className="hidden sm:inline">Enregistrement</span>
-      </span>
-    );
-  }
-  if (state === "saved") {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-role-meta font-medium text-success" title="Enregistré">
-        <Check aria-hidden="true" className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-        <span className="hidden sm:inline">Enregistré</span>
-      </span>
-    );
-  }
-  if (state === "error") {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-role-meta font-medium text-danger" title="Erreur">
-        <TriangleAlert aria-hidden="true" className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-        <span className="hidden sm:inline">Erreur</span>
-      </span>
-    );
-  }
-  return null;
-}
-
-/**
- * Sélecteur d'exception — matière, évaluation ou trimestre.
- *
- * Il navigue par URL : l'état de saisie appartient au serveur, et une vue
- * choisie s'envoie par lien. C'est la même règle que le centre documentaire.
- */
-function Picker({
-  label, value, param, options, ctx,
-}: {
-  label: string; value: string; param: string;
-  options: { id: string; label: string }[];
-  ctx: EntryContext;
-}) {
-  const router = useRouter();
-
-  return (
-    <label className="group relative inline-flex items-center">
-      <span className="sr-only">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => {
-          const p = new URLSearchParams({
-            class: ctx.klass.id,
-            subject: ctx.subject.id,
-            term: ctx.term.id,
-            eval: ctx.evaluation.id,
-          });
-          p.set(param, e.target.value);
-          // Changer de trimestre invalide l'évaluation : elle appartient au
-          // trimestre précédent et n'existe pas dans le nouveau.
-          if (param === "term") p.delete("eval");
-          router.push(`/dashboard/grades/saisie?${p.toString()}`);
-        }}
-        className="appearance-none rounded-control border border-rule bg-surface py-1.5 pl-2.5 pr-7 text-role-meta font-medium text-text-soft transition-colors duration-200 hover:border-primary/30 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
-      >
-        {options.map((o) => (
-          <option key={o.id} value={o.id}>{o.label}</option>
-        ))}
-      </select>
-      <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-2 h-3.5 w-3.5 text-text-faint" />
-    </label>
   );
 }

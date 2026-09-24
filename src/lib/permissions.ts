@@ -127,7 +127,8 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
     // notifier une absence, alors que l'écran a été construit pour lui.
     "/dashboard/attendance",
     "/dashboard/documents",
-    "/dashboard/grades/validation",
+    // Accès Pédagogie pour le secrétariat : consultation des notes, validation et impression des bulletins
+    "/dashboard/grades",
     "/dashboard/team",
 
     /**

@@ -16,6 +16,15 @@ import { resolveSchoolContext, ActiveMembershipInfo } from "@/lib/schoolContext"
  * - Bloque toute action si l'adresse e-mail de l'utilisateur n'est pas confirmée.
  */
 
+/**
+ * Seuls chemins d'ACTION ouverts au rôle `PARENT` : son espace famille
+ * (`/famille/…`) et la demande de document (`/dashboard/documents`, chemin
+ * EXACT — `submitDocumentRequest`). Voir la garde plus bas.
+ */
+export function isParentActionPath(path: string): boolean {
+  return path === "/famille" || path.startsWith("/famille/") || path === "/dashboard/documents";
+}
+
 export type ActionContext = {
   userId: string;
   schoolId: string;
@@ -58,6 +67,22 @@ export const requireActionContext = cache(async function requireActionContext(
   const role = context.role;
 
   if (requiredPath && !hasAccess(role, requiredPath)) {
+    return { ok: false, error: "Vous n'avez pas les droits nécessaires pour cette action." };
+  }
+
+  // ═══ 23 septembre 2026 — un droit de LECTURE n'est pas un droit d'ÉCRITURE ═══
+  //
+  // ⚠️ Faille mesurée : `PARENT` liste `/dashboard/settings$` et
+  // `/dashboard/students$` pour pouvoir OUVRIR ces pages (vue « Mon compte »,
+  // fiche de ses enfants). Or les server actions de ces écrans se gardent avec
+  // le même chemin — un parent passait donc `updateSchoolSettings` (nom, logo,
+  // CACHET et SIGNATURE de l'école), `deleteStudents`, `createStudent`,
+  // l'import d'élèves, `setStudentPhoto`, la connexion WhatsApp…
+  //
+  // Un parent n'écrit que dans son espace. Liste blanche fermée : tout autre
+  // chemin d'action est refusé, quel que soit ce que `hasAccess` accorde en
+  // lecture. Ajouter ici un chemin = décision explicite, jamais par défaut.
+  if (role === "PARENT" && requiredPath && !isParentActionPath(requiredPath)) {
     return { ok: false, error: "Vous n'avez pas les droits nécessaires pour cette action." };
   }
 

@@ -257,8 +257,10 @@ export default function ConseilClient({ ctx }: { ctx: Ctx }) {
                 <th className="py-2.5 px-2.5 text-center min-w-[70px]">Moyenne</th>
                 <th className="py-2.5 px-3 min-w-[200px]">Distinction</th>
                 <th className="py-2.5 px-3 min-w-[150px]">Sanction Travail</th>
-                <th className="py-2.5 px-3 min-w-[150px]">Sanction Conduite</th>
-                <th className="py-2.5 px-3 min-w-[120px]">Absences (J / NJ)</th>
+                <th className="py-2.5 px-3 min-w-[130px] text-center">
+                  Absences (J / NJ)
+                  <span className="block text-[9px] font-normal text-text-soft">🔒 Registre d&apos;appel</span>
+                </th>
                 {ctx.isT3 && (
                   <th className="py-2.5 px-3 min-w-[160px] bg-emerald-50/50 text-emerald-900 border-x border-emerald-200/60">
                     Orientation T3
@@ -415,58 +417,22 @@ export default function ConseilClient({ ctx }: { ctx: Ctx }) {
                       </select>
                     </td>
 
-                    {/* Absences (Justifiées / Non Justifiées) */}
-                    <td className="py-2.5 px-3">
-                      <div className="flex items-center gap-1.5">
-                        <div className="flex flex-col items-center">
-                          <input
-                            type="number"
-                            min="0"
-                            value={el.absencesJustifiees}
-                            onChange={(e) =>
-                              setEleves((prev) =>
-                                prev.map((item) =>
-                                  item.studentId === el.studentId
-                                    ? { ...item, absencesJustifiees: Number(e.target.value) }
-                                    : item,
-                                ),
-                              )
-                            }
-                            onBlur={(e) =>
-                              saveStudent(el.studentId, {
-                                absencesJustifiees: Number(e.target.value),
-                              })
-                            }
-                            title="Absences justifiées"
-                            className="h-7 w-12 rounded border border-rule bg-surface px-1 text-center text-xs text-text focus:border-primary focus:outline-none"
-                          />
-                          <span className="text-[9px] text-emerald-700 font-medium">Just.</span>
-                        </div>
-                        <span className="text-text-soft font-bold">/</span>
-                        <div className="flex flex-col items-center">
-                          <input
-                            type="number"
-                            min="0"
-                            value={el.absencesNonJustifiees}
-                            onChange={(e) =>
-                              setEleves((prev) =>
-                                prev.map((item) =>
-                                  item.studentId === el.studentId
-                                    ? { ...item, absencesNonJustifiees: Number(e.target.value) }
-                                    : item,
-                                ),
-                              )
-                            }
-                            onBlur={(e) =>
-                              saveStudent(el.studentId, {
-                                absencesNonJustifiees: Number(e.target.value),
-                              })
-                            }
-                            title="Absences non justifiées"
-                            className="h-7 w-12 rounded border border-rule bg-surface px-1 text-center text-xs text-text focus:border-primary focus:outline-none"
-                          />
-                          <span className="text-[9px] text-rose-700 font-medium">Non J.</span>
-                        </div>
+                    {/* Absences (Automatiques depuis l'appel — Non modifiables) */}
+                    <td className="py-2.5 px-3 text-center">
+                      <div
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-rule/70 bg-surface-subtle/60 px-2.5 py-1 text-xs"
+                        title="Absences issues automatiquement des listes d'appel de l'enseignant — Non modifiable manuellement en conseil"
+                      >
+                        <span className="font-semibold text-emerald-700" title="Absences justifiées">
+                          {el.absencesJustifiees} <span className="text-[10px] font-normal text-emerald-600">J.</span>
+                        </span>
+                        <span className="text-text-soft font-bold text-[10px]">/</span>
+                        <span
+                          className={`font-semibold ${el.absencesNonJustifiees > 0 ? "text-rose-700" : "text-text-soft"}`}
+                          title="Absences non justifiées"
+                        >
+                          {el.absencesNonJustifiees} <span className={`text-[10px] font-normal ${el.absencesNonJustifiees > 0 ? "text-rose-600" : "text-text-soft"}`}>NJ.</span>
+                        </span>
                       </div>
                     </td>
 

@@ -33,6 +33,36 @@ import { resoudreCoefficient } from "@/lib/notes/coefficients";
  */
 const CADRE_ACADEMIQUE = "/dashboard/settings/pedagogie";
 
+/**
+ * ═══ GARDE COMMUNE DES ACTIONS « CLASSE » — 23 septembre 2026 ═══
+ *
+ * ⚠️ Faille mesurée à l'audit : les lectures (`getClassRoster`,
+ * `getReportCardData`, `getReportCardStates`…) ne vérifiaient QUE
+ * l'authentification et ne filtraient pas par école. Un compte de l'école A —
+ * parent compris — lisait les élèves et les notes d'une classe de l'école B à
+ * partir de son identifiant. Les transitions de bulletin (valider, rouvrir,
+ * déposer) n'avaient ni garde de rôle ni filtre d'école.
+ *
+ * Toute action qui reçoit un `classId` passe désormais par ici :
+ * rôle (`/dashboard/grades` : direction + enseignant), classe de l'école
+ * ACTIVE, et périmètre de l'enseignant.
+ */
+async function requireClassGradesAccess(classId: string) {
+  const auth = await requireActionContext("/dashboard/grades");
+  if (!auth.ok) return { ok: false as const, error: auth.error };
+  if (!classId) return { ok: false as const, error: "Classe introuvable" };
+  const klass = await prisma.class.findFirst({
+    where: { id: classId, schoolId: auth.ctx.schoolId },
+    select: { id: true },
+  });
+  if (!klass) return { ok: false as const, error: "Classe introuvable" };
+  if (auth.ctx.role === "TEACHER") {
+    const allowed = await teacherClassIds(auth.ctx);
+    if (!allowed.includes(classId)) return { ok: false as const, error: "Non autorisé pour cette classe." };
+  }
+  return { ok: true as const, ctx: auth.ctx };
+}
+
 export async function getTerms() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -233,14 +263,9 @@ export async function getClassCompletionSummary(
   termId: string,
   evaluationId: string
 ) {
-  const auth = await requireActionContext();
+  const auth = await requireClassGradesAccess(classId);
   if (!auth.ok) return { error: auth.error };
-  const { schoolId, role } = auth.ctx;
-
-  if (role === "TEACHER") {
-    const allowed = await teacherClassIds(auth.ctx);
-    if (!allowed.includes(classId)) return { error: "Non autorisé pour cette classe." };
-  }
+  const { schoolId } = auth.ctx;
 
   const [klass, term, evaluation, enrollments, cards, grades, subjectCount] = await Promise.all([
     prisma.class.findFirst({ where: { id: classId, schoolId } }),
@@ -470,12 +495,11 @@ export async function getReturnedForTeacher() {
 
 /** États des bulletins d'une classe pour une évaluation : studentId -> statut. */
 export async function getReportCardStates(classId: string, evaluationId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
+  const auth = await requireClassGradesAccess(classId);
+  if (!auth.ok) return { error: auth.error };
 
   const cards = await prisma.reportCard.findMany({
-    where: { classId, evaluationId },
+    where: { classId, evaluationId, schoolId: auth.ctx.schoolId },
     select: { studentId: true, status: true, returnedReason: true },
   });
 
@@ -502,14 +526,23 @@ export async function validateStudentReportCard(
   termId: string,
   evaluationId: string
 ) {
-  const auth = await requireActionContext();
+  const auth = await requireClassGradesAccess(classId);
   if (!auth.ok) return { error: auth.error };
-  const { schoolId, role, userId } = auth.ctx;
+  const { schoolId, userId } = auth.ctx;
 
-  if (role === "TEACHER") {
-    const allowed = await teacherClassIds(auth.ctx);
-    if (!allowed.includes(classId)) return { error: "Non autorisé pour cette classe." };
-  }
+  // L'élève doit être inscrit dans CETTE classe : sinon un identifiant étranger
+  // créerait un bulletin validé pour un élève d'une autre école.
+  const enrolled = await prisma.enrollment.findFirst({
+    where: { studentId, classId, student: { schoolId } },
+    select: { id: true },
+  });
+  if (!enrolled) return { error: "Élève introuvable dans cette classe." };
+
+  const existing = await prisma.reportCard.findUnique({
+    where: { studentId_evaluationId: { studentId, evaluationId } },
+    select: { schoolId: true },
+  });
+  if (existing && existing.schoolId !== schoolId) return { error: "Bulletin introuvable." };
 
   try {
     await prisma.reportCard.upsert({
@@ -537,18 +570,13 @@ export async function validateStudentReportCard(
  * Valide en bloc tous les bulletins d'une classe qui sont encore en brouillon.
  */
 export async function validateClassReportCards(classId: string, termId: string, evaluationId: string) {
-  const auth = await requireActionContext();
+  const auth = await requireClassGradesAccess(classId);
   if (!auth.ok) return { error: auth.error };
-  const { role, userId } = auth.ctx;
-
-  if (role === "TEACHER") {
-    const allowed = await teacherClassIds(auth.ctx);
-    if (!allowed.includes(classId)) return { error: "Non autorisé pour cette classe." };
-  }
+  const { userId, schoolId } = auth.ctx;
 
   try {
     const res = await prisma.reportCard.updateMany({
-      where: { classId, termId, evaluationId, status: "DRAFT" },
+      where: { classId, termId, evaluationId, schoolId, status: "DRAFT" },
       data: { status: "VALIDATED", validatedAt: new Date(), validatedById: userId },
     });
     return { success: true, count: res.count };
@@ -559,22 +587,16 @@ export async function validateClassReportCards(classId: string, termId: string, 
 
 /** Rouvre un bulletin verrouillé pour correction. */
 export async function reopenStudentReportCard(studentId: string, evaluationId: string) {
-  const auth = await requireActionContext();
-  if (!auth.ok) return { error: auth.error };
+  const report = await prisma.reportCard.findUnique({
+    where: { studentId_evaluationId: { studentId, evaluationId } },
+    select: { classId: true },
+  });
+  if (!report) return { error: "Bulletin introuvable." };
 
-  // Verification if TEACHER is not explicitly strictly required here because
-  // studentScope can't easily be checked without knowing the classId,
-  // but let's fetch it first.
-  if (auth.ctx.role === "TEACHER") {
-    const report = await prisma.reportCard.findUnique({
-      where: { studentId_evaluationId: { studentId, evaluationId } },
-      select: { classId: true }
-    });
-    if (report) {
-      const allowed = await teacherClassIds(auth.ctx);
-      if (!allowed.includes(report.classId)) return { error: "Non autorisé." };
-    }
-  }
+  // Même garde que les autres transitions : rôle, école active, périmètre
+  // enseignant — sur la classe du bulletin, lue en base et non reçue du client.
+  const auth = await requireClassGradesAccess(report.classId);
+  if (!auth.ok) return { error: auth.error };
 
   try {
     await prisma.reportCard.update({
@@ -598,14 +620,9 @@ export async function submitClassToSecretariat(
   termId: string,
   evaluationId: string
 ) {
-  const auth = await requireActionContext();
+  const auth = await requireClassGradesAccess(classId);
   if (!auth.ok) return { error: auth.error };
-  const { role, userId } = auth.ctx;
-
-  if (role === "TEACHER") {
-    const allowed = await teacherClassIds(auth.ctx);
-    if (!allowed.includes(classId)) return { error: "Non autorisé pour cette classe." };
-  }
+  const { userId, schoolId } = auth.ctx;
 
   const enrollments = await prisma.enrollment.findMany({
     where: { classId },
@@ -614,7 +631,7 @@ export async function submitClassToSecretariat(
   const studentIds = enrollments.map((e) => e.studentId);
 
   const validated = await prisma.reportCard.count({
-    where: { classId, termId, evaluationId, status: { in: ["VALIDATED", "SUBMITTED", "APPROVED"] } },
+    where: { classId, termId, evaluationId, schoolId, status: { in: ["VALIDATED", "SUBMITTED", "APPROVED"] } },
   });
 
   if (validated < studentIds.length) {
@@ -625,7 +642,7 @@ export async function submitClassToSecretariat(
 
   try {
     await prisma.reportCard.updateMany({
-      where: { classId, evaluationId, status: "VALIDATED" },
+      where: { classId, evaluationId, schoolId, status: "VALIDATED" },
       data: { status: "SUBMITTED", submittedAt: new Date(), submittedById: userId },
     });
     return { success: true, count: studentIds.length };
@@ -643,18 +660,13 @@ export async function submitStudentToSecretariat(
   termId: string,
   evaluationId: string
 ) {
-  const auth = await requireActionContext();
+  const auth = await requireClassGradesAccess(classId);
   if (!auth.ok) return { error: auth.error };
-  const { role, userId } = auth.ctx;
-
-  if (role === "TEACHER") {
-    const allowed = await teacherClassIds(auth.ctx);
-    if (!allowed.includes(classId)) return { error: "Non autorisé pour cette classe." };
-  }
+  const { userId, schoolId } = auth.ctx;
 
   try {
     const report = await prisma.reportCard.findFirst({
-      where: { studentId, classId, termId, evaluationId }
+      where: { studentId, classId, termId, evaluationId, schoolId }
     });
 
     if (!report) return { error: "Bulletin introuvable." };
@@ -678,9 +690,8 @@ export async function submitStudentToSecretariat(
  * l'enseignant choisit sa classe, sans attendre trimestre ni évaluation.
  */
 export async function getClassRoster(classId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
+  const auth = await requireClassGradesAccess(classId);
+  if (!auth.ok) return { error: auth.error };
 
   const enrollments = await prisma.enrollment.findMany({
     where: { classId },
@@ -706,6 +717,10 @@ export async function getClassSubjects(classId: string) {
 
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
   if (!dbUser) return { error: "Utilisateur introuvable" };
+
+  // Cloisonnement : la classe doit appartenir à l'école de l'appelant.
+  const owned = await prisma.class.findFirst({ where: { id: classId, schoolId: dbUser.schoolId }, select: { id: true } });
+  if (!owned) return { error: "Classe introuvable" };
 
   const rows = await prisma.classSubject.findMany({
     where: { classId },
@@ -970,38 +985,70 @@ export async function saveGrades(gradesData: any[]) {
     return { success: true };
   }
 
-  // ── SÉCURITÉ SERVEUR : Vérification stricte du périmètre d'affectation ──
-  // Le refus vient du SERVEUR, pas d'un simple champ masqué côté client.
+  // ── SÉCURITÉ SERVEUR — revue du 23 septembre 2026 ──
+  //
+  // ⚠️ Avant : la direction sautait TOUTE vérification (aucun contrôle d'école),
+  // une note existante était mise à jour par son seul `id`, et une ligne sans
+  // `subjectId` échappait au contrôle de périmètre. Un compte d'une école
+  // pouvait donc réécrire une note d'une autre école à partir de son
+  // identifiant. Le refus vient du SERVEUR, pour tous les rôles.
   const isStaff = ["OWNER", "ADMIN", "SECRETARY"].includes(dbUser.role);
+  if (!isStaff && dbUser.role !== "TEACHER") {
+    return { error: "Non autorisé : saisie réservée aux enseignants et à la direction." };
+  }
 
-  if (!isStaff) {
-    // Vérifier pour chaque classe et chaque matière concernée
-    const classIds = Array.from(new Set(gradesData.map((g) => g.classId).filter(Boolean)));
+  const classIds = Array.from(new Set(gradesData.map((g) => g.classId)));
+  if (classIds.some((cid) => !cid)) return { error: "Classe manquante sur une note." };
 
-    for (const cid of classIds) {
-      // 1. Vérifier que la classe appartient bien à l'école de l'utilisateur
-      const klass = await prisma.class.findFirst({
-        where: { id: cid, schoolId: dbUser.schoolId },
-        select: { id: true, subjects: { select: { subjectId: true } } },
-      });
-      if (!klass) {
-        return { error: "Non autorisé : classe introuvable ou hors établissement." };
-      }
+  for (const cid of classIds) {
+    const klass = await prisma.class.findFirst({
+      where: { id: cid, schoolId: dbUser.schoolId },
+      select: { id: true, subjects: { select: { subjectId: true } } },
+    });
+    if (!klass) {
+      return { error: "Non autorisé : classe introuvable ou hors établissement." };
+    }
 
+    if (!isStaff) {
       const classSubjectIds = klass.subjects.map((s) => s.subjectId);
       const allowed = await editableSubjectIds(dbUser, cid, classSubjectIds);
-
       if (allowed !== "ALL") {
         for (const g of gradesData) {
-          if (g.classId === cid && g.subjectId) {
-            if (!allowed.has(g.subjectId)) {
-              return {
-                error: "Non autorisé (refus serveur) : Vous n'êtes pas affecté à cette matière dans cette classe.",
-              };
-            }
+          if (g.classId === cid && (!g.subjectId || !allowed.has(g.subjectId))) {
+            return {
+              error: "Non autorisé (refus serveur) : Vous n'êtes pas affecté à cette matière dans cette classe.",
+            };
           }
         }
       }
+    }
+  }
+
+  // Une note mise à jour doit appartenir à la classe annoncée (donc à l'école).
+  const existingIds = gradesData.filter((g) => g.id).map((g) => String(g.id));
+  if (existingIds.length > 0) {
+    const owned = await prisma.grade.findMany({
+      where: { id: { in: existingIds }, classId: { in: classIds } },
+      select: { id: true, classId: true },
+    });
+    const ownedClass = new Map(owned.map((o) => [o.id, o.classId]));
+    for (const g of gradesData) {
+      if (g.id && ownedClass.get(String(g.id)) !== g.classId) {
+        return { error: "Non autorisé : note introuvable dans cette classe." };
+      }
+    }
+  }
+
+  // Une note créée doit viser un élève inscrit dans la classe annoncée.
+  const newRows = gradesData.filter((g) => !g.id);
+  if (newRows.length > 0) {
+    const enrolled = await prisma.enrollment.findMany({
+      where: { classId: { in: classIds }, studentId: { in: newRows.map((g) => String(g.studentId)) } },
+      select: { studentId: true, classId: true },
+    });
+    const ok = new Set(enrolled.map((e) => `${e.studentId}::${e.classId}`));
+    if (newRows.some((g) => !ok.has(`${g.studentId}::${g.classId}`))) {
+      return { error: "Non autorisé : élève introuvable dans cette classe." };
     }
   }
 
@@ -1047,9 +1094,8 @@ export async function saveGrades(gradesData: any[]) {
 }
 
 export async function getGradesForClass(classId: string, subjectId: string, termId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
+  const auth = await requireClassGradesAccess(classId);
+  if (!auth.ok) return { error: auth.error };
 
   const grades = await prisma.grade.findMany({
     where: { classId, subjectId, termId }
@@ -1059,9 +1105,8 @@ export async function getGradesForClass(classId: string, subjectId: string, term
 }
 
 export async function getReportCardData(classId: string, termId: string, evaluationId?: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
+  const auth = await requireClassGradesAccess(classId);
+  if (!auth.ok) return { error: auth.error };
 
   // Fetch all enrolled students
   const enrollments = await prisma.enrollment.findMany({
@@ -1092,9 +1137,8 @@ export async function getReportCardData(classId: string, termId: string, evaluat
 }
 
 export async function getGradesInputData(classId: string, subjectId: string, termId: string, evaluationId?: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Non autorisé" };
+  const auth = await requireClassGradesAccess(classId);
+  if (!auth.ok) return { error: auth.error };
 
   const enrollments = await prisma.enrollment.findMany({
     where: { classId },

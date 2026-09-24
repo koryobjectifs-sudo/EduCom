@@ -1,5 +1,120 @@
 # EduCom SaaS - Contexte du Projet
 
+> Dernière mise à jour : 24 septembre 2026 — **Refonte de l'Accueil Dashboard (Cockpit Épuré Bento & Élimination du Bruit Visuel)**
+
+> **Refonte de l'Accueil Dashboard (Cockpit Épuré Bento) — 24 septembre 2026.**
+> - **Diagnostic du bruit visuel résolu** : L'accueil direction (`/dashboard`) empilait plus de 10 blocs verticaux (+5 000 px de scroll) et rejouait l'intégralité des sous-pages (Finances, Présences, Effectifs 585 lignes, Pédagogie, Activité).
+> - **Architecture Bento 2 colonnes** :
+>   - **En-tête épuré (`DirectorHeader.tsx`)** : Fin du fond sombre et des halos ; design clair, sobre et net avec badge d'école/année/trimestre et 2 CTAs rapides (« Inscrire un élève », « Facturation »).
+>   - **4 KPIs essentiels (`DirectorKpiStrip.tsx`)** : Scannables en 3 secondes (Effectif actif avec variation 30j, Présence aujourd'hui avec statut d'appel, Taux de recouvrement avec montant perçu, Points à traiter avec alerte dynamique).
+>   - **Colonne Gauche (60% - Priorités & Direct)** :
+>     - `ActionRequiredSection.tsx` : Cartes compactes d'arbitrage (bulletins, impayés, pointages) ou état zen valorisant si 0 blocage.
+>     - `TodayPulseSection.tsx` (nouveau) : Synthèse opérationnelle de la journée regroupant les Présences du jour (jauge + raccourci 3 classes en retard d'appel) et les Encaissements du jour (caisse directe + montants à échoir).
+>   - **Colonne Droite (40% - Synthèse & Accès Rapides)** :
+>     - `AcademicProgressSection.tsx` : Jauges de saisie des notes du trimestre, bulletins à valider et moyennes.
+>     - `RecentActivityFeed.tsx` : Mini-flux des actes récents en temps réel.
+>     - Encart « Accès Rapides & Pilotage » : Raccourcis vers Classes & Effectifs, Grille tarifaire, Pièces justificatives et Bascule de rentrée.
+> - **Validation technique** : `npx tsc --noEmit` : 0 erreur ; Intégrité des 61 routes : 100% PASS.
+> - **Suppression du goulot « Vue d'ensemble » (`/dashboard/admin`)** :
+>   - Remplacement de la grille 6 cartes intermédiaire par une redirection directe (`307`) vers `/dashboard/settings`.
+>   - Le clic sur « Administration » dans le rail principal atterrit directement sur `/dashboard/settings` (`defaultHref: "/dashboard/settings"`).
+>   - Carte « Administration » du tableau de bord (`DomainAccess.tsx`) pointant désormais directement vers `/dashboard/settings`.
+> - **Restructuration de la 2e Sidebar (Navigation contextuelle directe)** :
+>   - **Configuration** :
+>     - 🏫 `Établissement & Identité` (`/dashboard/settings`) : Informations officielles, charte des cadres et logo/cachet/signature.
+>     - 💳 `Grille tarifaire & Frais` (`/dashboard/settings/fees`) : Écolages, frais d'inscription et remises (auparavant absent de la sidebar !).
+>     - 📄 `Pièces exigées (Dossier)` (`/dashboard/settings/documents`) : Pièces justificatives requises par cycle.
+>     - 👥 `Équipe & Accès` (`/dashboard/team`) : Collaborateurs, rôles et invitations.
+>   - **Pilotage & Avancé** :
+>     - 📊 `Rapports d'activité` (`/dashboard/admin/reports`) : Statistiques globales et audits.
+>     - ⚙️ `Autres paramètres & Bascule` (`/dashboard/settings/reinscription`) : Assistant annuel de réinscription et promotion en masse.
+> - **Harmonisation de la Page Paramètres (`/dashboard/settings`)** :
+>   - Intégration du composant standardisé `PageHeader` avec titre, fil d'Ariane et bouton d'action « Enregistrer » relié au formulaire `settings-form`.
+>   - Suppression des boutons redondants et confirmation de bascule de session en toute sécurité.
+> - **Validation & Tests** :
+>   - `npx tsc --noEmit` : 0 erreur.
+>   - `scripts/verify-navigation-integrity.ts` : 61/61 routes rattachées et couvertes (100% PASS).
+>   - `scripts/verify-routes-coverage.ts` : 100% PASS sur l'ensemble des 6 rôles.
+
+> - **Blason Officiel EduCom en Favicon** :
+>   - Identification et extraction du blason officiel historique depuis `public/brand/educom-logo-officiel.jpg` (écu, toque académique et livre ouvert) vers `public/brand/educom-crest-real.png`.
+>   - Génération multi-résolution des favicons et icônes d'application (`favicon.ico` 16/32/48px, `icon.png` 192/512px, `apple-icon.png` 180px) et injection de cache-busting `?v=educom-3` dans `src/app/layout.tsx`.
+> - **Règle Cardinal de Saisie des Notes (TEACHER uniquement)** :
+>   - **Interdiction formelle d'édition pour la Direction** : Ni l'administrateur (`ADMIN`), ni le propriétaire (`OWNER`), ni le secrétariat (`SECRETARY`) ne peuvent éditer ou altérer une note d'un élève.
+>   - Côté serveur : `assertCanEditSecondaireSubject` et `assertCanEditElementaireClass` imposent strictement `actor.role === "TEACHER"`. Toute tentative de mutation par un rôle administratif est rejetée.
+>   - Côté client : `SecondaireTable.tsx` et `ElementaireGrid.tsx` passent en **Mode consultation active (lecture seule)** pour les profils non-enseignants (`canEdit = false`), avec bandeau d'alerte doré et cellules d'input désactivées. Le bouton des cartes devient « Consulter ».
+>   - Bouton **« Soumettre la saisie »** : Ajouté pour l'enseignant afin de valider et transmettre sa grille au secrétariat avec contrôle des compositions manquantes.
+> - **Absences Automatiques dans le Conseil de Classe (`/dashboard/grades/conseil`)** :
+>   - Suppression définitive des champs éditables de décompte d'absences dans la table de délibération.
+>   - Les absences (justifiées et non-justifiées) sont désormais calculées **exclusivement et automatiquement** depuis les registres d'appel réels de l'enseignant (`Attendance`).
+> - **Accès Pédagogie pour le Secrétariat (`SECRETARY`)** :
+>   - Ajout de `"/dashboard/grades"` dans `ROLE_PERMISSIONS.SECRETARY` (`src/lib/permissions.ts`), permettant au secrétariat d'accéder à l'espace Pédagogie, de suivre les validations et d'éditer/imprimer les bulletins officiels par classe et par élève.
+> - **Matrice & Checklist des Rôles** :
+>   - Rédaction du document de référence exhaustif `docs/MATRICE_ROLES_CHECKLIST.md` détaillant les prérogatives et interdictions des 6 rôles par espace métier.
+> - **Validation** : `npx tsc --noEmit` : 0 erreur. Intégrité des 61 routes : 100% OK.
+
+> **Icônes officielles (bouclier) — 23 septembre 2026.** Générées depuis `educom-logo-officiel.jpg` : `public/favicon.ico` (16/32/48), `public/icon.png` (192), `public/apple-icon.png` (180, fond blanc plein). Déclarées explicitement dans `src/app/layout.tsx` (`metadata.icons`, `?v=educom-3`). ⚠️ **Piège** : les icônes étaient AUSSI dans `src/app/` → prioritaires sur `metadata` (config ignorée), et l'ancien `src/app/icon.svg` (symbole « E ») restait servi en SVG, préféré par Chrome/Firefox → l'onglet montrait l'ancien logo. Copies de `src/app/` déplacées dans `_local/anciennes-icones-app/` (non versionné). Vérifié : 4 balises `<link>` attendues dans le `<head>`, les 3 fichiers en 200, `/icon.svg` en 404. `public/brand/educom-crest-real.png` n'est plus référencé.
+
+> **Audit sécurité (Claude) — 23 septembre 2026.** 0 commit, 0 push.
+> - **Faille ① (critique) — lecture ≠ écriture pour PARENT.** `PARENT` liste `/dashboard/settings$` et `/dashboard/students$` pour OUVRIR ses pages ; les server actions se gardaient avec le même chemin → un parent pouvait appeler `updateSchoolSettings` (cachet, signature), `deleteStudents`, `createStudent`, import d'élèves, `setStudentPhoto`, connexion WhatsApp. **Correctif** : liste blanche d'écriture dans `requireActionContext` (`isParentActionPath` : `/famille/…` + `/dashboard/documents` exact). Test : `scripts/verify-parent-action-guard.ts` (statique, relit tous les chemins d'action).
+> - **Faille ② (critique) — `grades/actions.ts` sans cloisonnement.** `getClassRoster`, `getReportCardData`, `getGradesInputData`, `getGradesForClass`, `getReportCardStates` : authentification seule, sans filtre d'école → lecture des élèves/notes d'une classe d'une AUTRE école par son id. `validate*/reopen/submit*` : ni rôle ni `schoolId`. `saveGrades` : la direction sautait tout contrôle d'école, une note était mise à jour par son seul `id`, une ligne sans `subjectId` échappait au périmètre. **Correctif** : garde commune `requireClassGradesAccess(classId)` (rôle `/dashboard/grades`, classe de l'école active, périmètre enseignant) + `schoolId` dans les `where` ; `saveGrades` vérifie école, appartenance des notes existantes et inscription des élèves pour TOUS les rôles.
+> - **Faille ③ — `classes/actions.ts`** : `createClass`, `createClassInline`, `updateClass`, `deleteClass`, `generateDefaultClasses`, `generateCycleClasses` sans garde de rôle. **Correctif** : `requireActionContext("/dashboard/classes")`. ⚠️ Conséquence voulue : ASSISTANT ne crée plus de classe en ligne depuis la page Élèves.
+> - **Faille ④ — `onboarding/demo-actions.ts`** : injection/retrait de données démo ouverts à tout compte → réservé direction (`/dashboard/settings`).
+> - **Tests périmés corrigés** : `firstAllowedPath("PARENT")` = `/famille` (v32) ; `verify-routes-coverage` tolère `/dashboard/settings` exact pour PARENT (vue « Mon compte », lecture seule).
+> - **Vérifié** : `tsc --noEmit` 0 erreur ; lint inchangé (29 `no-explicit-any` préexistants, 0 nouveau) ; scripts statiques verts (parent-action-guard, routes-coverage, dashboard-actions-by-role, role-home-actions, navigation-integrity, server-guard-queries, no-dev-tools-in-prod).
+> - **NON vérifié** : scripts à base réelle (`verify-rls`, `verify-tenant-isolation`, `verify-persistence-isolation`, `test-finance-isolation`…) — la base n'est joignable ni depuis le cloud de Claude ni depuis son terminal sur le Mac. À lancer par Kory.
+> - **Points ouverts** : `justifyAbsence` (`/absence/[id]`) public, protégé seulement par l'UUID de l'absence ; `classes/` et `team/actions.ts` lisent `User.schoolId`/`User.role` (hérité) au lieu de l'adhésion active (v34 multi-écoles) ; `DATABASE_URL` en `sslmode=no-verify` ; `.env` (development) et `.env.test` pointent vers le MÊME projet Supabase — à confirmer qu'il est distinct de la production.
+> - **Landing raffinée (même jour)** : 14 → 8 sections, 11 200 → 6 900 px (desktop). Hero : photo remplacée par `HeroDemo` (démo animée codée : notes → bulletin, facture → reçu, certificat ; pause au survol, `prefers-reduced-motion` respecté, étiquetée « illustration »). `Convergence` + `Gain` fusionnés dans `BeforeAfter`. Retirés de l'assemblage (fichiers conservés) : ProductStory, SupportingOperations (→ ligne « Et aussi » dans les parcours, ancre `#operations`), RolesSection, SchoolStories, FinalCTA. Titres de section unifiés (2rem → 2.75rem, rythme py-20/28).
+> - **Mentions retirées car fausses** : « Données sécurisées au Sénégal » (hébergement Francfort : Supabase eu-central-1, Vercel fra1), « Plateforme déployée à Dakar », « certifiés conformes ».
+> - **Fuite de conversion corrigée** : le formulaire « Être rappelé » (`DemoBookingSection`) n'envoyait RIEN — il affichait « Demande bien reçue ! ». Il ouvre désormais WhatsApp (221773024844) avec la demande pré-remplie ; confirmation honnête. Une vraie table de prospects = migration, décision de Kory.
+> - **Itération 2 (demande Kory : « créer l'espace, importer la liste, le reste suit »)** : `HeroDemo` passe à 5 scènes dans l'ordre de la promesse — Import Excel → Bulletins → Factures → Certificats → Présences (appel + famille prévenue sur WhatsApp en un clic, via `NotifyAbsenceButton` — pas d'envoi automatique, ne pas l'écrire). Nouvelle section `ThreeSteps` (#etapes) juste après le hero : « Deux étapes de votre côté. EduCom fait le reste. » — ⚠️ « Créez votre espace », jamais « téléchargez » (app web, rien à installer). `TargetAudience` retirée de l'assemblage (fichier conservé).
+> - **À arbitrer** : badge « Populaire » sur la formule Pro (contredit la règle écrite en tête de `Pricing.tsx` : aucun « le plus populaire » sans fondement) ; montant Pro affiché 9 € alors que l'en-tête parle de 20 €.
+> - **Décision (Kory)** : chaque `git push` est approuvé explicitement par Kory. La migration du 19/09 a été appliquée sans son accord : ne plus jamais appliquer de migration ni pousser sans feu vert.
+
+
+> **Unification UX/UI de la Saisie des Notes — 23 septembre 2026.**
+> - **Objectif** : Unifier l'expérience de saisie des notes dans tout EduCom en adoptant l'écran `Physique-Chimie — Terminale S2 — 1er Trimestre` comme **RÉFÉRENCE UX/UI unique**.
+> - **Pages / Composants harmonisés** :
+>   - `src/components/grades/entry/GradeEntryKit.tsx` : Kit commun partagé (en-tête `EntryHeader`, pastille classe bleue avec icône `Layers`, pastilles coefficient et compteur de notes enregistrées, sélecteur de trimestre segmenté en haut à droite, barre de contexte `ContextField` / `ContextSelect` / `ContextValue`, conteneur de tableau `EntryTable`, en-tête `EntryHead`, lignes `EntryRow`, `StudentCell` collé à gauche, cellules de saisie `NoteCell` avec états explicites et navigation clavier `Entrée`/`↓`/`Maj+Entrée`/`↑`, cellules de moyenne calculée bleutées `ComputedCell`, appréciations en ligne `AppreciationCell`, aide `EntryHelp`, règle de calcul dynamique `CalculationRule`).
+>   - `src/app/dashboard/grades/secondaire/SecondaireTable.tsx` : Référence consolidée. Affichage systématique du champ « Classe : » dans la barre de contexte (même avec classe unique).
+>   - `src/app/dashboard/grades/elementaire/ElementaireGrid.tsx` : Alignement complet sur la référence. En-tête avec titre de matière/domaine, badge de classe bleu (`Layers`), badge de cycle gris, pastille verte de notes enregistrées, et sélecteur de trimestre segmenté en haut à droite. Barre de contexte avec sélecteur de classe, filtre interactif par domaine (`Tous les domaines` ou focus domaine spécifique : Langue & Comm, Mathématiques, ESVS, EPAR) et champ de recherche élève. Vue tableau dynamique : en-tête 1 ligne en mode focus domaine (identique au secondaire : Élève | Sous-disciplines | Moy. Domaine | Moy. Gén. | Appréciation du maître) ou en-tête groupé 2 lignes en mode global.
+>   - `src/components/grades/FastEntry.tsx` (`/dashboard/grades/saisie`) : Alignement de l'en-tête (sélecteur de trimestres systématique, champ « Classe : » dans la barre de contexte, intégration de la règle de calcul `CalculationRule` sous le tableau).
+> - **Logique & calculs préservés (0 modification)** :
+>   - `lib/notes/secondaire.ts` (`calculerMatiereSecondaire`) et `lib/notes/elementaire.ts` (`calculerEleveElementaire`) strictement inchangés.
+>   - Sauvegardes serveur (`saveDevoirGrade`, `saveCompositionGrade`, `saveSubDisciplineGrade`, `saveTitulaireAppreciation`, `saveSubjectAppreciation`) intactes.
+>   - Permissions et routes d'accès préservées.
+> - **Vérification** :
+>   - `npx tsc --noEmit` : 0 erreur de type.
+>   - Smoke tests bout-en-bout (`scripts/verify-notes-saisie-smoke.ts`) : 100% PASS (élémentaire, secondaire, conseil de classe).
+>
+> **Repositionnement Marketing & Landing Page — 23 septembre 2026.**
+> - **Objectif** : Aligner la communication publique sur le lancement auprès des écoles privées du Sénégal (Élémentaire, Moyen, Secondaire). Élimination du jargon ERP/« tout-en-un » au profit d'une promesse concrète : *« Gérez votre école avec moins de paperasse et moins de travail manuel »*.
+> - **Hiérarchie de valeur révisée** :
+>   - *Tier 1 (Promesse clé)* : Digitaliser et simplifier les flux quotidiens (du papier/Excel vers des processus automatiques).
+>   - *Tier 2 (4 flux majeurs)* : 1. Inscriptions & Dossiers élèves · 2. Notes & Bulletins officiels Sénégal · 3. Facturation & Reçus (A4 standard ou Demi-A4) · 4. Documents administratifs automatiques (certificats, attestations, fiches).
+>   - *Tier 3 (Opérations de soutien)* : Annuaire numérique & Import immédiat Excel/CSV, Pointage des présences, Liaison famille & WhatsApp sans mot de passe, Sondages en ligne.
+> - **Composants créés / modifiés** :
+>   - `src/components/landing/HeroSection.tsx` : Titre recentré sur la réduction de paperasse/travail manuel, CTAs « Réserver une démo » (prioritaire) + « Voir le fonctionnement », preuves visuelles bulletins + facturation.
+>   - `src/components/landing/Convergence.tsx` : Mise en scène du constat quotidien (Excel, Word, WhatsApp, carnets papier, calculatrices) convergeant vers le flux continu EduCom.
+>   - `src/components/landing/WorkflowStories.tsx` : Recentrage sur les 4 flux clés (Admissions, Notes/Bulletins, Facturation/Reçus, Documents scolaires).
+>   - `src/components/landing/SupportingOperations.tsx` (nouveau) : Import Excel immédiat, Présences, WhatsApp, Sondages.
+>   - `src/components/landing/TargetAudience.tsx` (nouveau) : Découpage par cycles (Primaire CI-CM2, Collège 6e-3e, Lycée 2nde-Tle, Multi-cycles) et double bénéfice explicite (Direction vs Équipes administratives).
+>   - `src/components/landing/DemoBookingSection.tsx` (nouveau) : Module interactif de réservation de démo avec contact direct WhatsApp (canal n°1 au Sénégal) et formulaire rapide de rappel.
+>   - `src/components/landing/FinalCTA.tsx` & `src/components/landing/Navbar.tsx` : Remplacement du CTA principal par « Réserver une démo » (`/#demo`).
+>   - `src/app/(marketing)/page.tsx` : Assemblage fluide respectant le rythme visuel et les 8 sections demandées.
+> - **Validation** :
+>   - `npx tsc --noEmit` : 0 erreur de types.
+>   - HTTP local (`http://localhost:3000/`) : 200 OK avec 9/9 vérifications de contenu validées (titres, CTAs, métadonnées).
+>   - Rendu visuel par browser subagent non exécuté en raison d'un 404 sur le téléchargement du driver Playwright arm64 dans l'environnement agent ; vérifié par introspection de l'arbre HTML généré.
+> - **Décision (Kory)** : la saisie secondaire (Physique-Chimie · Terminale S2) est LA référence UX. Toutes les grilles utilisent désormais `src/components/grades/entry/GradeEntryKit.tsx` (en-tête, sélecteur de trimestre, barre de contexte, cellules de note/moyenne/appréciation, règle de calcul, aide clavier).
+> - **Grilles branchées** : `secondaire/SecondaireTable.tsx`, `elementaire/ElementaireGrid.tsx`, `components/grades/FastEntry.tsx` (`/dashboard/grades/saisie`). `GradesClient.tsx` / `StudentEntryTab.tsx` ne sont importés nulle part (code mort, laissé en place, non modifié).
+> - **Le kit ne contient AUCUNE règle métier.** Le texte de la règle de calcul est passé par chaque écran (secondaire ≠ élémentaire) ; le garder aligné sur `lib/notes/secondaire.ts` / `lib/notes/elementaire.ts`. Moteurs, validations, actions d'écriture et permissions inchangés.
+> - **Élémentaire** : ajout de `allTerms` + `allClasses` (lecture seule) au contexte → sélecteur de trimestre et de classe ; l'appréciation du maître titulaire passe du bloc séparé (liste déroulante) à une colonne sur la ligne de l'élève (même action `saveTitulaireAppreciation`).
+> - **Piège retiré** : les `useEffect` qui resynchronisaient l'état sur `ctx` dans Secondaire/Élémentaire (même piège que FastEntry, et 4 erreurs ESLint). Les pages remontent déjà la grille par `key`. **Ne pas les réintroduire.**
+> - **Tests** : scénario Chromium (scratchpad, non versionné) — 44/44 : saisie, modification, invalide, moyenne en direct, appréciation, trimestre, clavier, 4e vue direction, responsive 390/820/1440. Allers-retours d'écriture restaurés (Terminale S2 : 14 notes, CE2 : 32 — identiques avant/après).
+> - ⚠️ **Constats données (hors chantier)** : le compte `koryobjectifs@gmail.com` est actuellement **TEACHER** sur SENG.CO (aucun OWNER/ADMIN dans l'école) ; CE2 = 40 élèves distincts pour 20 noms (fiches en double) ; les 32 notes de CE2 sont à l'ancien format (sans sous-discipline) et n'apparaissent donc pas dans la grille élémentaire.
+> - **Favicon** : `src/app/favicon.ico` (logo Vercel par défaut de Next) remplacé par le symbole EduCom + `icon.svg` + `apple-icon.png`.
+
 > **Archivage Baseline Finance (`v40-finance-baseline`) — 19 septembre 2026.**
 > - **Ce qui est archivé** :
 >   - Code source complet : `src/lib/finance/legacy/payments/` (copie intégrale de `src/app/dashboard/payments/` : pages, viewer facture/reçu, composeur manuel, composants clients, actions).

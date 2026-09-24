@@ -23,11 +23,11 @@ import { motion } from "framer-motion";
  * et il doit se sentir comme un vrai geste, pas une nuance de plus.
  */
 const OUTILS = [
-  { nom: "Excel", constat: "L'administration est dispersée", x: -34, y: -8, rot: -6 },
-  { nom: "Google Sheets", constat: "L'administration est dispersée", x: 30, y: -14, rot: 4 },
-  { nom: "WhatsApp", constat: "La communication est fragmentée", x: -22, y: 12, rot: 3 },
-  { nom: "Cahiers", constat: "Le suivi est difficile", x: 26, y: 16, rot: -4 },
-  { nom: "Papier", constat: "Le suivi est difficile", x: 0, y: -22, rot: 0 },
+  { nom: "Fichiers Excel", constat: "Données dispersées", x: -35, y: -10, rot: -6 },
+  { nom: "Calculs manuels", constat: "Moyennes & coefficients à la main", x: 32, y: -14, rot: 5 },
+  { nom: "Groupes WhatsApp", constat: "Communications éparpillées", x: -24, y: 14, rot: 3 },
+  { nom: "Documents Word", constat: "Attestations retapées à chaque fois", x: 26, y: 16, rot: -4 },
+  { nom: "Carnets & Papier", constat: "Reçus et dossiers égarés", x: 0, y: -24, rot: 0 },
 ] as const;
 
 export default function Convergence() {
@@ -35,17 +35,18 @@ export default function Convergence() {
     <section className="relative overflow-hidden bg-gradient-to-b from-m-warm via-white to-m-paper">
       <div className="mx-auto max-w-4xl px-4 py-14 text-center sm:px-6 lg:px-8 lg:py-20">
         <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-ink-faint">
-          Le point de départ
+          Le constat quotidien
         </p>
         <h2 className="mx-auto mt-4 max-w-2xl font-display text-[1.625rem] font-semibold leading-[1.2] tracking-[-0.02em] text-m-ink sm:text-[2.125rem]">
-          Votre école tient déjà sur dix outils différents.
+          Votre école passe encore trop d&apos;heures sur des tâches administratives manuelles.
         </h2>
-        <p className="mx-auto mt-4 max-w-lg text-[15px] leading-[1.65] text-m-ink-soft">
-          L&apos;information existe déjà. Elle est seulement dispersée — et la retrouver est
-          devenu un travail à part entière.
+        <p className="mx-auto mt-4 max-w-xl text-[15px] leading-[1.65] text-m-ink-soft">
+          Calculer les notes et moyennes à la calculatrice, ressaisir les bulletins un par un,
+          recréer les attestations sous Word et chercher les contacts dans WhatsApp...
+          Gérer ces opérations à la main prend un temps précieux sur la direction de votre école.
         </p>
 
-        {/* Scène de convergence — les chips convergent vers le centre au scroll. */}
+        {/* Scène de convergence — les outils dispersés convergent vers EduCom */}
         <div className="relative mx-auto mt-10 h-[220px] max-w-lg sm:h-[260px]">
           {OUTILS.map((o, i) => (
             <motion.div
@@ -65,7 +66,7 @@ export default function Convergence() {
             </motion.div>
           ))}
 
-          {/* Le point d'arrivée — devient le premier écran de ConnectedSystem. */}
+          {/* Le point d'arrivée — EduCom */}
           <motion.div
             initial={{ scale: 0.7, opacity: 0 }}
             whileInView={{ scale: 1, opacity: 1 }}
@@ -77,10 +78,17 @@ export default function Convergence() {
           </motion.div>
         </div>
 
-        <p className="mx-auto mt-6 max-w-md text-[13px] leading-relaxed text-m-ink-faint">
-          Une fois connectée, cette même information alimente tout ce qui suit — sans
-          ressaisie.
-        </p>
+        <div className="mx-auto mt-8 max-w-2xl rounded-xl border border-m-line bg-m-card/80 p-4 backdrop-blur-xs">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-m-accent-deep">
+            Le flux connecté EduCom
+          </p>
+          <p className="mt-2 text-[13.5px] font-medium text-m-ink">
+            Admissions <span className="text-m-ink-faint">→</span> Annuaire <span className="text-m-ink-faint">→</span> Notes <span className="text-m-ink-faint">→</span> Bulletins <span className="text-m-ink-faint">→</span> Facturation <span className="text-m-ink-faint">→</span> Documents <span className="text-m-ink-faint">→</span> Familles
+          </p>
+          <p className="mt-2 text-[12px] text-m-ink-soft">
+            L&apos;information n&apos;est saisie qu&apos;une seule fois. Tout le reste s&apos;enchaîne automatiquement.
+          </p>
+        </div>
       </div>
     </section>
   );

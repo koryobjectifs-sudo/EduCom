@@ -48,6 +48,11 @@ export type ElementaireContext =
       className: string;
       termId: string;
       termName: string;
+      canEdit: boolean;
+      /** Trimestres de l'école, dans l'ordre chronologique — sélecteur de l'en-tête. */
+      allTerms: { id: string; name: string }[];
+      /** Classes élémentaires accessibles à l'acteur — navigation seulement ; la permission est revérifiée au chargement. */
+      allClasses: { id: string; name: string }[];
       domaines: ElementaireDomaine[];
       eleves: ElementaireEleve[];
     }
@@ -58,7 +63,8 @@ export async function getElementaireContextWithActor(actor: Actor, classId: stri
   if (!klass) return { ok: false, error: "Classe introuvable dans votre établissement." };
 
   const perm = await assertCanEditElementaireClass({ userId: actor.userId, role: actor.role }, classId);
-  if (!perm.ok) return { ok: false, error: perm.error };
+  const canEdit = perm.ok;
+  if (!canEdit && actor.role === "TEACHER") return { ok: false, error: perm.error };
 
   const classe = await prisma.class.findUniqueOrThrow({ where: { id: classId }, select: { name: true } });
 
@@ -70,7 +76,11 @@ export async function getElementaireContextWithActor(actor: Actor, classId: stri
   const { current } = pickCurrentTerm(terms);
   const term = terms.find((t) => t.id === termId) ?? current!;
 
-  const [domaines, enrollments] = await Promise.all([
+  const allTerms = [...terms]
+    .sort((a, b) => (a.startDate?.getTime() ?? 0) - (b.startDate?.getTime() ?? 0))
+    .map((t) => ({ id: t.id, name: t.name }));
+
+  const [domaines, enrollments, accessibleClasses] = await Promise.all([
     prisma.gradeDomain.findMany({
       where: { schoolId: actor.schoolId, isActive: true },
       orderBy: { order: "asc" },
@@ -81,7 +91,28 @@ export async function getElementaireContextWithActor(actor: Actor, classId: stri
       include: { student: { select: { id: true, firstName: true, lastName: true } } },
       orderBy: [{ student: { lastName: "asc" } }, { student: { firstName: "asc" } }],
     }),
+    // Même périmètre que la saisie secondaire (titularité ou affectation pour un enseignant).
+    prisma.class.findMany({
+      where: {
+        schoolId: actor.schoolId,
+        ...(actor.role === "TEACHER"
+          ? { OR: [{ teacherId: actor.userId }, { assignments: { some: { teacherId: actor.userId } } }] }
+          : {}),
+      },
+      select: { id: true, name: true, cycle: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
+
+  // Même critère que l'aiguillage de `grades/bulletin/page.tsx`.
+  const allClasses = accessibleClasses
+    .filter(
+      (c) =>
+        c.cycle === "ELEMENTAIRE" ||
+        c.cycle === "PRESCOLAIRE" ||
+        ["ci", "cp", "ce1", "ce2", "cm1", "cm2"].some((l) => c.name.toLowerCase().trim().startsWith(l)),
+    )
+    .map((c) => ({ id: c.id, name: c.name }));
 
   if (domaines.length === 0) {
     return { ok: false, error: "Aucun domaine actif n'est configuré pour cette école." };
@@ -113,6 +144,9 @@ export async function getElementaireContextWithActor(actor: Actor, classId: stri
     className: classe.name,
     termId: term.id,
     termName: term.name,
+    canEdit,
+    allTerms,
+    allClasses,
     domaines: domaines.map((d) => ({
       domainId: d.id,
       name: d.name,

@@ -1,11 +1,16 @@
 "use server";
 import { prisma } from "@/lib/prisma";
 import { requireSchoolContext } from "@/lib/documentContext";
+import { requireActionContext } from "@/lib/actionContext";
 import { revalidatePath } from "next/cache";
 
 const DEMO_MARKER = "\u200B";
 
 export async function injectDemoData() {
+  // 23 sept. 2026 — réservé à la direction : sans garde, n'importe quel compte
+  // (parent compris) injectait des élèves fictifs dans une vraie école.
+  const guard = await requireActionContext("/dashboard/settings");
+  if (!guard.ok) throw new Error(guard.error);
   const { schoolId } = await requireSchoolContext();
   
   // Create 3 demo classes
@@ -103,6 +108,10 @@ export async function injectDemoData() {
 }
 
 export async function removeDemoData() {
+  // 23 sept. 2026 — réservé à la direction : sans garde, n'importe quel compte
+  // (parent compris) injectait des élèves fictifs dans une vraie école.
+  const guard = await requireActionContext("/dashboard/settings");
+  if (!guard.ok) throw new Error(guard.error);
   const { schoolId } = await requireSchoolContext();
   
   // First delete grades to avoid FK issues with evaluation if we delete evaluation first. (actually Prisma handles cascading for grades, but just in case)

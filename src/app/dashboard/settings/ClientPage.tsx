@@ -5,6 +5,7 @@ import Link from "next/link";
 import { updateSchoolSettings, updateActiveAcademicYear, updateSchoolPrimaryColor } from "./actions";
 import { Save, Building2, Phone, Mail, MapPin, Image as ImageIcon, ChevronRight, UploadCloud, Calendar, ArrowRight, CheckCircle2, ShieldCheck, Check, Loader2, Palette, Sparkles, RotateCcw, Eye, Search, LayoutDashboard, Users, GraduationCap, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { getContrastRatioAgainstWhite, isValidHexColor, PRESET_SCHOOL_COLORS, DEFAULT_EDUCOM_NAVY, schoolThemeStyle } from "@/lib/theme";
@@ -164,14 +165,25 @@ export default function SettingsClient({
   return (
     <div className="space-y-8 max-w-4xl mx-auto pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-text-primary">Réglages</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Gérez l'année scolaire active et les informations de votre établissement.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        breadcrumb={[
+          { label: "Accueil", href: "/dashboard" },
+          { label: "Administration" },
+        ]}
+        title="Établissement & Identité"
+        description="Identité officielle, coordonnées, charte graphique et session active de l'établissement."
+        actions={
+          <Button
+            type="submit"
+            form="settings-form"
+            size="md"
+            loading={isSaving}
+            icon={<Save aria-hidden="true" className="h-4 w-4" />}
+          >
+            {isSaving ? "Enregistrement..." : "Enregistrer"}
+          </Button>
+        }
+      />
 
       {/* SECTION 0: Année Scolaire Active (Source Unique de Vérité) */}
       <div>
@@ -282,17 +294,7 @@ export default function SettingsClient({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="flex justify-end">
-          <Button
-            type="submit"
-            size="lg"
-            loading={isSaving}
-            icon={<Save aria-hidden="true" className="h-4 w-4" />}
-          >
-            {isSaving ? "Enregistrement..." : "Enregistrer l'identité"}
-          </Button>
-        </div>
+      <form id="settings-form" onSubmit={handleSubmit} className="space-y-8">
 
       {/* SECTION 1: Informations Générales */}
       <div>
@@ -815,6 +817,17 @@ export default function SettingsClient({
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="flex justify-end pt-4">
+        <Button
+          type="submit"
+          size="lg"
+          loading={isSaving}
+          icon={<Save aria-hidden="true" className="h-4 w-4" />}
+        >
+          {isSaving ? "Enregistrement..." : "Enregistrer les modifications"}
+        </Button>
       </div>
     </form>
 

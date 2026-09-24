@@ -133,6 +133,7 @@ export const NAV_SPACES: NavSpace[] = [
         title: "Gestion Financière",
         items: [
           { id: "finance-overview", name: "Vue financière", href: "/dashboard/payments", icon: "CreditCard", short: "Vue" },
+          { id: "familles", name: "Familles", href: "/dashboard/payments/familles", icon: "Users", short: "Familles" },
           { id: "invoicing", name: "Facturation", href: "/dashboard/payments/new", icon: "FileText", short: "Facturation" },
           { id: "payments", name: "Paiements", href: "/dashboard/payments/receipt", icon: "ClipboardList", short: "Paiements" },
           { id: "reminders", name: "Relances", href: "/dashboard/documents/reminder", icon: "FileText", short: "Relances" },
@@ -186,7 +187,7 @@ export const NAV_SPACES: NavSpace[] = [
     id: "admin",
     label: "Administration",
     icon: "Settings",
-    defaultHref: "/dashboard/admin",
+    defaultHref: "/dashboard/settings",
     matchPrefixes: [
       "/dashboard/admin",
       "/dashboard/team",
@@ -194,13 +195,19 @@ export const NAV_SPACES: NavSpace[] = [
     ],
     sections: [
       {
-        title: "Établissement",
+        title: "Configuration",
         items: [
-          { id: "admin-home", name: "Vue d'ensemble", href: "/dashboard/admin", icon: "Settings", short: "Admin" },
-          { id: "team", name: "Équipe & membres", href: "/dashboard/team", icon: "Users", short: "Équipe" },
+          { id: "settings-general", name: "Établissement & Identité", href: "/dashboard/settings", icon: "Settings", short: "Établissement" },
+          { id: "settings-fees", name: "Grille tarifaire & Frais", href: "/dashboard/settings/fees", icon: "CreditCard", short: "Tarifs" },
+          { id: "doc-settings", name: "Pièces exigées (Dossier)", href: "/dashboard/settings/documents", icon: "FileText", short: "Pièces" },
+          { id: "team", name: "Équipe & Accès", href: "/dashboard/team", icon: "Users", short: "Équipe" },
+        ],
+      },
+      {
+        title: "Pilotage & Avancé",
+        items: [
           { id: "reports", name: "Rapports d'activité", href: "/dashboard/admin/reports", icon: "BarChart3", short: "Rapports" },
-          { id: "settings", name: "Paramètres", href: "/dashboard/settings", icon: "Settings", short: "Paramètres" },
-          { id: "doc-settings", name: "Pièces exigées", href: "/dashboard/settings/documents", icon: "FileText", short: "Pièces" },
+          { id: "other-settings", name: "Autres paramètres & Bascule", href: "/dashboard/settings/reinscription", icon: "Layers", short: "Autres" },
         ],
       },
     ],
@@ -284,6 +291,7 @@ export function isActive(href: string, pathname: string | null): boolean {
   if (!pathname) return false;
   if (href === "/dashboard") return pathname === "/dashboard";
   const hrefPath = href.split("?")[0];
+  if (hrefPath === "/dashboard/settings" && pathname === "/dashboard/admin") return true;
   return pathname === hrefPath || pathname.startsWith(`${hrefPath}/`);
 }
 
@@ -306,6 +314,10 @@ export function getActiveNavItemHref(items: NavItem[], pathname: string | null):
     }
     // Alias vers Bulletins
     if (itemPath === "/dashboard/grades/report-card" && pathname === "/dashboard/grades/bulletin") {
+      return item.href;
+    }
+    // Alias /dashboard/admin vers Paramètres
+    if (itemPath === "/dashboard/settings" && pathname === "/dashboard/admin") {
       return item.href;
     }
   }

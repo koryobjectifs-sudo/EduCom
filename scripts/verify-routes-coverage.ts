@@ -54,7 +54,11 @@ async function verifyAllRoutesCovered() {
     }
 
     // Vérifier que PARENT n'a pas d'accès sauvage à des routes d'admin ou de direction
-    if (route.startsWith("/dashboard/admin") || route.startsWith("/dashboard/settings")) {
+    // ⚠️ `/dashboard/settings` EXACT est ouvert au parent en LECTURE : c'est sa
+    // vue « Mon compte » (ParentAccountView). L'écriture est fermée par
+    // `requireActionContext` (liste blanche parent — voir
+    // scripts/verify-parent-action-guard.ts). Les sous-pages restent interdites.
+    if (route.startsWith("/dashboard/admin") || (route.startsWith("/dashboard/settings") && route !== "/dashboard/settings")) {
       if (hasAccess("PARENT", route)) {
         console.error(`🚨 FAILLE DE SÉCURITÉ : PARENT a accès à ${route}`);
         uncoveredCount++;

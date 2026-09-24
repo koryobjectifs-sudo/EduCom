@@ -55,9 +55,18 @@ export async function assertCanEditElementaireClass(
   actor: { userId: string; role: string },
   classId: string,
 ): Promise<{ ok: true } | EntryDenial> {
-  const editable = await editableSubjectIds({ id: actor.userId, role: actor.role }, classId, []);
-  if (editable !== "ALL") {
-    return { ok: false, error: "Vous n'êtes pas le titulaire de cette classe." };
+  // RÈGLE MÉTIER STRICTE : Seul l'enseignant titulaire peut saisir/modifier les notes.
+  // Ni la direction (OWNER, ADMIN), ni le secrétariat ne peuvent éditer les notes d'un élève.
+  if (actor.role !== "TEACHER") {
+    return { ok: false, error: "Seul l'enseignant titulaire a le droit de saisir ou modifier les notes." };
+  }
+
+  const klass = await prisma.class.findUnique({
+    where: { id: classId },
+    select: { teacherId: true },
+  });
+  if (!klass || klass.teacherId !== actor.userId) {
+    return { ok: false, error: "Vous n'êtes pas le maître titulaire de cette classe." };
   }
   return { ok: true };
 }
@@ -67,14 +76,19 @@ export async function assertCanEditElementaireClass(
  *
  * Reproduit exactement les contrôles ①②③ de `saveOneGrade`
  * (`grades/saisie/actions.ts`) : matière rattachée à la classe, puis
- * autorisée pour cet utilisateur. Le contrôle ④ (élève inscrit) reste à la
- * charge de l'appelant, qui connaît l'élève concerné.
+ * autorisée pour cet enseignant.
  */
 export async function assertCanEditSecondaireSubject(
   actor: { userId: string; role: string },
   classId: string,
   subjectId: string,
 ): Promise<{ ok: true } | EntryDenial> {
+  // RÈGLE MÉTIER STRICTE : Seul l'enseignant affecté peut saisir/modifier les notes.
+  // Ni la direction (OWNER, ADMIN), ni le secrétariat ne peuvent éditer les notes d'un élève.
+  if (actor.role !== "TEACHER") {
+    return { ok: false, error: "Seul l'enseignant affecté a le droit de saisir ou modifier les notes." };
+  }
+
   const classSubjects = await prisma.classSubject.findMany({ where: { classId }, select: { subjectId: true } });
   const ids = classSubjects.map((c) => c.subjectId);
   if (!ids.includes(subjectId)) {
@@ -83,7 +97,7 @@ export async function assertCanEditSecondaireSubject(
 
   const editable = await editableSubjectIds({ id: actor.userId, role: actor.role }, classId, ids);
   if (editable !== "ALL" && !editable.has(subjectId)) {
-    return { ok: false, error: "Vous ne saisissez pas cette matière." };
+    return { ok: false, error: "Vous n'êtes pas affecté à cette matière dans cette classe." };
   }
   return { ok: true };
 }

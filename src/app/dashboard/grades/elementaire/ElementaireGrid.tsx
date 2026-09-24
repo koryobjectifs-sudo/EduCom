@@ -1,12 +1,31 @@
 "use client";
 
-import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Loader2, TriangleAlert, Award, Search } from "lucide-react";
+import { Fragment, memo, useCallback, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BookOpen, Search, Send, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
+import {
+  AppreciationCell,
+  CalculationRule,
+  ComputedCell,
+  ContextField,
+  ContextSelect,
+  ContextValue,
+  EntryHead,
+  EntryHeader,
+  EntryHelp,
+  EntryRow,
+  EntryTable,
+  NoteCell,
+  StudentCell,
+  Th,
+  type SaveState,
+} from "@/components/grades/entry/GradeEntryKit";
 import { saveSubDisciplineGrade, saveTitulaireAppreciation, type ElementaireContext } from "./actions";
 import { calculerEleveElementaire, type SousDisciplineInput } from "@/lib/notes/elementaire";
 
 type Ctx = Extract<ElementaireContext, { ok: true }>;
-type CellState = "idle" | "saving" | "saved" | "error";
+type CellState = SaveState;
 
 /**
  * Grille de saisie élémentaire — élèves en lignes, sous-disciplines en
@@ -23,6 +42,8 @@ type CellState = "idle" | "saving" | "saved" | "error";
  * saccade sur les 900 cellules du tableau.
  */
 export default function ElementaireGrid({ ctx }: { ctx: Ctx }) {
+  const router = useRouter();
+  const [activeDomainId, setActiveDomainId] = useState<string>("ALL");
   const [notes, setNotes] = useState<Record<string, Record<string, string>>>(() =>
     Object.fromEntries(
       ctx.eleves.map((e) => [
@@ -41,22 +62,8 @@ export default function ElementaireGrid({ ctx }: { ctx: Ctx }) {
   const [search, setSearch] = useState("");
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  // Synchronisation de l'état local si le contexte de classe/trimestre change
-  useEffect(() => {
-    setNotes(
-      Object.fromEntries(
-        ctx.eleves.map((e) => [
-          e.studentId,
-          Object.fromEntries(Object.entries(e.notes).map(([sdId, v]) => [sdId, String(v)])),
-        ]),
-      ),
-    );
-    setGradeIds(
-      Object.fromEntries(ctx.eleves.map((e) => [e.studentId, { ...e.gradeIds }])),
-    );
-    setStates({});
-    setErrors({});
-  }, [ctx.classId, ctx.termId, ctx.eleves]);
+  // ⚠️ Aucun effet de resynchronisation sur `ctx` : la page remonte ce composant
+  // par sa `key` (classe-trimestre). Un tel effet écraserait une saisie en cours.
 
   const totalNotes = useMemo(() => {
     let count = 0;
@@ -127,32 +134,32 @@ export default function ElementaireGrid({ ctx }: { ctx: Ctx }) {
     [commit],
   );
 
-  // Navigation fluide au clavier (Entrée/Bas -> élève suivant, Haut -> élève précédent)
-  const onKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>, studentIndex: number, sdId: string) => {
-      if (e.key === "Enter" || e.key === "ArrowDown") {
-        e.preventDefault();
-        const nextInput = document.querySelector<HTMLInputElement>(
-          `input[data-student-idx="${studentIndex + 1}"][data-sd-id="${sdId}"]`,
-        );
-        nextInput?.focus();
-        nextInput?.select();
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        const prevInput = document.querySelector<HTMLInputElement>(
-          `input[data-student-idx="${studentIndex - 1}"][data-sd-id="${sdId}"]`,
-        );
-        prevInput?.focus();
-        prevInput?.select();
-      }
-    },
-    [],
-  );
-
   const totalColonnes = useMemo(
     () => ctx.domaines.reduce((a, d) => a + d.sousDisciplines.length, 0),
     [ctx.domaines],
   );
+
+  const activeDomain = useMemo(
+    () => (activeDomainId === "ALL" ? null : ctx.domaines.find((d) => d.domainId === activeDomainId) ?? null),
+    [activeDomainId, ctx.domaines],
+  );
+
+  const displaySousDisciplinesCount = useMemo(
+    () => (activeDomain ? activeDomain.sousDisciplines.length : totalColonnes),
+    [activeDomain, totalColonnes],
+  );
+
+  const displayNotesCount = useMemo(() => {
+    if (!activeDomain) return totalNotes;
+    const sdIds = new Set(activeDomain.sousDisciplines.map((sd) => sd.id));
+    let count = 0;
+    for (const studentNotes of Object.values(notes)) {
+      for (const [sdId, val] of Object.entries(studentNotes)) {
+        if (sdIds.has(sdId) && val.trim() !== "") count++;
+      }
+    }
+    return count;
+  }, [activeDomain, notes, totalNotes]);
 
   const filteredEleves = useMemo(() => {
     if (!search.trim()) return ctx.eleves;
@@ -162,122 +169,236 @@ export default function ElementaireGrid({ ctx }: { ctx: Ctx }) {
     );
   }, [ctx.eleves, search]);
 
+  // ─── Appréciation du maître titulaire, sur la ligne de l'élève ───
+  const [appreciations, setAppreciations] = useState<Record<string, string>>(() =>
+    Object.fromEntries(ctx.eleves.map((e) => [e.studentId, e.appreciation ?? ""])),
+  );
+
+  const onAppreciationChange = useCallback((studentId: string, text: string) => {
+    setAppreciations((p) => ({ ...p, [studentId]: text }));
+  }, []);
+
+  const onAppreciationBlur = useCallback(
+    async (studentId: string, comment: string) => {
+      const key = `a:${studentId}`;
+      setStates((s) => ({ ...s, [key]: "saving" }));
+      const res = await saveTitulaireAppreciation({ studentId, classId: ctx.classId, termId: ctx.termId, comment });
+      setStates((s) => ({ ...s, [key]: res.ok ? "saved" : "error" }));
+      setErrors((e) => {
+        const n = { ...e };
+        if (res.ok) delete n[key];
+        else n[key] = res.error;
+        return n;
+      });
+    },
+    [ctx.classId, ctx.termId],
+  );
+
+  const url = (classId: string, termId: string) => `/dashboard/grades/elementaire?class=${classId}&term=${termId}`;
+
+  const handleSubmit = () => {
+    toast.success(`Saisie des notes de ${ctx.className} validée et transmise à l'administration.`);
+  };
+
   return (
     <div className="space-y-4">
-      {/* En-tête de classe & résumé */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-200">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-gray-900">{ctx.className}</h1>
-            <span className="inline-flex items-center rounded-pill bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-              Élémentaire (CI à CM2)
-            </span>
-            <span className={`inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs font-semibold ${totalNotes > 0 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-gray-100 text-gray-500"}`}>
-              {totalNotes} note{totalNotes > 1 ? "s" : ""} enregistrée{totalNotes > 1 ? "s" : ""} pour cette évaluation
+      {!ctx.canEdit && (
+        <div className="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-900 shadow-2xs">
+          <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600" />
+          <div>
+            <span className="font-semibold">Mode consultation active (lecture seule)</span>
+            <span className="text-amber-700 ml-1.5">
+              — Seul le maître titulaire de cette classe peut saisir ou modifier les notes des élèves.
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            {ctx.termName} · {totalColonnes} sous-disciplines réparties en {ctx.domaines.length} domaines · {ctx.eleves.length} élèves
-          </p>
         </div>
+      )}
 
-        {/* Filtre de recherche rapide */}
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Filtrer un élève..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 bg-gray-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-        </div>
-      </div>
+      <EntryHeader
+        title={activeDomain ? activeDomain.name : "Toutes les disciplines"}
+        classLabel={ctx.className}
+        tag="Élémentaire (CI à CM2)"
+        notesCount={displayNotesCount}
+        meta={`${ctx.termName} · ${displaySousDisciplinesCount} sous-discipline${displaySousDisciplinesCount > 1 ? "s" : ""}${activeDomain ? ` du domaine ${activeDomain.name}` : ` réparties en ${ctx.domaines.length} domaines`} · ${ctx.eleves.length} élève${ctx.eleves.length > 1 ? "s" : ""}`}
+        terms={ctx.allTerms}
+        activeTermId={ctx.termId}
+        termHref={(termId) => url(ctx.classId, termId)}
+      >
+        <ContextField label="Classe">
+          {ctx.allClasses.length > 1 ? (
+            <ContextSelect
+              ariaLabel="Classe"
+              value={ctx.classId}
+              onChange={(classId) => router.push(url(classId, ctx.termId))}
+              options={ctx.allClasses.map((c) => ({ id: c.id, label: c.name }))}
+            />
+          ) : (
+            <ContextValue>{ctx.className}</ContextValue>
+          )}
+        </ContextField>
 
-      {/* Grille défilable optimisée tablette */}
-      <div className="rounded-2xl border border-gray-200 bg-white overflow-auto max-h-[68vh] shadow-xs">
-        <table className="min-w-full border-collapse text-sm">
-          <thead className="sticky top-0 z-20 bg-white">
-            {/* Ligne 1 : Domaines officiels */}
-            <tr>
-              <th className="sticky left-0 z-30 bg-white border-b border-r border-gray-200 px-3 py-2 text-left font-semibold text-gray-700 min-w-[180px]">
-                Élève
-              </th>
-              {ctx.domaines.map((d) => (
-                <th
-                  key={d.domainId}
-                  colSpan={d.sousDisciplines.length + 1}
-                  className="border-b border-l border-gray-200 px-3 py-2 text-center font-bold text-gray-800 bg-gray-50/80 text-xs tracking-wide"
-                >
-                  {d.name}
-                </th>
-              ))}
-              <th className="border-b border-l border-gray-200 px-3 py-2 text-center font-bold text-gray-900 bg-primary/10 min-w-[70px]">
-                Moy. Gén.
-              </th>
-            </tr>
-            {/* Ligne 2 : Sous-disciplines & barèmes */}
-            <tr>
-              <th className="sticky left-0 z-30 bg-white border-b border-r border-gray-200 px-3 py-1 text-left text-[11px] font-normal text-gray-400">
-                {filteredEleves.length} affiché(s)
-              </th>
-              {ctx.domaines.map((d) => (
-                <Fragment key={d.domainId}>
-                  {d.sousDisciplines.map((sd) => (
-                    <th
-                      key={sd.id}
-                      className="border-b border-l border-gray-200 px-2 py-1.5 text-center text-[11px] font-medium text-gray-600 whitespace-nowrap min-w-[72px]"
-                    >
-                      <div className="truncate max-w-[110px]" title={sd.name}>
-                        {sd.name}
-                      </div>
-                      <span className="text-[9.5px] text-gray-400 font-normal">/{sd.scale}</span>
-                    </th>
-                  ))}
-                  <th
-                    key={`${d.domainId}-moy`}
-                    className="border-b border-l border-gray-200 px-2 py-1.5 text-center text-[11px] font-bold text-primary bg-primary/5 min-w-[60px]"
-                  >
-                    Moy. /10
-                  </th>
-                </Fragment>
-              ))}
-              <th className="border-b border-l border-gray-200 px-2 py-1.5 text-center text-[11px] font-bold text-primary bg-primary/10 min-w-[70px]">
-                /20
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredEleves.map((eleve, studentIdx) => (
-              <EleveRow
-                key={eleve.studentId}
-                eleve={eleve}
-                studentIdx={studentIdx}
-                domaines={ctx.domaines}
-                studentNotes={notes[eleve.studentId] ?? {}}
-                states={states}
-                errors={errors}
-                onChange={onChange}
-                onBlur={onBlur}
-                onKeyDown={onKeyDown}
-              />
+        <ContextField label="Domaine" icon={<BookOpen aria-hidden="true" className="h-3 w-3" />}>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setActiveDomainId("ALL")}
+              className={`px-2.5 py-1 rounded-lg text-xs transition-all whitespace-nowrap ${
+                activeDomainId === "ALL"
+                  ? "bg-primary text-white font-semibold shadow-2xs"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium"
+              }`}
+            >
+              Tous les domaines ({totalColonnes})
+            </button>
+            {ctx.domaines.map((d) => (
+              <button
+                key={d.domainId}
+                type="button"
+                onClick={() => setActiveDomainId(d.domainId)}
+                className={`px-2.5 py-1 rounded-lg text-xs transition-all whitespace-nowrap ${
+                  activeDomainId === d.domainId
+                    ? "bg-primary text-white font-semibold shadow-2xs"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium"
+                }`}
+              >
+                {d.name} ({d.sousDisciplines.length})
+              </button>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </ContextField>
 
-      {/* Guide & raccourcis */}
-      <div className="flex flex-wrap items-center justify-between text-xs text-gray-500 px-1 gap-2">
-        <span>
-          💡 <strong>Enregistrement automatique</strong>. Une case vide reste vide (hors calcul).
-        </span>
-        <span className="hidden sm:inline text-gray-400">
-          Raccourcis : <kbd className="rounded border bg-gray-50 px-1.5 py-0.5 text-[10px]">Entrée</kbd> ou <kbd className="rounded border bg-gray-50 px-1.5 py-0.5 text-[10px]">↓</kbd> pour l&apos;élève suivant.
-        </span>
-      </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+          <div className="relative w-full sm:w-56">
+            <Search aria-hidden="true" className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+            <input
+              type="search"
+              aria-label="Filtrer un élève"
+              placeholder="Filtrer un élève…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8.5 w-full pl-8 pr-3 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
 
-      {/* Appréciation globale du maître titulaire */}
-      <AppreciationTitulaire ctx={ctx} />
+          {ctx.canEdit && (
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-700 transition-colors shrink-0"
+            >
+              <Send className="h-3.5 w-3.5" />
+              <span>Soumettre</span>
+            </button>
+          )}
+        </div>
+      </EntryHeader>
+
+      <EntryTable caption={`Notes de ${ctx.className} — ${activeDomain ? activeDomain.name : "Toutes les disciplines"}, ${ctx.termName}`}>
+        <EntryHead>
+          {activeDomain ? (
+            /* En-tête sur une seule ligne (structure identique à la référence secondaire) */
+            <tr>
+              <Th kind="student">
+                Élève
+                {search.trim() && (
+                  <span className="block text-[10px] font-normal text-gray-400">{filteredEleves.length} affiché(s)</span>
+                )}
+              </Th>
+              {activeDomain.sousDisciplines.map((sd) => (
+                <Th key={sd.id} kind="note" sub={`/${sd.scale}`} title={sd.name}>
+                  <span className="block truncate max-w-[120px] mx-auto">{sd.name}</span>
+                </Th>
+              ))}
+              <Th kind="computed" sub={new Set(activeDomain.sousDisciplines.map((sd) => sd.scale)).size === 1 ? `/${activeDomain.sousDisciplines[0].scale}` : undefined}>
+                Moy. {activeDomain.name}
+              </Th>
+              <Th kind="computed" sub="/20">
+                Moy. Gén.
+              </Th>
+              <Th kind="text">
+                Appréciation du maître titulaire
+              </Th>
+            </tr>
+          ) : (
+            /* Vue d'ensemble tous domaines — en-tête groupé à 2 niveaux */
+            <>
+              <tr>
+                <Th kind="student" rowSpan={2}>
+                  Élève
+                  {search.trim() && (
+                    <span className="block text-[10px] font-normal text-gray-400">{filteredEleves.length} affiché(s)</span>
+                  )}
+                </Th>
+                {ctx.domaines.map((d) => (
+                  <Th key={d.domainId} kind="group" colSpan={d.sousDisciplines.length + 1}>
+                    {d.name}
+                  </Th>
+                ))}
+                <Th kind="computed" rowSpan={2} sub="/20">
+                  Moy. Gén.
+                </Th>
+                <Th kind="text" rowSpan={2}>
+                  Appréciation du maître titulaire
+                </Th>
+              </tr>
+              <tr>
+                {ctx.domaines.map((d) => {
+                  const baremes = new Set(d.sousDisciplines.map((sd) => sd.scale));
+                  return (
+                    <Fragment key={d.domainId}>
+                      {d.sousDisciplines.map((sd) => (
+                        <Th key={sd.id} kind="note" sub={`/${sd.scale}`} title={sd.name}>
+                          <span className="block truncate max-w-[110px] mx-auto">{sd.name}</span>
+                        </Th>
+                      ))}
+                      <Th kind="computed" sub={baremes.size === 1 ? `/${[...baremes][0]}` : undefined}>
+                        Moy.
+                      </Th>
+                    </Fragment>
+                  );
+                })}
+              </tr>
+            </>
+          )}
+        </EntryHead>
+        <tbody>
+          {filteredEleves.map((eleve, studentIdx) => (
+            <EleveRow
+              key={eleve.studentId}
+              eleve={eleve}
+              studentIdx={studentIdx}
+              readOnly={!ctx.canEdit}
+              domaines={ctx.domaines}
+              activeDomainId={activeDomainId}
+              studentNotes={notes[eleve.studentId] ?? {}}
+              appreciation={appreciations[eleve.studentId] ?? ""}
+              states={states}
+              errors={errors}
+              onChange={onChange}
+              onBlur={onBlur}
+              onAppreciationChange={onAppreciationChange}
+              onAppreciationBlur={onAppreciationBlur}
+            />
+          ))}
+          {filteredEleves.length === 0 && (
+            <tr>
+              <td colSpan={activeDomain ? activeDomain.sousDisciplines.length + 4 : totalColonnes + ctx.domaines.length + 3} className="px-4 py-8 text-center text-sm text-gray-500">
+                Aucun élève ne correspond à « {search} ».
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </EntryTable>
+
+      <EntryHelp />
+
+      {/* Règle de `calculerEleveElementaire` (lib/notes/elementaire.ts) — à garder alignée sur le moteur. */}
+      <CalculationRule>
+        Moyenne d&apos;un domaine = somme des notes du domaine / nombre de sous-disciplines notées. Moyenne générale
+        = total des points obtenus / total maximum des sous-disciplines notées, ramenée sur 20. Pas de coefficient à
+        l&apos;élémentaire, et une <strong>sous-discipline non notée est exclue du calcul</strong> (jamais comptée
+        zéro).
+      </CalculationRule>
     </div>
   );
 }
@@ -288,25 +409,33 @@ export default function ElementaireGrid({ ctx }: { ctx: Ctx }) {
 type EleveRowProps = {
   eleve: Ctx["eleves"][number];
   studentIdx: number;
+  readOnly?: boolean;
   domaines: Ctx["domaines"];
+  activeDomainId: string;
   studentNotes: Record<string, string>;
+  appreciation: string;
   states: Record<string, CellState>;
   errors: Record<string, string>;
   onChange: (studentId: string, sdId: string, scale: number, raw: string) => void;
   onBlur: (studentId: string, sdId: string, scale: number, raw: string) => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, studentIndex: number, sdId: string) => void;
+  onAppreciationChange: (studentId: string, text: string) => void;
+  onAppreciationBlur: (studentId: string, text: string) => void;
 };
 
 const EleveRow = memo(function EleveRow({
   eleve,
   studentIdx,
+  readOnly = false,
   domaines,
+  activeDomainId,
   studentNotes,
+  appreciation,
   states,
   errors,
   onChange,
   onBlur,
-  onKeyDown,
+  onAppreciationChange,
+  onAppreciationBlur,
 }: EleveRowProps) {
   // Calcul via le moteur officiel élémentaire (Lot 2)
   const calcul = useMemo(() => {
@@ -330,169 +459,55 @@ const EleveRow = memo(function EleveRow({
     return calculerEleveElementaire(eleve.studentId, inputs);
   }, [eleve.studentId, domaines, studentNotes]);
 
+  const nom = `${eleve.firstName} ${eleve.lastName}`;
+  const renderedDomaines = useMemo(
+    () => (activeDomainId === "ALL" ? domaines : domaines.filter((d) => d.domainId === activeDomainId)),
+    [activeDomainId, domaines],
+  );
+
   return (
-    <tr className="hover:bg-gray-50/70 transition-colors">
-      <td className="sticky left-0 z-10 bg-white border-r border-b border-gray-100 px-3 py-2 font-medium text-gray-900 whitespace-nowrap shadow-2xs">
-        <div className="font-semibold text-xs text-gray-900">
-          {eleve.lastName} {eleve.firstName}
-        </div>
-      </td>
-      {domaines.map((d) => {
+    <EntryRow>
+      <StudentCell lastName={eleve.lastName} firstName={eleve.firstName} />
+      {renderedDomaines.map((d) => {
         const domaineRes = calcul.domaines.find((res) => res.domainId === d.domainId);
         return (
           <Fragment key={d.domainId}>
             {d.sousDisciplines.map((sd) => {
               const key = `${eleve.studentId}:${sd.id}`;
-              const state = states[key] ?? "idle";
-              const val = studentNotes[sd.id] ?? "";
-              const err = errors[key];
-
               return (
-                <td key={sd.id} className="border-l border-b border-gray-100 p-1 text-center relative">
-                  <div className="relative inline-block">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      data-student-idx={studentIdx}
-                      data-sd-id={sd.id}
-                      className={`w-14 h-9 rounded-lg border text-center text-xs font-semibold tabular-nums transition-all focus:outline-none focus:ring-2 focus:ring-primary/40 ${
-                        state === "error"
-                          ? "border-red-400 bg-red-50 text-red-700"
-                          : state === "saved"
-                            ? "border-emerald-300 bg-emerald-50/20 text-gray-900"
-                            : "border-gray-200 bg-white text-gray-900 hover:border-gray-300"
-                      }`}
-                      value={val}
-                      title={err}
-                      onChange={(e) => onChange(eleve.studentId, sd.id, sd.scale, e.target.value)}
-                      onBlur={(e) => onBlur(eleve.studentId, sd.id, sd.scale, e.target.value)}
-                      onKeyDown={(e) => onKeyDown(e, studentIdx, sd.id)}
-                    />
-                    <span className="absolute -top-1 -right-1 pointer-events-none">
-                      {state === "saving" && (
-                        <span className="flex h-3 w-3 items-center justify-center rounded-full bg-white shadow-xs">
-                          <Loader2 className="h-2.5 w-2.5 animate-spin text-primary" />
-                        </span>
-                      )}
-                      {state === "saved" && (
-                        <span className="flex h-3 w-3 items-center justify-center rounded-full bg-emerald-500 text-white shadow-xs">
-                          <Check className="h-2 w-2 stroke-[3]" />
-                        </span>
-                      )}
-                      {state === "error" && (
-                        <span className="flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-white shadow-xs">
-                          <TriangleAlert className="h-2 w-2 stroke-[3]" />
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                </td>
+                <NoteCell
+                  key={sd.id}
+                  row={studentIdx}
+                  col={sd.id}
+                  readOnly={readOnly}
+                  ariaLabel={`${sd.name} de ${nom}, sur ${sd.scale}`}
+                  value={studentNotes[sd.id] ?? ""}
+                  state={states[key] ?? "idle"}
+                  error={errors[key]}
+                  onChange={(raw) => onChange(eleve.studentId, sd.id, sd.scale, raw)}
+                  onBlur={(raw) => onBlur(eleve.studentId, sd.id, sd.scale, raw)}
+                />
               );
             })}
-            {/* Moyenne du domaine (sur 10) calculée en temps réel via le moteur officiel */}
-            <td
-              key={`${d.domainId}-moy-${eleve.studentId}`}
-              className="border-l border-b border-gray-100 px-2 py-1.5 text-center text-xs font-bold text-primary bg-primary/5 tabular-nums"
-            >
-              {domaineRes?.moyenne !== null && domaineRes?.moyenne !== undefined
-                ? domaineRes.moyenne.toFixed(2)
-                : "—"}
-            </td>
+            {/* Moyenne du domaine, calculée en temps réel via le moteur officiel */}
+            <ComputedCell value={domaineRes?.moyenne} />
           </Fragment>
         );
       })}
 
       {/* Moyenne générale ramenée sur 20 */}
-      <td className="border-l border-b border-gray-100 px-2 py-1.5 text-center text-xs font-extrabold text-primary bg-primary/10 tabular-nums">
-        {calcul.moyenneGenerale !== null && calcul.moyenneGenerale !== undefined
-          ? calcul.moyenneGenerale.toFixed(2)
-          : "—"}
-      </td>
-    </tr>
+      <ComputedCell value={calcul.moyenneGenerale} strong />
+
+      <AppreciationCell
+        ariaLabel={`Appréciation du maître pour ${nom}`}
+        placeholder="Appréciation du trimestre…"
+        value={appreciation}
+        readOnly={readOnly}
+        state={states[`a:${eleve.studentId}`] ?? "idle"}
+        error={errors[`a:${eleve.studentId}`]}
+        onChange={(text) => onAppreciationChange(eleve.studentId, text)}
+        onBlur={(text) => onAppreciationBlur(eleve.studentId, text)}
+      />
+    </EntryRow>
   );
 });
-
-// -------------------------------------------------------------
-// BLOC APPRÉCIATION DU MAÎTRE TITULAIRE
-// -------------------------------------------------------------
-function AppreciationTitulaire({ ctx }: { ctx: Ctx }) {
-  const [studentId, setStudentId] = useState(ctx.eleves[0]?.studentId ?? "");
-  const [appreciations, setAppreciations] = useState<Record<string, string>>(() =>
-    Object.fromEntries(ctx.eleves.map((e) => [e.studentId, e.appreciation ?? ""])),
-  );
-  const [state, setState] = useState<CellState>("idle");
-
-  const currentComment = appreciations[studentId] ?? "";
-
-  const save = async (commentToSave: string) => {
-    setState("saving");
-    const res = await saveTitulaireAppreciation({
-      studentId,
-      classId: ctx.classId,
-      termId: ctx.termId,
-      comment: commentToSave,
-    });
-    setState(res.ok ? "saved" : "error");
-  };
-
-  const handleTextChange = (text: string) => {
-    setAppreciations((prev) => ({ ...prev, [studentId]: text }));
-    setState("idle");
-  };
-
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3 max-w-2xl shadow-xs">
-      <div className="flex items-center gap-2">
-        <Award className="h-4 w-4 text-primary" />
-        <h2 className="text-sm font-bold text-gray-900">Appréciation du maître titulaire</h2>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-2">
-        <select
-          className="rounded-xl border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 sm:w-60 shrink-0"
-          value={studentId}
-          onChange={(e) => {
-            setStudentId(e.target.value);
-            setState("idle");
-          }}
-        >
-          {ctx.eleves.map((e) => (
-            <option key={e.studentId} value={e.studentId}>
-              {e.lastName} {e.firstName}
-            </option>
-          ))}
-        </select>
-
-        <div className="flex-1 space-y-1.5">
-          <textarea
-            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 min-h-[72px]"
-            placeholder="Appréciation synthétique pour l'élève sur l'ensemble du trimestre..."
-            value={currentComment}
-            onChange={(e) => handleTextChange(e.target.value)}
-            onBlur={(e) => save(e.target.value)}
-          />
-          <div className="flex items-center justify-between text-[11px] text-gray-400">
-            <span>Enregistré automatiquement à la sortie du champ.</span>
-            <span className="flex items-center gap-1 font-medium">
-              {state === "saving" && (
-                <>
-                  <Loader2 className="h-3 w-3 animate-spin text-primary" /> Enregistrement…
-                </>
-              )}
-              {state === "saved" && (
-                <>
-                  <Check className="h-3 w-3 text-emerald-500" /> Enregistré
-                </>
-              )}
-              {state === "error" && (
-                <>
-                  <TriangleAlert className="h-3 w-3 text-red-500" /> Échec
-                </>
-              )}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}

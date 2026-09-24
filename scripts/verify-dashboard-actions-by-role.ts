@@ -43,8 +43,8 @@ console.log("══════════════════════�
 console.log("── 1. ESPACE PARENT (Atterrissage et Ségrégation) ──");
 const parentLanding = firstAllowedPath("PARENT");
 assert(
-  parentLanding === "/dashboard/grades",
-  "firstAllowedPath('PARENT') renvoie explicitement /dashboard/grades",
+  parentLanding === "/famille",
+  "firstAllowedPath('PARENT') renvoie l'Espace Famille (/famille, depuis v32)",
   `reçu: ${parentLanding}`
 );
 assert(

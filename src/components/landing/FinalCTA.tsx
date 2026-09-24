@@ -34,36 +34,34 @@ export default function FinalCTA() {
         <div className="relative overflow-hidden rounded-[20px] bg-m-ink-deep px-7 py-12 sm:px-12 sm:py-14 lg:px-16 lg:py-16">
           <div className="relative max-w-2xl">
             <h2 className="font-display text-[1.75rem] font-semibold leading-[1.1] tracking-[-0.02em] text-white sm:text-[2.25rem] lg:text-[2.75rem]">
-              Réunissez votre école.
+              Moins de paperasse. Moins d&apos;Excel.
+              <br />
+              Plus de temps pour diriger votre école.
             </h2>
 
-            <p className="mt-5 text-[16px] leading-[1.65] text-white/65">
-              Créez l&apos;espace de votre école, numérisez votre annuaire élèves : chaque
-              dossier devient immédiatement accessible, à jour, et prêt à imprimer.
+            <p className="mt-5 text-[16px] leading-[1.65] text-white/70">
+              Passez de la gestion manuelle dispersée à un espace scolaire simple et connecté.
+              Vos bulletins officiels, vos factures et vos documents sont prêts sans stress.
             </p>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="mt-7 flex flex-col gap-3.5 sm:flex-row sm:items-center">
               <Link
-                href="/register"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-control bg-white px-6 text-[15px] font-semibold text-m-ink transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-m-ink-deep"
+                href="#demo"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-control bg-white px-7 text-[15px] font-semibold text-m-ink transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-m-ink-deep"
               >
-                Commencer gratuitement
+                Réserver une démo
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Link>
               <Link
-                href="/login"
-                className="inline-flex h-12 items-center justify-center rounded-control border border-white/20 px-6 text-[15px] font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-m-ink-deep"
+                href="/register"
+                className="inline-flex h-12 items-center justify-center rounded-control border border-white/30 px-6 text-[15px] font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-m-ink-deep"
               >
-                J&apos;ai déjà un compte
+                Essayer gratuitement ({TRIAL_DAYS} jours)
               </Link>
             </div>
 
-            {/* ⚠️ Aucun compte d'écoles clientes. Aucun prélèvement annoncé — cette
-                mention reste ici même si `Pricing` la répète juste au-dessus sur la
-                page : un visiteur qui saute directement à ce bloc doit la voir aussi. */}
             <p className="mt-5 text-[13px] leading-relaxed text-white/45">
-              {TRIAL_DAYS} jours d&apos;essai · Aucune carte bancaire demandée · Aucun
-              prélèvement automatique
+              Déjà prêt pour les cycles primaire et secondaire au Sénégal · Aucune carte bancaire requise
             </p>
           </div>
         </div>

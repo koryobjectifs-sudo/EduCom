@@ -54,7 +54,7 @@ export default function AcademicProgressSection({ academic }: AcademicProgressSe
       </div>
 
       {/* Grille : Moyenne Établissement + Statut Bulletins */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {/* Moyenne Générale */}
         <div className="rounded-control bg-purple-50/40 p-3 border border-purple-200/60 flex flex-col justify-between">
           <span className="text-[10.5px] font-semibold uppercase tracking-wider text-purple-900">
@@ -201,7 +201,7 @@ export default function AcademicProgressSection({ academic }: AcademicProgressSe
         {classesProgress.length === 0 ? (
           <p className="text-role-meta text-text-faint py-3 text-center">Aucune classe déclarée</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {classesProgress.slice(0, 6).map((c) => (
               <div
                 key={c.classId}
