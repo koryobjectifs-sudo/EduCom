@@ -70,8 +70,22 @@ export function TakeAttendanceClient({
     try {
       const arr = Object.values(records) as AttendanceInput[];
       await saveAttendanceBatch(classId, new Date(date), arr);
-      toast.success("Présences enregistrées avec succès");
-      router.push("/dashboard/attendance");
+
+      const presents = arr.filter((r) => r.status === "PRESENT").length;
+      const absents = arr.filter((r) => r.status === "ABSENT").length;
+      const lates = arr.filter((r) => r.status === "LATE").length;
+      const total = arr.length;
+
+      const params = new URLSearchParams({
+        celebrate: "1",
+        className,
+        presents: String(presents),
+        absents: String(absents),
+        lates: String(lates),
+        total: String(total),
+      });
+
+      router.push(`/dashboard/attendance?${params.toString()}`);
       router.refresh();
     } catch (err: any) {
       toast.error(err.message || "Erreur lors de l'enregistrement");

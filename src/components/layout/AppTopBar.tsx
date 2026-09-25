@@ -1,7 +1,6 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import MobileNav from "./MobileNav";
 import { type NavSpace } from "@/lib/navigation";
 import GlobalSearch from "./GlobalSearch";
 import SchoolContextSwitcher from "./SchoolContextSwitcher";
@@ -20,7 +19,6 @@ export interface AppTopBarProps {
 
 export default function AppTopBar({
   schoolName,
-  schoolLogo,
   userRole = "OWNER",
   activeSpace,
   activeSchoolId,
@@ -34,7 +32,8 @@ export default function AppTopBar({
       <div className="flex w-full items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4">
         {/* Gauche : Nom d'école + Flèches historique + Fil d'Ariane */}
         <div className="flex min-w-0 items-center gap-2 sm:gap-2.5 shrink-0">
-          <MobileNav schoolName={schoolName} schoolLogo={schoolLogo} userRole={userRole} />
+          {/* 24 sept. 2026 : plus de menu « hamburger » sur mobile — la navigation
+              passe par `MobileTabBar` (barre du bas). `MobileNav.tsx` conservé. */}
 
           {/* Sélecteur contextuel d'établissement (affiche menu si multi-écoles, sinon nom simple) */}
           <SchoolContextSwitcher

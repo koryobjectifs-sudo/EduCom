@@ -1,7 +1,15 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, Calculator, FileSpreadsheet, FileText, MessageCircle, NotebookPen } from "lucide-react";
+import {
+  AppleCalculatorIcon,
+  AppleFileTextIcon,
+  AppleImportDocIcon,
+  AppleMessageIcon,
+  AppleNotebookIcon,
+  AppleArrowRightIcon,
+} from "@/components/ui/apple-icons";
+import EduComWordmark from "@/components/brand/EduComWordmark";
 
 /**
  * Avant → Avec EduCom — 23 septembre 2026.
@@ -18,27 +26,27 @@ import { ArrowRight, Calculator, FileSpreadsheet, FileText, MessageCircle, Noteb
  */
 const LIGNES = [
   {
-    icon: Calculator,
+    icon: AppleCalculatorIcon,
     avant: "Moyennes calculées à la calculatrice",
     apres: "Moyennes et bulletins calculés, mis en page",
   },
   {
-    icon: FileText,
+    icon: AppleFileTextIcon,
     avant: "Certificats retapés sous Word à chaque demande",
     apres: "Certificat généré depuis la fiche de l'élève",
   },
   {
-    icon: FileSpreadsheet,
+    icon: AppleImportDocIcon,
     avant: "Élèves, parents et paiements dans plusieurs fichiers Excel",
     apres: "Une information, au même endroit",
   },
   {
-    icon: MessageCircle,
+    icon: AppleMessageIcon,
     avant: "Un contact cherché dans un groupe WhatsApp",
     apres: "Un message envoyé depuis la fiche de l'élève",
   },
   {
-    icon: NotebookPen,
+    icon: AppleNotebookIcon,
     avant: "Absences reconstituées depuis un cahier",
     apres: "Une présence enregistrée, visible immédiatement",
   },
@@ -48,15 +56,15 @@ export default function BeforeAfter() {
   const reduce = useReducedMotion();
 
   return (
-    <section className="bg-m-card">
+    <section className="bg-m-sky">
       <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-accent-deep">Le constat</p>
-          <h2 className="mt-4 font-display text-[2rem] font-semibold leading-[1.1] tracking-[-0.03em] text-m-ink sm:text-[2.75rem]">
-            Votre équipe refait chaque trimestre le même travail à la main.
+          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-blue">Le constat</p>
+          <h2 className="mt-4 font-display text-[1.7rem] font-bold leading-[1.15] text-m-navy sm:text-[2.15rem]">
+            Chaque trimestre, votre équipe refait le même travail à la main.
           </h2>
           <p className="mt-5 text-[16px] leading-[1.65] text-m-ink-soft sm:text-[17px]">
-            EduCom ne remplace pas votre équipe. Il lui retire la ressaisie.
+            <EduComWordmark /> ne remplace personne. Il supprime la ressaisie, et les erreurs qui vont avec.
           </p>
         </div>
 
@@ -64,7 +72,7 @@ export default function BeforeAfter() {
           <div className="hidden grid-cols-[1fr_auto_1fr] bg-m-paper px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.1em] sm:grid">
             <span className="text-m-ink-faint">Aujourd&apos;hui</span>
             <span />
-            <span className="text-m-accent-deep">Avec EduCom</span>
+            <span className="text-m-blue">Avec <EduComWordmark /></span>
           </div>
 
           {LIGNES.map((l, i) => {
@@ -86,14 +94,14 @@ export default function BeforeAfter() {
                     {l.avant}
                     <motion.span
                       aria-hidden="true"
-                      className="absolute left-0 top-1/2 h-px w-full origin-left bg-m-ink-faint"
+                      className="absolute left-0 top-1/2 h-[1.5px] w-full origin-left bg-m-ink-faint"
                       variants={{ hidden: { scaleX: 0 }, shown: { scaleX: 1 } }}
                       transition={{ duration: 0.4, ease: "easeOut" }}
                     />
                   </span>
                 </div>
 
-                <ArrowRight aria-hidden="true" className="hidden h-4 w-4 text-m-ink-faint sm:block" />
+                <AppleArrowRightIcon aria-hidden="true" className="hidden h-4 w-4 text-m-ink-faint sm:block" />
 
                 <motion.p
                   className="flex items-center gap-2 pl-12 text-[15px] font-semibold text-m-ink sm:pl-0"
@@ -108,10 +116,10 @@ export default function BeforeAfter() {
           })}
         </div>
 
-        <p className="mx-auto mt-14 max-w-2xl text-center font-display text-[1.75rem] font-semibold leading-[1.15] tracking-[-0.025em] text-m-ink sm:text-[2.25rem]">
-          Moins de temps à gérer l&apos;école.
+        <p className="mx-auto mt-14 max-w-2xl text-center font-display text-[1.5rem] font-bold leading-[1.2] text-m-navy sm:text-[1.9rem]">
+          Moins de temps à administrer.
           <br />
-          <span className="text-m-accent-deep">Plus de temps à la diriger.</span>
+          <span className="text-m-blue">Plus de temps pour diriger.</span>
         </p>
       </div>
     </section>

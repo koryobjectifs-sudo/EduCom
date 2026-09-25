@@ -195,3 +195,151 @@ export async function validateAbsence(attendanceId: string) {
     return { success: false, error: "Impossible de valider l'absence" };
   }
 }
+
+export type AttendanceHistoryRecord = {
+  id: string;
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  matricule: string | null;
+  status: AttendanceStatus;
+  reason: string | null;
+};
+
+export type AttendanceHistorySession = {
+  sessionId: string;
+  date: string;
+  classId: string;
+  className: string;
+  cycle: string | null;
+  recordedBy: string;
+  recordedAt: string;
+  totalStudents: number;
+  presentCount: number;
+  absentCount: number;
+  lateCount: number;
+  excusedCount: number;
+  attendanceRate: number;
+  records: AttendanceHistoryRecord[];
+};
+
+export async function getAttendanceHistory(filters?: {
+  classId?: string;
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+}): Promise<AttendanceHistorySession[]> {
+  const auth = await requireActionContext("/dashboard/attendance");
+  if (!auth.ok) throw new Error(auth.error);
+  const { schoolId, role } = auth.ctx;
+
+  let allowedClassIds: string[] | null = null;
+  if (role === "TEACHER") {
+    allowedClassIds = await teacherClassIds(auth.ctx);
+    if (filters?.classId && !allowedClassIds.includes(filters.classId)) {
+      throw new Error("Vous n'avez pas accès à cette classe.");
+    }
+  }
+
+  const classWhere = filters?.classId
+    ? { classId: filters.classId }
+    : allowedClassIds
+    ? { classId: { in: allowedClassIds } }
+    : {};
+
+  let dateWhere: any = {};
+  if (filters?.date) {
+    const d = new Date(filters.date);
+    d.setHours(0, 0, 0, 0);
+    dateWhere = { date: d };
+  } else if (filters?.startDate || filters?.endDate) {
+    const range: any = {};
+    if (filters.startDate) {
+      const s = new Date(filters.startDate);
+      s.setHours(0, 0, 0, 0);
+      range.gte = s;
+    }
+    if (filters.endDate) {
+      const e = new Date(filters.endDate);
+      e.setHours(23, 59, 59, 999);
+      range.lte = e;
+    }
+    dateWhere = { date: range };
+  }
+
+  const rows = await prisma.attendance.findMany({
+    where: {
+      schoolId,
+      ...classWhere,
+      ...dateWhere,
+    },
+    include: {
+      student: { select: { id: true, firstName: true, lastName: true, matricule: true } },
+      class: { select: { id: true, name: true, cycle: true } },
+      recordedBy: { select: { id: true, firstName: true, lastName: true, role: true } },
+    },
+    orderBy: [
+      { date: "desc" },
+      { class: { name: "asc" } },
+      { student: { lastName: "asc" } },
+    ],
+  });
+
+  const sessionMap = new Map<string, AttendanceHistorySession>();
+
+  for (const row of rows) {
+    const dateStr = row.date.toISOString().split("T")[0];
+    const sessionId = `${dateStr}_${row.classId}`;
+
+    if (!sessionMap.has(sessionId)) {
+      const recordedByName = row.recordedBy
+        ? `${row.recordedBy.firstName} ${row.recordedBy.lastName} (${row.recordedBy.role === "TEACHER" ? "Enseignant" : row.recordedBy.role})`
+        : "Système / Inconnu";
+
+      sessionMap.set(sessionId, {
+        sessionId,
+        date: dateStr,
+        classId: row.classId,
+        className: row.class.name,
+        cycle: row.class.cycle,
+        recordedBy: recordedByName,
+        recordedAt: row.createdAt.toISOString(),
+        totalStudents: 0,
+        presentCount: 0,
+        absentCount: 0,
+        lateCount: 0,
+        excusedCount: 0,
+        attendanceRate: 0,
+        records: [],
+      });
+    }
+
+    const session = sessionMap.get(sessionId)!;
+    session.totalStudents += 1;
+    if (row.status === "PRESENT") session.presentCount += 1;
+    else if (row.status === "ABSENT") session.absentCount += 1;
+    else if (row.status === "LATE") session.lateCount += 1;
+    else if (row.status === "EXCUSED") session.excusedCount += 1;
+
+    session.records.push({
+      id: row.id,
+      studentId: row.student.id,
+      firstName: row.student.firstName,
+      lastName: row.student.lastName,
+      matricule: row.student.matricule,
+      status: row.status,
+      reason: row.reason,
+    });
+  }
+
+  // Calcul du taux de présence pour chaque session
+  for (const session of sessionMap.values()) {
+    session.attendanceRate =
+      session.totalStudents > 0
+        ? Math.round((session.presentCount / session.totalStudents) * 100)
+        : 0;
+  }
+
+  return Array.from(sessionMap.values());
+}
+

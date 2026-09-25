@@ -1,133 +1,58 @@
 "use client";
 
 import Link from "next/link";
-import { Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { PRO_PRICE_EUR, formatFCFA, TRIAL_DAYS } from "@/lib/pricing";
+import EduComWordmark from "@/components/brand/EduComWordmark";
+import {
+  AppleCheckIcon,
+  AppleArrowRightIcon,
+  AppleShieldCheckIcon,
+} from "@/components/ui/apple-icons";
 
 /**
- * Tarifs — addendum PLG.
- *
- * ═══ CE QUI ÉTAIT AFFICHÉ AVANT LE CHANTIER ═══
- *
- * ⚠️ Trois formules chiffrées — « 0 € », « 199 €/mois », « Sur mesure » —
- * **en euros** pour des établissements qui facturent en francs CFA,
- * **inventées** (aucune décision tarifaire n'avait été prise), et adossées à des
- * fonctionnalités inexistantes : « Gestion des présences » figurait dans les
- * trois. Elles ont été retirées, et remplacées par une section qui disait
- * simplement que la grille n'était pas arrêtée.
- *
- * ═══ CE QUE L'ADDENDUM APPORTE ═══
- *
- * Kory a arrêté la grille. Les montants ci-dessous sont **les siens**, repris
- * mot pour mot : essai de 14 jours, Pro à 20 €, Premium à 30 €, avec leur
- * objectif respectif. Ils ne sont plus une supposition.
- *
- * ⚠️ **CE QUI N'EST TOUJOURS PAS DÉCIDÉ, ET N'EST DONC PAS ÉCRIT ICI** : la
- * répartition des fonctionnalités entre Pro et Premium, les limites d'élèves,
- * d'utilisateurs ou de stockage, les quotas, les modules inclus, les conditions
- * contractuelles. L'addendum l'interdit explicitement, et c'est la partie d'une
- * grille tarifaire qu'il est le plus tentant de « compléter » pour faire propre.
- * Une case cochée à tort dans un tableau comparatif est une promesse
- * commerciale opposable. Consigné dans `rappel.md`.
- *
- * ⚠️ **AUCUN « le plus populaire », AUCUN « meilleur rapport »**. Aucune
- * décision commerciale ne les fonde ; les inventer reviendrait à fabriquer une
- * preuve sociale, exactement ce que `SchoolStories` refuse de faire.
- *
- * ⚠️ **L'essai de 14 jours n'est aujourd'hui appliqué par aucun mécanisme.** Le
- * schéma Prisma n'a ni plan, ni abonnement, ni date de fin d'essai, et EduCom
- * n'a aucun paiement en ligne. La page ne doit donc jamais laisser croire à un
- * décompte automatique ni à un prélèvement : la mention « aucun prélèvement
- * automatique » n'est pas un argument commercial, c'est la description exacte de
- * l'état du produit.
- *
- * ═══ LES DEUX MONNAIES ═══
- *
- * Le franc CFA n'est pas une conversion de courtoisie : c'est la monnaie dans
- * laquelle une directrice sénégalaise décide. La parité est **fixe** —
- * 1 € = 655,957 F CFA — ce qui permet d'afficher les deux montants sans
- * dépendre d'un taux du jour ni d'un service externe. Les arrondis (13 100 et
- * 19 700) sont ceux fixés par Kory.
- *
- * ═══ REFONTE VISUELLE DU 4 SEPTEMBRE 2026 (troisième version) ═══
- *
- * Aucun montant, aucune fonctionnalité, aucun libellé n'a changé — seule la
- * peinture. La bordure conique tournante en boucle infinie est retirée :
- * pure décoration, contraire au principe 4 de la constitution produit
- * (« no gimmicks, no decorative animation »). L'inclinaison 3D à l'entrée
- * est ramenée à un ressort simple, cohérent avec le reste de la page.
- *
- * ═══ REFONTE DU 5 SEPTEMBRE 2026 — DEUX FORMULES, PAS TROIS ═══
- *
- * Le brief de Kory demande exactement deux options : Pro (avec essai) et
- * Custom. « Freemium » (0 €) et « Pro » (9 €) fusionnent en une seule carte
- * — l'essai n'est plus une formule séparée, c'est la porte d'entrée de Pro.
- * « On Demand » devient « Sur mesure », repositionné comme le brief le
- * demande : pas un second palier générique, une réponse à un besoin
- * spécifique.
- *
- * ⚠️ **DÉCISION DE KORY (5 septembre 2026), tranchée par PLG CHECK** : le
- * brief demandait un essai de 7 jours suivi d'un « prélèvement automatique ».
- * Impossible à écrire tel quel — EduCom n'a toujours aucun paiement en ligne
- * (ni Stripe, ni mobile money), donc rien ne peut être prélevé, et
- * l'annoncer aurait été une fausse promesse commerciale. Kory a tranché :
- * durée d'essai ramenée à 7 jours comme demandé, mais la mention
- * reste « aucun prélèvement automatique » — c'est la description exacte de
- * l'état du produit, pas un argument commercial qu'on peut retoucher.
- *
- * ═══ REFONTE DU 5 SEPTEMBRE 2026 (v5) — LIBELLÉS DE CTA UNIFIÉS ═══
- *
- * « Commencer l'essai 7 jours » devient « Commencer gratuitement », identique
- * au CTA du hero et du CTA final — un seul texte de bouton sur toute la page
- * (brief §4, §9). « Nous contacter » devient « Parler à un expert » (demande
- * explicite du brief §9).
- *
- * ⚠️ Ce CTA reste un `mailto:` vers l'adresse personnelle de Kory (aucun
- * contact commercial dédié n'existe) — « expert » reste défendable puisque
- * c'est lui qui répond, mais à remplacer par une vraie adresse dès qu'elle
- * existe, comme noté plus bas.
- *
- * ═══ PASSE DU 7 SEPTEMBRE 2026 — COMPACTION ═══
- *
- * Aucun montant, aucune fonctionnalité n'a changé. Les cartes occupaient une
- * hauteur disproportionnée pour deux offres à comparer (padding `p-10`,
- * grille large `max-w-3xl`) — resserrées (`p-6`, `max-w-2xl`, listes plus
- * denses) pour que les deux formules se comparent d'un coup d'œil.
+ * Grille tarifaire EduCom — Format compact et lisible en un coup d'œil.
  */
 const FORMULES = [
   {
     id: "pro",
     nom: "Pro",
+    badge: "Recommandé",
     eur: `${PRO_PRICE_EUR} €`,
     cfa: `≈ ${formatFCFA(PRO_PRICE_EUR)}`,
     periode: "par mois",
-    essai: `${TRIAL_DAYS} jours d'essai gratuit, puis`,
-    objectif: "Tout EduCom, dès aujourd'hui.",
+    essai: `${TRIAL_DAYS} jours d'essai gratuit`,
+    reassurance: "Sans engagement · Sans carte bancaire",
+    objectif: "Tout pour piloter votre école dès aujourd'hui : zéro calcul manuel, zéro paperasse.",
     features: [
-      "Toutes les fonctionnalités actuelles",
-      "Import de votre annuaire élèves (Excel/CSV)",
-      "Inscriptions et dossiers élèves",
-      "Saisie des notes et bulletins",
-      "Facturation et reçus",
-      "Support prioritaire",
+      "Bulletins conformes Sénégal (calcul auto moyennes & rangs)",
+      "Import Excel / CSV instantané de votre annuaire",
+      "Facturation des écolages & reçus de caisse en Francs CFA",
+      "Certificats de scolarité & documents élèves en 1 clic",
+      "Pointage de l'appel & liaison WhatsApp familles",
+      "Espaces cloisonnés : Direction, Maîtres, Parents",
+      "Assistance réactive & support au démarrage inclus",
     ],
-    cta: "Commencer gratuitement",
+    cta: "Créer mon école",
     highlight: true,
   },
   {
     id: "surmesure",
-    nom: "Sur mesure",
+    nom: "Sur devis",
+    badge: "Sur mesure",
     eur: "Sur devis",
     cfa: null,
     periode: null,
-    essai: null,
-    objectif: "Des besoins particuliers ? Construisons-le ensemble.",
+    essai: "Étude et réponse sous 24h",
+    reassurance: "Développements sur-mesure",
+    objectif: "Des besoins particuliers ? Développons ensemble les fonctionnalités qu'il vous faut.",
     features: [
-      "Développement de fonctionnalités spécifiques",
-      "Intégration de paiements",
-      "Automatisations sur mesure",
-      "Accompagnement dédié",
+      "Développement de fonctionnalités sur-mesure pour votre école",
+      "Ajout de modules personnalisés sur demande",
+      "Adaptation exacte à vos formats de bulletins et registres",
+      "Intégration de passerelles de paiement (Wave, Orange Money)",
+      "Pilotage multi-établissements & consolidation de campus",
+      "Interlocuteur & développeur dédié pour votre école",
     ],
     cta: "Parler à un expert",
     highlight: false,
@@ -135,28 +60,23 @@ const FORMULES = [
 ];
 
 /**
- * `sansEntete` — sur `/pricing`, l'en-tête de page dit déjà « Tarifs » et
- * annonce les deux monnaies. Sans ce drapeau, la page empilait **deux titres
- * quasi identiques** l'un sous l'autre, et le surtitre « TARIFS » deux fois en
- * six centimètres d'écran. Le composant reste unique — c'est justement l'objet
- * de la suppression de `PricingSection` : il n'existe plus qu'UNE définition des
- * montants, et elle sait seulement se taire quand la page a déjà parlé.
+ * `sansEntete` — sur `/pricing`, l'en-tête de page dit déjà « Tarifs ».
  */
 export default function Pricing({ sansEntete = false }: { sansEntete?: boolean }) {
   return (
-    <section id="tarifs" className="scroll-mt-20 bg-m-paper-deep">
+    <section id="tarifs" className="scroll-mt-20 border-t border-m-line-soft bg-white">
       <div className={`mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 ${sansEntete ? "py-10 lg:py-14" : "py-14 lg:py-20"}`}>
         {!sansEntete && (
           <div className="max-w-2xl">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-ink-faint">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-blue">
               Tarifs
             </p>
-            <h2 className="mt-4 font-display text-[2rem] font-semibold leading-[1.1] tracking-[-0.03em] text-m-ink sm:text-[2.75rem]">
+            <h2 className="mt-4 font-display text-[1.7rem] font-bold leading-[1.15] text-m-navy sm:text-[2.15rem]">
               Un prix par école, pas par élève.
             </h2>
             <p className="mt-4 text-[15px] leading-[1.65] text-m-ink-soft">
-              Commencez par {TRIAL_DAYS} jours d&apos;essai : le temps de numériser votre
-              annuaire élèves et de voir si EduCom vous fait gagner vos journées.
+              {TRIAL_DAYS}&nbsp;jours d&apos;essai pour importer votre annuaire et juger sur pièces.
+              Un tarif fixe par établissement, quel que soit le nombre d&apos;élèves.
             </p>
           </div>
         )}
@@ -169,7 +89,7 @@ export default function Pricing({ sansEntete = false }: { sansEntete?: boolean }
             hidden: { opacity: 0 },
             visible: {
               opacity: 1,
-              transition: { staggerChildren: 0.2 }
+              transition: { staggerChildren: 0.15 }
             }
           }}
           className={`mx-auto grid max-w-2xl grid-cols-1 gap-5 sm:grid-cols-2 ${sansEntete ? "" : "mt-8"}`}
@@ -179,82 +99,92 @@ export default function Pricing({ sansEntete = false }: { sansEntete?: boolean }
             return (
               <motion.div
                 variants={{
-                  hidden: { opacity: 0, y: 28 },
+                  hidden: { opacity: 0, y: 20 },
                   visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 120, damping: 18 } },
                 }}
-                whileHover={{ y: -4, transition: { type: "spring", stiffness: 300, damping: 22 } }}
+                whileHover={{ y: -3, transition: { type: "spring", stiffness: 300, damping: 22 } }}
                 key={f.id}
-                className={`relative flex flex-col rounded-[16px] transition-shadow duration-300 ${
-                  isHighlighted ? "bg-m-ink shadow-m-lift" : "bg-m-card shadow-[0_1px_2px_rgb(11_18_32_/_0.04)] hover:shadow-m-lift"
+                className={`relative flex flex-col rounded-2xl transition-all duration-300 ${
+                  isHighlighted
+                    ? "bg-gradient-to-b from-[#0A2342] via-[#081D37] to-[#051326] border border-blue-400/25 shadow-[0_16px_36px_-12px_rgba(10,35,66,0.35)] ring-1 ring-white/10"
+                    : "bg-white border border-slate-200/90 shadow-sm hover:shadow-md hover:border-slate-300"
                 }`}
               >
+                {/* Badge supérieur */}
+                {isHighlighted && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-blue-300/30 bg-[#0F2F57] px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-100 shadow-sm flex items-center gap-1.5 whitespace-nowrap">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    {f.badge}
+                  </div>
+                )}
+
                 <div className="flex flex-col p-6">
-                  <div className="flex items-center gap-3">
-                    <h3 className={`text-[14px] font-semibold ${isHighlighted ? "text-white" : "text-m-ink"}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className={`text-[16px] font-bold ${isHighlighted ? "text-white" : "text-slate-900"}`}>
                       {f.nom}
                     </h3>
-                    {isHighlighted && (
-                      <span className="rounded-pill bg-m-accent-bright px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-m-ink">
-                        Populaire
+                    {!isHighlighted && f.badge && (
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                        {f.badge}
                       </span>
                     )}
                   </div>
 
-                  <p className={`mt-2 text-[12.5px] leading-relaxed ${isHighlighted ? "text-white/65" : "text-m-ink-soft"}`}>
+                  <p className={`mt-2 text-[12.5px] leading-relaxed ${isHighlighted ? "text-slate-300" : "text-slate-600"}`}>
                     {f.objectif}
                   </p>
 
-                  <div className="mt-5 flex flex-col gap-4">
+                  <div className="mt-4 flex flex-col gap-3.5">
                     <div className="flex flex-col">
-                      {f.essai && (
-                        <p className={`text-[12px] font-medium ${isHighlighted ? "text-m-accent-bright" : "text-m-accent-deep"}`}>
-                          {f.essai}
-                        </p>
-                      )}
-                      <div className="mt-1 flex items-baseline gap-1">
-                        <p className={`font-display text-[2rem] font-semibold leading-none tracking-tight ${isHighlighted ? "text-white" : "text-m-ink"}`}>
+                      <p className={`text-[11.5px] font-medium ${isHighlighted ? "text-blue-300" : "text-blue-700"}`}>
+                        {f.essai}
+                      </p>
+
+                      <div className="mt-0.5 flex items-baseline gap-1">
+                        <p className={`font-display text-[2rem] font-bold leading-none tracking-tight ${isHighlighted ? "text-white" : "text-slate-900"}`}>
                           {f.eur}
                         </p>
                         {f.periode && (
-                          <p className={`text-[13px] font-medium ${isHighlighted ? "text-white/50" : "text-m-ink-faint"}`}>
+                          <p className={`text-[12.5px] font-medium ${isHighlighted ? "text-slate-400" : "text-slate-500"}`}>
                             /{f.periode.replace("par ", "")}
                           </p>
                         )}
                       </div>
-                      {f.cfa && (
-                        <p className={`mt-1 text-[12.5px] font-semibold tabular-nums ${isHighlighted ? "text-m-accent-bright" : "text-m-ink-faint"}`}>
-                          {f.cfa}
-                        </p>
-                      )}
+
+                      <div className="mt-1 flex items-center gap-1.5">
+                        {f.cfa && (
+                          <p className={`text-[12.5px] font-bold tabular-nums ${isHighlighted ? "text-emerald-400" : "text-slate-700"}`}>
+                            {f.cfa}
+                          </p>
+                        )}
+                        <span className="text-[11px] text-slate-400">
+                          • {f.reassurance}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* ⚠️ « Sur mesure » n'a pas de formulaire de contact — aucun
-                        n'existe dans le produit, et un lien mort coûte plus de
-                        confiance que son absence (règle du reste du site). La
-                        boîte de Kory reçoit directement le message ; à
-                        remplacer par une adresse dédiée dès qu'elle existe. */}
                     <Link
-                      href={f.id === "surmesure" ? "mailto:koryobjectifs@gmail.com?subject=EduCom%20%E2%80%94%20Besoin%20sur%20mesure" : "/register"}
-                      className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-control text-[13.5px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                      href={f.id === "surmesure" ? "mailto:koryobjectifs@gmail.com?subject=EduCom%20%E2%80%94%20Demande%20de%20fonctionnalit%C3%A9s%20sur%20mesure" : "/register"}
+                      className={`group inline-flex h-10.5 w-full items-center justify-center gap-2 rounded-xl text-[13px] font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                         isHighlighted
-                          ? "bg-white text-m-ink hover:bg-white/90 focus-visible:ring-white/50 focus-visible:ring-offset-m-ink"
-                          : "bg-m-ink text-white hover:bg-m-ink/85 focus-visible:ring-m-ink/40"
+                          ? "bg-white text-[#0A2342] hover:bg-slate-50 shadow-sm hover:shadow focus-visible:ring-white/50 focus-visible:ring-offset-[#0A2342]"
+                          : "bg-[#0A2342] text-white hover:bg-[#133560] shadow-sm hover:shadow focus-visible:ring-[#0A2342]/40"
                       }`}
                     >
-                      {f.cta}
+                      <span>{f.cta}</span>
+                      <AppleArrowRightIcon className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
                     </Link>
                   </div>
                 </div>
 
-                <div className={`flex-1 rounded-b-[16px] border-t p-6 ${isHighlighted ? "border-white/10 bg-white/[0.03]" : "border-m-line-soft bg-m-paper"}`}>
+                <div className={`flex-1 rounded-b-2xl border-t p-6 ${isHighlighted ? "border-white/10 bg-white/[0.02]" : "border-slate-100 bg-slate-50/60"}`}>
                   <ul className="space-y-2.5">
                     {f.features.map((feature, idx) => (
-                      <li key={idx} className={`flex items-start gap-2.5 text-[12.5px] leading-relaxed ${isHighlighted ? "text-white/70" : "text-m-ink-soft"}`}>
-                        <Check
-                          aria-hidden="true"
-                          className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${isHighlighted ? "text-m-accent-bright" : "text-m-accent-deep"}`}
+                      <li key={idx} className={`flex items-start gap-2 text-[12.5px] leading-relaxed ${isHighlighted ? "text-slate-200" : "text-slate-700"}`}>
+                        <AppleCheckIcon
+                          className={`mt-1 h-3.5 w-3.5 shrink-0 ${isHighlighted ? "text-emerald-400" : "text-emerald-600"}`}
                         />
-                        {feature}
+                        <span>{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -264,20 +194,38 @@ export default function Pricing({ sansEntete = false }: { sansEntete?: boolean }
           })}
         </motion.div>
 
-        {/* ⚠️ Les mentions légales. */}
-        <div className="mt-8 grid grid-cols-1 gap-x-10 gap-y-3 border-t border-m-line pt-6 sm:grid-cols-2">
-          <p className="text-[13px] leading-relaxed text-m-ink-soft">
-            <span className="font-semibold text-m-ink">Deux monnaies, un seul prix.</span>{" "}
-            La parité euro / franc CFA est fixe (1 € = 655,957 F CFA) : les montants ne
-            bougent pas avec le change.
-          </p>
-          <p className="text-[13px] leading-relaxed text-m-ink-soft">
-            <span className="font-semibold text-m-ink">Aucun prélèvement automatique.</span>{" "}
-            EduCom n&apos;a pas encore de paiement en ligne : rien ne peut vous être débité,
-            et l&apos;essai ne se transforme pas tout seul en abonnement.
-          </p>
+        {/* Mentions de réassurance et transparence */}
+        <div className="mt-8 grid grid-cols-1 gap-x-10 gap-y-3 border-t border-slate-200/80 pt-6 sm:grid-cols-2">
+          <div className="flex items-start gap-2.5">
+            <div className="mt-0.5 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+              <AppleShieldCheckIcon className="h-3.5 w-3.5" />
+            </div>
+            <div>
+              <p className="text-[12.5px] font-semibold text-slate-900">
+                Deux monnaies, un seul prix garanti
+              </p>
+              <p className="mt-0.5 text-[12px] leading-relaxed text-slate-600">
+                La parité euro / franc CFA est fixe (1 € = 655,957 F CFA). Vos montants ne changent jamais avec les fluctuations du cours.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <div className="mt-0.5 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <AppleCheckIcon className="h-3.5 w-3.5" />
+            </div>
+            <div>
+              <p className="text-[12.5px] font-semibold text-slate-900">
+                Zéro prélèvement automatique masqué
+              </p>
+              <p className="mt-0.5 text-[12px] leading-relaxed text-slate-600">
+                <EduComWordmark /> ne prélève rien à votre insu. Aucun abonnement ne s&apos;active automatiquement à la fin des {TRIAL_DAYS} jours d&apos;essai.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
   );
 }
+
+

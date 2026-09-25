@@ -2,7 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { CalendarCheck, Check, FileSpreadsheet, FileText, GraduationCap, MessageCircle, Receipt, Search } from "lucide-react";
+import {
+  AppleImportDocIcon,
+  AppleGraduationCapIcon,
+  AppleReceiptIcon,
+  AppleFileTextIcon,
+  AppleCalendarCheckIcon,
+  AppleCheckIcon,
+  AppleSearchIcon,
+  AppleMessageIcon,
+} from "@/components/ui/apple-icons";
+import EduComWordmark from "@/components/brand/EduComWordmark";
 
 /**
  * Démo produit animée du hero — 23 septembre 2026.
@@ -29,11 +39,11 @@ import { CalendarCheck, Check, FileSpreadsheet, FileText, GraduationCap, Message
  */
 
 const SCENES = [
-  { id: "import", label: "Import", icon: FileSpreadsheet },
-  { id: "bulletin", label: "Bulletins", icon: GraduationCap },
-  { id: "facture", label: "Factures", icon: Receipt },
-  { id: "certificat", label: "Certificats", icon: FileText },
-  { id: "presences", label: "Présences", icon: CalendarCheck },
+  { id: "import", label: "Import", icon: AppleImportDocIcon },
+  { id: "bulletin", label: "Bulletins", icon: AppleGraduationCapIcon },
+  { id: "facture", label: "Factures", icon: AppleReceiptIcon },
+  { id: "certificat", label: "Certificats", icon: AppleFileTextIcon },
+  { id: "presences", label: "Présences", icon: AppleCalendarCheckIcon },
 ] as const;
 
 type SceneId = (typeof SCENES)[number]["id"];
@@ -76,7 +86,7 @@ export default function HeroDemo() {
       {/* Halo discret derrière la fenêtre — donne la profondeur sans dégradé criard */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -inset-8 -z-10 rounded-[40px] bg-[radial-gradient(60%_60%_at_60%_40%,rgba(44,108,184,0.16),transparent_70%)]"
+        className="pointer-events-none absolute -inset-8 -z-10 rounded-[40px] bg-[radial-gradient(60%_60%_at_60%_40%,rgba(31,78,140,0.12),transparent_70%)]"
       />
 
       <div className="overflow-hidden rounded-[18px] bg-m-card shadow-[0_1px_2px_rgba(11,18,32,0.06),0_30px_60px_-24px_rgba(11,18,32,0.35)] ring-1 ring-m-line">
@@ -86,7 +96,7 @@ export default function HeroDemo() {
           <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-m-line" />
           <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-m-line" />
           <span className="ml-2 truncate text-[11px] font-medium text-m-ink-faint">
-            EduCom · Collège Les Baobabs
+            <EduComWordmark /> · Collège Les Baobabs
           </span>
         </div>
 
@@ -113,7 +123,7 @@ export default function HeroDemo() {
                   {on && (
                     <motion.span
                       key={`${s.id}-${cycle}`}
-                      className="block h-full bg-m-accent"
+                      className="block h-full bg-m-blue"
                       initial={{ width: reduce || paused ? "100%" : "0%" }}
                       animate={{ width: "100%" }}
                       transition={{ duration: reduce || paused ? 0 : DUREE_MS / 1000, ease: "linear" }}
@@ -199,13 +209,13 @@ function SceneBulletin({ reduce }: { reduce: boolean }) {
         transition={{ delay: reduce ? 0 : 2.4, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       >
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10">
-          <GraduationCap aria-hidden="true" className="h-5 w-5 text-m-accent-bright" />
+          <AppleGraduationCapIcon aria-hidden="true" className="h-5 w-5 text-m-accent-bright" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold">Bulletins du 1er trimestre générés</p>
           <p className="text-[12px] text-white/60">Moyennes calculées · 5e A · prêts à imprimer</p>
         </div>
-        <Check aria-hidden="true" className="h-5 w-5 text-emerald-400" />
+        <AppleCheckIcon aria-hidden="true" className="h-5 w-5 text-emerald-400" />
       </motion.div>
     </div>
   );
@@ -275,13 +285,13 @@ function SceneFacture({ reduce }: { reduce: boolean }) {
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10">
-              <Receipt aria-hidden="true" className="h-5 w-5 text-m-accent-bright" />
+              <AppleReceiptIcon aria-hidden="true" className="h-5 w-5 text-m-accent-bright" />
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-semibold">Paiement enregistré · reçu généré</p>
               <p className="text-[12px] text-white/60">Numérotation automatique · A4 ou demi-A4</p>
             </div>
-            <Check aria-hidden="true" className="h-5 w-5 text-emerald-400" />
+            <AppleCheckIcon aria-hidden="true" className="h-5 w-5 text-emerald-400" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -306,7 +316,7 @@ function SceneCertificat({ reduce }: { reduce: boolean }) {
   return (
     <div className="flex h-full flex-col gap-4">
       <div className="flex items-center gap-2.5 rounded-xl bg-m-card px-3.5 py-2.5 ring-1 ring-m-line">
-        <Search aria-hidden="true" className="h-4 w-4 text-m-ink-faint" />
+        <AppleSearchIcon aria-hidden="true" className="h-4 w-4 text-m-ink-faint" />
         <span className="text-[13px] text-m-ink">
           {RECHERCHE.slice(0, typed)}
           {!done && <span className="ml-px inline-block h-4 w-px translate-y-0.5 animate-pulse bg-m-ink" />}
@@ -410,7 +420,7 @@ function SceneImport({ reduce }: { reduce: boolean }) {
             ].map(([a, b]) => (
               <div key={a} className="rounded-xl bg-m-ink px-3 py-3 text-white">
                 <div className="flex items-center gap-1.5 text-[13px] font-semibold">
-                  <Check aria-hidden="true" className="h-4 w-4 text-emerald-400" />
+                  <AppleCheckIcon aria-hidden="true" className="h-4 w-4 text-emerald-400" />
                   {a}
                 </div>
                 <p className="mt-0.5 text-[11px] text-white/60">{b}</p>
@@ -476,13 +486,13 @@ function ScenePresences({ reduce }: { reduce: boolean }) {
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10">
-              <MessageCircle aria-hidden="true" className="h-5 w-5 text-emerald-400" />
+              <AppleMessageIcon aria-hidden="true" className="h-5 w-5 text-emerald-400" />
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-semibold">Famille Ndiaye prévenue sur WhatsApp</p>
               <p className="text-[12px] text-white/60">En un clic · lien pour justifier l&apos;absence</p>
             </div>
-            <Check aria-hidden="true" className="h-5 w-5 text-emerald-400" />
+            <AppleCheckIcon aria-hidden="true" className="h-5 w-5 text-emerald-400" />
           </motion.div>
         )}
       </AnimatePresence>

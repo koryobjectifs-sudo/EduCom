@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { MessageSquare, PhoneCall, CheckCircle2, ArrowRight, ShieldCheck, Clock } from "lucide-react";
+import EduComWordmark from "@/components/brand/EduComWordmark";
 
 const WHATSAPP_EQUIPE = "221773024844";
 
@@ -52,19 +53,19 @@ export default function DemoBookingSection() {
   }
 
   return (
-    <section id="demo" className="scroll-mt-20 bg-m-paper-deep py-20 lg:py-28">
+    <section id="demo" className="scroll-mt-20 bg-m-sky py-20 lg:py-28">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3.5 py-1 text-[12px] font-semibold text-emerald-800 border border-emerald-200">
-            <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
-            Démonstration personnalisée · 20 minutes
+          <div className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1 text-[12px] font-semibold text-m-blue ring-1 ring-m-sky-deep">
+            <span className="h-2 w-2 rounded-full bg-m-signal" />
+            Démonstration personnalisée · 20&nbsp;minutes
           </div>
-          <h2 className="mt-4 font-display text-[2rem] font-semibold leading-[1.1] tracking-[-0.03em] text-m-ink sm:text-[2.75rem]">
-            Voyez comment EduCom fonctionne avec les cas réels de votre école.
+          <h2 className="mt-4 font-display text-[1.7rem] font-bold leading-[1.15] text-m-navy sm:text-[2.15rem]">
+            Voyez votre école tourner sur <EduComWordmark />, avec vos propres données.
           </h2>
-          <p className="mt-4 text-[15px] leading-[1.65] text-m-ink-soft">
-            Échangez avec notre équipe à Dakar ou en visio. Nous vous montrons la saisie des notes,
-            les bulletins officiels et la facturation en direct.
+          <p className="mt-4 text-[16px] leading-[1.65] text-m-ink-soft">
+            Apportez votre fichier Excel&nbsp;: nous l&apos;importons devant vous, puis nous générons vos
+            premiers bulletins, factures et certificats. En visio ou avec notre équipe à Dakar.
           </p>
         </div>
 
@@ -79,7 +80,7 @@ export default function DemoBookingSection() {
                 Échangez directement sur WhatsApp
               </h3>
               <p className="mt-2.5 text-[14px] leading-[1.65] text-m-ink-soft">
-                Vous préférez un échange rapide sans remplir de formulaire ? Discutez directement avec un spécialiste EduCom sur WhatsApp.
+                Vous préférez un échange rapide sans remplir de formulaire ? Discutez directement avec un spécialiste <EduComWordmark /> sur WhatsApp.
               </p>
 
               <div className="mt-6 space-y-2.5 border-t border-m-line-soft pt-6 text-[13px] text-m-ink-soft">
@@ -228,7 +229,7 @@ export default function DemoBookingSection() {
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-control bg-m-ink px-6 text-[15px] font-semibold text-white transition-all hover:bg-m-ink/85 hover:shadow-sm"
+                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-control bg-m-navy px-6 text-[15px] font-semibold text-white transition-all hover:bg-m-blue hover:shadow-sm"
                   >
                     Demander à être rappelé
                     <ArrowRight className="h-4 w-4" />

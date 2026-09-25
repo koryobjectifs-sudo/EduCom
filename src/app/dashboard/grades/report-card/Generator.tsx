@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Printer, Users, Sparkles, Palette, Check, Sliders, ShieldCheck, X } from "lucide-react";
+import { Printer, Users, Sparkles, Palette, Check, Sliders, ShieldCheck, X, Eye, ArrowLeft } from "lucide-react";
 import type { OfficialBulletinData } from "@/lib/bulletin/loadOfficialBulletin";
 import { BulletinSecondaireSheet } from "@/components/grades/BulletinSecondaireSheet";
 import { BulletinElementaireSheet } from "@/components/grades/BulletinElementaireSheet";
+import { ResponsiveBulletinContainer } from "@/components/grades/ResponsiveBulletinContainer";
 import SharedColorPicker from "@/components/ui/SharedColorPicker";
 import { saveSchoolBulletinSettings } from "./actions";
 
@@ -22,6 +23,7 @@ export default function ReportCardGenerator({
   const defaultSchoolColor = data.school.primaryColor || "#1e40af";
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(focusStudentId);
   const [monochrome, setMonochrome] = useState<boolean>(false);
+  const [showMobilePreview, setShowMobilePreview] = useState<boolean>(false);
 
   // Réglages de personnalisation (chargés depuis l'école)
   const [showCustomizer, setShowCustomizer] = useState<boolean>(false);
@@ -46,6 +48,22 @@ export default function ReportCardGenerator({
     setWatermarkOpacity(data.school.bulletinWatermarkOpacity ?? 0.06);
     setLogoPosition((data.school.bulletinLogoPosition as "LEFT" | "CENTER" | "RIGHT") || "CENTER");
   }, [data.school, defaultSchoolColor]);
+
+  useEffect(() => {
+    if (showMobilePreview) {
+      document.body.style.overflow = "hidden";
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") setShowMobilePreview(false);
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.body.style.overflow = "";
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    } else {
+      document.body.style.overflow = "";
+    }
+  }, [showMobilePreview]);
 
   const handleSaveDefaults = async () => {
     setIsSaving(true);
@@ -100,14 +118,14 @@ export default function ReportCardGenerator({
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               {/* Filtre par élève */}
-              <div className="flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5 text-text-soft" />
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                <Users className="h-3.5 w-3.5 text-text-soft shrink-0" />
                 <select
                   value={selectedStudentId || ""}
                   onChange={(e) => setSelectedStudentId(e.target.value || null)}
-                  className="h-8.5 rounded-control border border-rule bg-surface px-2.5 text-xs font-medium text-text focus:border-primary focus:outline-none"
+                  className="h-8.5 w-full sm:w-auto rounded-control border border-rule bg-surface px-2.5 text-xs font-medium text-text focus:border-primary focus:outline-none"
                 >
                   <option value="">Tous les élèves ({data.students.length})</option>
                   {(data.students as any[]).map((s) => (
@@ -152,17 +170,30 @@ export default function ReportCardGenerator({
                 {monochrome ? "Noir & Blanc" : "Couleur École"}
               </button>
 
-              {/* Bouton d'impression */}
+              {/* Bouton d'impression (Desktop) */}
               {canPrint && (
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="inline-flex items-center gap-1.5 h-8.5 rounded-control bg-primary px-3.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-primary-hover"
+                  className="hidden md:inline-flex items-center gap-1.5 h-8.5 rounded-control bg-primary px-3.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-primary-hover"
                 >
                   <Printer className="h-3.5 w-3.5" />
                   Imprimer A4
                 </button>
               )}
+            </div>
+
+            {/* Bouton d'aperçu dédié sur mobile — visible en pleine largeur */}
+            <div className="w-full md:hidden pt-1">
+              <button
+                type="button"
+                onClick={() => setShowMobilePreview(true)}
+                className="flex items-center justify-center gap-2 w-full h-10.5 rounded-control bg-primary px-4 text-xs font-bold text-white shadow-sm hover:bg-primary-hover active:scale-[0.99] transition-all"
+                title="Ouvrir l'aperçu du bulletin en plein écran"
+              >
+                <Eye className="h-4 w-4" />
+                <span>Aperçu du bulletin {selectedStudentId ? "(1 sélectionné)" : `(${students.length})`}</span>
+              </button>
             </div>
           </div>
 
@@ -320,46 +351,215 @@ export default function ReportCardGenerator({
           <p>Cette classe ne compte actuellement aucun élève inscrit pour l&apos;établissement actif ({data.school.name}).</p>
         </div>
       ) : (
-        <div className="space-y-8 print:space-y-0">
-          {students.map((student, idx) => (
+        <>
+          {/* ── CARTE D'APERÇU MOBILE (Bouton d'aperçu du bulletin sur smartphone) ── */}
+          <div className="md:hidden rounded-xl border border-rule/60 bg-surface p-4 text-center shadow-2xs space-y-3 print:hidden">
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Eye className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-text">
+                {selectedStudentId
+                  ? `Bulletin de ${students[0]?.firstName} ${students[0]?.lastName.toUpperCase()}`
+                  : `${students.length} bulletin${students.length > 1 ? "s" : ""} — ${data.classe.name}`}
+              </h3>
+              <p className="text-xs text-text-soft mt-0.5">
+                {data.term.name} · {data.cycle === "ELEMENTAIRE" ? "Élémentaire (Domaines)" : "Secondaire (Coefficients)"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowMobilePreview(true)}
+              className="inline-flex items-center justify-center gap-2 w-full h-11 rounded-control bg-primary px-4 text-xs font-bold text-white shadow-2xs hover:bg-primary-hover active:scale-[0.99] transition-all"
+            >
+              <Eye className="h-4 w-4" />
+              <span>Aperçu du bulletin ({students.length})</span>
+            </button>
+          </div>
+
+          {/* ── RENDU NORMAL SUR DESKTOP ET IMPRESSION (Non altéré) ── */}
+          <div className="hidden md:block space-y-8 print:block print:space-y-0">
+            {students.map((student, idx) => (
+              <ResponsiveBulletinContainer
+                key={student.studentId}
+                isFirst={idx === 0}
+                studentName={`${student.lastName} ${student.firstName}`}
+              >
+                <div
+                  className="rounded-surface border border-rule bg-white shadow-sm print:border-none print:shadow-none print:p-0"
+                  style={{
+                    pageBreakAfter: idx < students.length - 1 ? "always" : "auto",
+                    breakAfter: idx < students.length - 1 ? "page" : "auto",
+                  }}
+                >
+                  {data.cycle === "SECONDAIRE" ? (
+                    <BulletinSecondaireSheet
+                      student={student}
+                      school={data.school}
+                      className={data.classe.name}
+                      termName={data.term.name}
+                      isT3={data.term.isT3}
+                      monochrome={monochrome}
+                      accentColor={accentColor}
+                      watermark={watermark}
+                      watermarkOpacity={watermarkOpacity}
+                      logoPosition={logoPosition}
+                    />
+                  ) : (
+                    <BulletinElementaireSheet
+                      student={student}
+                      school={data.school}
+                      className={data.classe.name}
+                      termName={data.term.name}
+                      isT3={data.term.isT3}
+                      monochrome={monochrome}
+                      accentColor={accentColor}
+                      watermark={watermark}
+                      watermarkOpacity={watermarkOpacity}
+                      logoPosition={logoPosition}
+                    />
+                  )}
+                </div>
+              </ResponsiveBulletinContainer>
+            ))}
+          </div>
+
+          {/* ── MODALE D'APERÇU PLEIN ÉCRAN SUR MOBILE (Page adéquate avec retour au clic extérieur) ── */}
+          {showMobilePreview && (
             <div
-              key={student.studentId}
-              className="rounded-surface border border-rule bg-white shadow-sm overflow-hidden print:border-none print:shadow-none print:overflow-visible print:p-0"
-              style={{
-                pageBreakAfter: idx < students.length - 1 ? "always" : "auto",
-                breakAfter: idx < students.length - 1 ? "page" : "auto",
+              className="fixed inset-0 z-[120] flex flex-col bg-black/80 backdrop-blur-md md:hidden animate-in fade-in duration-200"
+              onClick={(e) => {
+                // Dès que je clique en dehors du bulletin (fond sombre), je retourne !
+                if (e.target === e.currentTarget) {
+                  setShowMobilePreview(false);
+                }
               }}
             >
-              {data.cycle === "SECONDAIRE" ? (
-                <BulletinSecondaireSheet
-                  student={student}
-                  school={data.school}
-                  className={data.classe.name}
-                  termName={data.term.name}
-                  isT3={data.term.isT3}
-                  monochrome={monochrome}
-                  accentColor={accentColor}
-                  watermark={watermark}
-                  watermarkOpacity={watermarkOpacity}
-                  logoPosition={logoPosition}
-                />
-              ) : (
-                <BulletinElementaireSheet
-                  student={student}
-                  school={data.school}
-                  className={data.classe.name}
-                  termName={data.term.name}
-                  isT3={data.term.isT3}
-                  monochrome={monochrome}
-                  accentColor={accentColor}
-                  watermark={watermark}
-                  watermarkOpacity={watermarkOpacity}
-                  logoPosition={logoPosition}
-                />
-              )}
+              {/* Barre d'en-tête de l'aperçu mobile avec bouton retour */}
+              <div className="flex items-center justify-between border-b border-white/15 bg-gray-900/95 px-4 py-3 text-white backdrop-blur-lg shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowMobilePreview(false)}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 active:bg-white/30 transition-colors"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Retour</span>
+                </button>
+
+                <div className="text-center min-w-0 px-2">
+                  <h3 className="text-xs font-bold text-white truncate">
+                    {selectedStudentId
+                      ? `${students[0]?.lastName.toUpperCase()} ${students[0]?.firstName}`
+                      : `Bulletins — ${data.classe.name}`}
+                  </h3>
+                  <p className="text-[10px] text-gray-300 truncate">
+                    {data.term.name} · {students.length} élève{students.length > 1 ? "s" : ""}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {canPrint && (
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-primary-hover transition-colors"
+                      title="Imprimer"
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Imprimer</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowMobilePreview(false)}
+                    className="p-1.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                    aria-label="Fermer l'aperçu"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Zone de visualisation défilante centrée */}
+              <div
+                className="flex-1 overflow-y-auto p-3 space-y-6 flex flex-col items-center"
+                onClick={(e) => {
+                  // Clic en dehors du bulletin (sur les marges) -> retour immédiat !
+                  if (e.target === e.currentTarget) {
+                    setShowMobilePreview(false);
+                  }
+                }}
+              >
+                <p className="text-[11px] text-gray-300/80 text-center pt-1 pb-1">
+                  Touchez l&apos;arrière-plan ou le bouton retour pour quitter l&apos;aperçu.
+                </p>
+
+                {students.map((student, idx) => (
+                  <div
+                    key={student.studentId}
+                    className="w-full flex justify-center py-2 cursor-pointer"
+                    onClick={(e) => {
+                      if (e.target === e.currentTarget) {
+                        setShowMobilePreview(false);
+                      }
+                    }}
+                  >
+                    <div
+                      className="w-full max-w-[794px] cursor-default"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ResponsiveBulletinContainer
+                        isFirst={idx === 0}
+                        studentName={`${student.lastName} ${student.firstName}`}
+                      >
+                        <div className="rounded-surface border border-rule bg-white shadow-2xl">
+                          {data.cycle === "SECONDAIRE" ? (
+                            <BulletinSecondaireSheet
+                              student={student}
+                              school={data.school}
+                              className={data.classe.name}
+                              termName={data.term.name}
+                              isT3={data.term.isT3}
+                              monochrome={monochrome}
+                              accentColor={accentColor}
+                              watermark={watermark}
+                              watermarkOpacity={watermarkOpacity}
+                              logoPosition={logoPosition}
+                            />
+                          ) : (
+                            <BulletinElementaireSheet
+                              student={student}
+                              school={data.school}
+                              className={data.classe.name}
+                              termName={data.term.name}
+                              isT3={data.term.isT3}
+                              monochrome={monochrome}
+                              accentColor={accentColor}
+                              watermark={watermark}
+                              watermarkOpacity={watermarkOpacity}
+                              logoPosition={logoPosition}
+                            />
+                          )}
+                        </div>
+                      </ResponsiveBulletinContainer>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="pt-2 pb-8">
+                  <button
+                    type="button"
+                    onClick={() => setShowMobilePreview(false)}
+                    className="inline-flex items-center gap-2 rounded-full bg-white/20 px-5 py-2 text-xs font-semibold text-white backdrop-blur-md hover:bg-white/30 transition-colors"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    <span>Retour</span>
+                  </button>
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );

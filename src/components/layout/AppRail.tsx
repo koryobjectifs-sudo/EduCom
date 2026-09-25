@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
-import { LayoutDashboard, Globe, Shield, LogOut, ChevronUp, Camera, UploadCloud, Trash2, Loader2, Minus, Plus } from "lucide-react";
+import { Globe, Shield, LogOut, ChevronUp, Camera, UploadCloud, Trash2, Loader2, Minus, Plus } from "lucide-react";
+import { AppleDashboardIcon } from "@/components/ui/apple-icons";
 import { type NavSpace } from "@/lib/navigation";
 import { getNavIcon } from "./nav-icons";
 import { updateUserAvatar } from "@/app/dashboard/actions";
@@ -201,12 +202,11 @@ export default function AppRail({
               />
             )}
 
-            <LayoutDashboard
+            <AppleDashboardIcon
               aria-hidden="true"
               className={`h-4.5 w-4.5 shrink-0 transition-transform group-hover:scale-105 ${
                 isDashboardActive ? "text-white" : "text-white/70 group-hover:text-white"
               }`}
-              strokeWidth={isDashboardActive ? 2.2 : 1.8}
             />
 
             <span

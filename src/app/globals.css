@@ -242,6 +242,24 @@
      d'action courant (l'encre `--m-ink` garde ce rôle). 9,5:1 sur blanc,
      calculé : utilisable aussi bien en texte qu'en aplat avec texte blanc. */
   --m-red: #9C0F15;
+  /* 24 sept. 2026 — couleurs du BOUCLIER officiel pour la landing (Kory :
+     « mettre un peu de couleur »). Relevées dans educom-logo-officiel.jpg :
+     bleu nuit #001D3F, rouge #A30001. --m-navy : fond des sections fortes
+     (hero, démo). --m-red-bright : rouge éclairci pour du TEXTE sur --m-navy
+     (5,2:1, calculé ; --m-red y tomberait à ~2:1). --m-cream : fond chaud neutre. */
+  --m-navy: #0A2342;
+  --m-navy-deep: #001D3F;
+  --m-red-bright: #FF5A5F;
+  --m-red-wash: #FBEDEE;
+  --m-cream: #FBF7F1;
+  /* 24 sept. 2026 (2) — Kory : « couleurs moins agressives, soft, corporate ».
+     Les grands aplats bleu nuit et le rouge en CTA sont retirés. Registre
+     corporate doux : fonds bleu très pâle, texte bleu nuit, accent bleu
+     institutionnel ; le rouge du bouclier ne vit plus que dans le logo et en
+     touche minuscule. --m-blue : 8,1:1 sur blanc (calculé). */
+  --m-sky: #F1F5FA;
+  --m-sky-deep: #E4ECF6;
+  --m-blue: #1F4E8C;
 
   /* Fond chaud — refonte v7. Kory : « trop noir, trop rigide, pas assez
      vivant ». Une seule teinte crème, combinée en dégradé Tailwind (jamais un
@@ -331,6 +349,14 @@
   --color-m-alert-wash:   var(--m-alert-wash);
   --color-m-alert-bright: var(--m-alert-bright);
   --color-m-red: var(--m-red);
+  --color-m-navy: var(--m-navy);
+  --color-m-navy-deep: var(--m-navy-deep);
+  --color-m-red-bright: var(--m-red-bright);
+  --color-m-red-wash: var(--m-red-wash);
+  --color-m-cream: var(--m-cream);
+  --color-m-sky: var(--m-sky);
+  --color-m-sky-deep: var(--m-sky-deep);
+  --color-m-blue: var(--m-blue);
   --color-m-warm: var(--m-warm);
   --color-m-line:      var(--m-line);
   --color-m-line-soft: var(--m-line-soft);
@@ -711,3 +737,19 @@ html[data-density="comfort"] {
   }
 }
 
+
+/* 24 sept. 2026 — titres marketing dans la police du logo (Libre Caslon Text,
+   chargée par (marketing)/layout.tsx). Les classes
+   `tracking-[-0.03em]` avaient été réglées pour une linéale ; un romain aussi
+   serré colle ses empattements. Le sélecteur [data-marketing] l'emporte sur
+   l'utilitaire Tailwind (spécificité attribut + classe). */
+[data-marketing] .font-display {
+  letter-spacing: -0.012em;
+}
+/* Police UNIQUE sur les pages publiques (Kory : « unifier la police de la
+   page ») : la police du logo partout — titres, texte, boutons, démo. Règle
+   hors @layer : elle l'emporte sur les utilitaires `font-*` de Tailwind. */
+[data-marketing],
+[data-marketing] * {
+  font-family: var(--font-wordmark), Georgia, "Times New Roman", serif;
+}

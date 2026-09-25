@@ -141,16 +141,20 @@ export default async function ReportCardPage({
     : null;
 
   const Selectors = (
-    <div className="space-y-4 print:hidden">
+    <div className="space-y-3 print:hidden">
       <Row label="Classe">
-        {ordered.map((c) => (
-          <Pill key={c.id} href={link({ classId: c.id, studentId: undefined })} active={c.id === classId}>{c.name}</Pill>
-        ))}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {ordered.map((c) => (
+            <Pill key={c.id} href={link({ classId: c.id, studentId: undefined })} active={c.id === classId}>{c.name}</Pill>
+          ))}
+        </div>
       </Row>
       <Row label="Trimestre">
-        {termRows.map((t) => (
-          <Pill key={t.id} href={link({ termId: t.id, evaluationId: undefined })} active={t.id === termId}>{t.name}</Pill>
-        ))}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {termRows.map((t) => (
+            <Pill key={t.id} href={link({ termId: t.id, evaluationId: undefined })} active={t.id === termId}>{t.name}</Pill>
+          ))}
+        </div>
       </Row>
     </div>
   );
@@ -211,9 +215,11 @@ export default async function ReportCardPage({
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
       <span className="w-20 shrink-0 text-role-meta font-semibold uppercase tracking-wider text-text-faint">{label}</span>
-      {children}
+      <div className="min-w-0 flex-1">
+        {children}
+      </div>
     </div>
   );
 }

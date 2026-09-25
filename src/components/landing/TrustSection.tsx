@@ -8,10 +8,10 @@
  * plan validé (§02 : « réduit à une ligne de preuve sobre »).
  */
 const PREUVES = [
-  "Chaque école est cloisonnée",
-  "Les pièces des élèves restent privées",
-  "Conçu pour un téléphone",
-  "Des documents à imprimer",
+  "Données cloisonnées par établissement",
+  "Pièces des élèves strictement privées",
+  "Pensé pour le téléphone",
+  "Documents prêts à imprimer",
 ];
 
 export default function TrustSection() {

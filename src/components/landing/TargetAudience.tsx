@@ -35,7 +35,7 @@ export default function TargetAudience() {
           <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-ink-faint">
             Établissements ciblés
           </p>
-          <h2 className="mt-4 font-display text-[2rem] font-semibold leading-[1.1] tracking-[-0.03em] text-m-ink sm:text-[2.75rem]">
+          <h2 className="mt-4 font-display text-[1.7rem] font-bold leading-[1.15] text-m-navy sm:text-[2.15rem]">
             Conçu spécifiquement pour les écoles privées du Sénégal.
           </h2>
           <p className="mt-4 text-[15px] leading-[1.65] text-m-ink-soft">

@@ -3,16 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  Receipt,
-  CheckCircle2,
-  Printer,
-  GraduationCap,
-  UserPlus,
-  Users,
-  FileText,
-  FileCheck,
-} from "lucide-react";
+  AppleReceiptIcon,
+  AppleCheckIcon,
+  AppleGraduationCapIcon,
+  AppleUserPlusIcon,
+  AppleUsersIcon,
+  AppleFileTextIcon,
+  AppleFolderCheckIcon,
+} from "@/components/ui/apple-icons";
 import ScreenFrame from "./ScreenFrame";
+import EduComWordmark from "@/components/brand/EduComWordmark";
 
 /**
  * « Quatre parcours majeurs » — Repositionnement marketing.
@@ -40,7 +40,7 @@ const HISTOIRES: Histoire[] = [
         visuel: (
           <ScreenFrame label="Nouvelle admission — Secrétariat">
             <div className="flex items-start gap-3">
-              <UserPlus aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-m-accent-deep" />
+              <AppleUserPlusIcon aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-m-accent-deep" />
               <div className="space-y-2 text-[13px]">
                 <p className="text-m-ink-soft">Élève · <span className="font-medium text-m-ink">Aïssatou Ndiaye</span></p>
                 <p className="text-m-ink-soft">Niveau & Classe · <span className="font-medium text-m-ink">CM2 A (Élémentaire)</span></p>
@@ -70,7 +70,7 @@ const HISTOIRES: Histoire[] = [
         visuel: (
           <ScreenFrame label="Annuaire officiel — CM2 A">
             <div className="flex items-start gap-3">
-              <Users aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-m-accent-deep" />
+              <AppleUsersIcon aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-m-accent-deep" />
               <ul className="space-y-1.5 text-[13.5px] text-m-ink-soft w-full">
                 <li className="font-semibold text-m-ink flex items-center justify-between">
                   <span>Aïssatou Ndiaye</span>
@@ -115,7 +115,7 @@ const HISTOIRES: Histoire[] = [
         visuel: (
           <ScreenFrame label="Calculs & Moyennes — Automatique">
             <div className="flex items-center gap-4">
-              <GraduationCap aria-hidden="true" className="h-8 w-8 shrink-0 text-m-accent-deep" />
+              <AppleGraduationCapIcon aria-hidden="true" className="h-8 w-8 shrink-0 text-m-accent-deep" />
               <div>
                 <p className="font-display text-[1.75rem] font-semibold tabular-nums text-m-ink">14,85 / 20</p>
                 <p className="mt-1 text-[13px] text-m-ink-soft">Moyenne générale calculée · Rang : 3e / 38 élèves</p>
@@ -131,7 +131,7 @@ const HISTOIRES: Histoire[] = [
           <ScreenFrame label="Bulletin officiel Sénégal — PDF">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Printer aria-hidden="true" className="h-6 w-6 shrink-0 text-m-accent-deep" />
+                <AppleFileTextIcon aria-hidden="true" className="h-6 w-6 shrink-0 text-m-accent-deep" />
                 <div>
                   <p className="text-[14px] font-semibold text-m-ink">Bulletin-T1-CM2.pdf</p>
                   <p className="text-[12px] text-m-ink-soft">En-tête officiel, tableau des disciplines & visa direction</p>
@@ -160,7 +160,7 @@ const HISTOIRES: Histoire[] = [
             <div className="mt-3 flex items-center justify-between">
               <span className="text-[12px] text-m-ink-soft">Statut : En attente</span>
               <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-m-accent-deep">
-                <Receipt aria-hidden="true" className="h-4 w-4" />
+                <AppleReceiptIcon aria-hidden="true" className="h-4 w-4" />
                 Générer la facture
               </div>
             </div>
@@ -173,7 +173,7 @@ const HISTOIRES: Histoire[] = [
         visuel: (
           <ScreenFrame label="Facture N°FAC-2026-0142">
             <div className="flex items-start gap-3">
-              <Receipt aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-m-accent-deep" />
+              <AppleReceiptIcon aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-m-accent-deep" />
               <div>
                 <p className="text-[15px] font-semibold text-m-ink">Facture N°FAC-2026-0142</p>
                 <p className="mt-1 text-[13px] text-m-ink-soft">Aïssatou Ndiaye · CM2 A · 45 000 FCFA</p>
@@ -189,7 +189,7 @@ const HISTOIRES: Histoire[] = [
         visuel: (
           <ScreenFrame label="Reçu officiel — Paiement validé">
             <div className="flex items-center gap-3">
-              <CheckCircle2 aria-hidden="true" className="h-6 w-6 shrink-0 text-m-signal" />
+              <AppleCheckIcon aria-hidden="true" className="h-6 w-6 shrink-0 text-m-signal" />
               <div>
                 <p className="text-[14px] font-semibold text-m-ink">Reçu N°REC-2026-0142</p>
                 <p className="text-[12px] text-m-ink-soft">Format A4 ou Demi-A4 · Tampon et visa intégrés</p>
@@ -212,14 +212,14 @@ const HISTOIRES: Histoire[] = [
             <div className="space-y-2">
               <div className="flex items-center justify-between rounded-lg border border-m-line bg-white p-2.5">
                 <div className="flex items-center gap-2 text-[13px] font-medium text-m-ink">
-                  <FileText className="h-4 w-4 text-m-accent-deep" />
+                  <AppleFileTextIcon className="h-4 w-4 text-m-accent-deep" />
                   Certificat de scolarité
                 </div>
                 <span className="text-[11px] font-semibold text-m-accent-deep">1 clic</span>
               </div>
               <div className="flex items-center justify-between rounded-lg border border-m-line/50 bg-white/60 p-2.5 text-m-ink-soft text-[13px]">
                 <div className="flex items-center gap-2">
-                  <FileCheck className="h-4 w-4 text-m-ink-faint" />
+                  <AppleFolderCheckIcon className="h-4 w-4 text-m-ink-faint" />
                   Attestation d&apos;inscription
                 </div>
               </div>
@@ -245,7 +245,7 @@ const HISTOIRES: Histoire[] = [
         visuel: (
           <ScreenFrame label="Document finalisé">
             <div className="flex items-center gap-3">
-              <Printer aria-hidden="true" className="h-6 w-6 shrink-0 text-m-accent-deep" />
+              <AppleFileTextIcon aria-hidden="true" className="h-6 w-6 shrink-0 text-m-accent-deep" />
               <div>
                 <p className="text-[14px] font-semibold text-m-ink">Certificat-Scolarite-Aissatou.pdf</p>
                 <p className="text-[12px] text-m-ink-soft">Cachet officiel et signature de la direction appliqués</p>
@@ -303,8 +303,8 @@ export default function WorkflowStories() {
       <div id="systeme" className="absolute -top-20" />
       <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-accent-deep">EduCom en action</p>
-          <h2 className="mt-4 font-display text-[2rem] font-semibold leading-[1.1] tracking-[-0.03em] text-m-ink sm:text-[2.75rem]">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-blue"><EduComWordmark /> en action</p>
+          <h2 className="mt-4 font-display text-[1.7rem] font-bold leading-[1.15] text-m-navy sm:text-[2.15rem]">
             De l&apos;inscription au bulletin, une seule saisie.
           </h2>
           <p className="mt-4 text-[15px] leading-[1.65] text-m-ink-soft">
@@ -321,7 +321,7 @@ export default function WorkflowStories() {
               onClick={() => choisirHistoire(h.id)}
               aria-pressed={h.id === histoireId}
               className={`shrink-0 rounded-pill px-4 py-2.5 text-[13.5px] font-semibold transition-colors ${
-                h.id === histoireId ? "bg-m-ink text-white shadow-m-lift" : "text-m-ink-soft hover:text-m-ink"
+                h.id === histoireId ? "bg-m-navy text-white shadow-m-lift" : "text-m-ink-soft hover:text-m-ink"
               }`}
             >
               {h.nom}

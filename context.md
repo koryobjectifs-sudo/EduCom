@@ -1,8 +1,42 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 24 septembre 2026 — **Refonte de l'Accueil Dashboard (Cockpit Épuré Bento & Élimination du Bruit Visuel)**
+> Dernière mise à jour : 25 septembre 2026 — **Responsiveness Bulletin Mobile & Appel avec Célébration Vibrante et Historique Inaltérable**
 
-> **Refonte de l'Accueil Dashboard (Cockpit Épuré Bento) — 24 septembre 2026.**
+> **Progression — 25 septembre 2026.**
+> - **Aperçu Dédié du Bulletin A4 sur Mobile ([`Generator.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/grades/report-card/Generator.tsx) & [`ResponsiveBulletinContainer.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/grades/ResponsiveBulletinContainer.tsx))** :
+>   - **Bouton d'aperçu dédié pleine largeur sur smartphone** : Ajouté directement dans la boîte de contrôle sous les filtres et options (`Aperçu du bulletin (20)`). L'affichage brut inline des feuilles A4 est masqué sur mobile (`hidden md:block print:block`) afin d'éviter le scroll infini et les troncatures.
+>   - **Modale plein écran mobile avec fermeture immédiate** : Le clic sur le bouton ouvre un aperçu plein écran immersif (`fixed inset-0 z-[120] bg-black/85 backdrop-blur-md`).
+>   - **Double moyen de sortie sans friction** : Cliquer en dehors de la feuille blanche du bulletin (sur le fond sombre ou les marges latérales) OU cliquer sur le bouton `[ ← Retour ]` (en haut et en bas) ou la touche `Escape` referme immédiatement l'aperçu et retourne sur les réglages du bulletin.
+>   - **Mise à l'échelle fidèle et centrage parfait** : Le gabarit ministériel officiel (en-tête, domaines, moyennes, rangs, signatures) est dimensionné avec exactitude à la largeur disponible du smartphone sans débordement ni rognage.
+>   - **Desktop & Impression 100% Préservés** : La vue grand écran conserve l'affichage direct et le bouton d'impression A4 natif.
+> - **Gestion d'Appel & Célébration Vibrante ([`AttendanceCelebration.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/attendance/AttendanceCelebration.tsx))** :
+>   - **Notification montante et vibrante** : Remplacement du toast discret du bas par une carte vibrante montant du bas de l'écran avec halo lumineux, résumé chiffré (présents, absents, retards) et canons de confettis multicolores ([`celebration.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/celebration.ts)).
+>   - **Disparition immédiate de la classe validée** : Dès que l'appel d'une classe est enregistré, la classe disparaît immédiatement de la liste des classes à faire pour la journée ([`src/app/dashboard/attendance/page.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/attendance/page.tsx)).
+>   - **État d'accomplissement complet** : Si toutes les classes ont terminé leur appel, un bandeau festif valorisant s'affiche avec redirection directe vers le registre.
+> - **Registre Officiel & Historique Inaltérable ([`AttendanceHistoryView.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/attendance/AttendanceHistoryView.tsx) & `/dashboard/attendance/history`)** :
+>   - **Consultation scellée & non modifiable** : Aucun bouton d'édition ni modification possible rétroactivement, garantissant la conformité légale et académique du registre.
+>   - **Filtres avancés** : Par classe, par date (Aujourd'hui, Hier, Tout, Date précise) et recherche textuelle par élève ou enseignant.
+>   - **Accès sécurisé par rôle** : `TEACHER` restreint à ses classes affectées, direction et secrétariat sur toute l'école via `getAttendanceHistory` ([`actions.ts`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/attendance/actions.ts)).
+>   - **Garde-fou sur la saisie** : Si l'appel d'une classe a déjà été validé aujourd'hui, [`/dashboard/attendance/take`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/attendance/take/page.tsx) verrouille la saisie et propose de consulter le registre scellé.
+> - **Validation technique** : `npx tsc --noEmit` : 0 erreur ; `scripts/verify-navigation-integrity.ts` : 62/62 routes (100% OK) ; `scripts/verify-routes-coverage.ts` : 62/62 routes (100% OK).
+> - **TopBar Dynamique Style Slack ([`Navbar.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/landing/Navbar.tsx))** :
+>   - **Au repos (haut de page, `scrollY === 0`)** : Pleine largeur 100% End-to-End (`w-full inset-x-0`, `rounded-none`, `pt-0 px-0`), fond marine officiel (`#0E2541`) touchant les deux bords de l'écran sans aucun espace blanc sur les côtés.
+>   - **Au scroll (`scrollY > 24`)** : Animation fluide et réactive se réduisant en une capsule flottante élégante centrée (style Slack / floating pill : `max-w-4xl lg:max-w-5xl rounded-full bg-m-navy/95 backdrop-blur-md border border-white/20 shadow-[0_16px_40px_-10px_rgba(0,18,40,0.7)]`).
+>   - **Persistance totale sur toute la landing page** : Positionnement `fixed top-0 inset-x-0 z-[100]` avec `pointer-events-none` sur l'enveloppe et `pointer-events-auto` sur le header. La barre ne disparaît JAMAIS après la hero section et reste accessible jusqu'au footer, tout en permettant le clic sans entrave au travers des marges extérieures de la capsule.
+>   - Toutes les options restent accessibles en mode réduit : Blason et logotype EduCom, menu déroulant « Produit », ancre « Tarifs », bouton « Se connecter », CTA « Créer mon école » et tiroir mobile plein écran.
+> - **Châssis iPhone 14 Pro Max Réel ([`MobileShowcase.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/landing/MobileShowcase.tsx))** :
+>   - Proportions physiques rigoureusement calquées sur l'iPhone 14 Pro Max (ratio viewport 430 x 932 px) : hauteur 780px, rayon de courbure Apple squircle exact (`rounded-[54px]`), tranche titane usinée avec chanfrein, fentes d'antennes et 4 boutons latéraux physiques aux positions exactes (Action, Volume +, Volume -, Power).
+>   - Barre d'état iOS authentique avec typographie SF Pro (`9:41`), Dynamic Island proportionnée (115 x 28 px avec capteur TrueDepth), réseau 4 barres, Wi-Fi 3 arcs et batterie avec pôle positif.
+>   - Home Indicator iOS en bas (128 x 4 px) et TopBar officielle EduCom (`#0E2541`) avec blason historique, nom de l'école et profil enseignant.
+> - **Composants Réels 100% Identiques à la Plateforme** :
+>   - **Saisie des notes** : Reproduit rigoureusement [`GradeEntryKit.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/grades/entry/GradeEntryKit.tsx) et [`SecondaireTable.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/grades/secondaire/SecondaireTable.tsx) : en-tête avec classe, matière, coefficient, onglets trimestriels `[1er Trimestre] [2e Trim.] [3e Trim.]`, grille avec colonnes `ÉLÈVE`, `DEV. 1`, `COMPO *` et `MM`, règle officielle de calcul sénégalaise et bouton bleu officiel `[ Valider et transmettre ]`. Animation en temps réel avec recalcul instantané de la moyenne de Moussa Diop.
+>   - **Appel & Présences** : Module exact de [`TakeAttendanceClient.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/attendance/take/TakeAttendanceClient.tsx) avec avatars ronds, boutons Présent, Absent, Retard, encart d'alerte WhatsApp parent issu de [`NotifyAbsenceButton.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/attendance/NotifyAbsenceButton.tsx) et bouton officiel `[ Enregistrer les présences ]`.
+> - **Refonte Complète des 3 Cartes de Valeur (Anti-Vibe IA)** :
+>   - Élimination des halos colorés et des icônes rondes saturées de template IA.
+>   - Design sobre haut de gamme avec icônes Apple SF Symbols épurées et arguments métier percutants (grille officielle secondaire, pointage 8h05 + WhatsApp direct, 100% web mobile sans téléchargement).
+> - **Validation technique** : `npx tsc --noEmit` : 0 erreur ; `scripts/verify-campaign-honesty.ts` : 100% PASS.
+
+
 > - **Diagnostic du bruit visuel résolu** : L'accueil direction (`/dashboard`) empilait plus de 10 blocs verticaux (+5 000 px de scroll) et rejouait l'intégralité des sous-pages (Finances, Présences, Effectifs 585 lignes, Pédagogie, Activité).
 > - **Architecture Bento 2 colonnes** :
 >   - **En-tête épuré (`DirectorHeader.tsx`)** : Fin du fond sombre et des halos ; design clair, sobre et net avec badge d'école/année/trimestre et 2 CTAs rapides (« Inscrire un élève », « Facturation »).
@@ -52,6 +86,21 @@
 > - **Matrice & Checklist des Rôles** :
 >   - Rédaction du document de référence exhaustif `docs/MATRICE_ROLES_CHECKLIST.md` détaillant les prérogatives et interdictions des 6 rôles par espace métier.
 > - **Validation** : `npx tsc --noEmit` : 0 erreur. Intégrité des 61 routes : 100% OK.
+
+> **Vitrine mobile de la landing (`MobileShowcase.tsx`, Claude) — 25 septembre 2026, v2.** Kory a REJETÉ la v1 (écrans redessinés à la main) : « être fidèle aux fonctionnalités déjà créées, importer ce qui existe, ne rien inventer ».
+> - Le téléphone affiche la route publique `/vitrine/[ecran]` (notes, appel, profil, scan, finances) dans un `<iframe>` de 390 px mis à l'échelle. Cette route rend les VRAIS composants avec des données d'exemple : `SecondaireTable`, `TakeAttendanceClient`, `AvatarPhoto` (en-tête de fiche repris de `students/[id]/page.tsx`, menu ouvert automatiquement), `ScanDialog` (mode scan), `FamillesClient`, et la vraie navigation `AppTopBar` + `MobileSpaceTabs` + `MobileTabBar` (prop `pathnameOverride` ajoutée pour simuler la page active).
+> - ⚠️ Simulation « téléphone » limitée à la vitrine : `capture` déclaré sur `HTMLInputElement` (sinon `ScanDialog` dit sur ordinateur que l'appareil photo est indisponible) et règle CSS qui force `pointer-coarse:flex` (« Prendre une photo »). `pointer-events: none` sur l'iframe : aucune server action ne peut partir. Route `noindex`.
+> - Rotation automatique 6,5 s, pause au survol, choix au clic ; fond « cahier d'écolier » (crème quadrillé, marge rouge, jaune crayon).
+> - **Finances mobile corrigé (25/09)** : `FamillesClient` affiche une CARTE par famille sous 768 px (statut, enfants, dû/versé/reliquat, bouton Encaisser pleine largeur, même `handleOpenCollect`) ; le tableau reste à partir de `md`.
+> - ⚠️ **Piège** : sur le poste de Kory, le téléphone de la vitrine s'est effondré en petit rectangle (classes arbitraires `h-[…]`/`w-[…]` non générées par le serveur de dev). Dimensions du châssis et échelle de l'iframe désormais en style inline (`TEL`, `ECHELLE`).
+
+> **Navigation mobile : barre d'onglets en bas (Claude) — 24 septembre 2026.** Demande Kory : fonctionnalités alignées en bas, accès direct, plus de menu latéral ; en admin mobile, profil/déconnexion étaient inaccessibles (`AppRail` = `hidden md:flex`, non repris par `MobileNav`).
+> - `MobileTabBar.tsx` : Accueil + 3 premiers espaces de `getVisibleSpaces(role)` + « Plus » (panneau du bas : autres espaces en tuiles, compte, déconnexion `/auth/signout`). Même source de droits que le rail → aucun lien interdit.
+> - `MobileSpaceTabs.tsx` : pages de l'espace actif en onglets défilants collants sous la barre du haut (équivalent mobile de `ContextualSidebar`).
+> - `AppTopBar` : bouton « hamburger » retiré (`MobileNav.tsx` conservé, plus importé par le shell).
+> - ⚠️ **Piège corrigé** : `AppShell` en `h-screen` → `h-dvh`. Sur mobile, 100vh inclut la zone sous la barre d'adresse : le bas de chaque écran était coupé. `main` réserve `4rem + safe-area` en bas sous `md`.
+> - Historique : l'ancienne `BottomNav` a été retirée le 8/09 (b3cd43a) car cassée (liens sans `/dashboard` → 404) et limitée à 5 destinations ; la nouvelle barre porte des ESPACES, pas des pages.
+> - Vérifié : tsc 0 erreur, lint propre sur les fichiers touchés, rendu 390 px (Chromium) OWNER et TEACHER, dernier élément de page visible au-dessus de la barre. **Non vérifié** : vrai parcours connecté sur téléphone (pas d'accès base).
 
 > **Icônes officielles (bouclier) — 23 septembre 2026.** Générées depuis `educom-logo-officiel.jpg` : `public/favicon.ico` (16/32/48), `public/icon.png` (192), `public/apple-icon.png` (180, fond blanc plein). Déclarées explicitement dans `src/app/layout.tsx` (`metadata.icons`, `?v=educom-3`). ⚠️ **Piège** : les icônes étaient AUSSI dans `src/app/` → prioritaires sur `metadata` (config ignorée), et l'ancien `src/app/icon.svg` (symbole « E ») restait servi en SVG, préféré par Chrome/Firefox → l'onglet montrait l'ancien logo. Copies de `src/app/` déplacées dans `_local/anciennes-icones-app/` (non versionné). Vérifié : 4 balises `<link>` attendues dans le `<head>`, les 3 fichiers en 200, `/icon.svg` en 404. `public/brand/educom-crest-real.png` n'est plus référencé.
 
@@ -5926,3 +5975,7 @@ Ces fichiers et blocs de code sont des outils de développement stricts, isolés
    - `scripts/cleanup-test-data.ts` : Nettoyage des fixtures `TEST_*`.
    - `scripts/cleanup-test-users.ts` : Nettoyage des utilisateurs de test.
    - `scripts/verify-no-dev-tools-in-prod.ts` : Test d'étanchéité automatisé (11 contrôles validant le blocage absolu en production).
+
+- 25/09/2026 — Landing « Comment ça marche » : carte 01 = création + import Excel (plus de « rien à télécharger », plus de logo/cachet) ; carte 02 = « Paramétrez votre identité » (logo, cachet, signature, icône réglages). ⚠️ La « signature » est une image téléversée dans les Paramètres, pas une signature électronique certifiée : ne pas écrire « signature électronique » sur la landing.
+
+- 25/09/2026 — Vitrine mobile INTERACTIVE + scène « Facture signée ». Le téléphone de la landing reçoit les touchers : barre du bas, onglets, « Plus », « Encaisser »… `VitrineEcran` intercepte les liens (écran de vitrine si l'adresse est dans `CHEMIN_VITRINE`, sinon fiche « Dans votre espace EduCom » + Créer mon école), bloque submit / server actions (en-tête Next-Action) / print / open avant tout réseau, et prévient la landing (`vitrine:interaction`, pause 20 s de la rotation). À chaque changement de scène, la landing envoie `vitrine:activer` : l'écran revient chez lui et rejoue sa démo. Nouvelle scène `facture` : vrai `NewInvoiceForm`, ligne saisie, signature tracée sur le vrai `SignaturePad` (événements souris simulés), puis « Aperçu A4 » signé (15 s). Messages sonner déplacés en haut dans la vitrine (en bas ils couvraient la barre d'onglets). Idées au chaud : écrans vitrine pour Accueil, Bulletins (/preview/report-card existe), Paiements/reçus.

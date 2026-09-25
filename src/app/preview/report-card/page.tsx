@@ -6,6 +6,7 @@ import { pickCurrentTerm } from "@/lib/terms";
 import { loadOfficialBulletin } from "@/lib/bulletin/loadOfficialBulletin";
 import { BulletinSecondaireSheet } from "@/components/grades/BulletinSecondaireSheet";
 import { BulletinElementaireSheet } from "@/components/grades/BulletinElementaireSheet";
+import { ResponsiveBulletinContainer } from "@/components/grades/ResponsiveBulletinContainer";
 
 export default async function PreviewReportCardPage({
   searchParams,
@@ -63,24 +64,26 @@ export default async function PreviewReportCardPage({
   if (!student) return <div className="p-4 text-center text-gray-500">Élève non trouvé dans ce bulletin.</div>;
 
   return (
-    <div className="w-full min-h-screen bg-gray-100/50 sm:p-4 flex justify-center">
-      {loaded.cycle === "ELEMENTAIRE" ? (
-        <BulletinElementaireSheet
-          student={student}
-          school={loaded.school}
-          className={loaded.classe.name}
-          termName={loaded.term.name}
-          isT3={loaded.term.isT3}
-        />
-      ) : (
-        <BulletinSecondaireSheet
-          student={student}
-          school={loaded.school}
-          className={loaded.classe.name}
-          termName={loaded.term.name}
-          isT3={loaded.term.isT3}
-        />
-      )}
+    <div className="w-full min-h-screen bg-gray-100/50 p-2 sm:p-4 flex justify-center">
+      <ResponsiveBulletinContainer>
+        {loaded.cycle === "ELEMENTAIRE" ? (
+          <BulletinElementaireSheet
+            student={student}
+            school={loaded.school}
+            className={loaded.classe.name}
+            termName={loaded.term.name}
+            isT3={loaded.term.isT3}
+          />
+        ) : (
+          <BulletinSecondaireSheet
+            student={student}
+            school={loaded.school}
+            className={loaded.classe.name}
+            termName={loaded.term.name}
+            isT3={loaded.term.isT3}
+          />
+        )}
+      </ResponsiveBulletinContainer>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Instrument_Sans } from "next/font/google";
+import { Instrument_Sans, Libre_Caslon_Text } from "next/font/google";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
 
@@ -36,15 +36,37 @@ const instrument = Instrument_Sans({
   variable: "--font-instrument",
 });
 
+/**
+ * Police du logo EduCom — 24 septembre 2026 (Kory : « appliquer la police
+ * d'EduCom sur la page »). Libre Caslon Text, la plus proche du logo (romain à
+ * empattements, voir `EduComWordmark`). Elle porte le mot « EduCom » ET tous
+ * les titres des pages publiques, via la règle `[data-marketing] .font-display`
+ * de `globals.css` (le thème est `@theme inline` : redéfinir `--font-display`
+ * sur le conteneur n'aurait AUCUN effet, l'utilitaire porte la valeur en dur).
+ * Seules les pages publiques changent ; le tableau de bord n'est pas touché.
+ *
+ * Le texte courant reste en linéale : un romain en petit corps sur téléphone
+ * se lit moins bien, et c'est l'usage des marques institutionnelles.
+ */
+const wordmark = Libre_Caslon_Text({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "700"],
+  display: "swap",
+  variable: "--font-wordmark",
+});
+
 export default function MarketingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className={`${instrument.variable} flex min-h-screen flex-col bg-m-paper text-m-ink-soft`}>
+    <div
+      data-marketing
+      className={`${instrument.variable} ${wordmark.variable} flex min-h-screen flex-col bg-m-paper text-m-ink-soft`}
+    >
       <Navbar />
-      <main className="flex-grow">{children}</main>
+      <main className="flex-grow pt-14">{children}</main>
       <Footer />
     </div>
   );

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import EduComWordmark from "@/components/brand/EduComWordmark";
+import { ApplePrivacyChoicesBadge } from "@/components/ui/apple-icons";
 
 /**
  * Pied de page — chantier PLG, restylé par l'addendum.
@@ -38,7 +40,7 @@ export default function Footer() {
   const annee = new Date().getFullYear();
 
   return (
-    <footer className="relative overflow-hidden border-t border-white/5 bg-m-ink-deep text-white/70">
+    <footer className="relative overflow-hidden border-t border-white/5 bg-m-navy-deep text-white/70">
       <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
@@ -61,7 +63,7 @@ export default function Footer() {
               />
             </Link>
             <p className="mt-6 max-w-sm text-[15px] leading-[1.7] text-white/60">
-              Les dossiers, les bulletins et les frais des écoles privées africaines, au même
+              Les dossiers, les bulletins et les frais de votre établissement scolaire, au même
               endroit.
             </p>
           </div>
@@ -89,7 +91,7 @@ export default function Footer() {
                 pied de page se manipule au pouce, en bas de l'écran, là où la
                 main est la moins précise. Les entrées offrent maintenant 44 px. */}
             <ul className="mt-3 text-[15px]">
-              <li><Link className="flex min-h-11 items-center transition-colors hover:text-white" href="/register">Commencer gratuitement</Link></li>
+              <li><Link className="flex min-h-11 items-center transition-colors hover:text-white" href="/register">Créer mon école</Link></li>
               <li><Link className="flex min-h-11 items-center transition-colors hover:text-white" href="/login">Se connecter</Link></li>
             </ul>
           </div>
@@ -106,9 +108,35 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-14 flex flex-col gap-3 border-t border-white/10 pt-8 text-[13px] text-white/50 sm:flex-row sm:items-center sm:justify-between">
-          <p>&copy; {annee} EduCom. Tous droits réservés.</p>
-          <p>Conçu à Dakar, pour les écoles du Sénégal.</p>
+        <div className="mt-14 flex flex-col gap-5 border-t border-white/10 pt-8 text-[12.5px] text-white/50 lg:flex-row lg:items-center lg:justify-between">
+          <ul className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <li>
+              <Link href="/privacy" className="transition-colors hover:text-white">
+                Confidentialité
+              </Link>
+            </li>
+            <li>
+              <Link href="/terms" className="transition-colors hover:text-white">
+                Conditions d&apos;utilisation
+              </Link>
+            </li>
+            <li>
+              <button type="button" className="transition-colors hover:text-white">
+                Préférences de cookies
+              </button>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 transition-colors hover:text-white cursor-pointer">
+                Vos choix de confidentialité
+                <ApplePrivacyChoicesBadge className="h-3 w-6.5 shrink-0" />
+              </span>
+            </li>
+          </ul>
+
+          <div className="text-[12px] text-white/40 lg:text-right">
+            <p>&copy; {annee} <EduComWordmark onDark /> Technologies. Tous droits réservés.</p>
+            <p className="mt-0.5 text-[11px] text-white/30">Déployé pour les établissements d&apos;Afrique de l&apos;Ouest.</p>
+          </div>
         </div>
       </div>
     </footer>

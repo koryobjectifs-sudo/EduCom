@@ -316,8 +316,100 @@ export default function FamillesClient({
         </div>
       </div>
 
-      {/* ═══ TABLEAU DES FAMILLES : 1 LIGNE PAR FAMILLE ═══ */}
-      <div className="rounded-xl border border-rule bg-surface shadow-2xs overflow-hidden">
+      {/* ═══ MOBILE : UNE CARTE PAR FAMILLE (25 sept. 2026) ═══
+          Sous 768 px, le tableau à 7 colonnes débordait : le reliquat et le
+          bouton « Encaisser » — les deux informations utiles — sortaient de
+          l'écran. Sur téléphone, chaque famille devient une carte : nom et
+          statut, enfants, reliquat en évidence, puis l'action pleine largeur.
+          Mêmes données, même `handleOpenCollect` : aucune règle métier ajoutée. */}
+      <div className="space-y-2.5 md:hidden">
+        {filteredFamilies.length === 0 ? (
+          <div className="rounded-xl border border-rule bg-surface py-10 text-center text-text-soft">
+            <Users className="mx-auto mb-2 h-8 w-8 text-text-faint opacity-60" />
+            <p className="text-sm font-medium">Aucune famille trouvée</p>
+            <p className="mt-0.5 text-xs text-text-faint">
+              {searchTerm ? "Modifiez votre recherche pour voir d'autres résultats." : "Aucune famille ne correspond à ce filtre."}
+            </p>
+          </div>
+        ) : (
+          filteredFamilies.map((fam) => {
+            const hasReliquat = fam.reliquat > 0;
+            return (
+              <div key={fam.id} className="rounded-xl border border-rule bg-surface p-3.5 shadow-2xs">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-text">{fam.familyName}</p>
+                    <p className="mt-0.5 truncate text-xs text-text-soft">
+                      {fam.guardianName}
+                      {fam.guardianPhone && <span className="font-mono text-[11px] text-text-faint"> · {fam.guardianPhone}</span>}
+                    </p>
+                  </div>
+                  {fam.status === "UP_TO_DATE" && (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                      <CheckCircle2 className="h-3 w-3" /> À jour
+                    </span>
+                  )}
+                  {fam.status === "PARTIAL" && (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                      <Clock className="h-3 w-3" /> Partiel
+                    </span>
+                  )}
+                  {fam.status === "OVERDUE" && (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-800 dark:bg-red-950/60 dark:text-red-300">
+                      <AlertTriangle className="h-3 w-3" /> En retard
+                    </span>
+                  )}
+                </div>
+
+                {fam.children.length > 0 && (
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    {fam.children.map((c) => (
+                      <span key={c.id} className="inline-flex items-center gap-1 rounded-full border border-rule bg-sunk px-2 py-0.5 text-xs font-medium text-text">
+                        <GraduationCap className="h-3 w-3 text-text-faint" />
+                        {c.firstName}
+                        {c.className && <span className="text-[11px] font-bold text-primary">({c.className})</span>}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-rule pt-3 text-center">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-text-faint">Dû</p>
+                    <p className="mt-0.5 text-xs font-medium tabular-nums text-text-soft">{formatXOF(fam.totalDue)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-text-faint">Versé</p>
+                    <p className="mt-0.5 text-xs font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{formatXOF(fam.totalPaid)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-text-faint">Reliquat</p>
+                    <p className={`mt-0.5 text-xs font-extrabold tabular-nums ${hasReliquat ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
+                      {hasReliquat ? formatXOF(fam.reliquat) : "Soldé"}
+                    </p>
+                  </div>
+                </div>
+
+                {canCollect && (
+                  <Button
+                    size="sm"
+                    variant={hasReliquat ? undefined : "secondary"}
+                    className={`mt-3 h-11 w-full justify-center gap-1.5 text-xs font-bold ${
+                      hasReliquat ? "bg-emerald-600 text-white hover:bg-emerald-700" : "border border-rule text-text-soft"
+                    }`}
+                    onClick={() => handleOpenCollect(fam)}
+                  >
+                    {hasReliquat ? (<><Banknote className="h-4 w-4" /> ENCAISSER</>) : "Historique"}
+                  </Button>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* ═══ TABLEAU DES FAMILLES : 1 LIGNE PAR FAMILLE (768 px et plus) ═══ */}
+      <div className="hidden rounded-xl border border-rule bg-surface shadow-2xs overflow-hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>

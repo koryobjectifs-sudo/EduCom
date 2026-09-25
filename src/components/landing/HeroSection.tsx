@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import HeroDemo from "./HeroDemo";
+import { AppleArrowRightIcon } from "@/components/ui/apple-icons";
+import Image from "next/image";
+import EduComWordmark from "@/components/brand/EduComWordmark";
 
 /**
  * Hero — raffinement premium du 23 septembre 2026.
@@ -23,56 +24,85 @@ import HeroDemo from "./HeroDemo";
  */
 
 export default function HeroSection() {
+  // 24 sept. 2026 — registre corporate doux (Kory : « moins agressif, soft ») :
+  // fond bleu très pâle, texte bleu nuit du bouclier, accent bleu
+  // institutionnel. Le rouge ne subsiste qu'en point minuscule.
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-m-accent-wash/60 via-m-paper to-m-paper">
-      <div className="mx-auto max-w-7xl px-4 pt-12 pb-16 sm:px-6 lg:px-8 lg:pt-20 lg:pb-24">
-        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-10">
-          <div className="lg:col-span-6">
-            <p className="inline-flex items-center gap-2 rounded-full bg-m-card px-3.5 py-1.5 text-[12px] font-semibold tracking-[0.02em] text-m-accent-deep ring-1 ring-m-line">
-              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-m-signal" />
-              Écoles privées · Élémentaire · Moyen · Secondaire
-            </p>
+    <section className="relative isolate overflow-hidden bg-white text-m-navy">
+      {/* ═══ BANNIÈRE DE FOND — 25 sept. 2026 (Kory : « supprime l'animation
+          à droite, propose une bannière de fond ») ═══
+          Photo existante du dépôt (`/marketing/hero-educom.jpg`, directrice
+          en établissement). Ordinateur : elle occupe la moitié droite et se
+          fond vers le blanc sous le texte. Mobile : pleine largeur, voilée de
+          blanc pour que le texte reste lisible. Le texte n'est pas modifié.
+          ⚠️ Hauteur minimale en style inline (cf. vitrine : classes arbitraires
+          non générées sur le poste de Kory). */}
+      <div aria-hidden="true" className="absolute inset-0 -z-10 lg:left-[42%]">
+        <Image
+          src="/marketing/hero-educom.jpg"
+          alt=""
+          fill
+          priority
+          sizes="(min-width: 1024px) 58vw, 100vw"
+          className="object-cover"
+          style={{ objectPosition: "center 25%" }}
+        />
+        {/* Fondu vers le blanc sous le texte (ordinateur) */}
+        <div className="absolute inset-0 hidden bg-gradient-to-r from-white via-white/60 to-transparent lg:block" />
+        {/* Voile de lisibilité (mobile et tablette) */}
+        <div className="absolute inset-0 bg-white/85 lg:hidden" />
+        {/* Léger fondu bas, pour enchaîner avec la section suivante */}
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
+      </div>
+      <div className="relative mx-auto flex max-w-7xl items-center px-4 pt-14 pb-20 sm:px-6 lg:px-8 lg:pt-20 lg:pb-28" style={{ minHeight: 560 }}>
+        <div className="grid w-full grid-cols-1 items-center gap-14 lg:grid-cols-12 lg:gap-10">
+          <div className="lg:col-span-6 xl:col-span-6">
+            <div className="inline-flex flex-wrap items-center gap-2.5 rounded-full bg-white/95 px-4 py-1.5 text-[12.5px] font-medium text-m-navy shadow-xs ring-1 ring-m-sky-deep backdrop-blur-xs">
+              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-m-red shrink-0" />
+              <span>
+                Là où l&apos;<strong className="font-bold text-amber-500">Éducation</strong> rencontre l&apos;innovation utile
+              </span>
+            </div>
 
-            <h1 className="mt-6 font-display text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.035em] text-m-ink sm:text-[3.4rem] lg:text-[3.9rem]">
-              Importez vos élèves.
+            <h1 className="mt-6 font-display text-[2.1rem] font-bold leading-[1.08] sm:text-[2.6rem] lg:text-[2.9rem]">
+              Votre liste d&apos;élèves suffit.
               <br />
-              <span className="text-m-accent-deep">EduCom produit le reste.</span>
+              <span className="text-m-blue"><EduComWordmark /> s&apos;occupe du&nbsp;reste.</span>
             </h1>
 
-            <p className="mt-6 max-w-xl text-[17px] leading-[1.6] text-m-ink-soft sm:text-[18px]">
-              Vous saisissez les notes et les paiements. Moyennes, bulletins officiels, factures, reçus et
-              certificats sont générés automatiquement, au nom et au cachet de votre école.
+            <p className="mt-5 max-w-xl text-[16.5px] leading-[1.65] text-m-ink-soft sm:text-[17px]">
+              Importez votre liste d&apos;élèves&nbsp;: bulletins, factures, reçus, certificats et suivi des
+              présences se génèrent à partir d&apos;une seule saisie. Direction, secrétariat, comptabilité et
+              enseignants travaillent sur <EduComWordmark />, depuis l&apos;ordinateur ou le téléphone, aux couleurs
+              et au cachet de votre établissement.
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
-                href="#demo"
-                className="group inline-flex h-12 items-center justify-center gap-2.5 rounded-control bg-m-ink px-7 text-[15px] font-semibold text-white shadow-[0_8px_20px_-8px_rgba(11,18,32,0.5)] transition-all hover:-translate-y-px hover:bg-m-ink/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m-ink/40 focus-visible:ring-offset-2"
+                href="/register"
+                className="group inline-flex h-12 items-center justify-center gap-2.5 rounded-control bg-m-navy px-7 text-[15px] font-semibold text-white shadow-[0_10px_24px_-12px_rgba(10,35,66,0.55)] transition-all hover:-translate-y-px hover:bg-m-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m-blue/40 focus-visible:ring-offset-2"
               >
-                Réserver une démo
-                <ArrowRight aria-hidden="true" className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                Créer mon école
+                <AppleArrowRightIcon aria-hidden="true" className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
               <Link
-                href="#parcours"
-                className="inline-flex h-12 items-center justify-center rounded-control bg-m-card px-6 text-[15px] font-semibold text-m-ink ring-1 ring-m-line transition-colors hover:bg-m-paper-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m-ink/30 focus-visible:ring-offset-2"
+                href="#etapes"
+                className="inline-flex h-12 items-center justify-center rounded-control bg-white px-6 text-[15px] font-semibold text-m-navy ring-1 ring-m-sky-deep transition-colors hover:bg-m-sky focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m-blue/40"
               >
-                Voir EduCom en action
+                Voir comment ça marche
               </Link>
             </div>
 
-            <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-[13px] font-medium text-m-ink-soft">
-              {["Démo de 20 min avec votre fichier Excel", "Rien à installer", "Chaque école cloisonnée"].map((t) => (
+            <ul className="mt-9 flex flex-wrap gap-x-6 gap-y-2 text-[13px] font-medium text-m-ink-soft">
+              {["7\u00a0jours d'essai offerts", "Aucune installation", "Données cloisonnées par école"].map((t) => (
                 <li key={t} className="flex items-center gap-2">
-                  <span aria-hidden="true" className="h-1 w-1 rounded-full bg-m-ink-faint" />
+                  <span aria-hidden="true" className="h-1 w-1 rounded-full bg-m-blue/50" />
                   {t}
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="lg:col-span-6">
-            <HeroDemo />
-          </div>
         </div>
       </div>
     </section>
