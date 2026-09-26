@@ -1,6 +1,17 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 26 septembre 2026 — **Google OAuth Branding & Mise en Production validés** (Nom EduCom, liens légaux, domaines autorisés)
+> Dernière mise à jour : 26 septembre 2026 — **Déploiement Production poussé avec succès (Commits `a43f5c1` & `5ef2531`)** : Refonte Dashboards Métiers (« Soft Elegance »), Communauté & Messagerie, et Google OAuth Branding
+
+> **Progression — 26 septembre 2026 (Déploiement en Production — Commits séparés & Push validé).**
+> - **Chantiers intégrés et déployés** :
+>   1. `a43f5c1` : `feat(dashboards): refonte Soft Elegance des dashboards metiers (enseignant, comptable, famille, secretariat)`.
+>   2. `5ef2531` : `feat(communaute): refonte communaute, messagerie privee, formulaires, sondages et webpush`.
+> - **Ajustements appliqués avant commit** :
+>   - Retrait de `grades-weekly` (« Bilan de la semaine ») de la barre de navigation ([`src/lib/navigation.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/navigation.ts)), tout le code restant conservé au chaud.
+>   - Ajout de `/scripts/backups/` dans [`.gitignore`](file:///Users/kory/EduCom%20SaaS/.gitignore).
+>   - Vérification du schéma Prisma : la base de données de production (`slqjdyfdzvuqjxegojwu`) est 100% alignée avec le schéma (`The database is already in sync with the Prisma schema`).
+>   - Vérification TypeScript : `npx tsc --noEmit` passé avec **0 erreur**.
+> - **Push effectué** vers `origin/main` (`https://github.com/koryobjectifs-sudo/EduCom.git`) déclenchant le build Vercel de production.
 
 > **Progression — 26 septembre 2026 (Google OAuth — Écran de consentement & Nom EduCom en Production).**
 > - **Demande utilisateur (Retour vocal de Kory)** :
