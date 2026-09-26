@@ -84,8 +84,11 @@ export type OfficialSchoolMetadata = {
   id: string;
   name: string;
   logo: string | null;
+  logoSize?: number | null;
   signature: string | null;
+  signatureSize?: number | null;
   stamp: string | null;
+  stampSize?: number | null;
   primaryColor: string | null;
   bulletinAccentColor?: string | null;
   bulletinWatermark?: boolean;
@@ -124,30 +127,61 @@ export async function loadOfficialBulletin(params: {
   const { schoolId, classId, termId, studentId } = params;
 
   const [school, classe, terms, enrollments, totalClassCount] = await Promise.all([
-    prisma.school.findUnique({
-      where: { id: schoolId },
-      select: {
-        id: true,
-        name: true,
-        logo: true,
-        signature: true,
-        stamp: true,
-        primaryColor: true,
-        bulletinAccentColor: true,
-        bulletinWatermark: true,
-        bulletinWatermarkOpacity: true,
-        bulletinLogoPosition: true,
-        activeAcademicYear: true,
-        regionAcademique: true,
-        inspectionAcademique: true,
-        inspectionIEF: true,
-        users: {
-          where: { role: { in: ["OWNER", "ADMIN"] } },
-          select: { firstName: true, lastName: true },
-          take: 1,
+    prisma.school
+      .findUnique({
+        where: { id: schoolId },
+        select: {
+          id: true,
+          name: true,
+          logo: true,
+          logoSize: true,
+          signature: true,
+          signatureSize: true,
+          stamp: true,
+          stampSize: true,
+          primaryColor: true,
+          bulletinAccentColor: true,
+          bulletinWatermark: true,
+          bulletinWatermarkOpacity: true,
+          bulletinLogoPosition: true,
+          activeAcademicYear: true,
+          regionAcademique: true,
+          inspectionAcademique: true,
+          inspectionIEF: true,
+          users: {
+            where: { role: { in: ["OWNER", "ADMIN"] } },
+            select: { firstName: true, lastName: true },
+            take: 1,
+          },
         },
-      },
-    }),
+      })
+      .catch(async () => {
+        // Repli au cas où le runtime Prisma en mémoire n'a pas encore logoSize/signatureSize/stampSize
+        return prisma.school.findUnique({
+          where: { id: schoolId },
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            signature: true,
+            stamp: true,
+            primaryColor: true,
+            bulletinAccentColor: true,
+            bulletinWatermark: true,
+            bulletinWatermarkOpacity: true,
+            bulletinLogoPosition: true,
+            activeAcademicYear: true,
+            regionAcademique: true,
+            inspectionAcademique: true,
+            inspectionIEF: true,
+            users: {
+              where: { role: { in: ["OWNER", "ADMIN"] } },
+              select: { firstName: true, lastName: true },
+              take: 1,
+            },
+          },
+        }) as any;
+      }),
     prisma.class.findFirst({
       where: { id: classId, schoolId },
       include: {
@@ -192,8 +226,11 @@ export async function loadOfficialBulletin(params: {
     id: school.id,
     name: school.name,
     logo: school.logo,
+    logoSize: school.logoSize ?? 80,
     signature: school.signature,
+    signatureSize: school.signatureSize ?? 60,
     stamp: school.stamp,
+    stampSize: school.stampSize ?? 80,
     primaryColor: school.primaryColor,
     bulletinAccentColor: school.bulletinAccentColor ?? null,
     bulletinWatermark: school.bulletinWatermark ?? false,

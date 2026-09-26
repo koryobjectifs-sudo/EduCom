@@ -170,27 +170,27 @@ export default function StudentListClient({
   return (
     <div className="space-y-4">
       {/* Barre de filtres */}
-      <Card className="p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
+      <Card className="p-3.5 sm:p-4 rounded-2xl border border-slate-200/70 bg-white shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
         {!hideSearchBar ? (
           <div className="w-full sm:max-w-md relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-faint pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
             <Input
               type="search"
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Rechercher un dossier élève (nom, prénom)..."
-              inputClassName="pl-9"
+              inputClassName="pl-9 rounded-lg border-slate-200/80 focus:border-indigo-500 focus:ring-indigo-500/20 text-xs sm:text-sm"
             />
           </div>
         ) : (
           <div className="flex-1" />
         )}
-        <div className="flex w-full sm:w-auto items-center gap-3">
+        <div className="flex w-full sm:w-auto items-center gap-2.5">
           <Select
             value={classFilter}
             onChange={(e) => setClassFilter(e.target.value)}
             disabled={classes.length === 0}
-            className="w-full sm:w-48"
+            className="w-full sm:w-48 text-xs font-semibold text-slate-700"
           >
             <option value="ALL">Toutes les classes</option>
             {classes.map(([id, name]) => (
@@ -200,7 +200,7 @@ export default function StudentListClient({
           <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full sm:w-40"
+            className="w-full sm:w-40 text-xs font-semibold text-slate-700"
           >
             <option value="ALL">Tous les statuts</option>
             <option value="ENROLLED">Inscrits</option>
@@ -213,7 +213,7 @@ export default function StudentListClient({
               variant="ghost"
               size="sm"
               onClick={resetFilters}
-              className="shrink-0 text-text-soft"
+              className="shrink-0 text-slate-500 hover:text-slate-800"
               title="Réinitialiser"
             >
               <X aria-hidden="true" className="h-4 w-4" />
@@ -223,14 +223,14 @@ export default function StudentListClient({
       </Card>
 
       {/* Tableau */}
-      <Card flush>
+      <Card flush className="rounded-2xl border border-slate-200/70 bg-white shadow-xs overflow-hidden">
         <DataTable caption="Liste des élèves de l'établissement">
           <DataTable.Head>
             <tr>
               <DataTable.HeadCell className="w-12">
                 <input
                   type="checkbox"
-                  className="rounded border-rule text-primary focus:ring-primary/40 h-4 w-4"
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/30 h-4 w-4"
                   checked={filteredStudents.length > 0 && selectedIds.size === filteredStudents.length}
                   onChange={(e) => {
                     if (e.target.checked) setSelectedIds(new Set(filteredStudents.map(s => s.id)));
@@ -279,13 +279,13 @@ export default function StudentListClient({
                   <DataTable.Row
                     key={student.id}
                     onClick={() => router.push(`/dashboard/students/${student.id}`)}
-                    className="group cursor-pointer"
+                    className="group cursor-pointer hover:bg-slate-50/70 transition-colors"
                   >
                     <DataTable.Cell>
                       <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
-                          className="rounded border-rule text-primary focus:ring-primary/40 h-4 w-4"
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/30 h-4 w-4"
                           checked={selectedIds.has(student.id)}
                           onChange={(e) => {
                             const next = new Set(selectedIds);
@@ -300,7 +300,7 @@ export default function StudentListClient({
                       <div className="flex items-center gap-3">
                         <span
                           aria-hidden="true"
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-sunk text-role-meta font-semibold text-text-soft"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-700"
                         >
                           {student.firstName[0]}{student.lastName[0]}
                         </span>
@@ -308,18 +308,18 @@ export default function StudentListClient({
                           <Link
                             href={`/dashboard/students/${student.id}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="block truncate font-semibold text-text hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-control"
+                            className="block truncate font-semibold text-slate-900 hover:text-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 rounded transition-colors"
                           >
                             {fullName}
                           </Link>
-                          <span className="block text-role-meta text-text-faint">
+                          <span className="block text-role-meta text-slate-400">
                             {student.dateOfBirth
                               ? `Né(e) le ${formatDate(student.dateOfBirth)}`
                               : "Date de naissance non renseignée"}
                           </span>
                           {/* Sous md, le tuteur se replie ici au lieu de sortir du cadre. */}
                           {parentName && (
-                            <span className="mt-0.5 block text-role-meta text-text-soft md:hidden">
+                            <span className="mt-0.5 block text-role-meta text-slate-500 md:hidden">
                               {parentName}
                               {student.parent?.phone ? ` · ${student.parent.phone}` : ""}
                             </span>
@@ -331,20 +331,20 @@ export default function StudentListClient({
                     <DataTable.Cell>
                       {currentEnrollment?.class?.name ? (
                         <>
-                          <span className="font-medium text-text">{currentEnrollment.class.name}</span>
+                          <span className="font-semibold text-slate-900">{currentEnrollment.class.name}</span>
                           {currentEnrollment.academicYear && (
-                            <span className="block text-role-meta text-text-faint">
+                            <span className="block text-role-meta text-slate-400">
                               {currentEnrollment.academicYear}
                             </span>
                           )}
                         </>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <span className="text-text-faint">Non assigné</span>
+                          <span className="text-slate-400 text-xs">Non assigné</span>
                           <Button
                             variant="secondary"
                             size="sm"
-                            className="h-6 px-2 text-[10px] bg-primary/10 text-primary border-transparent hover:bg-primary/20"
+                            className="h-6 px-2.5 text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100/80 rounded-md hover:bg-indigo-100"
                             onClick={(e) => {
                               e.stopPropagation();
                               setStudentToAssign(student.id);
@@ -359,13 +359,13 @@ export default function StudentListClient({
                     <DataTable.Cell className="hidden md:table-cell">
                       {parentName ? (
                         <>
-                          <span className="text-text">{parentName}</span>
-                          <span className="block text-role-meta text-text-faint">
+                          <span className="text-slate-800 font-medium">{parentName}</span>
+                          <span className="block text-role-meta text-slate-400">
                             {student.parent?.phone || "Téléphone non renseigné"}
                           </span>
                         </>
                       ) : (
-                        <span className="text-text-faint">Aucun tuteur</span>
+                        <span className="text-slate-400 text-xs italic">Aucun tuteur</span>
                       )}
                     </DataTable.Cell>
 
@@ -391,7 +391,7 @@ export default function StudentListClient({
                         <div
                           ref={menuRef}
                           role="menu"
-                          className="absolute right-4 top-12 z-50 w-56 overflow-hidden rounded-surface border border-rule bg-surface p-1 text-left shadow-overlay"
+                          className="absolute right-4 top-12 z-50 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 text-left shadow-[0_10px_25px_-5px_rgba(0,0,0,0.12)]"
                         >
                           {[
                             { label: "Voir le profil", icon: GraduationCap, href: `/dashboard/students/${student.id}` },
@@ -407,13 +407,13 @@ export default function StudentListClient({
                                 setOpenDropdownId(null);
                                 router.push(href);
                               }}
-                              className="flex w-full items-center gap-2 rounded-control px-3 py-2 text-role-body font-medium text-text-soft transition-colors hover:bg-sunk hover:text-text"
+                              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900"
                             >
-                              <Icon aria-hidden="true" className="h-4 w-4 text-text-faint" />
+                              <Icon aria-hidden="true" className="h-4 w-4 text-slate-400" />
                               {label}
                             </button>
                           ))}
-                          <div className="h-px w-full bg-rule my-1" />
+                          <div className="h-px w-full bg-slate-100 my-1" />
                           <button
                             type="button"
                             role="menuitem"
@@ -422,7 +422,7 @@ export default function StudentListClient({
                               setOpenDropdownId(null);
                               setStudentToDelete(student.id);
                             }}
-                            className="flex w-full items-center gap-2 rounded-control px-3 py-2 text-role-body font-medium text-danger transition-colors hover:bg-danger/10"
+                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-50"
                           >
                             <Trash2 aria-hidden="true" className="h-4 w-4" />
                             Supprimer
@@ -440,7 +440,7 @@ export default function StudentListClient({
         {filteredStudents.length > 0 && (
           <DataTable.Footer>
             <div className="flex items-center justify-between w-full">
-              <span>
+              <span className="text-xs text-slate-500 font-medium">
                 {filteredStudents.length} élève{filteredStudents.length > 1 ? "s" : ""} affiché
                 {filteredStudents.length > 1 ? "s" : ""}
                 {hasActiveFilter ? ` sur ${students.length}` : ""}

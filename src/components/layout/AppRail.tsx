@@ -181,14 +181,14 @@ export default function AppRail({
         <div className="h-[1px] w-8 bg-white/15" aria-hidden="true" />
 
         {/* Navigation : Tableau de bord en première position + Espaces métier */}
-        <nav aria-label="Espaces de travail" className="flex flex-col items-center gap-0.5 w-full px-1">
+        <nav aria-label="Espaces de travail" className="flex flex-col items-center gap-0.5 w-full px-0.5">
           {/* 1. Tuile permanente Tableau de bord */}
           <Link
             href="/dashboard"
             aria-current={isDashboardActive ? "page" : undefined}
             title="Tableau de bord"
             className={[
-              "relative group flex w-full min-h-[44px] flex-col items-center justify-center rounded-control py-1 px-1 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+              "relative group flex w-full min-h-[44px] flex-col items-center justify-center rounded-control py-1 px-0 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
               isDashboardActive
                 ? "bg-white/20 text-white shadow-sm"
                 : "text-white/70 hover:bg-white/10 hover:text-white",
@@ -233,7 +233,7 @@ export default function AppRail({
                 aria-current={isActive ? "page" : undefined}
                 title={space.fullLabel ?? space.label}
                 className={[
-                  "relative group flex w-full min-h-[44px] flex-col items-center justify-center rounded-control py-1 px-1 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+                  "relative group flex w-full min-h-[44px] flex-col items-center justify-center rounded-control py-1 px-0 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
                   isActive
                     ? "bg-white/20 text-white shadow-sm"
                     : "text-white/70 hover:bg-white/10 hover:text-white",
@@ -255,10 +255,13 @@ export default function AppRail({
                   strokeWidth={isActive ? 2.2 : 1.8}
                 />
 
+                {/* ⚠️ 26 sept. 2026 : « Communauté » (62 px en Lato 10,5) était tronqué
+                    en « Commun… » — la tuile n'offrait que 52 px. Marges réduites
+                    (64 px utiles) et libellés longs resserrés, mesurés en Lato. */}
                 <span
-                  className={`mt-0.5 text-[10.5px] font-medium leading-tight truncate max-w-[62px] text-center ${
-                    isActive ? "text-white font-bold" : "text-white/70 group-hover:text-white"
-                  }`}
+                  className={`mt-0.5 font-medium leading-tight truncate max-w-[64px] text-center ${
+                    space.label.length > 11 ? "text-[10px] tracking-[-0.03em]" : "text-[10.5px] tracking-[-0.015em]"
+                  } ${isActive ? "text-white font-bold" : "text-white/70 group-hover:text-white"}`}
                 >
                   {space.label}
                 </span>

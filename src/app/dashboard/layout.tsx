@@ -5,6 +5,9 @@ import { cookies, headers } from "next/headers";
 import { getVisibleSpaces } from "@/lib/navigation";
 import AppShell from "@/components/layout/AppShell";
 import ParentLayout from "@/components/layout/ParentLayout";
+import BandeauAbonnement, { type InfoBandeau } from "@/components/layout/BandeauAbonnement";
+import { etatAbonnement } from "@/lib/subscription";
+import { hasAccess, type RoleType } from "@/lib/permissions";
 
 export default async function DashboardLayout({
   children,
@@ -99,6 +102,25 @@ export default async function DashboardLayout({
   // 2. SHELL APPLICATIF INTERNE BI-ÉTAGÉ (RSC)
   const spaces = getVisibleSpaces(userRole);
 
+  // Abonnement EduCom (25 sept. 2026) : bandeau de relance pour le personnel.
+  // ⚠️ Jamais bloquant : si la table n'existe pas encore (`db push` pas fait)
+  // ou si le client Prisma est périmé, on n'affiche simplement pas le bandeau.
+  // Le 25/09 au soir, l'oubli a fait tomber TOUT le tableau de bord en local.
+  let infoAbonnement: InfoBandeau | null = null;
+  try {
+    const abo = await etatAbonnement(schoolId);
+    const fmt = (d: Date) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+    infoAbonnement = {
+      etat: abo.etat,
+      joursRestants: abo.joursRestants,
+      echeance: fmt(abo.echeance),
+      lectureSeuleLe: fmt(abo.lectureSeuleLe),
+      peutPayer: hasAccess(userRole as RoleType, "/dashboard/abonnement"),
+    };
+  } catch (e) {
+    console.error("[abonnement] état indisponible — bandeau masqué :", (e as Error).message);
+  }
+
   return (
     <div style={themeStyle} className="contents">
       <AppShell
@@ -113,6 +135,7 @@ export default async function DashboardLayout({
         activeSchoolId={schoolId}
         memberships={memberships}
       >
+        {infoAbonnement && <BandeauAbonnement info={infoAbonnement} />}
         {children}
       </AppShell>
     </div>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppleArrowRightIcon, AppleMessageIcon } from "@/components/ui/apple-icons";
 import EduComWordmark from "@/components/brand/EduComWordmark";
 import { TRIAL_DAYS } from "@/lib/pricing";
+import FondAmbiance from "./FondAmbiance";
 
 /**
  * Appel final — « Créer mon école » (24 septembre 2026).
@@ -23,8 +24,9 @@ export default function CreateSchoolSection() {
   const message = encodeURIComponent("Bonjour, j'ai une question avant de créer mon école sur EduCom.");
 
   return (
-    <section id="commencer" className="scroll-mt-20 bg-m-sky py-20 lg:py-28">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <section id="commencer" className="relative isolate scroll-mt-20 overflow-hidden bg-m-sky py-20 lg:py-28">
+      <FondAmbiance />
+      <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-[28px] bg-white px-6 py-14 text-center ring-1 ring-m-sky-deep shadow-[0_30px_60px_-36px_rgba(10,35,66,0.35)] sm:px-12 lg:py-16">
           <div
             aria-hidden="true"

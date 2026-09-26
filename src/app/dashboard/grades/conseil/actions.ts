@@ -344,7 +344,7 @@ export async function saveConseilReviewWithActor(
 }
 
 export async function getConseilContext(classId: string, termId?: string) {
-  const auth = await requireActionContext(PATH);
+  const auth = await requireActionContext(PATH, { lecture: true });
   if (!auth.ok) return { ok: false as const, error: auth.error };
   return getConseilContextWithActor(auth.ctx, classId, termId);
 }

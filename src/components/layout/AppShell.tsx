@@ -6,6 +6,7 @@ import ContextualSidebar from "./ContextualSidebar";
 import AppTopBar from "./AppTopBar";
 import MobileTabBar from "./MobileTabBar";
 import MobileSpaceTabs from "./MobileSpaceTabs";
+import { SidebarSlotProvider } from "./SidebarSlot";
 import { type NavSpace, getActiveSpaceId } from "@/lib/navigation";
 import { type ActiveMembershipInfo } from "@/lib/schoolContext";
 
@@ -39,8 +40,13 @@ export default function AppShell({
   const pathname = usePathname();
   const activeSpaceId = getActiveSpaceId(pathname, spaces);
   const activeSpace = activeSpaceId ? (spaces.find((s) => s.id === activeSpaceId) ?? null) : null;
+  // Communauté (26 sept. 2026) : page pleine hauteur façon Slack. Ses canaux
+  // s'affichent DANS la barre contextuelle habituelle (`SidebarSlot`) ; les
+  // onglets mobiles feraient doublon avec son tiroir.
+  const pleinCadre = pathname?.startsWith("/dashboard/communications/communaute") ?? false;
 
   return (
+    <SidebarSlotProvider>
     <div
       style={{ backgroundColor: "var(--color-frame-bg, #0E2541)" }}
       className="flex h-dvh w-full overflow-hidden print:bg-white print:h-auto print:overflow-visible transition-colors duration-200"
@@ -90,10 +96,14 @@ export default function AppShell({
           {/* Canvas principal continu et aligné */}
           <main className="flex-1 w-full overflow-y-auto relative print:overflow-visible print:m-0 print:p-0 bg-ground pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
             {/* Mobile : les pages de l'espace actif, en onglets défilants */}
-            {activeSpace && <MobileSpaceTabs space={activeSpace} />}
-            <div className="mx-auto max-w-[1600px] p-3 sm:p-4 lg:p-5 print:max-w-none print:p-0 print:m-0">
-              {children}
-            </div>
+            {activeSpace && !pleinCadre && <MobileSpaceTabs space={activeSpace} />}
+            {pleinCadre ? (
+              <div className="flex h-full min-h-0 flex-col md:p-3">{children}</div>
+            ) : (
+              <div className="mx-auto max-w-[1600px] p-3 sm:p-4 lg:p-5 print:max-w-none print:p-0 print:m-0">
+                {children}
+              </div>
+            )}
           </main>
         </div>
       </div>
@@ -106,5 +116,6 @@ export default function AppShell({
         schoolName={schoolName}
       />
     </div>
+    </SidebarSlotProvider>
   );
 }

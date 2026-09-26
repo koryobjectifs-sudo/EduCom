@@ -2,8 +2,12 @@ import { Suspense } from "react";
 import { requireSchoolContext } from "@/lib/documentContext";
 import { getDirectorDashboardSnapshot } from "@/lib/dashboard-director";
 import { getTeacherDashboardSnapshot } from "@/lib/dashboard-teacher";
+import { getAccountantDashboardSnapshot } from "@/lib/dashboard-accountant";
+import { getSecretaryDashboardSnapshot } from "@/lib/dashboard-secretary";
 import DirectorDashboard from "@/components/dashboard/director/DirectorDashboard";
 import TeacherDashboard from "@/components/dashboard/teacher/TeacherDashboard";
+import AccountantDashboard from "@/components/dashboard/accountant/AccountantDashboard";
+import SecretaryDashboard from "@/components/dashboard/secretary/SecretaryDashboard";
 import AcademicProgressSectionServer from "@/components/dashboard/director/AcademicProgressSectionServer";
 import AcademicProgressSkeleton from "@/components/dashboard/director/AcademicProgressSkeleton";
 import RecentActivityFeedServer from "@/components/dashboard/director/RecentActivityFeedServer";
@@ -14,8 +18,8 @@ import { hasAccess, firstAllowedPath } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 
 /**
- * DIRECTRICE / DIRECTOR COMMAND CENTER & ESPACE ENSEIGNANT
- * Poste de pilotage quotidien de l'établissement scolaire.
+ * COMMAND CENTER DU DASHBOARD : DIRECTION, ENSEIGNANT & COMPTABILITÉ
+ * Poste de pilotage quotidien adapté au métier de chaque utilisateur.
  */
 export default async function DashboardHome() {
   const { schoolId, school, user } = await requireSchoolContext();
@@ -37,6 +41,28 @@ export default async function DashboardHome() {
     return <TeacherDashboard snapshot={teacherSnapshot} />;
   }
 
+  // ── ESPACE COMPTABILITÉ DÉDIÉ ──
+  // Le comptable dispose d'un cockpit 100% focalisé sur la gestion financière :
+  // trésorerie, caisse en direct, recouvrement, ancienneté des créances et ventilation des paiements.
+  if (user.role === "ACCOUNTANT") {
+    const accountantSnapshot = await getAccountantDashboardSnapshot(
+      { schoolId, userId: user.id },
+      { firstName: user.firstName?.trim() || "Comptable", schoolName: school?.name ?? null },
+    );
+    return <AccountantDashboard snapshot={accountantSnapshot} />;
+  }
+
+  // ── ESPACE SECRÉTARIAT DÉDIÉ ──
+  // Le secrétariat dispose d'un cockpit orienté vie scolaire et admissions :
+  // dossiers d'inscriptions, registres d'appel du jour, bulletins et annuaire des élèves.
+  if (user.role === "SECRETARY") {
+    const secretarySnapshot = await getSecretaryDashboardSnapshot(
+      { schoolId, userId: user.id },
+      { firstName: user.firstName?.trim() || "Secrétariat", schoolName: school?.name ?? null },
+    );
+    return <SecretaryDashboard snapshot={secretarySnapshot} />;
+  }
+
   let simulation: { date?: Date; period?: PeriodKind } | undefined;
   if (process.env.NODE_ENV === "development") {
     const { cookies } = await import("next/headers");
@@ -55,7 +81,7 @@ export default async function DashboardHome() {
   );
 
   const academicSlot = snapshot.scope.pedagogie ? (
-    <Suspense key="academic-progress-slot" fallback={<AcademicProgressSkeleton />}>
+    <Suspense key="academic-progress-slot" fallback={<AcademicProgressSkeleton className="h-full flex-1" />}>
       <AcademicProgressSectionServer schoolId={schoolId} />
     </Suspense>
   ) : undefined;

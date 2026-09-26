@@ -49,7 +49,15 @@ export function BulletinSheet({
 }: {
   student: BulletinStudent;
   bulletin: Bulletin;
-  school: { name?: string | null; logo?: string | null; signature?: string | null; stamp?: string | null } | null;
+  school: {
+    name?: string | null;
+    logo?: string | null;
+    logoSize?: number | null;
+    signature?: string | null;
+    signatureSize?: number | null;
+    stamp?: string | null;
+    stampSize?: number | null;
+  } | null;
   className: string;
   termName: string;
   evaluationName: string;
@@ -69,7 +77,15 @@ export function BulletinSheet({
       <header className="z-10 mb-6 flex flex-col items-start gap-4 border-b-2 border-gray-900 pb-6 sm:mb-8 sm:flex-row sm:justify-between print:mb-8 print:flex-row print:justify-between">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 print:flex-row print:items-center w-full sm:w-auto">
           {school?.logo ? (
-            <img src={school.logo} alt="" className="h-12 sm:h-16 max-w-[200px] object-contain print:h-16" />
+            <img
+              src={school.logo}
+              alt=""
+              className="max-w-[200px] object-contain"
+              style={{
+                height: school.logoSize ? `${school.logoSize}px` : undefined,
+                maxHeight: school.logoSize ? `${school.logoSize}px` : "4rem",
+              }}
+            />
           ) : (
             <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-lg bg-gray-900 text-2xl sm:text-3xl font-semibold text-white print:h-14 print:w-14 print:text-3xl">
               {school?.name?.charAt(0) ?? "E"}
@@ -230,12 +246,22 @@ export function BulletinSheet({
           <div className="relative mt-6 flex flex-col text-left sm:mt-0 sm:text-right print:mt-0 print:text-right min-h-[120px]">
             <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">La direction</span>
             {school?.signature && (
-              <div className="absolute bottom-4 right-4 sm:right-0 h-16 opacity-80">
+              <div
+                className="absolute bottom-4 right-4 sm:right-0 opacity-80"
+                style={{
+                  height: school.signatureSize ? `${school.signatureSize}px` : "4rem",
+                }}
+              >
                 <img src={school.signature} alt="" className="h-full object-contain" />
               </div>
             )}
             {school?.stamp && (
-              <div className="absolute bottom-2 right-24 sm:right-20 h-20 opacity-40">
+              <div
+                className="absolute bottom-2 right-24 sm:right-20 opacity-40"
+                style={{
+                  height: school.stampSize ? `${school.stampSize}px` : "5rem",
+                }}
+              >
                 <img src={school.stamp} alt="" className="h-full object-contain" />
               </div>
             )}

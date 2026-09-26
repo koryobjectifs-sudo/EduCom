@@ -145,43 +145,43 @@ export default function StudentsUnifiedClient({
   return (
     <div className="space-y-4">
       {/* ═══ 1. BANDEAU NAVIGATION ANNÉE SCOLAIRE & ONGLET DE VUE ═══ */}
-      <div className="rounded-surface border border-rule bg-surface p-2.5 sm:p-3 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div className="rounded-xl border border-slate-200/70 bg-white p-2.5 sm:p-3 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         {/* Gauche : Sélecteur de vue (Liste globale vs Par classe) */}
-        <div className="flex items-center gap-1 p-0.5 rounded-control bg-sunk border border-rule self-start md:self-auto">
+        <div className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-100/80 border border-slate-200/60 self-start md:self-auto">
           <Link
             href={buildUrl({ view: "list", classId: null })}
             scroll={false}
-            className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-control transition-all ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all ${
               currentView === "list"
-                ? "bg-surface text-text shadow-xs font-bold"
-                : "text-text-soft hover:text-text hover:bg-surface/50"
+                ? "bg-white text-slate-900 shadow-xs font-bold"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
             }`}
           >
-            <List className="h-3.5 w-3.5" />
+            <List className="h-3.5 w-3.5 text-slate-500" />
             <span>Liste globale</span>
           </Link>
           <Link
             href={buildUrl({ view: "classes", classId: null })}
             scroll={false}
-            className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-control transition-all ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all ${
               currentView === "classes"
-                ? "bg-surface text-text shadow-xs font-bold"
-                : "text-text-soft hover:text-text hover:bg-surface/50"
+                ? "bg-white text-slate-900 shadow-xs font-bold"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
             }`}
           >
-            <FolderKanban className="h-3.5 w-3.5" />
+            <FolderKanban className="h-3.5 w-3.5 text-slate-500" />
             <span>Par classe ({classesData.length})</span>
           </Link>
         </div>
 
         {/* Droite : Sélecteur d'année scolaire */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex items-center gap-1 text-role-meta font-bold text-text-soft uppercase tracking-wider">
-            <Calendar className="h-3.5 w-3.5 text-primary" />
+          <div className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+            <Calendar className="h-3.5 w-3.5 text-slate-400" />
             <span className="hidden sm:inline">Année :</span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1 p-0.5 rounded-control bg-sunk">
+          <div className="flex flex-wrap items-center gap-1 p-0.5 rounded-lg bg-slate-100/80 border border-slate-200/60">
             {quickYears.map((a) => {
               const active = a === anneeActive;
               return (
@@ -189,10 +189,10 @@ export default function StudentsUnifiedClient({
                   key={a}
                   href={buildUrl({ annee: a })}
                   scroll={false}
-                  className={`relative px-2.5 py-1 text-xs font-semibold rounded-control transition-all ${
+                  className={`relative px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
                     active
-                      ? "bg-surface text-text shadow-xs border border-rule"
-                      : "text-text-soft hover:text-text hover:bg-surface/50"
+                      ? "bg-white text-slate-900 shadow-xs border border-slate-200/70 font-bold"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                   }`}
                 >
                   <span>{a}</span>
@@ -214,7 +214,7 @@ export default function StudentsUnifiedClient({
                   router.push(buildUrl({ annee: e.target.value }));
                 }
               }}
-              className="h-7 pl-2 pr-6 text-xs font-semibold text-text bg-surface hover:bg-sunk border border-rule rounded-control cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-7.5 pl-2.5 pr-6 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-lg cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-2xs"
               aria-label="Sélectionner une autre année scolaire"
             >
               <optgroup label="Archives scolaires">
@@ -243,20 +243,20 @@ export default function StudentsUnifiedClient({
 
         if (prevYear && prevCount > 0 && activeCount < prevCount) {
           return (
-            <div className="rounded-card border border-border bg-secondary/30 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-text-primary text-sm">
+            <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-900 text-sm">
               <div className="space-y-0.5">
-                <div className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Année scolaire {anneeActive}
                 </div>
-                <div className="text-sm text-text-primary">
+                <div className="text-sm text-slate-900">
                   <span className="font-semibold">{activeCount} élève{activeCount > 1 ? "s" : ""} inscrit{activeCount > 1 ? "s" : ""}</span> pour {anneeActive}.{" "}
-                  <span className="text-text-secondary">{prevCount.toLocaleString("fr-FR")} élèves étaient inscrits en {prevYear}.</span>
+                  <span className="text-slate-500">{prevCount.toLocaleString("fr-FR")} élèves étaient inscrits en {prevYear}.</span>
                 </div>
               </div>
               <Link
                 href={buildUrl({ annee: prevYear })}
                 scroll={false}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-focus hover:underline self-start sm:self-auto shrink-0"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:underline self-start sm:self-auto shrink-0"
               >
                 Voir les effectifs {prevYear} →
               </Link>
@@ -267,21 +267,21 @@ export default function StudentsUnifiedClient({
       })()}
 
       {/* ═══ 2. BARRE D'ACTIONS HERO ═══ */}
-      <div className="rounded-surface border border-rule bg-surface p-2.5 sm:p-3 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
+      <div className="rounded-xl border border-slate-200/70 bg-white p-2.5 sm:p-3 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
         {/* Côté Gauche : Examen des admissions (Action clé) */}
         <div className="flex items-center gap-2">
           <Link
             href="/dashboard/students/dossiers/review"
-            className="inline-flex h-8 items-center gap-1.5 rounded-control bg-amber-50 hover:bg-amber-100 border border-amber-300/80 text-amber-900 px-3 text-xs font-bold shadow-2xs transition-all hover:shadow-xs group"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 text-amber-900 px-3 text-xs font-semibold shadow-2xs transition-all hover:shadow-xs group"
           >
-            <UserCheck className="h-3.5 w-3.5 text-amber-700 group-hover:scale-110 transition-transform" />
+            <UserCheck className="h-3.5 w-3.5 text-amber-700 group-hover:scale-105 transition-transform" />
             <span>Examen des admissions</span>
             {pendingCount > 0 ? (
-              <span className="rounded-pill bg-amber-500 text-white px-1.5 py-0.2 text-[10px] font-extrabold shadow-2xs">
+              <span className="rounded-full bg-amber-500 text-white px-1.5 py-0.2 text-[10px] font-extrabold shadow-2xs">
                 {pendingCount}
               </span>
             ) : (
-              <span className="rounded-pill bg-amber-200/70 text-amber-800 px-1.5 py-0.2 text-[9.5px] font-semibold">
+              <span className="rounded-full bg-amber-200/70 text-amber-800 px-1.5 py-0.2 text-[9.5px] font-semibold">
                 0
               </span>
             )}
@@ -291,22 +291,22 @@ export default function StudentsUnifiedClient({
         {/* Côté Droit : Création, Cycles, Import/Export */}
         <div className="flex flex-wrap items-center gap-1.5">
           {/* Import / Export */}
-          <div className="flex items-center rounded-control bg-sunk border border-rule p-0.5">
+          <div className="flex items-center rounded-lg bg-slate-100/80 border border-slate-200/60 p-0.5">
             <Link
               href="/dashboard/students/import"
-              className="inline-flex h-7 items-center gap-1 px-2.5 text-xs font-semibold text-text-soft hover:text-text hover:bg-surface rounded-control transition-colors"
+              className="inline-flex h-7.5 items-center gap-1 px-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-white rounded-md transition-colors"
               title="Importer une liste d'élèves"
             >
-              <UploadCloud className="h-3.5 w-3.5 text-text-faint" />
+              <UploadCloud className="h-3.5 w-3.5 text-slate-400" />
               <span>Importer</span>
             </Link>
-            <span className="w-px h-3.5 bg-rule" />
+            <span className="w-px h-3.5 bg-slate-200" />
             <Link
               href="/dashboard/students/export"
-              className="inline-flex h-7 items-center gap-1 px-2.5 text-xs font-semibold text-text-soft hover:text-text hover:bg-surface rounded-control transition-colors"
+              className="inline-flex h-7.5 items-center gap-1 px-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-white rounded-md transition-colors"
               title="Exporter le registre"
             >
-              <Download className="h-3.5 w-3.5 text-text-faint" />
+              <Download className="h-3.5 w-3.5 text-slate-400" />
               <span>Exporter</span>
             </Link>
           </div>
@@ -316,9 +316,9 @@ export default function StudentsUnifiedClient({
             <button
               type="button"
               onClick={() => setIsAddingCycle(true)}
-              className="inline-flex h-8 items-center gap-1.5 px-2.5 text-xs font-semibold text-text-soft hover:text-text bg-surface hover:bg-sunk border border-rule rounded-control shadow-2xs transition-colors cursor-pointer"
+              className="inline-flex h-8 items-center gap-1.5 px-3 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-lg shadow-2xs transition-colors cursor-pointer"
             >
-              <Layers className="h-3.5 w-3.5 text-text-faint" />
+              <Layers className="h-3.5 w-3.5 text-slate-400" />
               <span>Nouveau cycle</span>
             </button>
           )}
@@ -328,9 +328,9 @@ export default function StudentsUnifiedClient({
             <button
               type="button"
               onClick={() => setIsCreatingClass(true)}
-              className="inline-flex h-8 items-center gap-1.5 px-2.5 text-xs font-semibold text-text-soft hover:text-text bg-surface hover:bg-sunk border border-rule rounded-control shadow-2xs transition-colors cursor-pointer"
+              className="inline-flex h-8 items-center gap-1.5 px-3 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-lg shadow-2xs transition-colors cursor-pointer"
             >
-              <Plus className="h-3.5 w-3.5 text-text-faint" />
+              <Plus className="h-3.5 w-3.5 text-slate-400" />
               <span>Nouvelle classe</span>
             </button>
           )}
@@ -338,7 +338,7 @@ export default function StudentsUnifiedClient({
           {/* Inscrire un élève */}
           <Link
             href="/dashboard/students/new"
-            className="inline-flex h-8 items-center gap-1.5 rounded-control bg-primary hover:bg-primary-hover px-3 text-xs font-bold text-white shadow-2xs transition-all"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-3.5 text-xs font-semibold text-white shadow-2xs hover:shadow-xs transition-all"
           >
             <Plus className="h-3.5 w-3.5" />
             <span>Inscrire un élève</span>

@@ -47,8 +47,8 @@ const CADRE_ACADEMIQUE = "/dashboard/settings/pedagogie";
  * rôle (`/dashboard/grades` : direction + enseignant), classe de l'école
  * ACTIVE, et périmètre de l'enseignant.
  */
-async function requireClassGradesAccess(classId: string) {
-  const auth = await requireActionContext("/dashboard/grades");
+async function requireClassGradesAccess(classId: string, lecture = false) {
+  const auth = await requireActionContext("/dashboard/grades", { lecture });
   if (!auth.ok) return { ok: false as const, error: auth.error };
   if (!classId) return { ok: false as const, error: "Classe introuvable" };
   const klass = await prisma.class.findFirst({
@@ -263,7 +263,7 @@ export async function getClassCompletionSummary(
   termId: string,
   evaluationId: string
 ) {
-  const auth = await requireClassGradesAccess(classId);
+  const auth = await requireClassGradesAccess(classId, true);
   if (!auth.ok) return { error: auth.error };
   const { schoolId } = auth.ctx;
 
@@ -495,7 +495,7 @@ export async function getReturnedForTeacher() {
 
 /** États des bulletins d'une classe pour une évaluation : studentId -> statut. */
 export async function getReportCardStates(classId: string, evaluationId: string) {
-  const auth = await requireClassGradesAccess(classId);
+  const auth = await requireClassGradesAccess(classId, true);
   if (!auth.ok) return { error: auth.error };
 
   const cards = await prisma.reportCard.findMany({
@@ -690,7 +690,7 @@ export async function submitStudentToSecretariat(
  * l'enseignant choisit sa classe, sans attendre trimestre ni évaluation.
  */
 export async function getClassRoster(classId: string) {
-  const auth = await requireClassGradesAccess(classId);
+  const auth = await requireClassGradesAccess(classId, true);
   if (!auth.ok) return { error: auth.error };
 
   const enrollments = await prisma.enrollment.findMany({
@@ -1094,7 +1094,7 @@ export async function saveGrades(gradesData: any[]) {
 }
 
 export async function getGradesForClass(classId: string, subjectId: string, termId: string) {
-  const auth = await requireClassGradesAccess(classId);
+  const auth = await requireClassGradesAccess(classId, true);
   if (!auth.ok) return { error: auth.error };
 
   const grades = await prisma.grade.findMany({
@@ -1105,7 +1105,7 @@ export async function getGradesForClass(classId: string, subjectId: string, term
 }
 
 export async function getReportCardData(classId: string, termId: string, evaluationId?: string) {
-  const auth = await requireClassGradesAccess(classId);
+  const auth = await requireClassGradesAccess(classId, true);
   if (!auth.ok) return { error: auth.error };
 
   // Fetch all enrolled students
@@ -1137,7 +1137,7 @@ export async function getReportCardData(classId: string, termId: string, evaluat
 }
 
 export async function getGradesInputData(classId: string, subjectId: string, termId: string, evaluationId?: string) {
-  const auth = await requireClassGradesAccess(classId);
+  const auth = await requireClassGradesAccess(classId, true);
   if (!auth.ok) return { error: auth.error };
 
   const enrollments = await prisma.enrollment.findMany({

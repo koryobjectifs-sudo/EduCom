@@ -135,7 +135,19 @@ export default function ReceiptViewer({
                   <img
                     src={school.logo}
                     alt={school.name}
-                    className={`${paperFormat === "A4-half" ? "h-8 w-8" : "h-12 w-12"} object-contain rounded-lg shadow-2xs flex-shrink-0`}
+                    className="object-contain rounded-lg shadow-2xs flex-shrink-0"
+                    style={{
+                      maxHeight: school?.logoSize
+                        ? `${Math.min(school.logoSize, 96)}px`
+                        : paperFormat === "A4-half"
+                        ? "2rem"
+                        : "3rem",
+                      maxWidth: school?.logoSize
+                        ? `${Math.min(school.logoSize * 1.5, 140)}px`
+                        : paperFormat === "A4-half"
+                        ? "2.5rem"
+                        : "3.5rem",
+                    }}
                   />
                 ) : (
                   <div
@@ -303,14 +315,28 @@ export default function ReceiptViewer({
                   <img
                     src={school.stamp}
                     alt="Cachet"
-                    className={`${paperFormat === "A4-half" ? "h-12" : "h-16"} object-contain mix-blend-multiply`}
+                    className="object-contain mix-blend-multiply"
+                    style={{
+                      height: school?.stampSize
+                        ? `${Math.min(school.stampSize, 85)}px`
+                        : paperFormat === "A4-half"
+                        ? "3rem"
+                        : "4rem",
+                    }}
                   />
                 )}
                 {school?.signature && (
                   <img
                     src={school.signature}
                     alt="Signature"
-                    className={`${paperFormat === "A4-half" ? "h-9" : "h-12"} object-contain mix-blend-multiply`}
+                    className="object-contain mix-blend-multiply"
+                    style={{
+                      height: school?.signatureSize
+                        ? `${Math.min(school.signatureSize, 70)}px`
+                        : paperFormat === "A4-half"
+                        ? "2.25rem"
+                        : "3rem",
+                    }}
                   />
                 )}
                 {!school?.stamp && !school?.signature && (

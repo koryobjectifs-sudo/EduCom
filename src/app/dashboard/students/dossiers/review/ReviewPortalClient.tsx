@@ -825,34 +825,34 @@ export default function ReviewPortalClient({
 
   return (
     <div className="space-y-4 pb-20">
-      {/* ── CARTES DE COMPTEURS EN HAUT (Format interactif & orienté action) ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+      {/* ── CARTES DE COMPTEURS EN HAUT (Soft Cockpit — Format interactif & orienté action) ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
         <button
           type="button"
           onClick={() => handleTabChange("todo")}
-          className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+          className={`rounded-2xl p-4 sm:p-4.5 border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
             activeTab === "todo"
-              ? "bg-amber-50/80 border-amber-300 ring-1.5 ring-amber-400 shadow-xs"
-              : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
+              ? "bg-white border-amber-300 ring-2 ring-amber-400/30 shadow-xs"
+              : "bg-white border-slate-200/70 hover:border-slate-300 shadow-xs hover:shadow-sm"
           }`}
         >
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-xl font-display font-bold text-slate-900 tracking-tight">{counts.todo}</span>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100/80 text-amber-700">
-                <Clock className="h-3.5 w-3.5" />
+              <span className="text-2xl font-bold text-slate-900 tracking-tight">{counts.todo}</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-700 border border-amber-200/60 shadow-2xs">
+                <Clock className="h-4 w-4" />
               </div>
             </div>
-            <p className="mt-1 text-xs font-semibold text-slate-800">À traiter</p>
-            <p className="text-[10px] text-slate-500 truncate mt-0.5">Admission non tranchée</p>
+            <p className="mt-1 text-xs font-bold text-slate-800">À traiter</p>
+            <p className="text-[11px] text-slate-400 truncate mt-0.5">Admission non tranchée</p>
           </div>
-          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
             {counts.todo > 0 ? (
-              <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-amber-700 bg-amber-100/90 px-2 py-0.5 rounded-md">
-                👉 {counts.todo} décision{counts.todo > 1 ? "s" : ""}
+              <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-amber-800 bg-amber-50 border border-amber-200/70 px-2 py-0.5 rounded-full">
+                {counts.todo} décision{counts.todo > 1 ? "s" : ""}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+              <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full">
                 ✓ À jour
               </span>
             )}
@@ -863,29 +863,29 @@ export default function ReviewPortalClient({
         <button
           type="button"
           onClick={() => handleTabChange("missing_docs")}
-          className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+          className={`rounded-2xl p-4 sm:p-4.5 border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
             activeTab === "missing_docs"
-              ? "bg-orange-50/90 border-orange-400 ring-2 ring-orange-400/50 shadow-xs"
-              : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
+              ? "bg-white border-orange-300 ring-2 ring-orange-400/30 shadow-xs"
+              : "bg-white border-slate-200/70 hover:border-slate-300 shadow-xs hover:shadow-sm"
           }`}
         >
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-xl font-display font-bold text-slate-900 tracking-tight">{counts.missing_docs}</span>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 text-orange-700">
-                <AlertCircle className="h-3.5 w-3.5" />
+              <span className="text-2xl font-bold text-slate-900 tracking-tight">{counts.missing_docs}</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-50 text-orange-700 border border-orange-200/60 shadow-2xs">
+                <AlertCircle className="h-4 w-4" />
               </div>
             </div>
-            <p className="mt-1 text-xs font-semibold text-slate-800">Pièces manquantes</p>
-            <p className="text-[10px] text-slate-500 truncate mt-0.5">Admis, dossier incomplet</p>
+            <p className="mt-1 text-xs font-bold text-slate-800">Pièces manquantes</p>
+            <p className="text-[11px] text-slate-400 truncate mt-0.5">Admis, dossier incomplet</p>
           </div>
-          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
             {counts.missing_docs > 0 ? (
-              <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-orange-800 bg-orange-100 px-2 py-0.5 rounded-md border border-orange-200/80 shadow-2xs">
-                👉 {counts.missing_docs} à relancer
+              <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-orange-800 bg-orange-50 border border-orange-200/70 px-2 py-0.5 rounded-full">
+                {counts.missing_docs} à relancer
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+              <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full">
                 ✓ 100% complets
               </span>
             )}
@@ -896,24 +896,24 @@ export default function ReviewPortalClient({
         <button
           type="button"
           onClick={() => handleTabChange("compliant")}
-          className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+          className={`rounded-2xl p-4 sm:p-4.5 border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
             activeTab === "compliant"
-              ? "bg-emerald-50/80 border-emerald-300 ring-1.5 ring-emerald-400 shadow-xs"
-              : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
+              ? "bg-white border-emerald-300 ring-2 ring-emerald-400/30 shadow-xs"
+              : "bg-white border-slate-200/70 hover:border-slate-300 shadow-xs hover:shadow-sm"
           }`}
         >
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-xl font-display font-bold text-slate-900 tracking-tight">{counts.compliant}</span>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-700">
-                <CheckCircle2 className="h-3.5 w-3.5" />
+              <span className="text-2xl font-bold text-slate-900 tracking-tight">{counts.compliant}</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-2xs">
+                <CheckCircle2 className="h-4 w-4" />
               </div>
             </div>
-            <p className="mt-1 text-xs font-semibold text-slate-800">Complets</p>
-            <p className="text-[10px] text-slate-500 truncate mt-0.5">Admis et dossier conforme</p>
+            <p className="mt-1 text-xs font-bold text-slate-800">Complets</p>
+            <p className="text-[11px] text-slate-400 truncate mt-0.5">Admis et dossier conforme</p>
           </div>
-          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-            <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full">
               ✓ Dossiers conformes
             </span>
             <ArrowRight className={`h-3 w-3 ${activeTab === "compliant" ? "text-emerald-600" : "text-slate-300"}`} />
@@ -923,24 +923,24 @@ export default function ReviewPortalClient({
         <button
           type="button"
           onClick={() => handleTabChange("all")}
-          className={`rounded-xl p-3 border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+          className={`rounded-2xl p-4 sm:p-4.5 border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
             activeTab === "all"
-              ? "bg-slate-100/90 border-slate-300 ring-1.5 ring-slate-400 shadow-xs"
-              : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
+              ? "bg-white border-indigo-300 ring-2 ring-indigo-400/30 shadow-xs"
+              : "bg-white border-slate-200/70 hover:border-slate-300 shadow-xs hover:shadow-sm"
           }`}
         >
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-xl font-display font-bold text-slate-900 tracking-tight">{counts.all}</span>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
-                <Layers className="h-3.5 w-3.5" />
+              <span className="text-2xl font-bold text-slate-900 tracking-tight">{counts.all}</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200/60 shadow-2xs">
+                <Layers className="h-4 w-4" />
               </div>
             </div>
-            <p className="mt-1 text-xs font-semibold text-slate-800">Tous</p>
-            <p className="text-[10px] text-slate-500 truncate mt-0.5">Vue globale école</p>
+            <p className="mt-1 text-xs font-bold text-slate-800">Tous</p>
+            <p className="text-[11px] text-slate-400 truncate mt-0.5">Vue globale école</p>
           </div>
-          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-            <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-slate-700 bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded-full">
               Registre global
             </span>
             <ArrowRight className={`h-3 w-3 ${activeTab === "all" ? "text-slate-600" : "text-slate-300"}`} />
@@ -972,10 +972,10 @@ export default function ReviewPortalClient({
               <button
                 type="button"
                 onClick={handleTriggerBulkRemind}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-xs hover:shadow transition-all ring-2 ring-indigo-500/20 cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-2xs hover:-translate-y-0.5 transition-all cursor-pointer"
                 title="Envoyer un message WhatsApp / SMS ciblé aux parents avec lien direct de téléversement"
               >
-                <Bell className="h-4 w-4 text-indigo-200" />
+                <Bell className="h-3.5 w-3.5 text-indigo-200" />
                 <span>
                   Relancer les {selectedIds.size > 0 ? selectedIds.size : filteredList.length} familles (WhatsApp/SMS)
                 </span>
@@ -984,7 +984,7 @@ export default function ReviewPortalClient({
               <button
                 type="button"
                 onClick={handleTriggerBulkReg}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white hover:bg-amber-50 text-amber-900 border border-amber-300 font-semibold text-xs shadow-2xs transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white hover:bg-slate-50 text-amber-900 border border-slate-200/90 font-semibold text-xs shadow-2xs hover:-translate-y-0.5 transition-all cursor-pointer"
                 title="Accorder un délai administratif de grâce pour lever le blocage"
               >
                 <Hourglass className="h-3.5 w-3.5 text-amber-600" />
@@ -994,7 +994,7 @@ export default function ReviewPortalClient({
               <button
                 type="button"
                 onClick={handleTriggerBulkUpload}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white hover:bg-sky-50 text-sky-900 border border-sky-300 font-semibold text-xs shadow-2xs transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white hover:bg-slate-50 text-sky-900 border border-slate-200/90 font-semibold text-xs shadow-2xs hover:-translate-y-0.5 transition-all cursor-pointer"
                 title="Enregistrer une pièce papier apportée au secrétariat"
               >
                 <UploadCloud className="h-3.5 w-3.5 text-sky-600" />
@@ -1094,7 +1094,7 @@ export default function ReviewPortalClient({
               <button
                 type="button"
                 onClick={handleTriggerBulkApproveAll}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-2xs hover:-translate-y-0.5 transition-all shrink-0 cursor-pointer"
               >
                 <UserCheck className="h-4 w-4" />
                 <span>Valider l&apos;admission des {filteredList.filter((s) => s.status === "PENDING").length} élèves</span>
@@ -1103,7 +1103,7 @@ export default function ReviewPortalClient({
               <button
                 type="button"
                 onClick={() => handleTabChange("missing_docs")}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs shadow-2xs transition-all shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs shadow-2xs hover:-translate-y-0.5 transition-all shrink-0 cursor-pointer"
               >
                 <span>Passer aux {counts.missing_docs} pièces manquantes</span>
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -1134,7 +1134,7 @@ export default function ReviewPortalClient({
             <button
               type="button"
               onClick={() => handleTabChange("missing_docs")}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow-2xs transition-all shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow-2xs hover:-translate-y-0.5 transition-all shrink-0 cursor-pointer"
             >
               <span>Traiter les {counts.missing_docs} dossiers incomplets</span>
               <ArrowRight className="h-3.5 w-3.5" />
@@ -1158,7 +1158,7 @@ export default function ReviewPortalClient({
             <button
               type="button"
               onClick={() => handleTabChange("missing_docs")}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs shadow-2xs transition-all shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs shadow-2xs hover:-translate-y-0.5 transition-all shrink-0 cursor-pointer"
             >
               <AlertCircle className="h-3.5 w-3.5" />
               <span>Voir les {counts.missing_docs} dossiers incomplets</span>
@@ -1167,16 +1167,16 @@ export default function ReviewPortalClient({
         </div>
       )}
 
-      {/* ── BARRE D'OUTILS ET FILTRES ── */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      {/* ── BARRE D'OUTILS ET FILTRES (Soft Card) ── */}
+      <div className="rounded-2xl border border-slate-200/70 bg-white p-2.5 sm:p-3 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="flex-1 relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
           <input
             type="text"
             placeholder="Rechercher élève, parent, téléphone..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-white placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            className="w-full pl-9 pr-4 py-1.5 text-xs rounded-lg border border-slate-200/80 bg-slate-50/50 hover:bg-white focus:bg-white placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
           />
         </div>
 
@@ -1184,7 +1184,7 @@ export default function ReviewPortalClient({
           <select
             value={classFilter}
             onChange={(e) => setClassFilter(e.target.value)}
-            className="py-2 pl-3 pr-8 text-xs rounded-xl border border-slate-200 bg-white text-slate-700 font-medium focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
+            className="h-8 py-1 pl-3 pr-8 text-xs rounded-lg border border-slate-200/80 bg-white text-slate-700 font-medium focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all cursor-pointer shadow-2xs"
           >
             <option value="ALL">Toutes les classes</option>
             {classes.map((c) => (
@@ -1198,7 +1198,7 @@ export default function ReviewPortalClient({
             <button
               type="button"
               onClick={() => setMissingPieceFilter(null)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-2 text-xs rounded-xl bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition-colors"
+              className="inline-flex h-8 items-center gap-1.5 px-2.5 text-xs rounded-lg bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition-colors"
               title="Réinitialiser le filtre de pièce"
             >
               <span>Filtre pièce actif</span>
@@ -1208,7 +1208,7 @@ export default function ReviewPortalClient({
 
           <Link
             href="/dashboard/settings/documents"
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs whitespace-nowrap"
+            className="inline-flex h-8 items-center gap-1.5 px-3 text-xs font-semibold rounded-lg border border-slate-200/90 bg-white text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs whitespace-nowrap"
           >
             <span>Configurer les pièces</span>
           </Link>

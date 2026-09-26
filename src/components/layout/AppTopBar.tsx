@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { type NavSpace } from "@/lib/navigation";
 import GlobalSearch from "./GlobalSearch";
+import Cloche from "@/components/community/Cloche";
 import SchoolContextSwitcher from "./SchoolContextSwitcher";
 import { type ActiveMembershipInfo } from "@/lib/schoolContext";
 
@@ -79,8 +80,10 @@ export default function AppTopBar({
         {/* Centre : Recherche Globale Slack-style (Cmd+K) */}
         <GlobalSearch />
 
-        {/* Droite : Espaceur d'équilibrage visuel pour centrage de la recherche */}
-        <div className="shrink-0 w-8 sm:w-16" aria-hidden="true" />
+        {/* Droite : cloche de notifications (26 sept. 2026) — garde l'équilibre visuel de la recherche */}
+        <div className="flex shrink-0 w-8 sm:w-16 justify-end">
+          <Cloche variante="sombre" />
+        </div>
       </div>
     </header>
   );

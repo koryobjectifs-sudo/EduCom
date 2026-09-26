@@ -229,7 +229,7 @@ export async function getSecondaireContextWithActor(
 }
 
 export async function getSecondaireContext(classId: string, subjectId?: string, termId?: string): Promise<SecondaireContext> {
-  const auth = await requireActionContext(PATH);
+  const auth = await requireActionContext(PATH, { lecture: true });
   if (!auth.ok) return { ok: false, error: auth.error };
   return getSecondaireContextWithActor(auth.ctx, classId, subjectId, termId);
 }

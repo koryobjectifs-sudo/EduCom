@@ -135,7 +135,19 @@ export default function InvoiceViewer({
                   <img
                     src={school.logo}
                     alt={school.name}
-                    className={`${paperFormat === "A4-half" ? "h-8 w-8" : "h-12 w-12"} object-contain rounded-lg shadow-2xs flex-shrink-0`}
+                    className="object-contain rounded-lg shadow-2xs flex-shrink-0"
+                    style={{
+                      maxHeight: school?.logoSize
+                        ? `${Math.min(school.logoSize, 96)}px`
+                        : paperFormat === "A4-half"
+                        ? "2rem"
+                        : "3rem",
+                      maxWidth: school?.logoSize
+                        ? `${Math.min(school.logoSize * 1.5, 140)}px`
+                        : paperFormat === "A4-half"
+                        ? "2.5rem"
+                        : "3.5rem",
+                    }}
                   />
                 ) : (
                   <div
@@ -350,14 +362,28 @@ export default function InvoiceViewer({
                   <img
                     src={school.stamp}
                     alt="Cachet de l'établissement"
-                    className={`${paperFormat === "A4-half" ? "h-14" : "h-20"} object-contain mix-blend-multiply`}
+                    className="object-contain mix-blend-multiply"
+                    style={{
+                      height: school?.stampSize
+                        ? `${Math.min(school.stampSize, 90)}px`
+                        : paperFormat === "A4-half"
+                        ? "3.5rem"
+                        : "5rem",
+                    }}
                   />
                 )}
                 {school?.signature && (
                   <img
                     src={school.signature}
                     alt="Signature de la direction"
-                    className={`${paperFormat === "A4-half" ? "h-10" : "h-14"} object-contain mix-blend-multiply`}
+                    className="object-contain mix-blend-multiply"
+                    style={{
+                      height: school?.signatureSize
+                        ? `${Math.min(school.signatureSize, 75)}px`
+                        : paperFormat === "A4-half"
+                        ? "2.5rem"
+                        : "3.5rem",
+                    }}
                   />
                 )}
                 {!school?.stamp && !school?.signature && (

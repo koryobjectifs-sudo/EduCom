@@ -336,7 +336,7 @@ export async function transitionSchoolDocument(input: { id: string; to: SchoolDo
  * l'historique exigé. La trace est écrite avant la remise du lien.
  */
 export async function getSchoolDocumentUrl(id: string, purpose: "preview" | "download" = "download") {
-  const auth = await requireActionContext(CENTRE_PATH);
+  const auth = await requireActionContext(CENTRE_PATH, { lecture: true });
   if (!auth.ok) return { error: auth.error };
   const { ctx } = auth;
 
@@ -408,7 +408,7 @@ export async function confirmDocumentDiffusion(input: {
 
 /** Historique des diffusions de l'établissement — relu depuis `AuditLog`. */
 export async function listDiffusions() {
-  const auth = await requireActionContext(CENTRE_PATH);
+  const auth = await requireActionContext(CENTRE_PATH, { lecture: true });
   if (!auth.ok) return { error: auth.error };
   const rows = await diffusionHistory(auth.ctx, 30);
   return { data: rows.map((r) => ({ ...r, at: r.at.toISOString() })) };

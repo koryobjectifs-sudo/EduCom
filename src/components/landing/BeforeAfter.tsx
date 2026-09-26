@@ -10,6 +10,7 @@ import {
   AppleArrowRightIcon,
 } from "@/components/ui/apple-icons";
 import EduComWordmark from "@/components/brand/EduComWordmark";
+import PapiersRanges from "./PapiersRanges";
 
 /**
  * Avant → Avec EduCom — 23 septembre 2026.
@@ -116,7 +117,11 @@ export default function BeforeAfter() {
           })}
         </div>
 
-        <p className="mx-auto mt-14 max-w-2xl text-center font-display text-[1.5rem] font-bold leading-[1.2] text-m-navy sm:text-[1.9rem]">
+        <div className="mt-14">
+          <PapiersRanges />
+        </div>
+
+        <p className="mx-auto mt-6 max-w-2xl text-center font-display text-[1.5rem] font-bold leading-[1.2] text-m-navy sm:text-[1.9rem]">
           Moins de temps à administrer.
           <br />
           <span className="text-m-blue">Plus de temps pour diriger.</span>

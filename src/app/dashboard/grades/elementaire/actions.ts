@@ -175,7 +175,7 @@ export async function getElementaireContextWithActor(actor: Actor, classId: stri
 }
 
 export async function getElementaireContext(classId: string, termId?: string): Promise<ElementaireContext> {
-  const auth = await requireActionContext(PATH);
+  const auth = await requireActionContext(PATH, { lecture: true });
   if (!auth.ok) return { ok: false, error: auth.error };
   return getElementaireContextWithActor(auth.ctx, classId, termId);
 }

@@ -34,7 +34,7 @@ export async function initSchoolPedagogyAction(
  * 2. Récupère les classes réelles de l'école pour le modèle Excel et l'attribution.
  */
 export async function getSchoolClassesAction(): Promise<{ classes: { id: string; name: string; cycle: string }[]; error?: string }> {
-  const auth = await requireActionContext("/dashboard/settings/pedagogie");
+  const auth = await requireActionContext("/dashboard/settings/pedagogie", { lecture: true });
   if (!auth.ok) return { classes: [], error: auth.error };
 
   try {

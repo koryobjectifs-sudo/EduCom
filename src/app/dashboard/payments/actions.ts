@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { notifierParentsEleves, fcfa } from "@/lib/notificationsFamille";
 import { requireActionContext } from "@/lib/actionContext";
 import { recordAudit } from "@/lib/audit";
 import { getNextInvoiceNumber, getNextReceiptNumber } from "@/lib/finance/numbering";
@@ -95,6 +96,15 @@ export async function createInvoice(formData: FormData) {
       entityId: created.id,
       details: { title, totalAmount, studentId: targetStudentId ?? null, invoiceNumber: created.invoiceNumber },
     });
+    // 26 sept. 2026 — la famille est prévenue de la nouvelle facture.
+    if (targetStudentId) {
+      await notifierParentsEleves(ctx.schoolId, [targetStudentId], (e) => ({
+        title: `🧾 Nouvelle facture — ${e.firstName}`,
+        body: `${title} : ${fcfa(totalAmount)}, à régler avant le ${new Date(dueDateStr).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}.`,
+        url: "/famille/paiements",
+        kind: "famille.facture",
+      }));
+    }
   } catch (error) {
     console.error("Failed to create invoice:", error);
     return { error: "Erreur lors de la création de la facture" };
@@ -189,6 +199,16 @@ export async function recordInvoicePayment({
     revalidatePath("/dashboard/payments");
     revalidatePath("/dashboard/payments/receipt");
     revalidatePath("/famille/paiements");
+
+    // 26 sept. 2026 — accusé de paiement à la famille.
+    if (invoice.studentId) {
+      await notifierParentsEleves(ctx.schoolId, [invoice.studentId], (e) => ({
+        title: `✅ Paiement reçu — ${e.firstName}`,
+        body: `${fcfa(parsedAmount)} encaissés (reçu n° ${payment.receiptNumber}).${finalRemaining > 0 ? ` Reste à payer : ${fcfa(finalRemaining)}.` : " Facture soldée, merci !"}`,
+        url: "/famille/paiements",
+        kind: "famille.paiement",
+      }));
+    }
 
     return {
       success: true,
@@ -290,6 +310,12 @@ export async function quickCollect(studentId: string, amount: number) {
     });
 
     revalidatePath("/dashboard/payments");
+    await notifierParentsEleves(ctx.schoolId, [student.id], (e) => ({
+      title: `✅ Paiement reçu — ${e.firstName}`,
+      body: `${fcfa(amount)} encaissés pour « ${title} ». Merci !`,
+      url: "/famille/paiements",
+      kind: "famille.paiement",
+    }));
     return { success: true };
   } catch (error) {
     console.error("Failed to quick collect:", error);

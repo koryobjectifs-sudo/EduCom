@@ -182,34 +182,34 @@ export default function DossiersClient({
 
     return (
       <div className="space-y-6 animate-in fade-in duration-200">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-white rounded-2xl border border-slate-200 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-white rounded-2xl border border-slate-200/70 shadow-xs">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => handleSelectClass(null)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200/80 bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
             >
               <ArrowLeft className="h-4 w-4" />
               <span>Toutes les classes</span>
             </button>
             <div className="h-6 w-px bg-slate-200" />
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                <FolderOpen className="h-4 w-4" />
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-2xs">
+                <FolderOpen className="h-4.5 w-4.5" />
               </div>
               <div>
                 <h2 className="text-base font-bold text-slate-900 leading-none">
                   {className}
                 </h2>
                 {classCycle && (
-                  <span className="text-[11px] font-medium text-slate-500">
+                  <span className="text-[11px] font-medium text-slate-500 mt-0.5 block">
                     Cycle {(CYCLE_LABELS as any)[classCycle] || classCycle}
                   </span>
                 )}
               </div>
             </div>
           </div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-800 text-xs font-bold self-start sm:self-auto">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-800 text-xs font-bold self-start sm:self-auto">
             <Users className="h-3.5 w-3.5 text-slate-500" />
             <span>
               {filteredStudents.length} élève{filteredStudents.length > 1 ? "s" : ""}
@@ -235,52 +235,52 @@ export default function DossiersClient({
       <div
         key={cls.id}
         onClick={() => handleSelectClass(cls.id)}
-        className={`group relative rounded-surface border border-rule bg-surface p-3 sm:p-3.5 shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-subtle cursor-pointer flex flex-col justify-between gap-2.5 ${cycleConfig.cardHoverBorder}`}
+        className="group relative rounded-2xl border border-slate-200/70 bg-white p-4.5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-sm cursor-pointer flex flex-col justify-between gap-3.5"
       >
         {/* En-tête de la carte */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <div
-              className={`h-8 w-8 rounded-control flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 ${cycleConfig.iconBg}`}
+              className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-2xs ${cycleConfig.iconBg}`}
             >
-              <CycleIcon className="h-4 w-4" />
+              <CycleIcon className="h-4.5 w-4.5" />
             </div>
             <div>
-              <h3 className="font-bold text-text text-sm leading-tight group-hover:text-primary transition-colors">
+              <h3 className="font-bold text-slate-900 text-sm leading-tight group-hover:text-indigo-600 transition-colors">
                 {cls.name}
               </h3>
-              <span className="text-[10.5px] font-medium text-text-soft mt-0.5 block">
+              <span className="text-[10.5px] font-medium text-slate-500 mt-0.5 block">
                 {(CYCLE_LABELS as any)[cls.cycle] || cls.cycle}
               </span>
             </div>
           </div>
 
           <span
-            className={`inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-control border ${
+            className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md border ${
               studentCount > 0
-                ? "bg-sunk text-text border-rule"
-                : "bg-sunk/50 text-text-faint border-rule"
+                ? "bg-slate-100/80 text-slate-700 border-slate-200/60"
+                : "bg-slate-50 text-slate-400 border-slate-200/40"
             }`}
           >
-            <Users className="h-2.5 w-2.5 text-text-soft" />
+            <Users className="h-3 w-3 text-slate-400" />
             <span>{studentCount}</span>
           </span>
         </div>
 
         {/* Section Professeur & Métriques */}
-        <div className="pt-1.5 border-t border-rule flex items-center justify-between text-role-meta">
-          <div className="flex items-center gap-1 text-text-soft truncate max-w-[75%]">
-            <User className="h-3 w-3 text-text-faint shrink-0" />
+        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1 text-slate-500 truncate max-w-[75%]">
+            <User className="h-3.5 w-3.5 text-slate-400 shrink-0" />
             <span className="truncate" title={teacherName || "Aucun titulaire assigné"}>
               {teacherName ? (
-                <span className="font-medium text-text">{teacherName}</span>
+                <span className="font-medium text-slate-700">{teacherName}</span>
               ) : (
-                <span className="text-text-faint italic">Sans titulaire</span>
+                <span className="text-slate-400 italic">Sans titulaire</span>
               )}
             </span>
           </div>
 
-          <span className="text-primary font-bold text-xs flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform shrink-0">
+          <span className="text-indigo-600 font-bold text-xs flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform shrink-0">
             <span>Ouvrir</span>
             <ArrowRight className="h-3 w-3" />
           </span>
@@ -297,22 +297,22 @@ export default function DossiersClient({
         return (
           <section key={g.cle} className="space-y-3">
             {/* En-tête de section de Cycle avec badges et compteurs */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-rule">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-slate-200/70">
               <div className="flex items-center gap-2">
-                <div className={`p-1 rounded ${g.config.iconBg}`}>
+                <div className={`p-1.5 rounded-md ${g.config.iconBg}`}>
                   <CycleIcon className="h-3.5 w-3.5" />
                 </div>
-                <h2 className="text-xs font-bold tracking-wider text-text uppercase">
+                <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase">
                   {g.titre}
                 </h2>
                 <span
-                  className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${g.config.bgBadge} ${g.config.textBadge} ${g.config.borderBadge}`}
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${g.config.bgBadge} ${g.config.textBadge} ${g.config.borderBadge}`}
                 >
                   {g.classes.length} classe{g.classes.length > 1 ? "s" : ""}
                 </span>
               </div>
 
-              <span className="text-role-meta font-semibold text-text-soft">
+              <span className="text-xs font-medium text-slate-400">
                 {g.totalStudents} élève{g.totalStudents > 1 ? "s" : ""} au total
               </span>
             </div>
@@ -327,15 +327,15 @@ export default function DossiersClient({
 
       {/* Section spéciale : Élèves hors classe / non assignés */}
       {statsByClass.unassigned > 0 && (
-        <section className="space-y-4 pt-4 border-t border-slate-200">
-          <div className="flex items-center justify-between pb-1 border-b border-amber-200/60">
+        <section className="space-y-4 pt-4 border-t border-slate-200/70">
+          <div className="flex items-center justify-between pb-1.5 border-b border-amber-200/60">
             <div className="flex items-center gap-2 text-amber-900">
               <AlertCircle className="h-4 w-4 text-amber-600" />
-              <h2 className="text-sm font-extrabold tracking-wider uppercase">
+              <h2 className="text-xs font-extrabold tracking-wider uppercase">
                 Élèves non assignés
               </h2>
             </div>
-            <span className="text-xs font-bold text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-full">
+            <span className="text-xs font-bold text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-full border border-amber-200">
               {statsByClass.unassigned} élève{statsByClass.unassigned > 1 ? "s" : ""} à affecter
             </span>
           </div>
@@ -343,15 +343,15 @@ export default function DossiersClient({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             <div
               onClick={() => handleSelectClass("UNASSIGNED")}
-              className="group relative rounded-2xl border border-amber-200 bg-amber-50/40 p-4 sm:p-5 shadow-xs transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-amber-300 cursor-pointer flex flex-col justify-between gap-4"
+              className="group relative rounded-xl border border-amber-200 bg-amber-50/40 p-4 sm:p-4.5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm hover:border-amber-300 cursor-pointer flex flex-col justify-between gap-3"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="h-11 w-11 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                    <Users className="h-5 w-5" />
+                  <div className="h-9 w-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                    <Users className="h-4.5 w-4.5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-amber-950 text-base leading-tight">
+                    <h3 className="font-bold text-amber-950 text-sm leading-tight">
                       Sans classe
                     </h3>
                     <span className="text-[11px] font-medium text-amber-700/80 mt-0.5 block">
@@ -360,14 +360,14 @@ export default function DossiersClient({
                   </div>
                 </div>
 
-                <span className="inline-flex items-center text-xs font-bold px-2 py-0.5 rounded-lg bg-amber-200/80 text-amber-900">
+                <span className="inline-flex items-center text-xs font-bold px-2 py-0.5 rounded-md bg-amber-200/80 text-amber-900">
                   {statsByClass.unassigned}
                 </span>
               </div>
 
               <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between text-xs text-amber-900 font-semibold">
                 <span>Affecter aux classes</span>
-                <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </div>
           </div>

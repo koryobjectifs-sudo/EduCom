@@ -92,8 +92,14 @@ export function BulletinElementaireSheet({
         {/* Colonne Gauche */}
         <div className="w-[45%] flex items-start gap-2.5 space-y-0.5">
           {effectiveLogoPosition === "LEFT" && school.logo && (
-            <div className="flex h-14 w-16 shrink-0 items-center justify-center">
-              <img src={school.logo} alt="" className="max-h-14 max-w-full object-contain" />
+            <div
+              className="flex shrink-0 items-center justify-center"
+              style={{
+                width: school.logoSize ? `${school.logoSize}px` : "4rem",
+                height: school.logoSize ? `${school.logoSize}px` : "3.5rem",
+              }}
+            >
+              <img src={school.logo} alt="" className="max-h-full max-w-full object-contain" />
             </div>
           )}
           <div className="space-y-0.5">
@@ -115,8 +121,14 @@ export function BulletinElementaireSheet({
 
         {/* Logo au centre si positionné au centre */}
         {effectiveLogoPosition === "CENTER" && school.logo && (
-          <div className="flex h-14 w-20 items-center justify-center shrink-0">
-            <img src={school.logo} alt="" className="max-h-14 max-w-full object-contain" />
+          <div
+            className="flex items-center justify-center shrink-0"
+            style={{
+              width: school.logoSize ? `${Math.round(school.logoSize * 1.3)}px` : "5rem",
+              height: school.logoSize ? `${school.logoSize}px` : "3.5rem",
+            }}
+          >
+            <img src={school.logo} alt="" className="max-h-full max-w-full object-contain" />
           </div>
         )}
 
@@ -138,8 +150,14 @@ export function BulletinElementaireSheet({
             </div>
           </div>
           {effectiveLogoPosition === "RIGHT" && school.logo && (
-            <div className="flex h-14 w-16 shrink-0 items-center justify-center">
-              <img src={school.logo} alt="" className="max-h-14 max-w-full object-contain" />
+            <div
+              className="flex shrink-0 items-center justify-center"
+              style={{
+                width: school.logoSize ? `${school.logoSize}px` : "4rem",
+                height: school.logoSize ? `${school.logoSize}px` : "3.5rem",
+              }}
+            >
+              <img src={school.logo} alt="" className="max-h-full max-w-full object-contain" />
             </div>
           )}
         </div>
@@ -357,19 +375,30 @@ export function BulletinElementaireSheet({
               </p>
             </div>
 
-            <div className="relative h-11 w-full">
+            <div
+              className="relative w-full"
+              style={{
+                height: `${Math.max(school.stampSize ?? 40, school.signatureSize ?? 32)}px`,
+              }}
+            >
               {school.stamp && (
                 <img
                   src={school.stamp}
                   alt="Cachet"
-                  className="absolute bottom-0 right-3 h-10 object-contain opacity-60"
+                  className="absolute bottom-0 right-3 object-contain opacity-60 pointer-events-none"
+                  style={{
+                    height: `${school.stampSize ?? 40}px`,
+                  }}
                 />
               )}
               {school.signature && (
                 <img
                   src={school.signature}
                   alt="Signature"
-                  className="absolute bottom-0 right-0 h-8 object-contain"
+                  className="absolute bottom-0 right-0 object-contain pointer-events-none"
+                  style={{
+                    height: `${school.signatureSize ?? 32}px`,
+                  }}
                 />
               )}
             </div>

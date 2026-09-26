@@ -98,6 +98,9 @@ export default async function SettingsPage() {
           logo: school.logo || "",
           stamp: school.stamp || "",
           signature: school.signature || "",
+          logoSize: school.logoSize ?? 80,
+          stampSize: school.stampSize ?? 80,
+          signatureSize: school.signatureSize ?? 60,
           primaryColor: school.primaryColor || "#9C0F15",
           activeAcademicYear: activeYear,
         }}

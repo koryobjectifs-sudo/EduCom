@@ -5,6 +5,7 @@ import { useState } from "react";
 import { type NavSpace, type NavItem, getActiveNavItemHref } from "@/lib/navigation";
 import { getNavIcon } from "./nav-icons";
 import SidebarResizeHandle from "./SidebarResizeHandle";
+import { useSidebarSlot } from "./SidebarSlot";
 
 export interface ContextualSidebarProps {
   space: NavSpace;
@@ -81,6 +82,10 @@ export default function ContextualSidebar({
   const collapsed = currentWidth <= 52;
   const allItems = space.sections.flatMap((s) => s.items);
   const activeHref = getActiveNavItemHref(allItems, currentPath ?? null);
+  // Communauté (26 sept. 2026) : la page dépose ses entrées (canaux, classes,
+  // messages directs) dans cette même barre — voir `SidebarSlot.tsx`.
+  const { rendu } = useSidebarSlot();
+  const contenuPage = space.id === "comms" && rendu ? rendu(collapsed) : null;
 
   return (
     <aside
@@ -93,7 +98,7 @@ export default function ContextualSidebar({
     >
       {/* Liste des sections et sous-destinations */}
       <div className="flex-1 overflow-y-auto px-1.5 py-2.5 space-y-3">
-        {space.sections.map((section, idx) => (
+        {contenuPage ?? space.sections.map((section, idx) => (
           <div key={section.title ?? `sec-${idx}`} className="space-y-0.5">
             {!collapsed && section.title && (
               <h3 className="px-2 pb-0.5 text-[9.5px] font-bold uppercase tracking-wider text-slate-400">

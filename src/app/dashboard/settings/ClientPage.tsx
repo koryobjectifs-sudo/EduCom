@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { getContrastRatioAgainstWhite, isValidHexColor, PRESET_SCHOOL_COLORS, DEFAULT_EDUCOM_NAVY, schoolThemeStyle } from "@/lib/theme";
 import SharedColorPicker from "@/components/ui/SharedColorPicker";
+import { VisualAssetField } from "@/components/settings/VisualAssetField";
 
 export default function SettingsClient({
   school,
@@ -39,6 +40,9 @@ export default function SettingsClient({
     logo: school.logo || "",
     stamp: school.stamp || "",
     signature: school.signature || "",
+    logoSize: school.logoSize ?? 80,
+    stampSize: school.stampSize ?? 80,
+    signatureSize: school.signatureSize ?? 60,
     primaryColor: school.primaryColor || DEFAULT_EDUCOM_NAVY,
   });
 
@@ -396,99 +400,49 @@ export default function SettingsClient({
         <h2 className="text-sm font-medium text-text-secondary ml-4 mb-2 uppercase tracking-wider">Identité Visuelle & Charte</h2>
         <div className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden p-4 space-y-4">
           
-          {/* Grille 3 colonnes : Logo, Cachet, Signature */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            
+          {/* Grille 3 colonnes : Logo, Cachet, Signature avec redimensionnement interactif */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
             {/* Logo */}
-            <div className="p-4 rounded-2xl bg-secondary/30 border border-transparent hover:border-border transition-colors group flex flex-col items-center justify-center text-center">
-              <h3 className="text-sm font-medium text-text-primary mb-3">Logo de l'école</h3>
-              
-              <div className="relative mb-4">
-                {formData.logo ? (
-                  <div className="relative group/img">
-                    <img src={formData.logo} alt="Logo" className="h-20 w-20 rounded-2xl object-contain bg-white shadow-sm border border-border p-2" />
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      aria-label="Retirer le logo"
-                      onClick={() => setFormData(prev => ({...prev, logo: ""}))}
-                      icon={<span aria-hidden="true">×</span>}
-                      className="absolute -top-2 -right-2 h-6 w-6 rounded-pill opacity-0 group-hover/img:opacity-100 transition-opacity"
-                    />
-                  </div>
-                ) : (
-                  <div className="h-20 w-20 rounded-2xl bg-white shadow-sm border border-border flex items-center justify-center">
-                    <ImageIcon className="h-8 w-8 text-text-muted/40" />
-                  </div>
-                )}
-              </div>
-              
-              <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-border rounded-xl text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-secondary transition-colors shadow-sm">
-                <UploadCloud className="w-3.5 h-3.5" /> Modifier
-                <input type="file" className="sr-only" accept="image/png, image/jpeg" onChange={(e) => handleFileUpload(e, "logo")} />
-              </label>
-            </div>
+            <VisualAssetField
+              label="Logo de l'école"
+              field="logo"
+              value={formData.logo}
+              size={formData.logoSize}
+              defaultSize={80}
+              minSize={40}
+              maxSize={200}
+              description="Figure en en-tête des bulletins, factures, reçus et certificats. Tirez sur le coin bas-droite ou réglez le curseur."
+              onChangeValue={(val) => setFormData((prev) => ({ ...prev, logo: val }))}
+              onChangeSize={(sz) => setFormData((prev) => ({ ...prev, logoSize: sz }))}
+            />
 
             {/* Cachet */}
-            <div className="p-4 rounded-2xl bg-secondary/30 border border-transparent hover:border-border transition-colors group flex flex-col items-center justify-center text-center">
-              <h3 className="text-sm font-medium text-text-primary mb-3">Cachet officiel</h3>
-              
-              <div className="relative mb-4">
-                {formData.stamp ? (
-                  <div className="relative group/img">
-                    <img src={formData.stamp} alt="Cachet" className="h-20 w-20 rounded-2xl object-contain bg-white shadow-sm border border-border p-2" />
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      aria-label="Retirer le cachet"
-                      onClick={() => setFormData(prev => ({...prev, stamp: ""}))}
-                      icon={<span aria-hidden="true">×</span>}
-                      className="absolute -top-2 -right-2 h-6 w-6 rounded-pill opacity-0 group-hover/img:opacity-100 transition-opacity"
-                    />
-                  </div>
-                ) : (
-                  <div className="h-20 w-20 rounded-2xl bg-white shadow-sm border border-border flex items-center justify-center">
-                    <ImageIcon className="h-8 w-8 text-text-muted/40" />
-                  </div>
-                )}
-              </div>
-              
-              <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-border rounded-xl text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-secondary transition-colors shadow-sm">
-                <UploadCloud className="w-3.5 h-3.5" /> Modifier
-                <input type="file" className="sr-only" accept="image/png, image/jpeg" onChange={(e) => handleFileUpload(e, "stamp")} />
-              </label>
-            </div>
+            <VisualAssetField
+              label="Cachet officiel"
+              field="stamp"
+              value={formData.stamp}
+              size={formData.stampSize}
+              defaultSize={80}
+              minSize={40}
+              maxSize={180}
+              description="Apposé en bas des bulletins et reçus. Tous formats acceptés et convertis en PNG haute netteté."
+              onChangeValue={(val) => setFormData((prev) => ({ ...prev, stamp: val }))}
+              onChangeSize={(sz) => setFormData((prev) => ({ ...prev, stampSize: sz }))}
+            />
 
             {/* Signature */}
-            <div className="p-4 rounded-2xl bg-secondary/30 border border-transparent hover:border-border transition-colors group flex flex-col items-center justify-center text-center">
-              <h3 className="text-sm font-medium text-text-primary mb-3">Signature (Directeur)</h3>
-              
-              <div className="relative mb-4">
-                {formData.signature ? (
-                  <div className="relative group/img">
-                    <img src={formData.signature} alt="Signature" className="h-20 w-20 rounded-2xl object-contain bg-white shadow-sm border border-border p-2" />
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      aria-label="Retirer la signature"
-                      onClick={() => setFormData(prev => ({...prev, signature: ""}))}
-                      icon={<span aria-hidden="true">×</span>}
-                      className="absolute -top-2 -right-2 h-6 w-6 rounded-pill opacity-0 group-hover/img:opacity-100 transition-opacity"
-                    />
-                  </div>
-                ) : (
-                  <div className="h-20 w-20 rounded-2xl bg-white shadow-sm border border-border flex items-center justify-center">
-                    <ImageIcon className="h-8 w-8 text-text-muted/40" />
-                  </div>
-                )}
-              </div>
-              
-              <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-border rounded-xl text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-secondary transition-colors shadow-sm">
-                <UploadCloud className="w-3.5 h-3.5" /> Modifier
-                <input type="file" className="sr-only" accept="image/png, image/jpeg" onChange={(e) => handleFileUpload(e, "signature")} />
-              </label>
-            </div>
-
+            <VisualAssetField
+              label="Signature (Directeur)"
+              field="signature"
+              value={formData.signature}
+              size={formData.signatureSize}
+              defaultSize={60}
+              minSize={30}
+              maxSize={160}
+              description="Signature administrative officielle. Tirez le coin pour agrandir jusqu'aux pixels souhaités."
+              onChangeValue={(val) => setFormData((prev) => ({ ...prev, signature: val }))}
+              onChangeSize={(sz) => setFormData((prev) => ({ ...prev, signatureSize: sz }))}
+            />
           </div>
 
           {/* Couleur des Cadres Établissement (Rail & TopBar unifiés Slack-style + Sidebar plus légère) */}

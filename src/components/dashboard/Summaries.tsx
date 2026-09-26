@@ -243,8 +243,8 @@ export function ParentsSummary({ parents }: { parents: Signal<ParentsFacts> }) {
       title="Parents & communication"
       description="Votre lien réel avec les familles"
       icon={Users}
-      href="/dashboard/communications"
-      cta="Voir les communications"
+      href="/dashboard/communications/communaute"
+      cta="Ouvrir la Communauté"
     >
       {parents.ok ? (
         <>

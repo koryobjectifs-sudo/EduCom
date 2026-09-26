@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, CheckCircle2, FileText, LogOut, Bell, Shield, GraduationCap, CreditCard, User } from "lucide-react";
+import { Home, Users, CheckCircle2, FileText, LogOut, Bell, Shield, GraduationCap, CreditCard, User, MessagesSquare } from "lucide-react";
 import SchoolContextSwitcher from "@/components/layout/SchoolContextSwitcher";
+import Cloche from "@/components/community/Cloche";
 import DevRoleSwitcher from "@/components/dev/DevRoleSwitcher";
 import { type ActiveMembershipInfo } from "@/lib/schoolContext";
 
@@ -34,6 +35,7 @@ export default function FamilyShell({
 
   const navItems = [
     { href: "/famille", label: "Accueil", icon: Home, exact: true },
+    { href: "/famille/communaute", label: "Communauté", icon: MessagesSquare },
     { href: "/famille/enfants", label: "Mes Enfants", icon: Users },
     {
       href: "/famille/actions",
@@ -132,6 +134,7 @@ export default function FamilyShell({
         {/* Profil / Déconnexion & Switcher Dev */}
         <div className="flex items-center gap-2">
           {devSwitcher}
+          <Cloche espace="famille" />
           <div className="hidden sm:block text-right">
             <p className="text-xs font-semibold text-text truncate max-w-[150px]">{userName}</p>
             <p className="text-[10px] text-text-muted">Espace Parent</p>
@@ -150,7 +153,14 @@ export default function FamilyShell({
       </header>
 
       {/* 2. Contenu Principal */}
-      <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 pb-24 md:pb-8">
+      {/* Communauté (26 sept. 2026) : page large façon Slack (canaux, messages, infos). */}
+      <main
+        className={
+          pathname?.startsWith("/famille/communaute")
+            ? "flex-1 w-full max-w-[1400px] mx-auto px-0 sm:px-4 py-0 sm:py-4 pb-16 md:pb-4"
+            : "flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 pb-24 md:pb-8"
+        }
+      >
         {children}
       </main>
 

@@ -399,10 +399,10 @@ export default function ClassListClient({
 
       {/* ── BANNIÈRE D'ALERTE EN TÊTE (Classes sans titulaire & Matières sans enseignant) ── */}
       {(unassignedClasses.length > 0 || totalUnassignedSubjects > 0) && (
-        <div className="rounded-surface bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300/80 p-4 shadow-2xs">
+        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/50 p-4 sm:p-4.5 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-amber-500/20 text-amber-800">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800 shadow-2xs">
                 <AlertCircle className="h-5 w-5 text-amber-700" />
               </span>
               <div>
@@ -425,9 +425,9 @@ export default function ClassListClient({
               <button
                 type="button"
                 onClick={() => setMainViewMode(mainViewMode === "classes" ? "bulk_teachers" : "classes")}
-                className="inline-flex items-center gap-1.5 rounded-control bg-white border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-950 hover:bg-amber-50 transition-colors shadow-2xs"
+                className="inline-flex items-center gap-1.5 rounded-full bg-white border border-slate-200/90 px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs"
               >
-                <Sparkles className="h-3.5 w-3.5 text-amber-700" />
+                <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
                 <span>
                   {mainViewMode === "classes" ? "Affectation en masse par enseignant" : "Revenir à la vue par classe"}
                 </span>
@@ -437,16 +437,16 @@ export default function ClassListClient({
         </div>
       )}
 
-      {/* ── BASCULE DE VUE PRINCIPALE (VUE PAR CLASSE vs VUE PAR ENSEIGNANT) ── */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-rule pb-3">
-        <div className="flex items-center gap-2">
+      {/* ── BASCULE DE VUE PRINCIPALE (VUE PAR CLASSE vs VUE PAR ENSEIGNANT) (Soft Card) ── */}
+      <div className="rounded-2xl border border-slate-200/70 bg-white p-2.5 sm:p-3 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-1 p-0.5 rounded-xl bg-slate-100/80 border border-slate-200/60 self-start sm:self-auto">
           <button
             type="button"
             onClick={() => setMainViewMode("classes")}
-            className={`inline-flex items-center gap-2 rounded-control px-3.5 py-1.5 text-xs font-semibold transition-all ${
+            className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs transition-all ${
               mainViewMode === "classes"
-                ? "bg-primary text-white shadow-2xs"
-                : "bg-surface border border-rule text-text-soft hover:bg-sunk hover:text-text"
+                ? "bg-white text-slate-900 shadow-xs font-bold"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold"
             }`}
           >
             <School className="h-3.5 w-3.5" />
@@ -456,25 +456,25 @@ export default function ClassListClient({
           <button
             type="button"
             onClick={() => setMainViewMode("bulk_teachers")}
-            className={`inline-flex items-center gap-2 rounded-control px-3.5 py-1.5 text-xs font-semibold transition-all ${
+            className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs transition-all ${
               mainViewMode === "bulk_teachers"
-                ? "bg-primary text-white shadow-2xs"
-                : "bg-surface border border-rule text-text-soft hover:bg-sunk hover:text-text"
+                ? "bg-white text-slate-900 shadow-xs font-bold"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold"
             }`}
           >
             <Users className="h-3.5 w-3.5" />
-            <span>Vue par enseignant (Affectation en masse)</span>
+            <span>Vue par enseignant</span>
           </button>
         </div>
 
         {mainViewMode === "classes" && (
           <div className="relative w-full sm:w-64">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-faint" />
-            <Input
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input
               value={internalSearch}
               onChange={(e) => setInternalSearch(e.target.value)}
               placeholder="Rechercher une classe..."
-              inputClassName="pl-8 h-8 text-xs rounded-control"
+              className="w-full pl-8 pr-3 h-8 text-xs rounded-lg border border-slate-200/80 bg-slate-50/50 hover:bg-white focus:bg-white text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
             />
           </div>
         )}
@@ -485,15 +485,15 @@ export default function ClassListClient({
           ══════════════════════════════════════════════════════════════════════ */}
       {mainViewMode === "classes" && (
         <div className="space-y-6">
-          {/* Onglets de filtrage (Tous les cycles / Sans titulaire) */}
-          <div className="flex items-center gap-2">
+          {/* Onglets de filtrage (Tous les cycles / Sans titulaire) (Soft Pills) */}
+          <div className="inline-flex items-center gap-1 p-0.5 rounded-xl bg-slate-100/80 border border-slate-200/60">
             <button
               type="button"
               onClick={() => handleTabChange("all")}
-              className={`inline-flex items-center gap-1.5 rounded-pill px-3 py-1 text-xs font-semibold transition-colors ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs transition-all ${
                 activeTab !== "unassigned"
-                  ? "bg-sunk font-bold text-text"
-                  : "text-text-soft hover:text-text"
+                  ? "bg-white text-slate-900 shadow-xs font-bold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold"
               }`}
             >
               <span>Toutes les classes ({classes.length})</span>
@@ -503,10 +503,10 @@ export default function ClassListClient({
               <button
                 type="button"
                 onClick={() => handleTabChange("unassigned")}
-                className={`inline-flex items-center gap-1.5 rounded-pill px-3 py-1 text-xs font-semibold transition-colors ${
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs transition-all ${
                   activeTab === "unassigned"
-                    ? "bg-amber-100 text-amber-950 font-bold"
-                    : "text-amber-800 hover:text-amber-950"
+                    ? "bg-amber-100/90 text-amber-950 shadow-xs font-bold border border-amber-200/80"
+                    : "text-amber-800 hover:text-amber-950 font-semibold"
                 }`}
               >
                 <AlertCircle className="h-3 w-3 text-amber-600" />
@@ -519,10 +519,10 @@ export default function ClassListClient({
           {activeTab === "all" && !selectedCycle && !searchTerm && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-wider text-text-faint">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
                   Cycles de l&apos;établissement ({presentCycles.length})
                 </p>
-                <p className="text-role-meta text-text-soft">
+                <p className="text-xs text-slate-500 font-medium">
                   Cliquez sur un cycle pour afficher et gérer ses classes
                 </p>
               </div>
@@ -542,37 +542,37 @@ export default function ClassListClient({
                       key={cycle.id}
                       type="button"
                       onClick={() => handleSelectCycle(cycle.id)}
-                      className="group flex flex-col justify-between rounded-surface border border-rule bg-surface p-4 text-left shadow-card transition-all hover:border-primary/50 hover:shadow-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                      className="group flex flex-col justify-between rounded-2xl border border-slate-200/70 bg-white p-5 text-left shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/20 cursor-pointer"
                     >
                       <div className="flex items-start justify-between gap-3 w-full">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-sunk text-text-soft group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-2xs">
                             <Icon className="h-5 w-5" />
                           </span>
                           <div className="min-w-0">
-                            <h3 className="type-card-title text-text group-hover:text-primary transition-colors truncate">
+                            <h3 className="text-base font-bold text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
                               {cycle.label}
                             </h3>
-                            <p className="text-role-meta text-text-faint truncate mt-0.5">
+                            <p className="text-xs text-slate-400 truncate mt-0.5">
                               {cycle.desc}
                             </p>
                           </div>
                         </div>
 
-                        <ChevronRight className="h-4 w-4 shrink-0 text-text-faint group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                        <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
                       </div>
 
-                      <div className="mt-4 pt-3 border-t border-rule flex items-center justify-between w-full text-xs">
-                        <span className="font-semibold text-text">
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between w-full text-xs">
+                        <span className="font-semibold text-slate-700">
                           {cycleClasses.length} classe{cycleClasses.length > 1 ? "s" : ""} · {totalStudents} élève{totalStudents > 1 ? "s" : ""}
                         </span>
                         {cycleUnassigned > 0 ? (
-                          <span className="text-role-meta font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-pill">
+                          <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-amber-800 bg-amber-50 border border-amber-200/70 px-2 py-0.5 rounded-full">
                             {cycleUnassigned} sans titulaire
                           </span>
                         ) : (
-                          <span className="text-role-meta font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-pill">
-                            Titulaires complets
+                          <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full">
+                            ✓ Titulaires complets
                           </span>
                         )}
                       </div>
@@ -587,30 +587,30 @@ export default function ClassListClient({
           {(selectedCycle || searchTerm || activeTab === "unassigned") && (
             <div className="space-y-4">
               {activeTab !== "unassigned" && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-sunk/60 rounded-surface p-3 border border-rule">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white rounded-2xl p-3 sm:p-3.5 border border-slate-200/70 shadow-xs">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <button
                       type="button"
                       onClick={() => handleSelectCycle(null)}
-                      className="inline-flex items-center gap-1.5 rounded-control bg-surface border border-rule px-2.5 py-1 text-xs font-semibold text-text hover:bg-sunk transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200/80 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
                     >
-                      <ArrowLeft className="h-3.5 w-3.5" />
+                      <ArrowLeft className="h-3.5 w-3.5 text-slate-400" />
                       <span>Tous les cycles</span>
                     </button>
 
-                    <span className="text-text-faint">/</span>
+                    <span className="text-slate-300">/</span>
 
-                    <h3 className="type-section-title text-text truncate">
+                    <h3 className="text-sm font-bold text-slate-900 truncate">
                       {selectedCycleInfo ? selectedCycleInfo.label : "Recherche"}
                     </h3>
 
-                    <span className="shrink-0 rounded-pill bg-surface border border-rule px-2 py-0.5 text-role-meta font-bold text-text-soft">
+                    <span className="shrink-0 rounded-full bg-indigo-50 border border-indigo-100/60 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
                       {currentCycleClasses.length} classe{currentCycleClasses.length > 1 ? "s" : ""}
                     </span>
                   </div>
 
                   {selectedCycleInfo && (
-                    <span className="text-role-meta text-text-soft">{selectedCycleInfo.desc}</span>
+                    <span className="text-xs text-slate-400 font-medium">{selectedCycleInfo.desc}</span>
                   )}
                 </div>
               )}
@@ -641,23 +641,23 @@ export default function ClassListClient({
                     return (
                       <div
                         key={c.id}
-                        className="rounded-surface border border-rule bg-surface p-4 shadow-card hover:border-primary/40 transition-colors flex flex-col justify-between"
+                        className="rounded-2xl border border-slate-200/70 bg-white p-4.5 shadow-xs hover:border-indigo-300 hover:shadow-sm transition-all flex flex-col justify-between"
                       >
                         {/* En-tête de la carte */}
                         <div>
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
-                              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-sunk text-text-soft">
+                              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 shadow-2xs">
                                 <Icon className="h-4 w-4" />
                               </span>
                               <div className="min-w-0">
                                 <Link
                                   href={`/dashboard/classes/${c.id}`}
-                                  className="text-sm font-bold text-text hover:text-primary transition-colors truncate block"
+                                  className="text-sm font-bold text-slate-900 hover:text-indigo-600 transition-colors truncate block"
                                 >
                                   {c.name}
                                 </Link>
-                                <span className="text-[11px] text-text-muted">
+                                <span className="text-[11px] text-slate-400 font-medium">
                                   {cycleInfo.label} · {count} élève{count > 1 ? "s" : ""}
                                 </span>
                               </div>
@@ -670,23 +670,23 @@ export default function ClassListClient({
                               onClick={(e) => handleDeleteClick(e, c.id)}
                               loading={isDeleting === c.id}
                               icon={<Trash2 className="h-3.5 w-3.5" />}
-                              className="text-text-faint hover:text-danger h-7 w-7 p-0 shrink-0"
+                              className="text-slate-400 hover:text-rose-600 h-7 w-7 p-0 shrink-0"
                             />
                           </div>
 
                           {/* PROFESSEUR PRINCIPAL */}
-                          <div className="mt-3.5 rounded-control bg-sunk/60 border border-rule/80 p-2.5 flex items-center justify-between gap-2">
+                          <div className="mt-3.5 rounded-xl bg-slate-50/70 border border-slate-100 p-2.5 flex items-center justify-between gap-2">
                             <div className="min-w-0">
-                              <span className="block text-[10px] font-bold uppercase tracking-wider text-text-faint">
+                              <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
                                 Professeur Principal
                               </span>
-                              <div className="text-xs font-semibold text-text truncate mt-0.5">
+                              <div className="text-xs font-bold text-slate-800 truncate mt-0.5">
                                 {c.teacher ? (
-                                  <span className="text-emerald-800">
+                                  <span className="text-emerald-700">
                                     {c.teacher.firstName} {c.teacher.lastName}
                                   </span>
                                 ) : (
-                                  <span className="text-amber-800 font-medium italic">
+                                  <span className="text-amber-700 font-medium italic">
                                     Non assigné
                                   </span>
                                 )}
@@ -696,17 +696,17 @@ export default function ClassListClient({
                             <button
                               type="button"
                               onClick={() => openPpModal(c)}
-                              className="shrink-0 rounded-control bg-surface border border-rule px-2.5 py-1 text-[11px] font-semibold text-text hover:bg-sunk transition-colors shadow-2xs"
+                              className="shrink-0 rounded-lg bg-white border border-slate-200/80 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
                             >
                               {c.teacher ? "Changer" : "Désigner"}
                             </button>
                           </div>
 
                           {/* MATIÈRES & ENSEIGNANTS (Secondaire / Moyen & classes avec matières) */}
-                          <div className="mt-3 pt-2.5 border-t border-rule">
+                          <div className="mt-3 pt-2.5 border-t border-slate-100">
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs font-bold text-text-soft flex items-center gap-1.5">
-                                <BookOpen className="h-3.5 w-3.5 text-text-faint" />
+                              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <BookOpen className="h-3.5 w-3.5 text-slate-400" />
                                 <span>Matières ({subjects.length})</span>
                               </span>
 
@@ -714,7 +714,7 @@ export default function ClassListClient({
                                 <button
                                   type="button"
                                   onClick={() => toggleExpand(c.id)}
-                                  className="text-[11px] font-medium text-primary hover:underline flex items-center gap-1"
+                                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 hover:underline flex items-center gap-1 cursor-pointer"
                                 >
                                   <span>{isExpanded ? "Réduire" : "Gérer les matières"}</span>
                                   {isExpanded ? (
@@ -727,21 +727,21 @@ export default function ClassListClient({
                             </div>
 
                             {subjects.length === 0 ? (
-                              <p className="text-[11px] text-text-faint italic">
+                              <p className="text-[11px] text-slate-400 italic">
                                 Aucune matière configurée pour cette classe.
                               </p>
                             ) : !isExpanded && !isSecondaryOrMoyen ? (
-                              <div className="flex flex-wrap gap-1 text-[11px] text-text-soft">
+                              <div className="flex flex-wrap gap-1 text-[11px]">
                                 {subjects.slice(0, 4).map((s) => (
                                   <span
                                     key={s.subjectId}
-                                    className="rounded-pill bg-sunk px-2 py-0.5 text-[10.5px]"
+                                    className="rounded-full bg-slate-100 text-slate-700 border border-slate-200/60 px-2 py-0.5 text-[10.5px] font-medium"
                                   >
                                     {s.subjectName}
                                   </span>
                                 ))}
                                 {subjects.length > 4 && (
-                                  <span className="rounded-pill bg-sunk px-2 py-0.5 text-[10.5px] text-text-faint">
+                                  <span className="rounded-full bg-slate-100 text-slate-500 border border-slate-200/60 px-2 py-0.5 text-[10.5px]">
                                     +{subjects.length - 4} autres
                                   </span>
                                 )}
@@ -764,25 +764,25 @@ export default function ClassListClient({
                                   return (
                                     <div
                                       key={s.subjectId}
-                                      className="flex items-center justify-between gap-2 rounded-control bg-sunk/40 px-2.5 py-1.5 text-xs border border-rule/60"
+                                      className="flex items-center justify-between gap-2 rounded-lg bg-slate-50/70 px-2.5 py-1.5 text-xs border border-slate-100"
                                     >
-                                      <span className="font-medium text-text min-w-0 truncate flex-1">
+                                      <span className="font-semibold text-slate-800 min-w-0 truncate flex-1">
                                         {s.subjectName}
                                       </span>
 
                                       <div className="flex items-center gap-1.5 shrink-0">
                                         {isBusy ? (
-                                          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                                          <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600" />
                                         ) : (
                                           <select
                                             value={s.assignedTeacherId || ""}
                                             onChange={(e) =>
                                               handleAssignSubjectTeacher(c.id, s.subjectId, e.target.value)
                                             }
-                                            className={`rounded-control border px-2 py-1 text-[11px] font-medium outline-none transition-colors ${
+                                            className={`rounded-lg border px-2 py-1 text-[11px] font-medium outline-none transition-colors ${
                                               s.assignedTeacherId
-                                                ? "border-rule bg-surface text-text"
-                                                : "border-amber-300 bg-amber-50 text-amber-900 font-bold"
+                                                ? "border-slate-200/80 bg-white text-slate-700"
+                                                : "border-amber-200 bg-amber-50 text-amber-900 font-semibold"
                                             }`}
                                           >
                                             <option value="">Non affecté</option>
@@ -815,10 +815,10 @@ export default function ClassListClient({
                           </div>
                         </div>
 
-                        <div className="mt-4 pt-3 border-t border-rule flex items-center justify-between text-xs">
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                           <Link
                             href={`/dashboard/classes/${c.id}`}
-                            className="font-semibold text-primary hover:underline flex items-center gap-1"
+                            className="font-semibold text-indigo-600 hover:text-indigo-700 hover:underline flex items-center gap-1"
                           >
                             <span>Détails & liste des élèves</span>
                             <ChevronRight className="h-3.5 w-3.5" />
@@ -839,13 +839,13 @@ export default function ClassListClient({
           ══════════════════════════════════════════════════════════════════════ */}
       {mainViewMode === "bulk_teachers" && (
         <div className="space-y-6">
-          <div className="rounded-surface bg-surface border border-rule p-5 shadow-card space-y-4">
-            <div className="border-b border-rule pb-3">
-              <h3 className="text-sm font-bold text-text flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
+          <div className="rounded-2xl bg-white border border-slate-200/70 p-5 shadow-xs space-y-4">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-indigo-600" />
                 <span>Affectation en masse par enseignant</span>
               </h3>
-              <p className="text-xs text-text-soft mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Recrutement en cours d&apos;année ou rentrée scolaire : choisissez un enseignant, sa matière et cochez toutes ses classes en quelques secondes.
               </p>
             </div>
@@ -853,13 +853,13 @@ export default function ClassListClient({
             {/* ÉTAPE 1 : Choix de l'enseignant et de la matière */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-text-soft uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                   1. Enseignant
                 </label>
                 <select
                   value={bulkTeacherId}
                   onChange={(e) => handleBulkTeacherChange(e.target.value)}
-                  className="w-full border border-rule rounded-control px-3 py-2 text-xs bg-surface text-text focus:ring-2 focus:ring-primary outline-none"
+                  className="w-full border border-slate-200/80 rounded-lg px-3 py-2 text-xs bg-slate-50/50 hover:bg-white focus:bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all cursor-pointer"
                 >
                   <option value="">Sélectionner un enseignant...</option>
                   {teachers.map((t) => (
@@ -871,7 +871,7 @@ export default function ClassListClient({
                 </select>
 
                 {currentBulkTeacher?.highLoadWarning && (
-                  <p className="mt-1.5 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-control px-2 py-1 flex items-center gap-1.5">
+                  <p className="mt-1.5 text-[11px] text-amber-800 bg-amber-50 border border-amber-200/80 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
                     <AlertTriangle className="h-3 w-3 shrink-0 text-amber-600" />
                     Attention : cet enseignant est déjà affecté à {currentBulkTeacher.assignedClassCount} classes.
                   </p>
@@ -879,13 +879,13 @@ export default function ClassListClient({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-text-soft uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                   2. Matière à affecter
                 </label>
                 <select
                   value={bulkSubjectId}
                   onChange={(e) => handleBulkSubjectChange(e.target.value)}
-                  className="w-full border border-rule rounded-control px-3 py-2 text-xs bg-surface text-text focus:ring-2 focus:ring-primary outline-none"
+                  className="w-full border border-slate-200/80 rounded-lg px-3 py-2 text-xs bg-slate-50/50 hover:bg-white focus:bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all cursor-pointer"
                 >
                   <option value="">Toutes les matières (Maître unique)</option>
                   {allSubjects.map((s) => (
@@ -899,24 +899,24 @@ export default function ClassListClient({
 
             {/* ÉTAPE 2 : Sélection des classes par case à cocher */}
             {bulkTeacherId && (
-              <div className="pt-3 border-t border-rule space-y-3">
+              <div className="pt-3 border-t border-slate-100 space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-text uppercase tracking-wider">
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
                     3. Cochez les classes d&apos;intervention ({bulkSelectedClassIds.length} sélectionnée{bulkSelectedClassIds.length > 1 ? "s" : ""})
                   </label>
                   <div className="flex items-center gap-2 text-xs">
                     <button
                       type="button"
                       onClick={() => setBulkSelectedClassIds(classes.map((c) => c.id))}
-                      className="text-primary hover:underline font-medium"
+                      className="text-indigo-600 hover:text-indigo-700 hover:underline font-semibold"
                     >
                       Tout cocher
                     </button>
-                    <span className="text-text-faint">·</span>
+                    <span className="text-slate-300">·</span>
                     <button
                       type="button"
                       onClick={() => setBulkSelectedClassIds([])}
-                      className="text-text-soft hover:underline font-medium"
+                      className="text-slate-500 hover:text-slate-700 hover:underline font-medium"
                     >
                       Tout décocher
                     </button>
@@ -931,23 +931,23 @@ export default function ClassListClient({
                     return (
                       <label
                         key={c.id}
-                        className={`flex items-center gap-2.5 rounded-control p-2.5 border cursor-pointer transition-all ${
+                        className={`flex items-center gap-2.5 rounded-xl p-2.5 border cursor-pointer transition-all ${
                           isChecked
-                            ? "border-primary bg-primary/5 text-text shadow-2xs"
-                            : "border-rule bg-surface hover:bg-sunk text-text-soft"
+                            ? "border-indigo-300 bg-indigo-50/40 text-slate-900 shadow-2xs"
+                            : "border-slate-200/80 bg-white hover:bg-slate-50 text-slate-700"
                         }`}
                       >
                         <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => toggleBulkClassCheck(c.id)}
-                          className="h-4 w-4 rounded text-primary focus:ring-primary border-rule"
+                          className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
                         />
                         <div className="min-w-0 flex-1">
-                          <span className="block text-xs font-bold text-text truncate">
+                          <span className="block text-xs font-bold text-slate-900 truncate">
                             {c.name}
                           </span>
-                          <span className="block text-[10px] text-text-muted">
+                          <span className="block text-[10px] text-slate-400">
                             {cycleInfo.label} · {c._count?.enrollments || 0} élèves
                           </span>
                         </div>
@@ -957,17 +957,20 @@ export default function ClassListClient({
                 </div>
 
                 {/* Bouton d'action final */}
-                <div className="pt-3 border-t border-rule flex justify-end">
-                  <Button
-                    variant="primary"
-                    size="md"
-                    loading={isBulkSaving}
+                <div className="pt-3 border-t border-slate-100 flex justify-end">
+                  <button
+                    type="button"
                     disabled={isBulkSaving || !bulkTeacherId}
                     onClick={submitBulkAssignment}
-                    icon={<Check className="h-4 w-4" />}
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-indigo-600 px-4 text-xs font-semibold text-white shadow-2xs hover:bg-indigo-700 hover:-translate-y-0.5 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                   >
-                    Valider l&apos;affectation ({bulkSelectedClassIds.length} classe{bulkSelectedClassIds.length > 1 ? "s" : ""})
-                  </Button>
+                    {isBulkSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
+                    <span>Valider l&apos;affectation ({bulkSelectedClassIds.length} classe{bulkSelectedClassIds.length > 1 ? "s" : ""})</span>
+                  </button>
                 </div>
               </div>
             )}
@@ -1003,18 +1006,18 @@ export default function ClassListClient({
         }
       >
         <div className="space-y-4">
-          <p className="text-xs text-text-soft">
-            Le professeur principal coordonne le conseil de classe et le suivi des élèves.
+          <p className="text-xs text-slate-500">
+            Le professeur principal coordonne le conseil de classe et le suivi pédagogique des élèves.
           </p>
 
           <div>
-            <label className="block text-xs font-bold text-text mb-1">
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
               Choisir l&apos;enseignant
             </label>
             <select
               value={ppSelectedTeacherId}
               onChange={(e) => setPpSelectedTeacherId(e.target.value)}
-              className="w-full border border-rule rounded-control px-3 py-2 text-xs bg-surface text-text focus:ring-2 focus:ring-primary outline-none"
+              className="w-full border border-slate-200/80 rounded-lg px-3 py-2 text-xs bg-slate-50/50 hover:bg-white focus:bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all cursor-pointer"
             >
               <option value="">Sélectionner...</option>
               {teachers.map((t) => (
@@ -1027,17 +1030,17 @@ export default function ClassListClient({
           </div>
 
           {/* Précision 1 : Au secondaire, proposer d'affecter aussi à sa matière sans l'imposer */}
-          <div className="rounded-control bg-sunk/60 border border-rule p-3 space-y-2">
-            <label className="block text-xs font-bold text-text">
+          <div className="rounded-xl bg-slate-50/70 border border-slate-100 p-3 space-y-2">
+            <label className="block text-xs font-bold text-slate-800">
               Enseigne-t-il également une matière dans cette classe ?
             </label>
-            <p className="text-[11px] text-text-soft">
+            <p className="text-[11px] text-slate-500">
               Au secondaire, le professeur principal enseigne généralement sa propre matière. Choisissez sa matière pour l&apos;affecter automatiquement, ou laissez vide s&apos;il est coordinateur uniquement.
             </p>
             <select
               value={ppTeachSubjectId}
               onChange={(e) => setPpTeachSubjectId(e.target.value)}
-              className="w-full border border-rule rounded-control px-2.5 py-1.5 text-xs bg-surface text-text outline-none"
+              className="w-full border border-slate-200/80 rounded-lg px-2.5 py-1.5 text-xs bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all cursor-pointer"
             >
               <option value="">Coordinateur uniquement (aucune matière)</option>
               {ppModalClass?.subjects?.map((s) => (

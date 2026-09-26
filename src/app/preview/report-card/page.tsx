@@ -7,6 +7,7 @@ import { loadOfficialBulletin } from "@/lib/bulletin/loadOfficialBulletin";
 import { BulletinSecondaireSheet } from "@/components/grades/BulletinSecondaireSheet";
 import { BulletinElementaireSheet } from "@/components/grades/BulletinElementaireSheet";
 import { ResponsiveBulletinContainer } from "@/components/grades/ResponsiveBulletinContainer";
+import { bulletinsDistribuesEleve } from "@/lib/bulletinsParents";
 
 export default async function PreviewReportCardPage({
   searchParams,
@@ -37,6 +38,27 @@ export default async function PreviewReportCardPage({
   }
 
   if (!studentId) return <div className="p-4 text-center text-gray-500">Aucun élève sélectionné.</div>;
+
+  // ═══ 26 sept. 2026 — un parent ne voit QUE les bulletins distribués ═══
+  // (validation du secrétariat = bon à tirer interne ; conseil de classe ;
+  // puis distribution datée par la direction — `lib/bulletinsParents.ts`).
+  // La classe et le trimestre viennent de la distribution, jamais de l'URL seule.
+  if (role === "PARENT") {
+    const distribues = await bulletinsDistribuesEleve(schoolId, studentId);
+    const choisi = termId ? distribues.find((d) => d.termId === termId) : distribues[0];
+    if (!choisi) {
+      return (
+        <div className="mx-auto max-w-md p-8 text-center">
+          <p className="text-base font-semibold text-gray-800">Le bulletin n&apos;est pas encore disponible.</p>
+          <p className="mt-2 text-sm text-gray-500">
+            L&apos;école le distribue après le conseil de classe. Vous recevrez une notification dès qu&apos;il sera disponible ici.
+          </p>
+        </div>
+      );
+    }
+    classId = choisi.classId;
+    termId = choisi.termId;
+  }
 
   if (studentId && !classId) {
     const enrollment = await prisma.enrollment.findFirst({

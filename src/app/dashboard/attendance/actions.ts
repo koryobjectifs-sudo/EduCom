@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { notifierParentsEleves } from "@/lib/notificationsFamille";
 import { requireActionContext } from "@/lib/actionContext";
 import { type AttendanceStatus } from "@/generated/prisma/client";
 import { teacherClassIds } from "@/lib/studentScope";
@@ -12,7 +13,7 @@ export type AttendanceInput = {
 };
 
 export async function getAttendanceForClass(classId: string, date: Date) {
-  const auth = await requireActionContext("/dashboard/attendance");
+  const auth = await requireActionContext("/dashboard/attendance", { lecture: true });
   if (!auth.ok) throw new Error(auth.error);
   const { schoolId, role } = auth.ctx;
 
@@ -91,6 +92,17 @@ export async function saveAttendanceBatch(classId: string, date: Date, records: 
 
   const studentIds = records.map((r) => r.studentId);
 
+  // 26 sept. 2026 — statuts d'avant l'enregistrement : la famille n'est prévenue
+  // qu'au CHANGEMENT (ré-enregistrer l'appel ne renvoie pas la même alerte).
+  const avant = new Map(
+    (
+      await prisma.attendance.findMany({
+        where: { schoolId, date: normalizedDate, studentId: { in: studentIds } },
+        select: { studentId: true, status: true },
+      })
+    ).map((a) => [a.studentId, a.status]),
+  );
+
   // Règle 10 : Optimisation par batching atomique (deleteMany + createMany)
   // Exécute 2 requêtes SQL globales au lieu de N requêtes upsert séquentielles,
   // éliminant tout risque d'expiration de transaction (timeout 5000ms).
@@ -118,11 +130,29 @@ export async function saveAttendanceBatch(classId: string, date: Date, records: 
     { timeout: 15000 }
   );
 
+  // Absence ou retard : la famille est prévenue (cloche + téléphone).
+  const alertes = records.filter((r) => (r.status === "ABSENT" || r.status === "LATE") && avant.get(r.studentId) !== r.status);
+  if (alertes.length) {
+    const statut = new Map(alertes.map((r) => [r.studentId, r.status]));
+    const jour = normalizedDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+    await notifierParentsEleves(schoolId, alertes.map((r) => r.studentId), (e) => {
+      const retard = statut.get(e.id) === "LATE";
+      return {
+        title: retard ? `⏰ Retard — ${e.firstName}` : `🔔 Absence — ${e.firstName}`,
+        body: retard
+          ? `${e.firstName} est arrivé(e) en retard ce ${jour}.`
+          : `${e.firstName} a été noté(e) absent(e) ce ${jour}. Si l'absence est justifiée, écrivez au secrétariat depuis EduCom.`,
+        url: "/famille/communaute",
+        kind: retard ? "famille.retard" : "famille.absence",
+      };
+    });
+  }
+
   return { success: true };
 }
 
 export async function getSchoolAttendanceStats(date: Date) {
-  const auth = await requireActionContext("/dashboard/attendance");
+  const auth = await requireActionContext("/dashboard/attendance", { lecture: true });
   if (!auth.ok) throw new Error(auth.error);
   const { schoolId, role } = auth.ctx;
 
@@ -229,7 +259,7 @@ export async function getAttendanceHistory(filters?: {
   startDate?: string;
   endDate?: string;
 }): Promise<AttendanceHistorySession[]> {
-  const auth = await requireActionContext("/dashboard/attendance");
+  const auth = await requireActionContext("/dashboard/attendance", { lecture: true });
   if (!auth.ok) throw new Error(auth.error);
   const { schoolId, role } = auth.ctx;
 
