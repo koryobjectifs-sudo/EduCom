@@ -1,8 +1,299 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 25 septembre 2026 — **Responsiveness Bulletin Mobile & Appel avec Célébration Vibrante et Historique Inaltérable**
+> Dernière mise à jour : 26 septembre 2026 — **Google OAuth Branding & Mise en Production validés** (Nom EduCom, liens légaux, domaines autorisés)
 
-> **Progression — 25 septembre 2026.**
+> **Progression — 26 septembre 2026 (Google OAuth — Écran de consentement & Nom EduCom en Production).**
+> - **Demande utilisateur (Retour vocal de Kory)** :
+>   - Régler l'affichage du nom de l'application sur l'écran d'autorisation Google (remplacer le code/URL technique bizarre par le nom propre **EduCom**).
+> - **Configuration effectuée & validée dans Google Cloud Console (Google Auth Platform)** :
+>   - **Branding** : Nom de l'application fixé à `EduCom`, email d'assistance configuré (`koryobjectifs@gmail.com`).
+>   - **Liens légaux** : Page d'accueil (`https://www.educom.school`), Politique de confidentialité (`https://www.educom.school/privacy`), Conditions d'utilisation (`https://www.educom.school/terms`).
+>   - **Domaines autorisés** : Nettoyage de la faute de frappe historique, domaines actifs `educom.school` et `slqjdyfdzvuqjxegojwu.supabase.co`.
+>   - **Audience & Déploiement** : Application passée de *Testing* à **In production** (External user type).
+>   - **Impact** : L'écran Google affiche désormais le nom officiel **EduCom** et supprime les avertissements d'application non validée / en test pour les utilisateurs finaux.
+
+> **Progression — 26 septembre 2026 (Refonte Dashboards par Métier — Phase 4 : Espace Secrétariat / Secretary Cockpit & Final Polish Unifié).**
+> - **Demande utilisateur (Retour vocal de Kory)** :
+>   - Conclure la refonte des dashboards par métier. Ne pas toucher au dashboard principal (Directeur, déjà validé).
+>   - Finaliser et raffiner tous les dashboards métiers (Enseignant, Comptable, Secrétariat, Famille) : unifier, rendre ultra-premium, professionnel et élégant sous le concept **« Soft Elegance »**.
+>   - **Règle absolue n°11** : Tolérance zéro sur les routes, workflows, paramètres d'URL, actions serveur et permissions (100% conservés).
+> - **Architecture livrée pour le Secrétariat (`src/components/dashboard/secretary/` & `src/lib/dashboard-secretary.ts`)** :
+>   - **1. En-tête Unifié Cockpit ([`SecretarySoftHeader.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/secretary/SecretarySoftHeader.tsx))** : Salutation (« Bonjour, [Prénom] »), avatar dégradé sky/indigo/purple, badge « En direct » avec pastille pulsante, raccourcis d'action (Vérifier les dossiers, Inscrire un élève), et bandeau d'admissions en attente intégré (alerte ambre si dossiers en attente, confirmation émeraude si à jour).
+>   - **2. Bandeau KPI Soft ([`SecretarySoftKpiStrip.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/secretary/SecretarySoftKpiStrip.tsx))** : 4 cartes `rounded-xl` avec micro-histogrammes et mini-diagrammes à barres :
+>     - Effectif scolarisé (total élèves, progression sur 30 jours, classes actives).
+>     - Dossiers d'admission (dossiers en attente de vérification, badge dynamique à instruire / à jour).
+>     - Appel du jour (nombre de classes appelées sur total classes, taux de présence, décompte des absents).
+>     - Bulletins scolaires (total bulletins générés, décompte des bulletins soumis en attente de visa).
+>   - **3. Courbe & Suivi d'Activité ([`SecretarySoftActivityChart.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/secretary/SecretarySoftActivityChart.tsx))** :
+>     - Onglet 1 « Admissions » : Courbe spline SVG fluide avec dégradé d'aire translucide sky/indigo, points d'ancrage et repères hebdomadaires.
+>     - Onglet 2 « Appel » : Grille de transmission de l'appel classe par classe en temps réel (appel fait vs en attente, taux de présence).
+>     - Onglet 3 « Dernières admissions » : Flux chronologique des nouveaux élèves inscrits avec classe, matricule et horodatage relatif.
+>   - **4. Anneau Circulaire d'Efficacité Administrative ([`SecretarySoftAdminDonut.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/secretary/SecretarySoftAdminDonut.tsx))** : Donut SVG multicolore 3 segments avec espacements nets réguliers calculant l'Indice d'Efficacité Administrative (instruction des dossiers 45%, couverture de l'appel 35%, pièces et bulletins 20%).
+>   - **5. File des Priorités du Secrétariat ([`SecretarySoftActionQueue.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/secretary/SecretarySoftActionQueue.tsx))** : Actions immédiates (dossiers d'admission à instruire, relance des feuilles d'appel manquantes, visas des bulletins) et état Zen valorisant si tout est à jour.
+>   - **6. Accès Rapides Secrétariat ([`SecretarySoftQuickNav.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/secretary/SecretarySoftQuickNav.tsx))** : 4 raccourcis vers Annuaire Élèves, Feuille d'Appel, Vérification Dossiers et Bulletins & Visas.
+>   - **7. Registre d'Appel & Classes ([`SecretarySoftAttendanceGrid.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/secretary/SecretarySoftAttendanceGrid.tsx))** : Cartes bento de divisions avec effectifs, statut d'appel du jour, décompte présents/absents et accès directs.
+>   - **8. Assemblage Bento ([`SecretaryDashboard.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/secretary/SecretaryDashboard.tsx))** : Layout bento harmonisé (colonne 7/12 + colonne 5/12), animations étagées `Reveal`.
+> - **Fournisseur de données dédié ([`dashboard-secretary.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/dashboard-secretary.ts))** :
+>   - Calcul consolidé : effectifs réels, dossiers PENDING, feuille d'appel du jour par classe, groupement des bulletins par statut, historique 4 semaines d'admissions, 6 dernières inscriptions et indice de santé composite.
+> - **Aiguillage serveur dans [`src/app/dashboard/page.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/page.tsx)** :
+>   - Détection de `user.role === "SECRETARY"` pour servir directement `SecretaryDashboard`.
+> - **Synthèse de l'unification des Dashboards Métiers (« Soft Elegance »)** :
+>   - **Directeur (`DIRECTOR`, `ADMIN`, `COORDINATOR`)** : Préservé intact conformément à la consigne stricte de verrouillage.
+>   - **Enseignant (`TEACHER`)** : Focalisé sur ses classes assignées, notes du trimestre, matières, appel titulaire et avancement pédagogique.
+>   - **Comptable (`ACCOUNTANT`)** : Focalisé sur la caisse en direct, trésorerie, recouvrement, analyse des créances et journal de caisse.
+>   - **Secrétaire (`SECRETARY`)** : Focalisé sur les admissions, registres d'appel du jour, bulletins et annuaire des élèves.
+>   - **Parent (`PARENT`)** : Focalisé sur la fratrie, moyennes scolaires, situation d'écolage, assiduité et documents.
+> - **Validation technique** : `npx tsc --noEmit` : 0 erreur (code 0).
+
+> **Progression — 26 septembre 2026 (Refonte Dashboards par Métier — Phase 3 : Espace Comptable / Accountant Cockpit).**
+> - **Demande utilisateur (Retour vocal de Kory)** :
+>   - Le dashboard pour le rôle Comptable (`ACCOUNTANT`) affichait encore le contexte directeur (pédagogie, présences globales, effectifs, saisie de notes dans le donut).
+>   - Adapter intégralement le dashboard au métier du comptable avec le même concept **« Soft Elegance »** (courbes, anneaux, bento grid, micro-diagrammes).
+>   - **Règle absolue n°11** : Tolérance zéro sur les routes, workflows, paramètres d'URL, actions serveur et permissions (100% conservés).
+> - **Architecture livrée (`src/components/dashboard/accountant/` & `src/lib/dashboard-accountant.ts`)** :
+>   - **1. En-tête Unifié Cockpit ([`AccountantSoftHeader.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/accountant/AccountantSoftHeader.tsx))** : Salutation (« Bonjour, [Prénom] »), avatar dégradé émeraude/teal/indigo, badge « Caisse en direct » avec pastille pulsante, raccourcis d'action (Journal de caisse, Encaisser un règlement), et bandeau de créances échues intégré (alerte douce ambre si retards, confirmation émeraude si à jour).
+>   - **2. Bandeau KPI Soft ([`AccountantSoftKpiStrip.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/accountant/AccountantSoftKpiStrip.tsx))** : 4 cartes `rounded-xl` financières ciblées :
+>     - Recouvrement du mois (montant perçu en F CFA, taux de recouvrement, mini-histogramme dégradé émeraude/teal).
+>     - Caisse du jour (encaissements du jour, nombre de règlements validés, pastille pulsante).
+>     - Retards & Impayés (montant échu, familles à relancer, badge d'alerte doux).
+>     - Canal dominant (nom du moyen de paiement principal, part en %, montant encaissé).
+>   - **3. Courbe de Flux & Recouvrement ([`AccountantSoftFinanceChart.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/accountant/AccountantSoftFinanceChart.tsx))** :
+>     - Onglet 1 « Encaissements » : Courbe spline SVG fluide avec dégradé d'aire translucide émeraude/indigo, points d'ancrage, bulle de montant en direct et repères hebdomadaires.
+>     - Onglet 2 « Par niveau » : Suivi du taux de recouvrement par cycle (Élémentaire, Moyen, Secondaire) avec montants perçus vs budgétés et accès direct aux factures.
+>     - Onglet 3 « Journal de caisse » : Flux en temps réel des derniers règlements enregistrés (élève, classe, facture, reçu, mode de paiement, montant en F CFA, horodatage relatif).
+>   - **4. Anneau Circulaire de Santé Financière ([`AccountantSoftFinancialDonut.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/accountant/AccountantSoftFinancialDonut.tsx))** : Donut SVG multicolore 3 segments calculant l'Indice de Santé Financière (recouvrement mensuel 48%, ponctualité de la caisse 32%, maîtrise des impayés 20%).
+>   - **5. File des Priorités Financières ([`AccountantSoftActionQueue.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/accountant/AccountantSoftActionQueue.tsx))** : Actions immédiates (impayés critiques > 30j à relancer, relances amiables 15-30j, pointage de caisse du jour) et état Zen valorisant si tout est équilibré.
+>   - **6. Accès Rapides Comptabilité ([`AccountantSoftQuickNav.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/accountant/AccountantSoftQuickNav.tsx))** : 4 raccourcis vers le Journal de caisse, Familles & écolages, Grille tarifaire, et Rapports/Exports.
+>   - **7. Analyse des Échéances & Canaux ([`AccountantSoftAgingCards.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/accountant/AccountantSoftAgingCards.tsx))** : Cartes bento détaillant le vieillissement des créances (aging buckets : < 15j, 15-30j, > 30j) et la ventilation des moyens de paiement (Wave/Mobile Money, Espèces, Virement, Chèque).
+>   - **8. Assemblage Bento ([`AccountantDashboard.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/accountant/AccountantDashboard.tsx))** : Layout bento harmonisé (colonne 7/12 + colonne 5/12), animations étagées `Reveal`.
+> - **Fournisseur de données dédié ([`dashboard-accountant.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/dashboard-accountant.ts))** :
+>   - Calcul consolidé de trésorerie : encaissements du mois, caisse du jour, prévisions de grille, ventilation des canaux de paiement, répartition par cycle, historique hebdomadaire pour la courbe et dernières transactions réelles.
+> - **Aiguillage serveur dans [`src/app/dashboard/page.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/page.tsx)** :
+>   - Détection de `user.role === "ACCOUNTANT"` pour servir directement `AccountantDashboard` sans charger de données pédagogiques ou de direction inutiles.
+> - **Validation technique** : `npx tsc --noEmit` : 0 erreur (code 0).
+
+> **Progression — 26 septembre 2026 (Refonte Dashboards par Métier — Phase 2 : Espace Famille / Parent Cockpit).**
+> - **Demande utilisateur (Retour vocal de Kory)** :
+>   - Poursuivre le même concept **« Soft Elegance »** pour le rôle **Parent** (`PARENT`) : créatif, bienveillant, clair et rassurant.
+>   - **Règle absolue n°11** : Tolérance zéro sur les routes, workflows, paramètres d'URL, actions serveur et permissions (100% conservés).
+> - **Architecture livrée (`src/components/dashboard/family/` & `src/lib/dashboard-family.ts`)** :
+>   - **1. En-tête Unifié Cockpit ([`FamilySoftHeader.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/family/FamilySoftHeader.tsx))** : Salutation bienveillante (« Bonjour, [Prénom] »), avatar dégradé violet/indigo/sky, badge de l'école et de l'année scolaire, pastille « En direct », raccourcis d'action (Paiements, Bulletins), et bandeau de régularisation des démarches intégré (alerte douce ambre si démarches en attente, confirmation émeraude si à jour).
+>   - **2. Bandeau KPI Soft ([`FamilySoftKpiStrip.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/family/FamilySoftKpiStrip.tsx))** : 4 cartes `rounded-xl` avec micro-histogrammes et mini-diagrammes à barres :
+>     - Enfants scolarisés (effectif de la fratrie, classes, mini-barres représentatives).
+>     - Moyenne académique générale (moyenne sur 20 consolidée, total des notes, badge de mention).
+>     - Situation Écolage & Scolarité (statut à jour ou solde restant en F CFA, taux réglé, échéance).
+>     - Assiduité & Ponctualité (taux global de présence, décompte des absences).
+>   - **3. Courbe d'Évolution & Suivi ([`FamilySoftPerformanceChart.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/family/FamilySoftPerformanceChart.tsx))** :
+>     - Onglet 1 « Progression » : Courbe spline SVG fluide avec dégradé d'aire translucide violet/indigo, points d'ancrage, bulle de moyenne en direct et repères périodiques.
+>     - Onglet 2 « Par enfant » : Fiches de synthèse des enfants avec moyennes, classes, statuts financiers et raccourcis vers leurs bulletins officiels.
+>     - Onglet 3 « Dernières notes » : Flux combiné des dernières notes reçues et des paiements enregistrés.
+>   - **4. Anneau Circulaire de Sérénité Scolaire ([`FamilySoftHealthDonut.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/family/FamilySoftHealthDonut.tsx))** : Donut SVG multicolore 3 segments avec espacements nets réguliers calculant l'Indice de Sérénité Scolaire (travail/notes 44%, assiduité 36%, régularité administrative/écolage 20%).
+>   - **5. File des Démarches et Priorités ([`FamilySoftActionQueue.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/family/FamilySoftActionQueue.tsx))** : Relances prioritaires (signatures, pièces justificatives, prochaine échéance d'écolage, consultation du bulletin) et état Zen valorisant si tout est en ordre.
+>   - **6. Accès Rapides Famille ([`FamilySoftQuickNav.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/family/FamilySoftQuickNav.tsx))** : 4 raccourcis vers Mes Enfants, Notes & Bulletins, Paiements & Scolarité, et Communauté.
+>   - **7. Mes Enfants Scolarisés ([`FamilySoftChildrenCards.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/family/FamilySoftChildrenCards.tsx))** : Cartes soft avec initiales, badges de classe/cycle, moyennes, assiduité, situation d'écolage et accès directs aux fiches et bulletins.
+>   - **8. Assemblage Bento ([`FamilyDashboard.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/family/FamilyDashboard.tsx))** : Layout bento harmonisé (colonne 7/12 + colonne 5/12), animations d'apparition étagées avec `Reveal`.
+> - **Fournisseur de données dédié ([`dashboard-family.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/dashboard-family.ts))** :
+>   - Agrégation multi-enfants : calcul des moyennes sur 20, assiduité, facturation/écolage, prochaine date d'échéance et historique de notes pour la courbe.
+> - **Page d'accueil Famille mise à jour ([`/famille/page.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/famille/page.tsx))** : Intégration transparente de `FamilyDashboard`.
+> - **Validation technique** : `npx tsc --noEmit` : 0 erreur (code 0).
+
+> **Progression — 26 septembre 2026 (Refonte Dashboards par Métier — Phase 1 : Espace Enseignant / Teacher Cockpit).**
+> - **Demande utilisateur (Retour vocal de Kory)** :
+>   - Unifier l'expérience Dashboard de TOUS les métiers (direction, enseignants, parents, finances, secrétaire, admin) sur le concept **« Soft Elegance »** (design épuré, courbes spline, anneaux de santé, micro-diagrammes).
+>   - Adapter chaque vue aux permissions et responsabilités quotidiennes du métier, en commençant par **Enseignant** (`TEACHER`).
+>   - **Règle absolue n°11** : Tolérance zéro sur les routes, workflows, paramètres d'URL, actions serveur et permissions (100% conservés).
+> - **Architecture livrée (`src/components/dashboard/teacher/`)** :
+>   - **1. En-tête Unifié Cockpit ([`TeacherSoftHeader.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/teacher/TeacherSoftHeader.tsx))** : Salutation bienveillante (« Bonjour, [Nom] »), avatar dégradé indigo/sky, badge d'année scolaire en cours, pastille « En direct », bouton principal « Saisir des notes », bouton « Faire l'appel » (si titulaire), et bandeau d'appel du jour intégré (alerte douce ambre si en attente, confirmation émeraude si fait).
+>   - **2. Bandeau KPI Soft ([`TeacherSoftKpiStrip.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/teacher/TeacherSoftKpiStrip.tsx))** : 4 cartes `rounded-xl` avec micro-histogrammes et mini-diagrammes à barres :
+>     - Saisie des notes du trimestre (pourcentage, total notes saisies vs attendues, badge dynamique).
+>     - Mes classes & effectifs (nombre de classes, total élèves, barres représentatives de taille de classe).
+>     - Disciplines enseignées (nombre de matières, badges de disciplines).
+>     - Appel titulaire du jour (statut 100% fait ou à faire) ou Évaluations programmées.
+>   - **3. Courbe & Suivi d'Avancement ([`TeacherSoftPerformanceChart.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/teacher/TeacherSoftPerformanceChart.tsx))** :
+>     - Onglet 1 « Progression » : Courbe spline SVG fluide avec dégradé d'aire translucide, points d'ancrage, bulle de complétion en direct et repères hebdomadaires.
+>     - Onglet 2 « Par classe » : Barres de progression avec compteurs de notes saisies/restantes et raccourci direct.
+>     - Onglet 3 « Dernières notes » : Flux des saisies récentes (élève, classe, matière, note /20, horodatage relatif).
+>   - **4. Anneau Circulaire Pédagogique ([`TeacherSoftPedagogyDonut.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/teacher/TeacherSoftPedagogyDonut.tsx))** : Donut SVG multicolore 3 segments avec espacements nets réguliers calculant l'Indice Pédagogique (complétion des notes, assiduité/appel titulaire, suivi du calendrier).
+>   - **5. File d'Alertes et Priorités ([`TeacherSoftActionQueue.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/teacher/TeacherSoftActionQueue.tsx))** : Suggestions d'interventions ciblées (appel du jour en attente, classes incomplètes, évaluations imminentes) et état Zen valorisant si tout est à jour.
+>   - **6. Accès Rapides ([`TeacherSoftQuickNav.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/teacher/TeacherSoftQuickNav.tsx))** : 4 raccourcis directs vers la saisie des notes, la feuille d'appel, les classes et les bulletins.
+>   - **7. Mes Classes Assignées ([`TeacherSoftClassCards.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/teacher/TeacherSoftClassCards.tsx))** : Cartes soft avec détail des matières, jauges de complétion et liens rapides vers les saisies élémentaire/secondaire.
+>   - **8. Assemblage Bento ([`TeacherDashboard.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/teacher/TeacherDashboard.tsx))** : Layout bento harmonisé (colonne 7/12 + colonne 5/12), animations d'apparition étagées avec `Reveal`.
+> - **Données enrichies ([`dashboard-teacher.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/dashboard-teacher.ts))** :
+>   - Ajout du calcul des dernières notes réelles saisies (`recentGrades`), historique d'activité hebdomadaire (`weeklyGradesHistory`), totaux consolidés et taux global de complétion.
+> - **Validation technique** : `npx tsc --noEmit` : 0 erreur (code 0).
+
+> - **Demande utilisateur (Retour vocal)** :
+>   - Le polishing n'était pas assez visible sur les 3 sous-pages du menu Scolarité : **Admissions** (`/dashboard/students/dossiers/review`), **Structure** (`/dashboard/classes`), et **Élèves** (`/dashboard/students`).
+>   - Volonté d'une unification visuelle immédiate et ressentie avec le Dashboard : *soft view, épuré, premium* sans sortir du cadre du dashboard, et sans altérer aucun workflow ou route (Règle n°11).
+> - **Changements UI/UX majeurs appliqués** :
+>   - **1. Élèves (`/dashboard/students`)** :
+>     - Remplacement du vieux `PageHeader` brut par le **bandeau soft cockpit** unifié (`rounded-[22px] border border-slate-200/70 bg-white p-4.5 sm:p-5 shadow-xs`), squircle dégradé indigo/sky avec icône `Users`, tag d'année scolaire en direct et boutons pills d'action.
+>     - Cartes de filtres et tableau passés en `rounded-2xl border border-slate-200/70 bg-white shadow-xs`.
+>     - Cartes de classes de la vue dossiers passées en `rounded-2xl` avec squircles de cycles `rounded-xl`.
+>   - **2. Admissions (`/dashboard/students/dossiers/review`)** :
+>     - Remplacement du `PageHeader` brut par le **bandeau soft cockpit** unifié avec squircle ambre/orange `UserCheck`, statut interactif et actions rapides.
+>     - Remplacement des 4 cartes d'onglets à anneaux bruts par les cartes interactives soft dashboard (`rounded-2xl border border-slate-200/70 bg-white p-4.5 shadow-xs`) avec squircles d'icônes `rounded-xl` et pastilles pastels douces.
+>     - Bandeaux d'action et barre d'outils/filtres intégrés dans des cartes `rounded-2xl border border-slate-200/70 bg-white shadow-xs` avec boutons pills doux.
+>   - **3. Structure (`/dashboard/classes`)** :
+>     - Remplacement du `PageHeader` brut par le **bandeau soft cockpit** unifié avec squircle violet/indigo `Layers`, indicateurs de complétude des titulaires et actions rapides.
+>     - Remplacement des anciens styles obsolètes (`bg-surface`, `bg-sunk`, `rounded-control`, `border-rule`) par des cartes modernes `rounded-2xl border border-slate-200/70 bg-white shadow-xs`.
+>     - Cartes de cycles (Niveau 1) et cartes de classes (Niveau 2) passées en `rounded-2xl` avec squircles `rounded-xl`, boîtes de professeurs principaux adoucies et sélection de matières fluide.
+>     - Vue affectation en masse par enseignant et modale PP modernisées dans la même palette épurée.
+> - **Règle absolue n°11** : Tolérance zéro respectée — tous les formulaires, routes, paramètres d'URL, actions serveur, droits et modales sont 100% identiques et opérationnels.
+> - **Validation technique** : `npx tsc --noEmit` : 0 erreur (code 0). Requêtes locales HTTP 200/307 OK. Dev server stable.
+>   - Section non-assignés chaleureuse et valorisante sans anxiété.
+> - **Validation technique** : `npx tsc --noEmit` : 0 erreur (code 0). Requêtes HTTP 200/307 validées. Serveur de développement actif sans perturbation.
+> - **Diagramme de performance 100 % réactif ([`SoftPerformanceChart.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/director/SoftPerformanceChart.tsx))** :
+>   - **Finances** (Indigo `#6366F1`) : Courbe ascendante, montant cumulé, jauge d'atteinte de l'objectif mensuel, jalon du jour et registre des encaissements / règlements récents.
+>   - **Présences** (Émeraude `#10B981`) : Courbe haute d'assiduité, taux d'appel du jour, barre de complétion des classes faites, jalon de taux et registre des feuilles d'appel validées.
+>   - **Effectifs** (Sky `#0284C7`) : Courbe d'accumulation de rentrée, total des élèves inscrits, répartition de structure, jalon du total et registre des admissions récentes.
+>   - Toutes les transitions entre onglets s'effectuent avec des dégradés doux et fluides (`duration-300`).
+> - **Ambiance plus soft & réduction des animations bruyantes** :
+>   - Retrait des `animate-pulse` agressifs dans [`SoftHeader.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/director/SoftHeader.tsx) et [`SoftKpiStrip.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/director/SoftKpiStrip.tsx) au profit d'indicateurs calmes et stables.
+>   - Palette pastel apaisante et finitions soignées (« polished »).
+> - **Validation technique** : `npx tsc --noEmit` : 0 erreur (code 0). Serveur de développement actif sans perturbation.
+
+> **Progression — 26 septembre 2026 (Bilan de la semaine, demande de Kory).**
+> - **But** : un bilan hebdomadaire simple par élève, envoyé aux parents. Pédagogie → « Bilan de la semaine » (`/dashboard/grades/bilan-semaine`).
+> - **Grille enseignant** : une ligne par élève, une colonne par matière **existante**. Au secondaire, ce sont les `ClassSubject` ; en élémentaire et préscolaire, les domaines `GradeDomain` de l'école. Rien d'inventé. Plus les colonnes « Leçons non apprises », « Devoirs non faits » et « Verdict ». Un aperçu « ce que recevra la famille » et un commentaire complètent chaque ligne.
+> - **Règles** (`lib/bilanRegles.ts`, pures, 28 vérifications dans `scripts/verify-bilan-semaine.ts`) :
+>   - les cases sont pré-remplies d'après les notes datées de la semaine (moyenne sur 20 : ≥ 14 acquis, ≥ 10 en cours, sinon non acquis) ;
+>   - verdict : aucun non-acquis → Compétent ; un seul ou un signalement → En progrès ; deux ou plus → Besoin d'aide ;
+>   - au plus 4 actions pour le week-end ;
+>   - l'enseignant peut tout corriger.
+> - **Droits** (`lib/bilanSemaine.ts`) :
+>   - modifier une matière suit `editableSubjectIds` (le même droit que la saisie des notes) ;
+>   - envoyer : un enseignant de la classe ou la direction ; le secrétariat consulte seulement ;
+>   - la route est refusée aux rôles parent, comptable et assistant.
+> - **Décision** : les notes de la semaine SONT visibles des parents dans le bilan. La règle « rien avant distribution » ne vaut que pour le bulletin trimestriel (précision de Kory). Ce que reçoit le parent est **figé à l'envoi** (`WeeklyReview.snapshot`).
+> - **Parents** : notification `famille.bilan` et section « Bilan de la semaine » en haut de `/famille/notes`, avec l'historique sur 8 semaines. « Vu » est enregistré à l'ouverture.
+> - **Tables** : `WeeklyReview` et `WeeklyReviewSetting` (actions proposées, modifiables par la direction), sans relation déclarée. Il faut cliquer « Mettre à jour la base ».
+> - **v2 (même jour, retour de Kory : « la grille n'est pas pratique »)** : la grille de cases est **remplacée par des OBSERVATIONS** (table `StudentObservation`).
+>   - Une observation = élève(s), matière de la classe (sous-discipline en élémentaire), jour, ❌ à travailler ou ✅ point fort, points précis (étiquettes mémorisées par l'école), note, action pour les parents, commentaire. On peut en saisir une pour plusieurs élèves à la fois.
+>   - Sujets spéciaux : LECONS, DEVOIRS, GENERAL.
+>   - « Enregistrer et prévenir le parent » envoie l'observation tout de suite ; « Point du jour » envoie aux parents mes observations du jour pas encore envoyées.
+>   - **Décision (option a)** : le bilan de la semaine est envoyé par le **professeur principal** (`Class.teacherId`) ou la direction. Sans professeur principal, n'importe quel enseignant de la classe. Rappel le vendredi par la tâche quotidienne (`rappelerBilansDuVendredi`).
+>   - Le récapitulatif est organisé par matière et reprend observations et notes de la semaine. Une note < 10/20 sans observation marque la matière « à travailler ». Verdict calculé, 5 actions au plus.
+>   - Côté parent : les observations déjà envoyées de la semaine, puis la carte du bilan.
+>   - `scripts/verify-bilan-semaine.ts` : 28 vérifications.
+>   - Les anciens bilans v1 (snapshot sans `v: 2`) sont ignorés côté famille.
+> - ⏸️ **EN PAUSE (26 sept., 22 h 45)** : Kory rejette **tout** le Bilan de la semaine v2, le concept comme l'écran et la carte parent. Le code est en place mais ne doit pas être considéré comme validé.
+>   - Consigne pour la reprise : proposer d'abord 2 ou 3 **maquettes visuelles** (sans coder) et ne construire qu'après son choix.
+>   - Tables concernées : `WeeklyReview`, `WeeklyReviewSetting` et `StudentObservation`, toutes additives. Pour retirer le bilan, il suffit de retirer l'entrée de navigation.
+> - **Reste à faire** : remonter dans « Élèves en difficulté » une matière non acquise 3 semaines de suite.
+> - **Canaux affinés** (retour de Kory : « pas encore propre ») : messages groupés par jour avec une pastille de date collante. « Répondre dans le fil » n'apparaît qu'au survol (toujours visible sur téléphone), « Qui a vu ? » est passé dans la barre d'actions (icône œil), « À lire obligatoirement » est devenu une petite étiquette, et les réponses du fil ont la même mise en page que les messages.
+> - **UI Communauté** : les détails du canal (Infos / Épinglés / Fichiers) sont fermés par défaut ; le bouton « i » les ouvre en volet à droite (façon Slack).
+
+> **Progression — 26 septembre 2026 (Sondages complétés, modèles d'enquêtes, espace Résultats, IA masquée).**
+> - **Décision de Kory : clé IA annulée.** Les boutons IA ne s'affichent que si `ANTHROPIC_API_KEY` existe (`ia` calculé côté serveur dans `chargerCommunaute`). Le code IA reste en place, inactif.
+> - **Interprétation sans IA** : `src/lib/interpretation.ts`, module pur, règles transparentes.
+>   - Participation : ≥ 75 %, ≥ 50 %, ≥ 25 %, en dessous faible.
+>   - Choix : unanime, nette majorité, majorité, en tête, partagé (écart < 10 pts), égalité.
+>   - Échelle 1-5 : moyenne, satisfaits (4-5), mécontents (1-2), avis polarisés ; comparaison par profil à partir de 0,8 pt d'écart.
+>   - NPS 0-10 : nouveau type de question « nps ».
+>   - Mots fréquents (mots vides retirés), rythme des réponses.
+>   - **Aucune conclusion sous 3 réponses (`MIN_REPONSES`).** Test : `scripts/verify-interpretation.ts` (31 vérifications).
+> - **Sondages** (`src/lib/sondages.ts`) :
+>   - « Relancer les non-votants » (auteur ou direction) ;
+>   - annonce « 📊 Résultats » à la clôture manuelle ou à la date, idempotente via la nouvelle colonne `CommunityPoll.resultsNotifiedAt`, prise AVANT l'envoi ; appelée par la tâche quotidienne et à chaque ouverture de la Communauté ;
+>   - export CSV ; phrase de lecture sur la carte (personnel) ; idées de sondages dans l'éditeur.
+> - **Galerie de modèles** (`src/lib/modelesEnquetes.ts`) : 20 enquêtes en 6 catégories, avec recherche, inspirées de Jotform / survey.com et adaptées aux écoles sénégalaises. Elle s'ouvre avant l'éditeur de formulaire.
+> - **Résultats d'un formulaire** : onglets « À retenir » (anneaux participation et satisfaction, constats), « Par question » (classement, humeur, NPS, nuage de mots), « Réponses », « Suivi ».
+> - **Espace « Résultats »** (`?espace=RESULTATS`, `src/lib/resultats.ts`), personnel seulement :
+>   - formulaires dont on est l'auteur ; la direction les voit tous ;
+>   - plus les sondages visibles, avec lecture, export et relance.
+> - **Uniformisation (retour de Kory : « trop de répétitions »)** : Sondages, Formulaires et Résultats ne font plus qu'une entrée de barre, **« Enquêtes »**, avec des onglets ; la pastille indique les formulaires à remplir. L'Engagement est un bouton de l'en-tête du fil d'actualité (modérateurs), plus une entrée. L'entrée de navigation « Sondages » devient « Enquêtes ». La galerie de modèles propose aussi « Une seule question ? → sondage rapide ».
+> - **Messagerie façon Slack (retour de Kory : Slack seulement pour la messagerie)** :
+>   - Les canaux, les classes et #général s'affichent en fil de messages (`FilCanal.tsx`) : du plus ancien au plus récent, séparateurs de jour collants (« Aujourd'hui », « Hier »), messages groupés par auteur, barre d'actions au survol, réponses dans un volet « Fil » à droite, composeur collé en bas (Entrée pour envoyer).
+>   - Le **fil d'actualité garde ses cartes**.
+>   - Ligne rouge « Nouveau » au premier message non lu, dans les canaux comme dans les messages directs : `marquerEspaceVu` renvoie la lecture précédente (`luJusqua`) et `MessageVue.nonLu` fait de même pour les messages directs. La ligne est figée à l'ouverture et reste pendant la lecture.
+>   - Pastilles de non-lus **rouges** dans la barre ; elles ne disparaissent qu'à l'ouverture de l'espace. L'onglet du navigateur affiche « (n) ».
+> - **Modifier / supprimer / programmer un message** (canaux et messages directs) :
+>   - Nouvelles colonnes : `editedAt`, `scheduledAt`, `announcedAt` sur Post et Message, plus `pendingMentions` sur Post. Il faut cliquer « Mettre à jour la base ».
+>   - **Décision : un message programmé est enregistré avec `createdAt` = son heure de parution.** `filtreVisible` et `chargerMessages` le cachent à tous sauf à son auteur jusqu'à cette heure. Les notifications partent une fois (`announcedAt` pris avant l'envoi) via `publierProgrammesEchus`, appelé par la cloche toutes les 15 s, à l'ouverture de la Communauté et par la tâche quotidienne. Pas de tâche à la minute : si personne n'est connecté, le message paraît à l'heure mais sa notification attend le prochain passage.
+>   - Supprimer : l'auteur, même s'il fait partie de la direction ; la direction garde « Masquer » pour les messages des autres.
+> - **Piège** : « Mettre à jour la base » échouait (« transaction expirée, 5000 ms »). Les ~60 instructions font chacune un aller-retour vers la base distante. Délai porté à 120 s ; tout est annulé en cas d'échec, rien n'est à moitié appliqué.
+> - **Mentions de groupe** (`lib/groupesMention.ts`, `lib/mentions.ts`) : @parents, @equipe, @profs, @direction, @parents-<classe>, @profs-<classe>.
+>   - Enseignant : ses classes seulement. Parents : aucun groupe.
+>   - Seuls les membres qui VOIENT le message sont prévenus (intersection avec `destinatairesPublication`).
+> - **Même messagerie façon Slack pour tous les profils** : la page Communauté des familles et celle du personnel utilisent les mêmes composants (`FilCanal`, `Discussion`).
+> - **Prompt d'audit sur la vraie base pour Antigravity** : `docs/prompt-audit-communaute-antigravity.md`.
+> - ⚠️ **Base pas à jour** (journal de dev, 26 sept.) : ni `BulletinDistribution` ni `CommunityPoll.resultsNotifiedAt` n'existent. **Tant que « Mettre à jour la base » n'est pas cliqué, la Communauté affiche l'écran « indisponible »** (le fil lit la nouvelle colonne).
+> - **Piège** : `git status` lancé depuis la session cloud laisse un `.git/index.lock` impossible à supprimer. Il a été déplacé dans `_local/archive-communaute-0926/`. Côté cloud : toujours `GIT_OPTIONAL_LOCKS=0`.
+> - **Piège** : `prisma generate` ne tourne pas depuis la session cloud (suppression interdite). Le client généré est donc synchronisé par archive tar.
+> - **Non vérifié** : aucun test sur des données réelles (sondages, résultats, modèles) ; rendu visuel non vu.
+
+> **Progression — 26 septembre 2026 (Communauté façon Slack, demande de Kory).**
+> - **Une seule page** `/dashboard/communications/communaute` (et `/famille/communaute`) : à gauche Fil d'actualité, Sondages, **Canaux** (# général, canaux créés), **Classes**, **Messages directs** ; au centre le fil ou la discussion ; à droite Infos / Épinglés / Fichiers (≥ xl). `/discussions`, `/inbox` et `/famille/messages` redirigent (`?c=` conservé). Entrée « Messages » retirée du menu famille.
+> - **Canaux créés par l'école** (`CommunityChannel`, `CommunityChannelMember`) : `PARENTS` (tous), `PERSONNEL` (équipe), `MEMBRES` (sur invitation : comité, APE — + direction pour la modération). Création / modification / archivage : OWNER, ADMIN, SECRETARY. Publication : ces rôles + le créateur ; les autres membres seulement si « Tout le monde peut publier ». Modèles prêts : comite-de-gestion, ape, salle-des-profs, sorties-et-evenements, cantine. Archiver ne supprime rien.
+> - **Non-lus par canal** : `CommunitySpaceRead` (clé `ECOLE` / `classe:<id>` / `canal:<id>`) ; premier passage = 7 derniers jours seulement.
+> - `CommunityPost.channelId` + audience `CANAL`. Réaction ❤️ (`COEUR`) ajoutée. Notifications push des canaux : membres (invitation), équipe (personnel), équipe + parents (parents).
+> - **Design** (inspiration des captures de Kory) : cartes bordées arrondies, « Votre publication » / « Votre réponse » bordés, bouton « Répondre », réponses reliées par un filet ; messages directs en liste (avatar, nom, heure, regroupement par auteur, séparateurs de jour). Boutons en `bg-primary-ink` (jamais `bg-primary` sous du texte blanc). Police : Lato inchangée (déjà celle de Slack).
+> - **Rail** : « Communauté » était tronqué en « Commun… » (62 px de texte pour 52 px utiles, mesuré en Lato). Marges réduites (64 px) et libellés longs resserrés ; « Administration » en profitait aussi.
+> - **Barre latérale (retour de Kory, 26/09 01:20)** : les entrées de la Communauté (Fil, Sondages, Canaux + « Créer un canal », Classes, Messages directs) s'affichent DANS la barre contextuelle habituelle du logiciel, même style que Pédagogie (`BarreCommunaute.tsx`, déposée via `layout/SidebarSlot.tsx` et lue par `ContextualSidebar`). Plus de barre propre à la page côté personnel ; côté familles (sans barre contextuelle), même rendu dans la page. Onglets mobiles masqués : tiroir « Canaux » à la place.
+> - **`src/lib/prisma.ts`** : en dev, le singleton Prisma n'est réutilisé que s'il vient de la même classe `PrismaClient` ; après `prisma generate` / `db push`, le module régénéré donne une nouvelle classe → nouveau client, sans redémarrer `npm run dev` (cause du crash `logoSize` du 25/09). Non vérifié sur le poste à l'heure d'écrire.
+> - **Mise à jour de la base sans commande (dev)** : l'écran « Communauté pas prête » propose à la direction un bouton « Mettre à jour la base » (`schema-actions.ts` → `lib/communauteSchema.ts`) : SQL d'AJOUT seulement, mêmes noms que Prisma, rejouable (testé deux fois de suite sur un Postgres PGlite), RLS activé. Désactivé en production. Kory ne lance pas de commandes : c'est la voie prévue pour les prochains ajouts de schéma en local.
+> - **Suite (26/09, 02 h)** :
+>   - **« Parents par classe »** (ex-« Classes ») : ce ne sont PAS des espaces élèves, mais les parents d'une classe + ses enseignants. Icône parents. Sections Canaux / Parents par classe / Messages directs repliables (mémorisé sur l'appareil).
+>   - **Messages entre collègues** (`CommunityConversation.kind = "EQUIPE"`, `userAId`/`userBId` triés) : strictement privés, **même la direction ne les voit pas**. Les conversations familles gardent `kind = "FAMILLE"` ; `parentId`/`studentId` deviennent optionnels. Titre d'une discussion famille côté école : le nom du parent, l'enfant (classe) en petit.
+>   - **Sondages intégrés** (`CommunityPoll`, `CommunityPollOption`, `CommunityPollVote`) : un sondage s'attache à une publication (2 à 6 réponses, choix multiple, vote anonyme, date de clôture). Vote en un geste, une fois par personne. Les parents ne voient jamais les noms des autres votants ; le personnel les voit sauf vote anonyme. Clôture : auteur ou direction. Entrée « Sondages » = `?espace=SONDAGES`. Les anciens questionnaires à lien public (`/surveys`) restent accessibles (lien « anciens questionnaires »).
+>   - **Droits** : la comptabilité ne voit plus aucun espace de classe ; un rôle inconnu (ou un futur rôle élève) ne voit aucun canal « Personnel » — **bug trouvé par le test** (la règle était « tout sauf PARENT »), corrigé en liste fermée. 32 + 15 contrôles verts.
+>   - Base : même bouton « Mettre à jour la base » (SQL d'ajout rejoué deux fois sur PGlite, conversations existantes passées en `FAMILLE`, doublon de conversation d'équipe refusé).
+> - **Communauté complète (26/09, nuit, validé par Kory)** :
+>   - **Audience des canaux « à la @ »** (`lib/audience.ts`, `CommunityChannel.audience` JSON, `kind = "REGLES"`) : @tous-les-parents, @tout-le-personnel, @enseignants, @secrétariat, @comptabilité, @direction, @parents-CM2, @profs-CM2 + personnes nommées. **Privé par défaut** (aucune règle = créateur + direction). Les anciens canaux gardent leur comportement (`reglesDuCanal`). Le canal « fun » vu par tous : créé en « Parents et école », pas une fuite — à rééditer.
+>   - **Notifications** : cloche (`Cloche.tsx`, barre du haut + espace famille), son à l'arrivée, Web Push quand EduCom est fermé. Réutilise `StaffNotification` (parents compris, `kind` « communaute.* »). `notifier()` = cloche + push ; `notifierPersonnes()` choisit le bon lien parent / personnel.
+>   - **@mentions** (`ZoneMention.tsx`) dans publications et réponses ; `mentionsVisibles` ne prévient que les personnes DE l'école qui voient la publication (piège évité : un id d'une autre école aurait reçu un extrait d'annonce ECOLE).
+>   - **Formulaires façon Google Form** (`CommunityForm`, `...Recipient`, `...Response`, `lib/formulaires.ts`) : destinataires figés à l'envoi, 6 types, résultats, relance des non-répondants, CSV, clôture. Enseignant : ses classes seulement.
+>   - **Engagement** (`lib/engagement.ts`) : « Qui a vu ? » (auteur, direction) via `CommunitySpaceRead` (clé « FIL » posée à l'ouverture du fil) ; tableau direction (parents actifs 30 j, publications vues, parents à relancer).
+>   - **IA** (`lib/ia.ts`, API Messages Anthropic en `fetch`, modèle `EDUCOM_IA_MODELE` défaut `claude-haiku-4-5-20251001`) : rédaction, résumé de sondage, analyse de formulaire (sans noms), récap de la semaine. Personnel seulement, 40 demandes/h/personne. **Inactive : `ANTHROPIC_API_KEY` absente de `.env.local`.** Jamais testée contre l'API réelle.
+>   - **Modèles de messages** dans le composeur. **WhatsApp archivé** : widget + 3 actions sortis de `settings/actions.ts` vers `lib/communication/legacy/`.
+>   - Vérifs : `tsc` 0 erreur, 42 + 15 + 12 contrôles de droits verts (`verify-community-access`, `verify-messagerie-access`, `verify-formulaires`), navigation 65/65, SQL d'ajout rejoué 2× sur PGlite. Parcours réels non testés sur la base (bouton « Mettre à jour la base » à recliquer).
+> - **Formulaires — preuve d'envoi (26/09, retour de Kory)** : message de confirmation « envoyé à N personnes », trace dans la cloche de l'auteur, suivi par destinataire (Envoyé → Ouvert → Répondu, `CommunityFormRecipient.seenAt`), onglet « Aperçu destinataire », option « M'envoyer une copie ». **Piège de test** : le sélecteur de rôle de test change le rôle du MÊME compte ; il ne fait pas de Kory un destinataire (les destinataires sont les vrais comptes). Pour tester côté parent/comptable : « M'envoyer une copie », ou se connecter avec le compte réel.
+> - **Bulletins côté familles (26/09, règle de Kory)** : validation du secrétariat (APPROVED) = bon à tirer INTERNE ; puis conseil de classe ; puis **distribution datée** (`/dashboard/grades/distribution`, `BulletinDistribution`, `lib/bulletinsParents.ts`) par direction/secrétariat, seulement si tous les bulletins de la classe sont approuvés. **Faille corrigée** : un parent ouvrait `/preview/report-card` à tout moment (bulletin provisoire, notes en cours) ; désormais seuls les trimestres distribués (classe + trimestre tirés de la distribution, jamais de l'URL seule). `famille/notes` liste les bulletins distribués ; `dashboard-family` ne compte que les notes des trimestres distribués et n'invente plus de moyenne (14,5), ni d'historique (13,2…). Reste inventé côté composants de l'autre agent : repli du graphique (`FamilySoftPerformanceChart` : 13,0/13,5/14,0 et « +0,8 pt d'amélioration »), présence 98 % par défaut. Parents prévenus à la date (tâche quotidienne + passage de la cloche famille, idempotent via `notifiedAt`).
+> - **Cloche filtrée** : l'espace famille n'affiche que `communaute*`, `famille.*`, `document.validated/rejected` (les notifications internes comme « Bulletins validés » n'y apparaissent plus, même avec le sélecteur de rôle de test).
+> - **Notifications familles par métier** (`lib/notificationsFamille.ts`) : nouvelle facture, paiement reçu (encaissement et encaissement rapide), absence et retard (seulement au changement de statut). Déjà en place : publications, sondages, formulaires, messages, pièces du dossier.
+> - Anciens composants `FilCommunaute.tsx` et `Messagerie.tsx` retirés (remplacés par `Communaute`, `FilPublications`, `Discussion`, `DialogueCanal`).
+> - **Vérifié** : `tsc` sans erreur sur ces fichiers, `verify-community-access` (31 contrôles, dont 18 canaux), `verify-messagerie-access`, `verify-webpush`, `verify-subscription` OK ; rendu contrôlé sur une maquette à données fictives (bureau 1400-1500 px et mobile 390 px). **Non vérifié** : le parcours réel sur la base (création de canal, publication, non-lus) — il faut `npx prisma db push` (nouvelles tables + colonne `channelId`, ajouts seulement). Tant que ce n'est pas fait, la page affiche un message clair au lieu de planter.
+
+> **Progression — 26 septembre 2026 (Refonte Dashboard « Soft Elegance »).**
+> - **Élimination intégrale du bruit visuel & Design Soft unifié** :
+>   - Remplacement de l'agencement dense et anxiogène par une architecture aérée avec bordures subtiles (`border-slate-100`), arrondis généreux (`rounded-[28px]`) et ombres ultra-douces.
+>   - Suppression des alertes rouges stressantes au profit de badges pastels valorisants et rassurants.
+> - **Courbes fluides & Diagrammes inspirés des références UI** :
+>   - **`SoftHeader.tsx`** : En-tête accueillant et respirant avec badges d'établissement, année, trimestre et actions rapides non intrusives (`Inscrire un élève`, `Facturation`).
+>   - **`SoftKpiStrip.tsx`** : 4 cartes de performance épurées avec histogrammes miniatures à barre active indigo, barres segmentées par cycle et sparklines d'assiduité en onde douce SVG.
+>   - **`SoftPerformanceChart.tsx`** : Courbe spline continue SVG avec aire de dégradé violet/indigo (`#6366F1`), point interactif « Aujourd'hui », sélecteur d'onglets (*Finances*, *Présences*, *Effectifs*) et tableau des dernières opérations aux pastilles de statut douces.
+>   - **`SoftHealthDonut.tsx`** : Anneau circulaire tricolore (Violet, Cyan, Mint) calculant l'indice d'efficacité globale de l'établissement avec score central (`+88%`) et légende scannable en 3 secondes.
+>   - **`SoftActionQueue.tsx`** : Liste de priorités épurée et non anxiogène avec boutons d'arbitrage immédiats en 1 clic.
+>   - **`SoftQuickNav.tsx`** : Capsule de navigation rapide vers les modules indispensables (*Classes*, *Grille tarifaire*, *Bulletins*, *Rentrée*).
+> - **Validation technique** : `npx tsc --noEmit` : 0 erreur (code 0) ; `scripts/verify-navigation-integrity.ts` : 65/65 routes (100% OK) ; `scripts/verify-routes-coverage.ts` : 100% PASS.
+> - **Crash `logoSize` sur `/dashboard/grades/report-card` résolu** :
+>   - **Origine** : Le serveur `next dev` en mémoire conservait l'instance singleton de `PrismaClient` instanciée avant le `prisma generate` ayant ajouté `logoSize`, `stampSize` et `signatureSize`. Lors de la requête `prisma.school.findUnique` avec `logoSize: true`, le runtime Prisma levait une exception `PrismaClientValidationError: Unknown field logoSize`.
+>   - **Résolution & Blindage** :
+>     - Exécution de `npx prisma generate` et synchronisation via `prisma db push` (0 perte de données, base alignée à 100%).
+>     - Ajout d'un repli défensif `.catch()` dans [`loadOfficialBulletin.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/bulletin/loadOfficialBulletin.ts) : si le client en mémoire rejette les champs de taille, la requête replie instantanément sur les champs de base sans faire planter la page, avec valeurs par défaut garanties (`logoSize ?? 80`).
+>     - Blindage similaire dans [`settings/actions.ts`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/settings/actions.ts) (`updateSchool`) en cas de rejet d'arguments par un client périmé.
+>     - Test bout-en-bout validé avec l'école réelle `SENG.CO ACADEMY` (20 élèves chargés avec succès).
+> - **Intégrité de la Navigation rétablie (100% PASS)** :
+>   - Correction dans [`navigation.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/navigation.ts) (`isActive` et `getActiveNavItemHref`) pour couvrir les alias de redirection de l'ancien module communications (`/dashboard/communications`, `/dashboard/communications/campaigns/new`, `/dashboard/communications/inbox`).
+>   - `scripts/verify-navigation-integrity.ts` : 65/65 routes (100% OK, 0 orpheline).
+>   - `npx tsc --noEmit` : 0 erreur (code 0).
+> - **Redimensionnement interactif & Normalisation universelle des visuels (Paramètres & Documents)** :
+>   - **Champs de base de données (`prisma/schema.prisma`)** : Ajout de `logoSize Int? @default(80)`, `stampSize Int? @default(80)`, `signatureSize Int? @default(60)` dans `model School`. Migration Prisma appliquée via `prisma db push` (0 perte de données, 100% additif).
+>   - **Convertisseur universel client-side (`src/lib/imageConverter.ts`)** : Accepte tous les formats d'image (PNG, JPEG, WebP, SVG, BMP, GIF, HEIC/HEIF, TIFF). Recalibre automatiquement via Canvas HTML5 en PNG haute résolution préservant la transparence des tampons et signatures, et élimine tout blocage UX ou format inadéquat.
+>   - **Poignée de coin bas-droite interactive & Curseur de précision (`VisualAssetField.tsx`)** : Permet de tirer vers les bouts pour agrandir/réduire proportionnellement la taille en pixels avec infobulle en direct, ou d'ajuster finement au curseur avec bouton de réinitialisation.
+>   - **Prise en compte dynamique sur les documents officiels** :
+>     - Bulletins secondaire et moyen (`BulletinSecondaireSheet.tsx`) : Logo, cachet et signature calibrés selon les pixels choisis dans les paramètres.
+>     - Bulletins élémentaire et préscolaire (`BulletinElementaireSheet.tsx`) : Logo, cachet et signature calibrés selon les dimensions exactes.
+>     - Factures et reçus de caisse (`InvoiceViewer.tsx` et `ReceiptViewer.tsx`) : En-têtes et visas comptables mis à l'échelle dynamiquement.
+>     - Gabarit simple (`BulletinSheet.tsx`) : Supporte également les dimensions configurées.
+>   - **Validation technique** : `npx prisma generate` OK, `npx tsc --noEmit` : 0 erreur (code 0).
+
+> - **Purge complète du compte test `koryphilgs1402@gmail.com` et de l'établissement `Queen School` ([`delete-user-and-school.ts`](file:///Users/kory/EduCom%20SaaS/scripts/delete-user-and-school.ts))** :
+>   - Sauvegarde préalable effectuée dans `scripts/backups/`.
+>   - Suppression de l'utilisateur dans Supabase Auth et dans Prisma DB.
+>   - Suppression de l'établissement associé `Queen School` et de ses 1 000 élèves et 10 classes de test.
+>   - L'adresse email `koryphilgs1402@gmail.com` est libre pour une réinscription intégrale depuis `/register`.
 > - **Aperçu Dédié du Bulletin A4 sur Mobile ([`Generator.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/grades/report-card/Generator.tsx) & [`ResponsiveBulletinContainer.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/grades/ResponsiveBulletinContainer.tsx))** :
 >   - **Bouton d'aperçu dédié pleine largeur sur smartphone** : Ajouté directement dans la boîte de contrôle sous les filtres et options (`Aperçu du bulletin (20)`). L'affichage brut inline des feuilles A4 est masqué sur mobile (`hidden md:block print:block`) afin d'éviter le scroll infini et les troncatures.
 >   - **Modale plein écran mobile avec fermeture immédiate** : Le clic sur le bouton ouvre un aperçu plein écran immersif (`fixed inset-0 z-[120] bg-black/85 backdrop-blur-md`).
@@ -5979,3 +6270,35 @@ Ces fichiers et blocs de code sont des outils de développement stricts, isolés
 - 25/09/2026 — Landing « Comment ça marche » : carte 01 = création + import Excel (plus de « rien à télécharger », plus de logo/cachet) ; carte 02 = « Paramétrez votre identité » (logo, cachet, signature, icône réglages). ⚠️ La « signature » est une image téléversée dans les Paramètres, pas une signature électronique certifiée : ne pas écrire « signature électronique » sur la landing.
 
 - 25/09/2026 — Vitrine mobile INTERACTIVE + scène « Facture signée ». Le téléphone de la landing reçoit les touchers : barre du bas, onglets, « Plus », « Encaisser »… `VitrineEcran` intercepte les liens (écran de vitrine si l'adresse est dans `CHEMIN_VITRINE`, sinon fiche « Dans votre espace EduCom » + Créer mon école), bloque submit / server actions (en-tête Next-Action) / print / open avant tout réseau, et prévient la landing (`vitrine:interaction`, pause 20 s de la rotation). À chaque changement de scène, la landing envoie `vitrine:activer` : l'écran revient chez lui et rejoue sa démo. Nouvelle scène `facture` : vrai `NewInvoiceForm`, ligne saisie, signature tracée sur le vrai `SignaturePad` (événements souris simulés), puis « Aperçu A4 » signé (15 s). Messages sonner déplacés en haut dans la vitrine (en bas ils couvraient la barre d'onglets). Idées au chaud : écrans vitrine pour Accueil, Bulletins (/preview/report-card existe), Paiements/reçus.
+
+- 25/09/2026 — ESSAI vidéo Higgsfield dans le hero (Kory : « je n'aime pas la vidéo mais on l'utilise pour voir »). Connecteur Higgsfield ajouté dans claude.ai (Customize → Connectors, https://mcp.higgsfield.ai/mcp). Plan gratuit : Seedance refusé (« Requires basic plan »), seul Wan 3.0 480p 4 s passe (4 crédits, tous dépensés). Image de départ = nos vrais écrans (`_local/marketing/educom-hero-start-frame.png`). ⚠️ Constat : dès ~1,6 s l'IA déforme les textes des écrans (chiffres/noms illisibles à 4 s) — on ne garde que 0–1,6 s en aller-retour (boucle 3,2 s) : `public/marketing/hero-loop-higgsfield-v1.{webm,mp4,jpg}`. Retour à la photo : `BANNIERE = "photo"` dans HeroSection.tsx. Piège : le Chromium de test n'a pas H.264 → WebM en première source. Réseau : le conteneur et le poste bloquent S3/CloudFront de Higgsfield → envoi d'images via la fenêtre de téléversement uniquement.
+- 25/09/2026 — Essai vidéo Higgsfield ANNULÉ par Kory (« je n'aime pas »). HeroSection.tsx remis à l'identique (photo `hero-educom.jpg`). Fichiers vidéo déplacés de public/marketing vers `_local/marketing/` (non publiés). Leçon : l'IA vidéo ne garde pas les textes des écrans ; pour le produit, privilégier nos vraies captures animées (Framer Motion).
+- Piège outil (synchro cloud → poste) : renvoyer un fichier sous le MÊME nom de dépôt peut réécrire l'ancienne version ; toujours contrôler le md5 après écriture, et changer de nom en cas d'écart.
+- 25/09/2026 — Animations « façon Higgsfield » codées gratuitement (Framer Motion) à la place des vidéos IA payantes : `PapiersRanges` (feuilles Bulletin/Facture/Reçu/Certificat/Attestation qui se rangent dans le bouclier, boucle 7 s, jouée seulement à l'écran, figée si réduction des animations) en fin de « Le constat » (BeforeAfter) ; `FondAmbiance` (3 halos bleus qui dérivent 22–30 s) derrière « Créer mon école ». Higgsfield : compte à 0 crédit (plan gratuit) ; les paiements du service ne se contournent pas.
+- 25/09/2026 — **MODULE ABONNEMENT EDUCOM (Wave)**. Périmètre fixé par Kory : l'API Wave sert UNIQUEMENT à l'abonnement de l'école à EduCom — jamais aux factures/paiements des familles. Société au Sénégal → Stripe impossible ; Wave Checkout direct (compte Wave d'EduCom). Carte bancaire : plus tard via agrégateur (PayDunya pressenti). Prix : 9 €/mois = 5 904 F CFA (PRO_PRICE_XOF), durées 1/3/12 mois sans remise (remise = décision Kory à prendre).
+  - Schéma (additif) : `SchoolSubscription` (trialEndsAt, currentPeriodEnd, remindersSent) + `SubscriptionPayment` (EN_ATTENTE/PAYE/ECHEC/EXPIRE, checkoutSessionId unique). `npx prisma generate` et `npx prisma db push` validés et exécutés avec succès le 25 sept. 2026.
+  - Aucun statut stocké : état déduit des dates (`lib/subscription.ts`) : ESSAI 7 j → ACTIF → EN_RETARD (7 j de grâce) → LECTURE_SEULE. Rien n'est jamais supprimé. Écoles existantes : essai de 7 j à partir du 1er passage après mise en ligne (création paresseuse), jamais depuis leur date d'inscription.
+  - Lecture seule appliquée dans `requireActionContext` : seulement pour les server actions (en-tête Next-Action), jamais au rendu des pages ; actions de lecture marquées `{ lecture: true }` (22 fonctions get/list/check) ; `/dashboard/abonnement` toujours permis. Piège : toute nouvelle action de LECTURE doit passer `{ lecture: true }`, sinon elle sera bloquée en lecture seule.
+  - Paiement : `payerAbonnement` (montant calculé serveur) → session Wave → `wave_launch_url`. Confirmation : webhook `/api/webhooks/wave` (échec fermé sans WAVE_WEBHOOK_SECRET, HMAC `Wave-Signature` sur corps brut, < 5 min) ET retour navigateur ; les deux RELISENT la session chez Wave et ne prolongent qu'une fois (updateMany conditionnel). Payer en avance ne perd aucun jour.
+  - Relances : `/api/cron/abonnement` (échec fermé sans CRON_SECRET, GET+POST, cron Vercel 08:00 dans vercel.json) : J-3, J-1, J0, G+3, LS → StaffNotification aux OWNER/ADMIN, dédoublonnées. + bandeau `BandeauAbonnement` dans le dashboard. ⚠️ Aucun canal externe opérationnel (e-mail/SMS/WhatsApp/push) : ne pas prétendre « envoyé ».
+  - Env à définir : WAVE_API_KEY (clé Checkout), WAVE_WEBHOOK_SECRET, CRON_SECRET, NEXT_PUBLIC_SITE_URL. Webhook Wave à déclarer : https://<hôte>/api/webhooks/wave (checkout.session.completed + payment_failed, « signing secret »).
+  - Vérif : `npx tsx scripts/verify-subscription.ts` (21 assertions OK). Non vérifié : rendu visuel des pages (auth + base inaccessibles depuis le cloud), vrai paiement Wave (pas de bac à sable Wave : tester avec un petit montant réel).
+  - Piège outil : Prisma ne télécharge pas son moteur dans le cloud → `PRISMA_SCHEMA_ENGINE_BINARY=<faux exécutable> npx prisma generate` suffit pour générer le client.
+  - Constat hors module : `verify-dashboard-actions-by-role` échoue déjà sur HEAD (SECRETARY sans « Bulletins »/report-card) — à arbitrer.
+- 25/09/2026 — **PRODUCT CHANGE : Communication → COMMUNAUTÉ.** Pourquoi (Kory) : l'API WhatsApp imposait à chaque école de connecter son propre compte (paramétrage Meta) — expérience trop difficile. La communication devient INTERNE : « EduCom = Éducation + Communauté », rapprocher école et parents, engagement, suivi des enfants.
+  - Décisions Kory : réactions + commentaires ; PAS de messages parent ↔ parent ; phase 1 = fil de l'école + espaces de classe.
+  - Livré (phase 1) : tables `CommunityPost/Comment/Reaction/Read/Report` (additives, ⚠️ `db push` à faire) ; règles dans `src/lib/community.ts` (seule autorité) : tout le monde voit le fil école ; classes = toutes (direction/secrétariat/compta/assistant), SES classes (enseignant, `teacherClassIds`), classes de SES enfants (parent, dernière inscription) ; publie école = OWNER/ADMIN/SECRETARY ; publie classe = + enseignant de la classe ; modère (masquer, jamais supprimer en silence) = OWNER/ADMIN ; l'auteur supprime SA publication/SON commentaire.
+  - Fonctions : épingler, « à lire obligatoirement » avec « J'ai lu » côté parent et « lu par X sur Y parents » côté école, 3 réactions (👍 👏 🙏, une par personne), commentaires (fermables), signalement → notification direction, bouton « Partager sur WhatsApp » (simple lien wa.me, AUCUNE API).
+  - Écrans : `/dashboard/communications/communaute` (espace renommé « Communauté », entrée par défaut) et `/famille/communaute` (nouvel onglet famille). Composant partagé `components/community/FilCommunaute.tsx`.
+  - Vérif : `npx tsx scripts/verify-community-access.ts` (13 règles OK), tsc OK, rendu du fil vérifié sur maquette. Non vérifié : parcours réel connecté (base inaccessible depuis le cloud).
+  - Suite prévue : messages privés parent ↔ école rattachés à un élève + partage de bulletin en privé ; notifications push web (PWA) ; pièces jointes (image/PDF) ; droit à l'image (accord parent par élève) avant toute photo d'élève ; retirer les écrans dépendant de l'API WhatsApp.
+- 25/09/2026 (soir) — **Localhost en panne : cause.** Le serveur de dev gardait l'ancien client Prisma (singleton conservé entre rechargements) : `dashboard/layout.tsx` lisait `schoolSubscription` → toutes les pages tombaient. Correctifs : le bandeau d'abonnement et la lecture seule sont désormais NON BLOQUANTS (try/catch, échec ouvert — règle de facturation, pas d'accès aux données). Leçon : après tout changement de schéma → `prisma generate`, `db push`, REDÉMARRER `npm run dev`.
+- 25/09/2026 (soir) — **COMMUNAUTÉ phases 2-4** (vision Kory : « notre propre WhatsApp, Instagram, TikTok »).
+  - Phase 2 — médias : `CommunityMedia` ; bucket Storage PRIVÉ `community-media` créé automatiquement au 1er envoi ; envoi DIRECT navigateur → Storage par URL signée (les server actions plafonnent à 1 Mo) ; le serveur choisit le chemin ; photos recompressées dans le navigateur (1600 px, JPEG 0,82) ; vidéo ≤ 50 Mo et ≤ 2 min ; PDF ≤ 15 Mo ; lecture par URL signée 1 h ; grille façon Instagram + visionneuse.
+  - Phase 3 — messagerie privée : `CommunityConversation/Message/ConversationRead` ; 1 parent + 1 service (Enseignant de la classe, Secrétariat, Comptabilité, Direction) à propos d'1 élève ; boîtes d'équipe ; direction voit tout ; enseignant = ses classes ; jamais parent ↔ parent ; non-lus, pièces jointes, suppression « Message supprimé », rafraîchissement toutes les 7 s (pas de temps réel : RLS tout refuser). Écrans `/dashboard/communications/discussions` et `/famille/messages`.
+  - Phase 4 — push : `PushSubscription`, `public/sw.js`, `app/manifest.ts` (installation écran d'accueil, obligatoire sur iPhone), bouton « Activer les notifications », envoi `web-push` (VAPID) sur nouvelle publication et nouveau message ; sans clés VAPID rien n'est envoyé. ⚠️ Dépendance à installer sur le poste : `npm install web-push && npm install -D @types/web-push` (le lockfile du cloud n'a pas été recopié : versions npm différentes).
+  - Env : NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (générer : `npx web-push generate-vapid-keys`).
+  - Vérif : `verify-community-access` (13) + `verify-messagerie-access` (7) OK ; tsc OK côté Communauté ; rendus vérifiés sur maquettes. Non vérifié : envoi réel vers Supabase Storage, push réel, parcours connecté.
+  - Constat : `loadOfficialBulletin.ts` (travail en cours d'un autre agent, tailles logo/cachet/signature) ne compile pas tant que son `select` n'inclut pas logoSize/stampSize/signatureSize.
+- 25/09/2026 (nuit) — Ancien module Communication ARCHIVÉ (`src/lib/communication/legacy/` : centre, boîte WhatsApp, campagnes ; anciennes adresses redirigées vers Communauté / Discussions) ; Communauté intégrée comme module par défaut. Inventaire complet et plan de test : `communication-archive.md`. Aucune table supprimée.
+- 25/09/2026 (nuit) — Kory veut tester sans rien installer : dépendance `web-push` ABANDONNÉE au profit d'un Web Push natif `src/lib/webpush.ts` (node:crypto, VAPID ES256 + chiffrement aes128gcm RFC 8291 ; `scripts/verify-webpush.ts` reproduit le vecteur officiel de la RFC à l'octet près). Clés VAPID générées SUR LE POSTE et ajoutées à `.env.local` (jamais affichées). Client Prisma déjà régénéré par Kory (23 h 32) et serveur relancé. Seule étape impossible depuis Claude : `npx prisma db push` (base injoignable depuis le cloud et depuis la VM du poste — DNS refusé). Piège : `prisma generate` depuis la VM échoue (suppression de fichiers interdite dans le dossier connecté) — le lancer sur le Mac.

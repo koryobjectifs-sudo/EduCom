@@ -1,6 +1,8 @@
 import { cache } from "react";
 import { hasAccess, RoleType } from "@/lib/permissions";
+import { headers } from "next/headers";
 import { resolveSchoolContext, ActiveMembershipInfo } from "@/lib/schoolContext";
+import { etatAbonnement, actionPermiseEnLectureSeule } from "@/lib/subscription";
 
 /**
  * Contexte d'autorisation commun aux server actions.
@@ -42,7 +44,28 @@ export type ActionAuth =
 
 export type ActionContextOptions = {
   allowUnverifiedEmail?: boolean;
+  /**
+   * L'action ne fait que LIRE (get…, list…, preview…). Elle reste permise quand
+   * l'abonnement est en lecture seule. Par défaut, une action est une écriture.
+   */
+  lecture?: boolean;
 };
+
+export const MESSAGE_LECTURE_SEULE =
+  "Votre abonnement EduCom est arrivé à échéance : l'espace est en lecture seule. Réglez l'abonnement (menu Administration → Abonnement) pour modifier à nouveau. Aucune donnée n'est supprimée.";
+
+/**
+ * Vrai si la requête en cours est une server action (en-tête `Next-Action`).
+ * Un rendu de page n'en porte pas : la lecture seule ne bloque donc JAMAIS
+ * l'affichage d'un écran, seulement les actions qui écrivent.
+ */
+async function estServerAction(): Promise<boolean> {
+  try {
+    return (await headers()).has("next-action");
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Authentifie l'appelant et résout son établissement actif selon ses droits vérifiés.
@@ -84,6 +107,25 @@ export const requireActionContext = cache(async function requireActionContext(
   // lecture. Ajouter ici un chemin = décision explicite, jamais par défaut.
   if (role === "PARENT" && requiredPath && !isParentActionPath(requiredPath)) {
     return { ok: false, error: "Vous n'avez pas les droits nécessaires pour cette action." };
+  }
+
+  // ═══ 25 septembre 2026 — abonnement en lecture seule ═══
+  //
+  // Échéance dépassée depuis plus de GRACE_DAYS : on consulte, on n'écrit
+  // plus. Limité aux server actions (un rendu de page n'est jamais bloqué) ;
+  // les actions de lecture passent `{ lecture: true }` ; la page Abonnement
+  // reste toujours utilisable pour payer.
+  if (!options?.lecture && !actionPermiseEnLectureSeule(requiredPath) && (await estServerAction())) {
+    // Échec OUVERT volontaire : c'est une règle de facturation, pas un
+    // contrôle d'accès aux données. Une table absente ne doit jamais bloquer
+    // le travail d'une école.
+    const abonnement = await etatAbonnement(context.schoolId).catch((e: Error) => {
+      console.error("[abonnement] état indisponible — lecture seule non appliquée :", e.message);
+      return null;
+    });
+    if (abonnement?.etat === "LECTURE_SEULE") {
+      return { ok: false, error: MESSAGE_LECTURE_SEULE };
+    }
   }
 
   return {

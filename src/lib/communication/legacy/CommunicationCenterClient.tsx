@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Role } from "@/generated/prisma/client";
-import { WhatsAppConnectionWidget, WhatsAppSchoolInfo } from "@/components/dashboard/WhatsAppConnectionWidget";
+import { WhatsAppConnectionWidget, WhatsAppSchoolInfo } from "./WhatsAppConnectionWidget";
 import { formatDate } from "@/lib/dateUtils";
 
 type ConversationPreview = {

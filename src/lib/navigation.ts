@@ -97,6 +97,8 @@ export const NAV_SPACES: NavSpace[] = [
           { id: "report-card", name: "Bulletins", href: "/dashboard/grades/report-card", icon: "FileText", short: "Bulletins" },
           { id: "grades-validation", name: "Validation", href: "/dashboard/grades/validation", icon: "ClipboardCheck", short: "Validation" },
           { id: "attendance", name: "Présences", href: "/dashboard/attendance", icon: "ClipboardList", short: "Présences" },
+          // 26 sept. 2026 — dernière étape du bulletin : la remise aux familles.
+          { id: "grades-distribution", name: "Distribution aux familles", href: "/dashboard/grades/distribution", icon: "FileText", short: "Distribution" },
         ],
       },
       {
@@ -143,23 +145,22 @@ export const NAV_SPACES: NavSpace[] = [
   },
   {
     id: "comms",
-    label: "Communication",
-    fullLabel: "Communications",
+    // 25 sept. 2026 — « Product Change » : la Communication devient la
+    // Communauté (fil de l'école, espaces de classe), sans API WhatsApp.
+    label: "Communauté",
+    fullLabel: "Communauté",
     icon: "MessageSquare",
-    defaultHref: "/dashboard/communications",
+    defaultHref: "/dashboard/communications/communaute",
     matchPrefixes: [
       "/dashboard/communications",
     ],
     sections: [
       {
-        title: "Échanges & Messages",
+        title: "Communauté",
         items: [
-          { id: "comms-inbox", name: "Messages", href: "/dashboard/communications/inbox", icon: "MessageSquare", short: "Messages" },
-          // ⚠️ Libellé honnête : la racine est le centre de communication
-          // (statistiques, campagnes), pas un composeur d'annonces dédié —
-          // aucune page distincte "Annonces" n'existe aujourd'hui.
-          { id: "comms-overview", name: "Vue d'ensemble", href: "/dashboard/communications", icon: "MessageSquare", short: "Vue" },
-          { id: "comms-surveys", name: "Sondages", href: "/dashboard/communications/surveys", icon: "ClipboardList", short: "Sondages" },
+          // 26 sept. 2026 : canaux et messages directs sur une seule page (façon Slack).
+          { id: "comms-community", name: "Canaux & messages", href: "/dashboard/communications/communaute", icon: "MessageSquare", short: "Canaux" },
+          { id: "comms-surveys", name: "Enquêtes", href: "/dashboard/communications/communaute?espace=SONDAGES", icon: "ClipboardList", short: "Enquêtes" },
         ],
       },
     ],
@@ -192,6 +193,7 @@ export const NAV_SPACES: NavSpace[] = [
       "/dashboard/admin",
       "/dashboard/team",
       "/dashboard/settings",
+      "/dashboard/abonnement",
     ],
     sections: [
       {
@@ -201,6 +203,7 @@ export const NAV_SPACES: NavSpace[] = [
           { id: "settings-fees", name: "Grille tarifaire & Frais", href: "/dashboard/settings/fees", icon: "CreditCard", short: "Tarifs" },
           { id: "doc-settings", name: "Pièces exigées (Dossier)", href: "/dashboard/settings/documents", icon: "FileText", short: "Pièces" },
           { id: "team", name: "Équipe & Accès", href: "/dashboard/team", icon: "Users", short: "Équipe" },
+          { id: "subscription", name: "Abonnement EduCom", href: "/dashboard/abonnement", icon: "CreditCard", short: "Abonnement" },
         ],
       },
       {
@@ -292,6 +295,14 @@ export function isActive(href: string, pathname: string | null): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
   const hrefPath = href.split("?")[0];
   if (hrefPath === "/dashboard/settings" && pathname === "/dashboard/admin") return true;
+  // Anciens questionnaires (lien public) : rattachés à l'entrée « Sondages » (26 sept. 2026).
+  if (href.includes("espace=SONDAGES") && pathname.startsWith("/dashboard/communications/surveys")) return true;
+  if (
+    hrefPath === "/dashboard/communications/communaute" &&
+    ["/dashboard/communications", "/dashboard/communications/campaigns/new", "/dashboard/communications/inbox", "/dashboard/communications/discussions"].includes(pathname)
+  ) {
+    return true;
+  }
   return pathname === hrefPath || pathname.startsWith(`${hrefPath}/`);
 }
 
@@ -318,6 +329,13 @@ export function getActiveNavItemHref(items: NavItem[], pathname: string | null):
     }
     // Alias /dashboard/admin vers Paramètres
     if (itemPath === "/dashboard/settings" && pathname === "/dashboard/admin") {
+      return item.href;
+    }
+    // Alias /dashboard/communications vers Fil de la communauté
+    if (
+      itemPath === "/dashboard/communications/communaute" &&
+      ["/dashboard/communications", "/dashboard/communications/campaigns/new", "/dashboard/communications/inbox", "/dashboard/communications/discussions"].includes(pathname)
+    ) {
       return item.href;
     }
   }

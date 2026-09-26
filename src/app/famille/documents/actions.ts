@@ -5,7 +5,7 @@ import { schoolDocUrl } from "@/lib/schoolDocuments";
 import { recordAudit } from "@/lib/audit";
 
 export async function getFamilyDocumentUrl(documentId: string) {
-  const auth = await requireActionContext("/famille");
+  const auth = await requireActionContext("/famille", { lecture: true });
   if (!auth.ok) return { error: auth.error };
 
   const res = await schoolDocUrl(auth.ctx, documentId, 180);

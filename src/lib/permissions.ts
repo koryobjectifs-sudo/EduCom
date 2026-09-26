@@ -183,6 +183,9 @@ export const ROLE_DENIALS: Partial<Record<RoleType, string[]>> = {
   PARENT: [
     "/dashboard/documents/validation",
     "/dashboard/grades/validation",
+    "/dashboard/grades/distribution",
+    // 26 sept. 2026 — bilan de la semaine : enseignants, direction, secrétariat (consultation).
+    "/dashboard/grades/bilan-semaine",
     "/dashboard/payments/expenses",
     "/dashboard/payments/statement",
     "/dashboard/payments/review",
@@ -263,6 +266,10 @@ export const ROLE_DENIALS: Partial<Record<RoleType, string[]>> = {
     // Lot 15 — voir ci-dessous : publier un document officiel est un acte de
     // direction, pas une tâche de service.
     "/dashboard/documents/centre/gestion",
+    // 26 sept. 2026 — distribuer les bulletins aux familles : direction et secrétariat.
+    "/dashboard/grades/distribution",
+    // 26 sept. 2026 — bilan de la semaine : enseignants, direction, secrétariat (consultation).
+    "/dashboard/grades/bilan-semaine",
   ],
 
   // ═══ Lot 15 — publier engage l'établissement ═══
@@ -280,6 +287,9 @@ export const ROLE_DENIALS: Partial<Record<RoleType, string[]>> = {
     "/dashboard/documents/validation",
     "/dashboard/grades/validation",
     "/dashboard/documents/centre/gestion",
+    "/dashboard/grades/distribution",
+    // 26 sept. 2026 — bilan de la semaine : enseignants, direction, secrétariat (consultation).
+    "/dashboard/grades/bilan-semaine",
   ],
   TEACHER: [
     "/dashboard/documents/validation",
@@ -289,6 +299,8 @@ export const ROLE_DENIALS: Partial<Record<RoleType, string[]>> = {
     // est réservé à la direction. `TEACHER` hérite de `/dashboard/grades` par
     // préfixe pour la saisie ; ce sous-chemin précis lui reste fermé.
     "/dashboard/grades/conseil",
+    // 26 sept. 2026 — la distribution aux familles suit le conseil : même règle.
+    "/dashboard/grades/distribution",
   ],
   SECRETARY: ["/dashboard/documents/centre/gestion"],
 };

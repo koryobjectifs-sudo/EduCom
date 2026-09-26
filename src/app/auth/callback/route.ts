@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { abonnementInitial } from '@/lib/subscription'
 
 /**
  * Retour du lien de confirmation d'adresse (et de tout lien e-mail Supabase).
@@ -90,6 +91,8 @@ export async function GET(request: Request) {
                 teachers: false,
                 payments: false,
               },
+              // Essai de 7 jours de l'abonnement EduCom, dès l'inscription.
+              subscription: { create: abonnementInitial() },
             },
           })
           await tx.user.create({

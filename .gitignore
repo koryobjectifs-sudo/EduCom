@@ -81,6 +81,7 @@ next-env.d.ts
 # ⚠️ `backups/` contient des extraits de la base de production (comptages,
 # écoles supprimées). Utile localement, jamais dans un dépôt.
 /backups/
+/scripts/backups/
 
 # ─── Système et journaux ─────────────────────────────────────────────────────
 .DS_Store

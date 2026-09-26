@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 // Re-evaluating Prisma client instance
-const globalForPrisma = global as unknown as { prisma?: PrismaClient; pool?: Pool };
+const globalForPrisma = global as unknown as { prisma?: PrismaClient; pool?: Pool; prismaClasse?: unknown };
 
 const connectionString = `${process.env.DATABASE_URL}`;
 
@@ -28,8 +28,16 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.pool = pool;
 
 const adapter = new PrismaPg(pool, schema ? { schema } : undefined);
 
+// ⚠️ 26 sept. 2026 — client périmé après `prisma generate` / `db push` :
+// en dev, le singleton survivait au rechargement et gardait l'ANCIEN schéma
+// (crash `logoSize` du 25/09, « Client Prisma obsolète »), d'où un redémarrage
+// obligatoire de `npm run dev`. Le module généré étant réévalué quand ses
+// fichiers changent, sa classe `PrismaClient` change aussi : on ne réutilise le
+// singleton que s'il vient de la MÊME classe, sinon on en crée un neuf.
+const singletonAJour = globalForPrisma.prisma !== undefined && globalForPrisma.prismaClasse === PrismaClient;
+
 const basePrisma =
-  globalForPrisma.prisma ||
+  (singletonAJour ? globalForPrisma.prisma : undefined) ||
   new PrismaClient({
     adapter,
     log: [
@@ -39,7 +47,10 @@ const basePrisma =
     ],
   });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = basePrisma;
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = basePrisma;
+  globalForPrisma.prismaClasse = PrismaClient;
+}
 
 if (process.env.NODE_ENV !== "production") {
   const EXPECTED_MODELS = [

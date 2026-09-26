@@ -99,3 +99,8 @@ Quand l'utilisateur demande de ne rien faire et d'expliquer simplement (ou de ne
 ## 10. Performance au top (Batching)
 
 La plateforme doit être extrêmement rapide et fluide. Pour toute opération massive (création en masse, importations de 500+ entités), n'utilisez jamais de requêtes séquentielles dans une boucle. Privilégiez systématiquement le batching (`createMany`, `createManyAndReturn`) pour réduire le nombre de requêtes à son strict minimum.
+
+## 11. Tolérance zéro sur les routes et workflows (Refonte UX/UI)
+
+Cette refonte ne modifie **JAMAIS** les routes, le routing, ni les workflows existants. C'est **purement UX et UI**. Toutes les URL, redirections, query params, modals, logiques de soumission, formulaires et permissions restent 100% identiques et opérationnels.
+

@@ -5,7 +5,7 @@ import Script from "next/script";
 import { MessageCircle, Link2, Unlink } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
-import { simulateConnectWhatsApp, disconnectWhatsApp, finalizeWhatsAppConnection } from "@/app/dashboard/settings/actions";
+import { simulateConnectWhatsApp, disconnectWhatsApp, finalizeWhatsAppConnection } from "./whatsappActions";
 import { formatDate } from "@/lib/dateUtils";
 
 export type WhatsAppSchoolInfo = {

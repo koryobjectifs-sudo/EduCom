@@ -66,6 +66,10 @@ model School {
   logo                String?
   stamp               String?
   signature           String?
+  /// Tailles personnalisées en pixels (ajustables dans Paramètres et répercutées sur les documents)
+  logoSize            Int?     @default(80)
+  stampSize           Int?     @default(80)
+  signatureSize       Int?     @default(60)
   /// Couleur d'ancrage de l'école, en hexadécimal (ex. "#0B1F3A").
   /// `null` = charte EduCom par défaut, définie dans `globals.css`.
   /// SEULE couleur stockée : survol, état actif et accent en sont dérivés en
@@ -184,6 +188,15 @@ model School {
   whatsappName              String?
   whatsappPhone             String?
   whatsappConnectedAt       DateTime?
+
+  /// Abonnement de l'école À EDUCOM (≠ paiements des familles). 25 sept. 2026.
+  subscription         SchoolSubscription?
+  subscriptionPayments SubscriptionPayment[]
+
+  /// Communauté (remplace la communication WhatsApp). 25 sept. 2026.
+  communityPosts CommunityPost[]
+  communityChannels CommunityChannel[]
+  communityForms    CommunityForm[]
 }
 
 model User {
@@ -228,6 +241,9 @@ model User {
 
   @@index([schoolId])
   @@index([managerId])
+
+  communityPosts    CommunityPost[]    @relation("CommunityPostAuthor")
+  communityComments CommunityComment[] @relation("CommunityCommentAuthor")
 }
 
 /// Rattachement contextuel multi-établissements (Phase 1 simplification) :
@@ -440,6 +456,8 @@ model Class {
   @@index([schoolId, name])
   @@index([academicYear])
   @@unique([schoolId, name, academicYear])
+
+  communityPosts CommunityPost[]
 }
 
 model Enrollment {
@@ -1095,6 +1113,27 @@ enum ReportCardStatus {
   SUBMITTED // déposé au secrétariat
   RETURNED // renvoyé pour correction, redevient modifiable
   APPROVED // vérifié par le secrétariat, imprimable
+}
+
+/// Distribution des bulletins aux familles — 26 sept. 2026 (règle de Kory).
+///
+/// La validation (APPROVED) reste INTERNE : c'est le « bon à tirer » du
+/// secrétariat, avant le conseil de classe. Un parent ne voit le bulletin d'un
+/// trimestre qu'une fois la distribution décidée par la direction ou le
+/// secrétariat ET sa date atteinte (`publishAt`). Les parents sont alors
+/// notifiés (`notifiedAt`). Règles : `src/lib/bulletinsParents.ts`.
+model BulletinDistribution {
+  id          String    @id @default(uuid())
+  schoolId    String
+  termId      String
+  classId     String
+  publishAt   DateTime
+  createdById String
+  notifiedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([termId, classId])
+  @@index([schoolId, publishAt])
 }
 
 /// L'état du bulletin d'un élève pour une évaluation donnée.
@@ -2141,4 +2180,550 @@ model Lesson {
   @@index([classId])
   @@index([teacherId])
   @@index([schoolId, dayOfWeek])
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ * ABONNEMENT DE L'ÉCOLE À EDUCOM — 25 sept. 2026
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Kory : l'API de paiement Wave sert UNIQUEMENT à l'abonnement de l'école à
+ * EduCom — jamais aux factures ni aux paiements des familles (tables
+ * `Invoice` / `Payment`, qui restent saisis par l'école).
+ *
+ * ⚠️ Aucune colonne « statut » : l'état (essai, actif, en retard, lecture
+ * seule) est DÉDUIT des dates par `src/lib/subscription.ts`. Un statut stocké
+ * finirait par contredire les dates (tâche planifiée manquée, correction à la
+ * main…) ; des dates, non.
+ */
+model SchoolSubscription {
+  id       String @id @default(uuid())
+  schoolId String @unique
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  /// Offre souscrite. Une seule offre payante aujourd'hui : "PRO".
+  plan String @default("PRO")
+
+  /// Fin de l'essai gratuit (7 jours, `TRIAL_DAYS`).
+  trialEndsAt      DateTime
+  /// Fin de la dernière période payée ; `null` tant que rien n'a été payé.
+  currentPeriodEnd DateTime?
+
+  /// Relances déjà déposées, clé = « <échéance ISO>:<jalon> ». Empêche
+  /// d'envoyer deux fois la même relance si la tâche quotidienne repasse.
+  remindersSent String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments SubscriptionPayment[]
+}
+
+/// Un règlement d'abonnement via Wave Checkout. Créé EN_ATTENTE à l'ouverture
+/// de la session, passé PAYE uniquement par le webhook signé de Wave, après
+/// relecture de la session auprès de Wave.
+model SubscriptionPayment {
+  id             String             @id @default(uuid())
+  schoolId       String
+  school         School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  subscription   SchoolSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  provider  String @default("WAVE")
+  /// Montant en francs CFA, entier.
+  amountXof Int
+  /// Nombre de mois payés.
+  months    Int    @default(1)
+
+  /// EN_ATTENTE → PAYE | ECHEC | EXPIRE
+  status String @default("EN_ATTENTE")
+
+  /// Identifiant de la session Wave (`cos-…`) et référence envoyée à Wave.
+  checkoutSessionId String? @unique
+  clientReference   String  @unique
+  transactionId     String?
+
+  /// Période couverte, fixée au moment du paiement confirmé.
+  periodStart DateTime?
+  periodEnd   DateTime?
+  paidAt      DateTime?
+
+  /// Utilisateur (directeur) qui a lancé le paiement.
+  initiatedBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId, createdAt])
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ * COMMUNAUTÉ — « Product Change » du 25 sept. 2026
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Kory : l'API WhatsApp imposait à chaque école de connecter son propre
+ * compte — expérience trop difficile. La communication devient interne :
+ * « EduCom = Éducation + Communauté ». Phase 1 : fil de l'école et espaces de
+ * classe, réactions et commentaires, accusés de lecture, signalements.
+ *
+ * Qui voit / qui publie : `src/lib/community.ts` (seule autorité).
+ * Pas de message parent ↔ parent (décision Kory).
+ */
+model CommunityPost {
+  id       String @id @default(uuid())
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User   @relation("CommunityPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  /// "ECOLE" (tout l'établissement), "CLASSE" (une classe : `classId`)
+  /// ou "CANAL" (un canal créé par l'école : `channelId`).
+  audience  String  @default("ECOLE")
+  classId   String?
+  class     Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  channelId String?
+  channel   CommunityChannel? @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  body String
+
+  pinned          Boolean @default(false)
+  /// « À lire obligatoirement » : les parents confirment « J'ai lu ».
+  mustRead        Boolean @default(false)
+  commentsEnabled Boolean @default(true)
+
+  /// Modération : masqué par la direction (jamais supprimé en silence).
+  hiddenAt DateTime?
+  hiddenBy String?
+
+  /// Texte modifié par son auteur (affiche « modifié »). 26 sept. 2026.
+  editedAt        DateTime?
+  /// Message programmé : `createdAt` = heure de parution, invisible (sauf pour l'auteur) avant.
+  scheduledAt     DateTime?
+  /// Programmé : notifications envoyées (idempotence du déclenchement).
+  announcedAt     DateTime?
+  /// Programmé : mentions à prévenir à la parution.
+  pendingMentions Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comments  CommunityComment[]
+  reactions CommunityReaction[]
+  reads     CommunityRead[]
+  reports   CommunityReport[]
+  medias    CommunityMedia[]
+  poll      CommunityPoll?
+
+  @@index([schoolId, createdAt])
+  @@index([schoolId, classId, createdAt])
+  @@index([channelId, createdAt])
+}
+
+/**
+ * Canaux de la Communauté — 26 sept. 2026 (refonte façon Slack, demande de Kory :
+ * « créer un canal parents, un canal comité… »). S'ajoutent au canal
+ * « général » (audience ECOLE) et aux canaux de classe (audience CLASSE).
+ *
+ * kind :
+ *   "PARENTS"   → tout le personnel + tous les parents de l'école ;
+ *   "PERSONNEL" → le personnel uniquement (salle des profs) ;
+ *   "MEMBRES"   → sur invitation (comité, APE…) : membres listés
+ *                 + la direction (modération).
+ * Règles : `src/lib/community.ts` (seule autorité).
+ */
+model CommunityChannel {
+  id          String  @id @default(uuid())
+  schoolId    String
+  school      School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  kind        String  @default("PARENTS")
+  /// kind "REGLES" (26 sept.) : règles d'audience « à la @ » — voir `src/lib/audience.ts`.
+  audience    Json?
+  /// Les membres (et pas seulement la direction / le secrétariat) peuvent publier.
+  membersCanPost Boolean @default(false)
+  createdById String
+  archivedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  posts   CommunityPost[]
+  members CommunityChannelMember[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId, archivedAt])
+}
+
+model CommunityChannelMember {
+  id        String           @id @default(uuid())
+  channelId String
+  channel   CommunityChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime         @default(now())
+
+  @@unique([channelId, userId])
+  @@index([userId])
+}
+
+/// Dernière visite d'un espace (général, classe, canal) : pastilles « non lu » de la barre latérale.
+/// `espace` = "ECOLE", "classe:<id>" ou "canal:<id>".
+model CommunitySpaceRead {
+  id         String   @id @default(uuid())
+  schoolId   String
+  userId     String
+  espace     String
+  lastReadAt DateTime @default(now())
+
+  @@unique([userId, espace])
+  @@index([schoolId, userId])
+}
+
+model CommunityComment {
+  id       String        @id @default(uuid())
+  postId   String
+  post     CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  schoolId String
+  authorId String
+  author   User          @relation("CommunityCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  body     String
+  hiddenAt DateTime?
+  hiddenBy String?
+  createdAt DateTime @default(now())
+
+  reports CommunityReport[]
+
+  @@index([postId, createdAt])
+}
+
+/**
+ * Sondage attaché à une publication — 26 sept. 2026 (remplace les sondages
+ * par lien public de l'ère WhatsApp). Même visibilité que la publication ;
+ * on vote dans l'application, une fois par personne (identité connue).
+ * `anonymous` : le personnel ne voit pas QUI a voté quoi. Les parents ne
+ * voient jamais les noms des autres votants.
+ */
+model CommunityPoll {
+  id        String        @id @default(uuid())
+  postId    String        @unique
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  question  String
+  multiple  Boolean       @default(false)
+  anonymous Boolean       @default(false)
+  closesAt  DateTime?
+  /// Résultats annoncés aux destinataires (clôture manuelle ou date atteinte) — idempotence.
+  resultsNotifiedAt DateTime?
+  createdAt DateTime      @default(now())
+
+  options CommunityPollOption[]
+  votes   CommunityPollVote[]
+}
+
+model CommunityPollOption {
+  id       String        @id @default(uuid())
+  pollId   String
+  poll     CommunityPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  label    String
+  position Int           @default(0)
+
+  votes CommunityPollVote[]
+
+  @@index([pollId])
+}
+
+model CommunityPollVote {
+  id        String              @id @default(uuid())
+  pollId    String
+  poll      CommunityPoll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId  String
+  option    CommunityPollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime            @default(now())
+
+  @@unique([pollId, optionId, userId])
+  @@index([pollId, userId])
+}
+
+/**
+ * Formulaires façon Google Form — 26 sept. 2026 (demande de Kory : « tout se
+ * passe dans EduCom »). Envoyés à des personnes choisies (règles « @ » +
+ * personnes nommées, figées dans `CommunityFormRecipient` à l'envoi), remplis
+ * dans l'application, une réponse par personne (modifiable jusqu'à la clôture).
+ * `anonymous` : les résultats n'affichent pas les noms (la ligne garde
+ * `userId` pour empêcher les doublons). Règles : `src/lib/formulaires.ts`.
+ */
+model CommunityForm {
+  id          String    @id @default(uuid())
+  schoolId    String
+  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  authorId    String
+  title       String
+  description String?
+  /// [{ id, type: "choix"|"cases"|"court"|"long"|"echelle"|"date", titre, obligatoire, options? }]
+  questions   Json
+  /// Règles « @ » d'origine (affichage) — les destinataires réels sont figés à l'envoi.
+  audience    Json?
+  anonymous   Boolean   @default(false)
+  closesAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  recipients CommunityFormRecipient[]
+  responses  CommunityFormResponse[]
+
+  @@index([schoolId, createdAt])
+}
+
+model CommunityFormRecipient {
+  id     String        @id @default(uuid())
+  formId String
+  form   CommunityForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+  userId String
+  /// Première ouverture du formulaire par le destinataire (preuve de réception).
+  seenAt DateTime?
+
+  @@unique([formId, userId])
+  @@index([userId])
+}
+
+model CommunityFormResponse {
+  id        String        @id @default(uuid())
+  formId    String
+  form      CommunityForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+  userId    String
+  answers   Json
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([formId, userId])
+}
+
+/// Une réaction par personne et par publication (changer = remplacer).
+model CommunityReaction {
+  id        String        @id @default(uuid())
+  postId    String
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  /// "JAIME" | "BRAVO" | "MERCI"
+  kind      String
+  createdAt DateTime      @default(now())
+
+  @@unique([postId, userId])
+}
+
+/// Accusé de lecture (« J'ai lu ») — sert au « lu par X % » des annonces obligatoires.
+model CommunityRead {
+  id     String        @id @default(uuid())
+  postId String
+  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  readAt DateTime      @default(now())
+
+  @@unique([postId, userId])
+}
+
+/// Signalement d'une publication ou d'un commentaire à la direction.
+model CommunityReport {
+  id         String            @id @default(uuid())
+  schoolId   String
+  postId     String?
+  post       CommunityPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  commentId  String?
+  comment    CommunityComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  reporterId String
+  reason     String
+  resolvedAt DateTime?
+  createdAt  DateTime          @default(now())
+
+  @@index([schoolId, resolvedAt])
+}
+
+/**
+ * Médias de la Communauté (photos, vidéos, PDF) — phase 2, 25 sept. 2026.
+ * Fichiers dans le bucket Storage PRIVÉ `community-media`, envoyés
+ * directement par le navigateur via une URL d'envoi signée (les server actions
+ * plafonnent à 1 Mo). Lecture par URL signée de courte durée.
+ * Un média naît « libre » (sans postId / messageId) puis est rattaché à la
+ * publication ou au message ; seul son auteur peut le rattacher.
+ */
+model CommunityMedia {
+  id          String  @id @default(uuid())
+  schoolId    String
+  uploaderId  String
+  /// "IMAGE" | "VIDEO" | "PDF"
+  kind        String
+  storagePath String  @unique
+  mime        String
+  sizeBytes   Int
+  fileName    String?
+  width       Int?
+  height      Int?
+  durationSec Int?
+  position    Int     @default(0)
+
+  postId    String?
+  post      CommunityPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  messageId String?
+  message   CommunityMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([schoolId, uploaderId])
+  @@index([postId])
+  @@index([messageId])
+}
+
+/**
+ * Messagerie privée — phase 3, 25 sept. 2026 (« notre propre WhatsApp »).
+ *
+ * Une conversation relie UN parent et UN service de l'école, À PROPOS D'UN
+ * élève (son enfant) : ENSEIGNANT (de la classe de l'élève), SECRETARIAT,
+ * COMPTABILITE ou DIRECTION. Côté école, c'est une boîte d'équipe : tous les
+ * membres du service voient la conversation. Jamais de parent ↔ parent.
+ */
+model CommunityConversation {
+  id        String @id @default(uuid())
+  schoolId  String
+  /// "FAMILLE" : un parent ↔ un service, à propos d'un élève (parentId, studentId, canal).
+  /// "EQUIPE"  : deux membres du personnel (userAId < userBId) — 26 sept. 2026.
+  ///            Strictement privé : même la direction ne le voit pas.
+  kind      String  @default("FAMILLE")
+  parentId  String?
+  studentId String?
+  userAId   String?
+  userBId   String?
+  /// "ENSEIGNANT" | "SECRETARIAT" | "COMPTABILITE" | "DIRECTION" | "EQUIPE"
+  canal     String
+  /// Classe de l'élève à l'ouverture (canal ENSEIGNANT).
+  classId   String?
+  sujet     String?
+
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  messages CommunityMessage[]
+  reads    CommunityConversationRead[]
+
+  @@unique([schoolId, parentId, studentId, canal])
+  @@unique([schoolId, userAId, userBId])
+  @@index([schoolId, canal, lastMessageAt])
+  @@index([schoolId, parentId, lastMessageAt])
+}
+
+model CommunityMessage {
+  id             String                @id @default(uuid())
+  conversationId String
+  conversation   CommunityConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  schoolId       String
+  authorId       String
+  body           String
+  deletedAt      DateTime?
+  /// Modifié par son auteur ; programmé (`createdAt` = heure d'envoi) ; notifié. 26 sept. 2026.
+  editedAt       DateTime?
+  scheduledAt    DateTime?
+  announcedAt    DateTime?
+  createdAt      DateTime              @default(now())
+
+  medias CommunityMedia[]
+
+  @@index([conversationId, createdAt])
+}
+
+/// Dernière lecture d'une conversation par une personne (pastilles « non lu »).
+model CommunityConversationRead {
+  id             String                @id @default(uuid())
+  conversationId String
+  conversation   CommunityConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  lastReadAt     DateTime              @default(now())
+
+  @@unique([conversationId, userId])
+}
+
+/// Abonnements aux notifications push du navigateur — phase 4.
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  schoolId  String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  lastUsedAt DateTime?
+
+  @@index([userId])
+}
+
+/// Bilan de la semaine d'un élève — 26 sept. 2026 (demande de Kory).
+/// L'enseignant évalue chaque matière de la classe (acquis / en cours / non
+/// acquis), signale leçons non sues et devoirs non faits, et l'envoie aux
+/// parents avec des actions pour le week-end. Règles : `lib/bilanSemaine.ts`.
+/// Pas de relation déclarée : lu seulement par le code du bilan (une base pas
+/// encore à jour ne casse rien ailleurs).
+model WeeklyReview {
+  id        String   @id @default(uuid())
+  schoolId  String
+  classId   String
+  studentId String
+  /// Lundi de la semaine (00:00 UTC).
+  weekStart DateTime
+  /// { [colonneId]: "A" | "EC" | "NA" | "" } — colonne = matière (secondaire) ou domaine (élémentaire). Absent = auto (d'après les notes).
+  levels    Json     @default("{}")
+  lessonsNotLearned Boolean @default(false)
+  homeworkNotDone   Boolean @default(false)
+  /// "COMPETENT" | "PROGRES" | "AIDE" ; null = calculé.
+  verdict   String?
+  comment   String?
+  authorId  String
+  /// Ce que le parent a reçu, figé à l'envoi (notes, niveaux, actions).
+  snapshot  Json?
+  sentAt    DateTime?
+  seenAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, weekStart])
+  @@index([schoolId, classId, weekStart])
+}
+
+/// Actions proposées aux parents par matière (modifiables par la direction). Bilan de la semaine.
+model WeeklyReviewSetting {
+  schoolId  String   @id
+  /// { [nom de matière normalisé | "LECONS" | "DEVOIRS"]: texte }
+  actions   Json     @default("{}")
+  updatedAt DateTime @updatedAt
+}
+
+/// Observation d'un enseignant sur un élève, un jour, dans une matière — 26 sept. 2026.
+/// Base du bilan de la semaine (v2) : « Espagnol ❌ phonétique, grammaire · devoir 9/20 ».
+/// `subjectKey` : id de matière (secondaire), de sous-discipline (élémentaire),
+/// ou "LECONS" / "DEVOIRS" / "GENERAL". Règles : `lib/bilanRegles.ts`.
+model StudentObservation {
+  id          String    @id @default(uuid())
+  schoolId    String
+  classId     String
+  studentId   String
+  subjectKey  String
+  /// Nom de la matière au moment de l'observation (affichage stable).
+  subjectName String
+  /// Jour de l'observation (00:00 UTC).
+  date        DateTime
+  /// "TRAVAIL" (à travailler) ou "FORT" (point fort).
+  kind        String
+  /// Points précis : ["phonétique", "grammaire"].
+  topics      Json      @default("[]")
+  gradeLabel  String?
+  gradeValue  Float?
+  gradeMax    Float?
+  action      String?
+  comment     String?
+  authorId    String
+  /// Parent prévenu (« point du jour » ou envoi immédiat).
+  notifiedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([schoolId, classId, date])
+  @@index([studentId, date])
 }

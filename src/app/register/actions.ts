@@ -14,6 +14,7 @@ import {
 } from '@/lib/validations'
 import { checkRegisterRateLimit, logSecurityFailure } from '@/lib/rateLimit'
 import { z } from 'zod'
+import { abonnementInitial } from '@/lib/subscription'
 
 export type RegisterResult =
   | { error: string; dejaInscrit?: boolean; fieldErrors?: Record<string, string> }
@@ -172,6 +173,8 @@ export async function register(formData: FormData): Promise<RegisterResult | voi
             teachers: false,
             payments: false,
           },
+          // Essai de 7 jours de l'abonnement EduCom, dès l'inscription.
+          subscription: { create: abonnementInitial() },
         },
       })
       await tx.user.create({
