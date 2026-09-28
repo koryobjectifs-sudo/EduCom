@@ -7,6 +7,8 @@ import FiltrePeriode from "@/components/FiltrePeriode";
 import GraphiqueMultiMetriques from "@/components/charts/GraphiqueMultiMetriques";
 import RepartitionMoyensPaiement from "@/components/charts/RepartitionMoyensPaiement";
 import CockpitTaches from "@/components/CockpitTaches";
+import IndicateursCroissanceEtChurn from "@/components/IndicateursCroissanceEtChurn";
+import TemplateEmailTesteurs from "@/components/TemplateEmailTesteurs";
 
 const pct = (x: number | null) => (x === null ? "—" : `${Math.round(x * 100)} %`);
 
@@ -81,6 +83,9 @@ export default async function VueEnsemble({
           href="/ecoles?f=PAYANTE"
         />
       </div>
+
+      {/* ═══ TAUX DE CROISSANCE & CHURN (GROWTH RATES & RETENTION) ═══ */}
+      <IndicateursCroissanceEtChurn croissance={v.croissance} />
 
       {/* ═══ ACTIONS PRIORITAIRES DU JOUR ═══ */}
       <CockpitTaches
@@ -238,6 +243,9 @@ export default async function VueEnsemble({
           ))}
         </Bloc>
       </div>
+
+      {/* ═══ KIT DE COMMUNICATION & TEMPLATE EMAIL TESTEURS ═══ */}
+      <TemplateEmailTesteurs />
     </div>
   );
 }

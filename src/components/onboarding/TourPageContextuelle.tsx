@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { usePathname } from "next/navigation";
-import { X, ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { SECTIONS_FORMATION, type SectionFormation, type EtapeFormationPage } from "@/lib/onboarding-metiers";
 
 interface PositionBulle {
@@ -261,7 +261,7 @@ function TourPageContenu({ sectionCourante }: { sectionCourante: SectionFormatio
           />
         )}
 
-        {/* En-tête : Badge Formation + Compteur + Bouton fermer */}
+        {/* En-tête : Badge Formation + Compteur (sans bouton de fermeture) */}
         <div className="flex items-center justify-between gap-2 mb-1">
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700">
@@ -271,14 +271,9 @@ function TourPageContenu({ sectionCourante }: { sectionCourante: SectionFormatio
               {etapeIndex + 1}/{etapes.length}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={cloreTour}
-            aria-label="Fermer la formation"
-            className="rounded p-0.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
+          <span className="text-[9.5px] font-medium text-slate-400">
+            Guide pas-à-pas
+          </span>
         </div>
 
         {/* Titre */}
@@ -298,22 +293,28 @@ function TourPageContenu({ sectionCourante }: { sectionCourante: SectionFormatio
           </div>
         )}
 
-        {/* Barre de contrôles */}
+        {/* Barre de contrôles : Précédent et Suivant/Terminer forcé */}
         <div className="mt-3.5 flex items-center justify-between pt-2 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={cloreTour}
-            className="text-[11px] font-medium text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-          >
-            Passer
-          </button>
+          {etapeIndex > 0 ? (
+            <button
+              type="button"
+              onClick={() => setEtapeIndex((prev) => prev - 1)}
+              className="text-[11px] font-medium text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+            >
+              ← Précédent
+            </button>
+          ) : (
+            <span className="text-[10px] text-slate-400 font-medium">
+              Étape {etapeIndex + 1}
+            </span>
+          )}
 
           <button
             type="button"
             onClick={etapeSuivante}
-            className="inline-flex items-center gap-1 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-purple-700 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-purple-700 active:scale-95 transition-all cursor-pointer"
           >
-            <span>{estDerniereEtape ? "Terminer" : "Suivant"}</span>
+            <span>{estDerniereEtape ? "Terminer la formation" : "Suivant"}</span>
             {estDerniereEtape ? (
               <Check className="h-3.5 w-3.5" />
             ) : (

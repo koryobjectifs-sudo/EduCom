@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { X, ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { getOnboardingConfig, type EtapeTour } from "@/lib/onboarding-metiers";
 import { marquerGuideVu } from "@/app/dashboard/aide/actions";
 import { useSidebarSlot } from "@/components/layout/SidebarSlot";
@@ -35,14 +35,15 @@ export default function WalkthroughInteractif({
   const [positionBulle, setPositionBulle] = useState<PositionBulle | null>(null);
   const [enTransition, setEnTransition] = useState(false);
 
-  // Réinitialiser systématiquement à la première étape (1/N) dès l'ouverture du tour
+  const prevOuvertRef = useRef(ouvert);
   useEffect(() => {
-    if (ouvert) {
+    if (ouvert && !prevOuvertRef.current) {
       setEtapeIndex(0);
       setCibleRect(null);
       setPositionBulle(null);
       setEnTransition(false);
     }
+    prevOuvertRef.current = ouvert;
   }, [ouvert]);
 
   const bulleRef = useRef<HTMLDivElement>(null);
@@ -96,6 +97,32 @@ export default function WalkthroughInteractif({
     []
   );
 
+  const cloreTour = useCallback(async () => {
+    onFermer();
+    // Quand le tour est fini, on ouvre la 2e sidebar sur la checklist de démarrage (Temps 3)
+    setGuideActif(true);
+    try {
+      sessionStorage.setItem("educom_tour_dismissed", "true");
+      await marquerGuideVu();
+    } catch {
+      // Ignorer
+    }
+  }, [onFermer, setGuideActif]);
+
+  const etapeSuivante = useCallback(() => {
+    if (etapeIndex < tour.length - 1) {
+      setEtapeIndex((prev) => prev + 1);
+    } else {
+      cloreTour();
+    }
+  }, [etapeIndex, tour.length, cloreTour]);
+
+  const etapePrecedente = useCallback(() => {
+    if (etapeIndex > 0) {
+      setEtapeIndex((prev) => prev - 1);
+    }
+  }, [etapeIndex]);
+
   // Recherche et ancrage sur l'élément de l'étape courante
   useEffect(() => {
     if (!ouvert || !etapeCourante) return;
@@ -106,7 +133,6 @@ export default function WalkthroughInteractif({
 
     // Si l'étape requiert une autre page, on navigue d'abord
     if (etapeCourante.pageCible && pathname !== etapeCourante.pageCible) {
-      setEnTransition(true);
       router.push(etapeCourante.pageCible);
     }
 
@@ -156,41 +182,13 @@ export default function WalkthroughInteractif({
       window.removeEventListener("resize", onResizeOrScroll);
       window.removeEventListener("scroll", onResizeOrScroll, true);
     };
-  }, [ouvert, etapeIndex, etapeCourante, pathname, router, calculerPosition, tour.length]);
+  }, [ouvert, etapeIndex, etapeCourante, pathname, router, calculerPosition, tour.length, cloreTour]);
 
-  const cloreTour = async () => {
-    onFermer();
-    // Quand le tour est fini ou quitté, on ouvre la 2e sidebar sur la checklist de démarrage (Temps 3)
-    setGuideActif(true);
-    try {
-      sessionStorage.setItem("educom_tour_dismissed", "true");
-      await marquerGuideVu();
-    } catch {
-      // Ignorer
-    }
-  };
-
-  const etapeSuivante = () => {
-    if (etapeIndex < tour.length - 1) {
-      setEtapeIndex((prev) => prev + 1);
-    } else {
-      cloreTour();
-    }
-  };
-
-  const etapePrecedente = () => {
-    if (etapeIndex > 0) {
-      setEtapeIndex((prev) => prev - 1);
-    }
-  };
-
-  // Raccourcis clavier : Échap (quitter), Entrée ou Flèche droite (suivant), Flèche gauche (précédent)
+  // Raccourcis clavier : Entrée ou Flèche droite (suivant), Flèche gauche (précédent) — Échap désactivé pour forcer le tour
   useEffect(() => {
     if (!ouvert) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        cloreTour();
-      } else if (e.key === "Enter" || e.key === "ArrowRight") {
+      if (e.key === "Enter" || e.key === "ArrowRight") {
         e.preventDefault();
         etapeSuivante();
       } else if (e.key === "ArrowLeft") {
@@ -200,7 +198,7 @@ export default function WalkthroughInteractif({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [ouvert, etapeIndex, tour.length]);
+  }, [ouvert, etapeSuivante, etapePrecedente]);
 
   if (!ouvert || !etapeCourante || enTransition || !cibleRect || !positionBulle) {
     return null;
@@ -268,19 +266,14 @@ export default function WalkthroughInteractif({
           />
         )}
 
-        {/* En-tête : Progression discrète + bouton fermer */}
+        {/* En-tête : Progression pas-à-pas obligatoire sans option de fermeture prématurée */}
         <div className="flex items-center justify-between gap-2 mb-1.5">
-          <span className="text-[10.5px] font-bold uppercase tracking-wider text-purple-700">
-            {etapeIndex + 1}/{tour.length}
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">
+            Guide pas-à-pas · Étape {etapeIndex + 1}/{tour.length}
           </span>
-          <button
-            type="button"
-            onClick={cloreTour}
-            aria-label="Quitter le tour"
-            className="rounded p-0.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <span className="text-[10px] font-medium text-slate-400">
+            Parcours découverte
+          </span>
         </div>
 
         {/* Titre du module */}
@@ -300,22 +293,28 @@ export default function WalkthroughInteractif({
           </div>
         )}
 
-        {/* Barre de contrôles : Passer le tour à gauche, Suivant à droite */}
+        {/* Barre de contrôles : Précédent éventuel et Suivant/Terminer forcé */}
         <div className="mt-3.5 flex items-center justify-between pt-2.5 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={cloreTour}
-            className="text-[11px] font-medium text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-          >
-            Passer le tour
-          </button>
+          {etapeIndex > 0 ? (
+            <button
+              type="button"
+              onClick={() => setEtapeIndex((prev) => prev - 1)}
+              className="text-[11px] font-medium text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+            >
+              ← Précédent
+            </button>
+          ) : (
+            <span className="text-[10px] text-slate-400 font-medium">
+              Étape initiale
+            </span>
+          )}
 
           <button
             type="button"
             onClick={etapeSuivante}
             className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-frame-bg,#581C87)] px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:opacity-90 active:scale-95 transition-all cursor-pointer"
           >
-            <span>{estDerniereEtape ? "Terminer" : "Suivant"}</span>
+            <span>{estDerniereEtape ? "Terminer le guide" : "Suivant"}</span>
             {estDerniereEtape ? (
               <Check className="h-3.5 w-3.5" />
             ) : (

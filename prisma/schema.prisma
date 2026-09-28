@@ -2839,3 +2839,28 @@ model PilotageAccount {
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
 }
+
+/// ═══ Retours et Évaluations des Testeurs par Métier (28 sept. 2026) ═══
+/// Permet de recueillir le feedback micro par module (Accueil, Guide, Scolarité,
+/// Pédagogie, Finance, Communauté, Documents, Paramètres, Overall).
+model TesterFeedback {
+  id                String   @id @default(uuid())
+  schoolId          String
+  userId            String?
+  role              String   @default("OWNER")
+  testerName        String?
+  metierLabel       String   @default("Directeur")
+  
+  // Note globale et résumé
+  overallRating     Int      @default(5)
+  generalVerdict    String?
+  topPriorityChange String?  @db.Text
+
+  // Évaluations micro par module stockées en JSON structuré
+  modulesFeedback   Json     @default("{}")
+
+  createdAt         DateTime @default(now())
+
+  @@index([schoolId, role])
+  @@index([createdAt])
+}

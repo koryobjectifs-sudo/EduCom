@@ -16,6 +16,7 @@ import { useSidebarSlot } from "./SidebarSlot";
 import WalkthroughInteractif from "@/components/onboarding/WalkthroughInteractif";
 import SpotlightActionCible from "@/components/onboarding/SpotlightActionCible";
 import TourPageContextuelle from "@/components/onboarding/TourPageContextuelle";
+import GlobalQuizTesteur from "@/components/feedback/GlobalQuizTesteur";
 
 export interface AppShellProps {
   spaces: NavSpace[];
@@ -202,6 +203,9 @@ function AppShellInner({
 
       {/* Formation pas-à-pas sur les boutons de la page courante */}
       <TourPageContextuelle />
+
+      {/* Quiz et évaluation testeur accessible globalement */}
+      <GlobalQuizTesteur userRole={userRole} />
     </div>
   );
 }

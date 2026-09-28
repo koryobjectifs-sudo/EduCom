@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { type NavSpace } from "@/lib/navigation";
 import GlobalSearch from "./GlobalSearch";
 import Cloche from "@/components/community/Cloche";
@@ -84,8 +84,19 @@ export default function AppTopBar({
         {/* Centre : Recherche Globale Slack-style (Cmd+K) */}
         <GlobalSearch />
 
-        {/* Droite : cloche de notifications (26 sept. 2026) — garde l'équilibre visuel de la recherche */}
-        <div className="flex shrink-0 w-8 sm:w-16 justify-end">
+        {/* Droite : bouton Quiz Testeur + cloche de notifications */}
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 justify-end">
+          <SlackTooltip title="Quiz Testeur" tip="Donner votre évaluation micro sur le logiciel" placement="bottom" align="end">
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("educom:ouvrir_quiz_testeur"))}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-white/10 hover:bg-white/20 text-white text-[11px] font-semibold border border-white/15 transition-all cursor-pointer shadow-2xs"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-purple-200" />
+              <span className="hidden sm:inline">Quiz Testeur</span>
+            </button>
+          </SlackTooltip>
+
           <SlackTooltip title="Notifications" tip="Alertes de l'école et messages non lus" placement="bottom" align="end">
             <Cloche variante="sombre" />
           </SlackTooltip>

@@ -634,3 +634,111 @@ export function evaluerMetiersEcole(inp: InputMetiersEcole): AuditMetiersEcole {
     actionPrioritaire,
   };
 }
+
+/* ═══════════════════════ INDICATEURS DE CROISSANCE & CHURN (GROWTH RATES) ═══════════════════════ */
+
+export interface IndicateursCroissance {
+  /** Taux de croissance journalier (inscriptions aujourd'hui vs hier) */
+  dailyGrowthRate: number | null;
+  /** Inscriptions aujourd'hui */
+  inscriptionsAujourdhui: number;
+  /** Inscriptions hier */
+  inscriptionsHier: number;
+
+  /** Taux de croissance hebdomadaire (inscriptions 7j vs 7j précédents) */
+  weeklyGrowthRate: number | null;
+  /** Inscriptions sur les 7 derniers jours */
+  inscriptions7j: number;
+  /** Inscriptions sur les 7 jours antérieurs (J-14 à J-7) */
+  inscriptions7jPrecedents: number;
+
+  /** Taux de croissance mensuel (inscriptions 30j vs 30j précédents) */
+  monthlyGrowthRate: number | null;
+  /** Inscriptions sur les 30 derniers jours */
+  inscriptions30j: number;
+  /** Inscriptions sur les 30 jours antérieurs (J-60 à J-30) */
+  inscriptions30jPrecedents: number;
+
+  /** Croissance du chiffre d'affaires / encaissements (Mois M vs Mois M-1) */
+  mrrGrowthRate: number | null;
+  encaisseMoisActuel: number;
+  encaisseMoisPrecedent: number;
+
+  /** Taux de perte (Churn Rate global parmi les clients ayant payé) */
+  tauxChurn: number | null;
+  /** Taux de rétention (1 - Churn Rate) */
+  tauxRetention: number | null;
+  /** Taux d'abandon des essais non convertis */
+  tauxPerteEssais: number | null;
+
+  /** Taux d'activation produit (écoles actives avec au moins 1 élève) */
+  tauxActivation: number | null;
+}
+
+export function calculerTauxVariation(actuel: number, precedent: number): number | null {
+  if (precedent === 0) {
+    return actuel > 0 ? 1 : 0; // +100% si on démarre de 0, 0% si toujours 0
+  }
+  return (actuel - precedent) / precedent;
+}
+
+export function calculerIndicateursCroissance(params: {
+  inscriptionsAujourdhui: number;
+  inscriptionsHier: number;
+  inscriptions7j: number;
+  inscriptions7jPrecedents: number;
+  inscriptions30j: number;
+  inscriptions30jPrecedents: number;
+  encaisseMoisActuel: number;
+  encaisseMoisPrecedent: number;
+  compte: Record<Statut, number>;
+  totalEcoles: number;
+  ecolesAvecEleves: number;
+}): IndicateursCroissance {
+  const {
+    inscriptionsAujourdhui,
+    inscriptionsHier,
+    inscriptions7j,
+    inscriptions7jPrecedents,
+    inscriptions30j,
+    inscriptions30jPrecedents,
+    encaisseMoisActuel,
+    encaisseMoisPrecedent,
+    compte,
+    totalEcoles,
+    ecolesAvecEleves,
+  } = params;
+
+  const dailyGrowthRate = calculerTauxVariation(inscriptionsAujourdhui, inscriptionsHier);
+  const weeklyGrowthRate = calculerTauxVariation(inscriptions7j, inscriptions7jPrecedents);
+  const monthlyGrowthRate = calculerTauxVariation(inscriptions30j, inscriptions30jPrecedents);
+  const mrrGrowthRate = calculerTauxVariation(encaisseMoisActuel, encaisseMoisPrecedent);
+
+  const clients = compte.PAYANTE + compte.EN_RETARD + compte.PERDUE;
+  const tauxChurn = clients > 0 ? compte.PERDUE / clients : 0;
+  const tauxRetention = 1 - tauxChurn;
+
+  const totalEssaisTermines = compte.NON_CONVERTIE + clients;
+  const tauxPerteEssais = totalEssaisTermines > 0 ? compte.NON_CONVERTIE / totalEssaisTermines : 0;
+
+  const tauxActivation = totalEcoles > 0 ? ecolesAvecEleves / totalEcoles : 0;
+
+  return {
+    dailyGrowthRate,
+    inscriptionsAujourdhui,
+    inscriptionsHier,
+    weeklyGrowthRate,
+    inscriptions7j,
+    inscriptions7jPrecedents,
+    monthlyGrowthRate,
+    inscriptions30j,
+    inscriptions30jPrecedents,
+    mrrGrowthRate,
+    encaisseMoisActuel,
+    encaisseMoisPrecedent,
+    tauxChurn,
+    tauxRetention,
+    tauxPerteEssais,
+    tauxActivation,
+  };
+}

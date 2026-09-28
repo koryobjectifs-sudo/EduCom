@@ -1,10 +1,46 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 28 septembre 2026 — **Guidance End-to-End Métiers & Formulaires d'Action : Commit `fcc0cbc` poussé sur `origin/main`**
+> Dernière mise à jour : 28 septembre 2026 — **Célébration Festive Post-Quiz, Centrage Incitation, Guidage Obligatoire & Métriques de Pilotage (Growth/Churn/Template)**
 
-> **Progression — 28 septembre 2026 (Guidance End-to-End sur Formulaires d'Action & Déploiement `origin/main`).**
-> - **Commit & Déploiement Production** : Commit `fcc0cbc` poussé avec succès sur `origin/main` (225 fichiers modifiés/ajoutés).
-> - **Compilateur TypeScript & ESLint** : 0 erreur, 0 avertissement. Base de données Supabase 100% alignée (`prisma db push`).
+> **Progression — 28 septembre 2026 (Audios 13:25:19Z).**
+> - **Demande de Kory (Audio 1 & Audio 2)** :
+>   1. **Célébration festive post-quiz** : « Il y a pas de célébration de sensation et tout de motivation quand on utilise le quiz... une célébration magnifique en fait et des remerciements et tout ».
+>   2. **Centrage de l'incitation (Quiz Testeur 2 min)** : « Le pop-up quiz testeur 2 minutes... c'est toujours en bas... on va essayer tout juste de le mettre au milieu à chaque fois qu'on a l'occasion avec l'option fermer en fait ».
+>   3. **Guidage pas-à-pas non-fermable** : « Dans le walkthrough et le guide... je veux pas qu'il y ait l'option de fermer en fait. On va lui forcer à visiter le next step next step next step jusqu'à ce qu'il ait fini en fait ».
+>   4. **Outil de pilotage (`pilotage/`)** :
+>      - Redémarrer le serveur (`lsof -i :3001` était inactif).
+>      - Clarifier le déploiement permanent en ligne (Vercel / Cloudflare).
+>      - Ajouter le **Growth Rate** (Daily, Weekly, Monthly) et le **Taux de perte / Churn Rate**.
+>      - Fournir un **template d'e-mail corporate exceptionnel** aux couleurs fidèles d'EduCom (`#581C87`, logo, bouton CTA et quiz).
+> - **Ce qui a été implémenté et validé** :
+>   1. **Célébration festive post-quiz ([`ModalQuizTesteur.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/feedback/ModalQuizTesteur.tsx))** :
+>      - Trophée d'or scintillant 🏆 avec halo animé violet/ambre.
+>      - Pluie de confettis multicolores animés en CSS pur (28 particules dynamiques).
+>      - Message de remerciement et de valorisation adapté au rôle de l'utilisateur (Direction, Enseignants, Secrétariat, etc.).
+>      - Récapitulatif de la note attribuée avec étoiles dorées et bouton « Continuer sur EduCom → ».
+>   2. **Pop-up d'incitation centré ([`IncitationQuizTesteur.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/feedback/IncitationQuizTesteur.tsx))** :
+>      - Remplacé le bandeau bas-droite par une carte modale douce centrée au milieu de l'écran avec backdrop flouté (`backdrop-blur-xs bg-slate-950/40`).
+>      - Croix `X` de fermeture nette en haut à droite, option « Rappeler demain » et bouton direct « Donner mon avis ».
+>   3. **Guidage pas-à-pas forcé jusqu'au bout ([`WalkthroughInteractif.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/onboarding/WalkthroughInteractif.tsx), [`TourPageContextuelle.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/onboarding/TourPageContextuelle.tsx))** :
+>      - Suppression complète des boutons de fermeture `X` et « Passer le tour » / « Passer ».
+>      - Désactivation de l'écoute de la touche `Escape` pour garantir la complétion complète du parcours d'adoption.
+>      - Navigation fluide : « Précédent » et « Suivant → » / « Terminer le guide ».
+>   4. **Enrichissement de l'Outil de Pilotage ([`pilotage/`](file:///Users/kory/EduCom%20SaaS/pilotage))** :
+>      - Serveur de pilotage relancé et opérationnel sur `http://localhost:3001` (redirection sécurisée vers `/connexion`).
+>      - Nouvelles métriques calculées dans [`calculs.ts`](file:///Users/kory/EduCom%20SaaS/pilotage/src/lib/calculs.ts) et [`donnees.ts`](file:///Users/kory/EduCom%20SaaS/pilotage/src/lib/donnees.ts) :
+>        - **Daily Growth Rate** (Aujourd'hui vs Hier avec % et badge dynamique).
+>        - **Weekly Growth Rate** (7 derniers jours vs 7 jours antérieurs).
+>        - **Monthly Growth Rate** (30 derniers jours vs 30 jours antérieurs).
+>        - **MRR Growth Rate** (Mois M vs Mois M-1).
+>        - **Taux de Perte (Churn Rate)** + **Taux de Rétention** des clients payants.
+>        - **Taux d'abandon des essais** et **Taux d'activation produit**.
+>      - Nouveau composant d'affichage : [`IndicateursCroissanceEtChurn.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/components/IndicateursCroissanceEtChurn.tsx).
+>      - Nouveau kit de communication corporate : [`TemplateEmailTesteurs.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/components/TemplateEmailTesteurs.tsx) avec iframe d'aperçu en direct, copie HTML 1-clic pour Brevo/Resend/Gmail et copie texte WhatsApp.
+>   5. **Compilations & Lint** :
+>      - `npx tsc --noEmit` sur EduCom SaaS : 0 erreur (code 0).
+>      - `npx tsc --noEmit` sur `pilotage/` : 0 erreur (code 0).
+>      - `npx eslint` sur tous les composants modifiés : 0 erreur, 0 warning (code 0).
+>      - Supabase schema : 100% synchronisé (`npx prisma db push`).
 > - **Demande de Kory (Audio & Instructions)** :
 >   - « La guidance ne doit pas simplement s'arrêter là : ça doit être vraiment partout, end-to-end, dans tous les métiers, tu ne laisses rien du tout. »
 >   - Inscrire un élève (`/dashboard/students/new`) : Fiche élève → Tuteur WhatsApp → Bouton Valider l'admission.

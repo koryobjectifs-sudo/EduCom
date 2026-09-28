@@ -12,6 +12,8 @@ import {
   type InfoAdoption,
   type FunnelLancement,
   type AuditMetiersEcole,
+  calculerIndicateursCroissance,
+  type IndicateursCroissance,
 } from "@/lib/calculs";
 
 /**
@@ -367,6 +369,39 @@ export async function vueEnsemble(
     .filter((e) => e.adoption.score < 5)
     .sort((a, b) => b.eleves - a.eleves || b.classes - a.classes);
 
+  // Calcul des indicateurs de croissance (Growth rates & Churn)
+  const aujourdhuiDebut = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate());
+  const hierDebut = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate() - 1);
+  const il14j = new Date(maintenant.getTime() - 14 * JOUR);
+  const il30j = new Date(maintenant.getTime() - 30 * JOUR);
+  const il60j = new Date(maintenant.getTime() - 60 * JOUR);
+
+  const inscriptionsAujourdhui = ecoles.filter((e) => e.creeLe >= aujourdhuiDebut).length;
+  const inscriptionsHier = ecoles.filter((e) => e.creeLe >= hierDebut && e.creeLe < aujourdhuiDebut).length;
+  const inscriptions7j = ecoles.filter((e) => e.creeLe >= il7j).length;
+  const inscriptions7jPrecedents = ecoles.filter((e) => e.creeLe >= il14j && e.creeLe < il7j).length;
+  const inscriptions30j = ecoles.filter((e) => e.creeLe >= il30j).length;
+  const inscriptions30jPrecedents = ecoles.filter((e) => e.creeLe >= il60j && e.creeLe < il30j).length;
+
+  const encaisseMoisActuel = parMois[parMois.length - 1]?.montant ?? 0;
+  const encaisseMoisPrecedent = parMois[parMois.length - 2]?.montant ?? 0;
+
+  const ecolesAvecEleves = ecoles.filter((e) => e.eleves > 0).length;
+
+  const croissance = calculerIndicateursCroissance({
+    inscriptionsAujourdhui,
+    inscriptionsHier,
+    inscriptions7j,
+    inscriptions7jPrecedents,
+    inscriptions30j,
+    inscriptions30jPrecedents,
+    encaisseMoisActuel,
+    encaisseMoisPrecedent,
+    compte,
+    totalEcoles: ecoles.length,
+    ecolesAvecEleves,
+  });
+
   // Tâches prioritaires et déblocages métiers
   const ecolesSansProf = ecoles.filter((e) => e.classes > 0 && e.affectations === 0);
   const ecolesFinEssai = ecoles.filter((e) => e.statut === "ESSAI" && e.joursRestants !== null && e.joursRestants <= 3);
@@ -378,6 +413,7 @@ export async function vueEnsemble(
     ecoles,
     compte,
     revenus: r,
+    croissance,
     encaisseMois,
     encaissePeriode,
     inscriptionsPeriode: ecolesPeriode.length,
