@@ -483,7 +483,9 @@ export async function getDirectorDashboardSnapshot(
         teachersCount,
         evaluations: terms.flatMap((t) => (t.evaluations || []).map((e) => ({ ...e, termId: t.id }))),
         classesWithTeacher: classesList.filter((c) => c.teacherId !== null).map((c) => ({ id: c.id })),
-        assignments: [],
+        // Pas de liste vide ici : `configurationReadiness` compte alors les
+        // vraies affectations (TeachingAssignment). Une liste vide affichait
+        // « matières sans enseignant » même après avoir affecté l'équipe.
         links: classesList.map((c) => ({ classId: c.id })),
         customCoefficients: 0,
       })

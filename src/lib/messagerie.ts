@@ -88,6 +88,7 @@ export type ConversationResume = {
   apercu: string;
   dernierMessage: string;
   nonLus: number;
+  avatar?: string | null;
 };
 
 export async function listerConversations(actor: ActorContext, p: Perimetre): Promise<ConversationResume[]> {
@@ -118,7 +119,7 @@ export async function listerConversations(actor: ActorContext, p: Perimetre): Pr
     }),
     prisma.user.findMany({
       where: { id: { in: idsPersonnes } },
-      select: { id: true, firstName: true, lastName: true, role: true },
+      select: { id: true, firstName: true, lastName: true, role: true, avatar: true },
     }),
     // Non lus : messages des autres, postérieurs à ma dernière lecture — un seul aller-retour.
     prisma.$transaction(
@@ -146,10 +147,12 @@ export async function listerConversations(actor: ActorContext, p: Perimetre): Pr
         : dernier.body || (dernier._count.medias ? "📎 Pièce jointe" : "");
     let titre: string;
     let sousTitre: string;
+    let avatar: string | null = null;
     if (c.kind === "EQUIPE") {
       const autre = personne.get(c.userAId === actor.userId ? c.userBId ?? "" : c.userAId ?? "");
       titre = nom(autre);
       sousTitre = `${autre ? roleLabel(autre.role) : "Équipe"} · privé`;
+      avatar = autre?.avatar ?? null;
     } else {
       const e = c.studentId ? eleve.get(c.studentId) : undefined;
       const enfant = e ? `${nom(e)}${e.enrollments[0]?.class?.name ? ` (${e.enrollments[0].class.name})` : ""}` : "—";
@@ -157,8 +160,10 @@ export async function listerConversations(actor: ActorContext, p: Perimetre): Pr
         titre = libelleCanal(c.canal);
         sousTitre = `À propos de ${enfant}`;
       } else {
-        titre = nom(c.parentId ? personne.get(c.parentId) : null);
+        const p = c.parentId ? personne.get(c.parentId) : null;
+        titre = nom(p);
         sousTitre = `${enfant} · ${libelleCanal(c.canal)}`;
+        avatar = p?.avatar ?? null;
       }
     }
     return {
@@ -170,6 +175,7 @@ export async function listerConversations(actor: ActorContext, p: Perimetre): Pr
       apercu: `${dernier && dernier.authorId === actor.userId ? "Vous : " : ""}${apercu}`.slice(0, 120),
       dernierMessage: c.lastMessageAt.toISOString(),
       nonLus: nonLus[i],
+      avatar,
     };
   });
 }
@@ -178,6 +184,7 @@ export type MessageVue = {
   id: string;
   body: string;
   auteur: string;
+  auteurAvatar?: string | null;
   role: string;
   estAMoi: boolean;
   supprime: boolean;
@@ -206,7 +213,7 @@ export async function chargerMessages(actor: ActorContext, conversationId: strin
   msgs.reverse();
   const auteurs = await prisma.user.findMany({
     where: { id: { in: [...new Set(msgs.map((m) => m.authorId))] } },
-    select: { id: true, firstName: true, lastName: true, role: true },
+    select: { id: true, firstName: true, lastName: true, role: true, avatar: true },
   });
   const parAuteur = new Map(auteurs.map((a) => [a.id, a]));
   const signes = await signerMedias(msgs.filter((m) => !m.deletedAt).flatMap((m) => m.medias));
@@ -228,6 +235,7 @@ export async function chargerMessages(actor: ActorContext, conversationId: strin
       id: m.id,
       body: m.deletedAt ? "" : m.body,
       auteur: nom(a),
+      auteurAvatar: a?.avatar ?? null,
       role: a ? roleLabel(a.role) : "",
       estAMoi: m.authorId === actor.userId,
       supprime: Boolean(m.deletedAt),
@@ -251,11 +259,11 @@ export async function collegues(actor: ActorContext) {
   if (!estPersonnel(actor.role)) return [];
   const users = await prisma.user.findMany({
     where: { schoolId: actor.schoolId, role: { in: ROLES_PERSONNEL as never[] }, id: { not: actor.userId } },
-    select: { id: true, firstName: true, lastName: true, role: true },
+    select: { id: true, firstName: true, lastName: true, role: true, avatar: true },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     take: 500,
   });
-  return users.map((u) => ({ id: u.id, nom: nom(u), role: roleLabel(u.role) }));
+  return users.map((u) => ({ id: u.id, nom: nom(u), role: roleLabel(u.role), avatar: u.avatar ?? null }));
 }
 
 /**

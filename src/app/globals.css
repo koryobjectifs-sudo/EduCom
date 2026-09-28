@@ -99,7 +99,7 @@
   --color-danger:  #B91C1C;  /* en retard, erreur, suppression */
 
   /* ─── Rayons : trois valeurs, pas sept ───────────────────────────────────*/
-  --radius-control: 6px;   /* champs, boutons, pastilles de petite taille */
+  --radius-control: 8px;   /* champs, boutons d'action (standard Slack/Linear) */
   --radius-surface: 10px;  /* cartes, modales, panneaux */
   /* le troisième est `9999px`, exposé via --radius-pill ci-dessous */
   --radius-pill: 9999px;   /* pastilles d'état, avatars */
@@ -133,17 +133,17 @@
   --text-role-meta:    12px;
 
   /* ─── Shell bi-étagé EduCom (Cadres : Rail, TopBar & Sidebar Slack-style) ─*/
-  --color-frame-bg:          #0E2541;  /* Couleur des cadres (Rail & TopBar unifiés) */
+  --color-frame-bg:          #581C87;  /* Couleur officielle EduCom (Pourpre Royal) */
   --color-topbar-bg:         var(--color-frame-bg);
   --color-rail-bg:           var(--color-frame-bg);
   --color-sidebar-bg:        color-mix(in srgb, var(--color-frame-bg) 7%, #F8FAFC);
   --color-sidebar-hover:     color-mix(in srgb, var(--color-frame-bg) 12%, #F1F5F9);
   --color-sidebar-active:    color-mix(in srgb, var(--color-frame-bg) 16%, #FFFFFF);
-  --color-rail-hover:        #18365D;  /* Survol élément de rail */
-  --color-rail-active:       #1F4676;  /* Élément de rail actif */
-  --color-rail-text:         #94A3B8;  /* Texte/icône inactif */
+  --color-rail-hover:        color-mix(in srgb, var(--color-frame-bg) 85%, white);  /* Survol élément de rail */
+  --color-rail-active:       color-mix(in srgb, var(--color-frame-bg) 75%, white);  /* Élément de rail actif */
+  --color-rail-text:         #E9D5FF;  /* Texte/icône inactif */
   --color-rail-text-active:  #FFFFFF;  /* Texte/icône actif */
-  --color-rail-accent:       #9C0F15;  /* Accent liseré rouge EduCom */
+  --color-rail-accent:       #C084FC;  /* Accent liseré pourpre clair */
 
   --width-rail:              68px;
   --width-sidebar-expanded:  200px;

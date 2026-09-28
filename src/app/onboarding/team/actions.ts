@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { inviteTeamMember } from "@/app/dashboard/team/actions";
+import { configValide } from "@/lib/equipe";
 
 export async function bulkInviteTeam(members: { firstName: string; lastName: string; email: string; role: string; classId?: string }[]) {
   const supabase = await createClient();
@@ -33,9 +34,20 @@ export async function bulkInviteTeam(members: { firstName: string; lastName: str
       continue;
     }
     
-    // Note: Since the user isn't created yet (it's an invitation), we can't create the TeacherAssignment
-    // right now. The assignment must happen after the user claims the invitation or we must store 
-    // it differently. For this fix, we simply return the link.
+    // La classe choisie est mémorisée (StaffSetup) et appliquée à
+    // l'acceptation de l'invitation (`appliquerConfigurationInvitation`) :
+    // l'enseignant trouve sa classe dès sa première connexion.
+    if (member.role === "TEACHER" && member.classId) {
+      const email = member.email.trim().toLowerCase();
+      const assignments = await configValide(dbUser.schoolId, { titulaire: [member.classId], matieres: [] });
+      await prisma.staffSetup
+        .upsert({
+          where: { schoolId_email: { schoolId: dbUser.schoolId, email } },
+          create: { schoolId: dbUser.schoolId, email, assignments, capabilities: [], createdById: dbUser.id },
+          update: { assignments, appliedAt: null },
+        })
+        .catch((e: Error) => console.error("[onboarding] classe non mémorisée :", e.message));
+    }
     
     results.push({ email: member.email, success: true, link: res.link });
   }

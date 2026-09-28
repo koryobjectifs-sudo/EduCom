@@ -77,6 +77,8 @@ next-env.d.ts
 /agent/
 /coverage
 /.vercel
+/.playwright-mcp/
+/guide-*.png
 
 # ⚠️ `backups/` contient des extraits de la base de production (comptages,
 # écoles supprimées). Utile localement, jamais dans un dépôt.

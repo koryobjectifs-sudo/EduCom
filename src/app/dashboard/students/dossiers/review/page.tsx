@@ -32,11 +32,11 @@ export default async function DossierReviewPage({
     missingPiece?: string;
   }>;
 }) {
-  const { user, schoolId } = await requireSchoolContext();
+  const { extras, user, schoolId } = await requireSchoolContext();
   const role = user.role as RoleType;
 
   // Enseignants et parents n'ont aucun accès aux dossiers d'admission administratifs globaux
-  if (role === "TEACHER" || role === "PARENT" || !hasAccess(role, "/dashboard/students")) {
+  if ((role === "TEACHER" && !extras.includes("/dashboard/students")) || role === "PARENT" || !hasAccess(role, "/dashboard/students", extras)) {
     redirect("/dashboard");
   }
 

@@ -49,7 +49,9 @@ export default function TeacherDashboard({ snapshot }: TeacherDashboardProps) {
           </Reveal>
 
           <Reveal delay={0.12} className="flex-1 flex flex-col">
-            <TeacherSoftClassCards classes={classes} className="h-full flex-1" />
+            <div data-tour="teacher-classes" className="h-full flex-1">
+              <TeacherSoftClassCards classes={classes} className="h-full flex-1" />
+            </div>
           </Reveal>
         </div>
 

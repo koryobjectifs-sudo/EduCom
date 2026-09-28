@@ -18,7 +18,8 @@ const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 /** Palette enrichie de teintes d'accent prédéfinies et harmonieuses pour l'éducation */
 export const PRESET_SCHOOL_COLORS = [
   // Classiques & Institutionnels
-  { hex: "#0E2541", label: "EduCom Initial (Navy)", group: "Classiques" },
+  { hex: "#581C87", label: "EduCom Officiel (Pourpre)", group: "Classiques" },
+  { hex: "#0E2541", label: "Bleu Marine", group: "Classiques" },
   { hex: "#9C0F15", label: "Bordeaux EduCom", group: "Classiques" },
   { hex: "#0B2B4A", label: "Marine Profond", group: "Classiques" },
   { hex: "#1E3A8A", label: "Bleu Nuit", group: "Classiques" },
@@ -103,7 +104,8 @@ export function getContrastRatioAgainstWhite(hex: string): number {
   return Number(((whiteLum + 0.05) / (lum + 0.05)).toFixed(2));
 }
 
-export const DEFAULT_EDUCOM_NAVY = "#0E2541";
+export const DEFAULT_EDUCOM_PRIMARY = "#581C87";
+export const DEFAULT_EDUCOM_NAVY = "#581C87";
 export const DEFAULT_EDUCOM_ACCENT = "#9C0F15";
 
 /**
@@ -112,7 +114,7 @@ export const DEFAULT_EDUCOM_ACCENT = "#9C0F15";
  * — Aurora ne lui donne aucun usage décoratif nouveau.
  */
 export const AURORA_ACCENTS = {
-  navy: DEFAULT_EDUCOM_NAVY, // #0E2541 — base du Shell, même famille que la charte par défaut
+  navy: "#0E2541", // #0E2541 — base du Shell Aurora
   primaryBlue: "#2563EB",
   brightBlue: "#3B82F6",
   cyan: "#38D9FF",
@@ -124,43 +126,34 @@ export const AURORA_ACCENTS = {
 /**
  * Traduit la couleur d'une école en surcharge de variables CSS pour les cadres du shell (Slack-style).
  *
- * ⚠️ Règle de couleur DÉFINITIVE (18 sept., annule le correctif du 18 sept.
- * précédent qui forçait le navy — ce n'était pas le comportement voulu) :
+ * ⚠️ Règle de couleur DÉFINITIVE :
  * 1. Les boutons d'action NE SONT PAS impactés (ils restent stables et lisibles).
  * 2. Rail et TopBar prennent la couleur de l'école EN PLEIN.
  * 3. La sidebar contextuelle reçoit une version CLAIRE de cette même couleur,
  *    dérivée automatiquement (`color-mix`) — jamais une valeur en dur.
  * 4. Le workspace (canevas) reste neutre, toujours.
- * `DEFAULT_EDUCOM_NAVY` n'est qu'un REPLI : la teinte d'une école qui n'a rien
- * choisi (`primaryColor` vide), pas un socle imposé — voir l'appelant
- * (`dashboard/layout.tsx`), qui ne passe même pas par cette fonction dans ce cas.
- *
- * ⚠️ Aurora (branche ci-dessous) reste l'exception délibérée : une identité
- * multi-tons choisie à la main par Kory, pas une couleur unique — elle ne suit
- * pas cette règle générique.
+ * `DEFAULT_EDUCOM_PRIMARY` (#581C87, Pourpre EduCom) est la teinte officielle
+ * appliquée par défaut à toute école n'ayant pas choisi d'autre couleur.
  */
 export function schoolThemeStyle(primaryColor?: string | null): CSSProperties | undefined {
-  if (!isValidHexColor(primaryColor)) return undefined;
-  const frameColor = primaryColor.trim();
+  const effectiveColor = (primaryColor && isValidHexColor(primaryColor))
+    ? primaryColor.trim()
+    : DEFAULT_EDUCOM_PRIMARY;
 
-  if (isAuroraColor(frameColor)) {
+  if (isAuroraColor(effectiveColor)) {
     const { navy, cyan, violet } = AURORA_ACCENTS;
     return {
       "--color-frame-bg": navy,
       "--color-topbar-bg": navy,
       "--color-rail-bg": navy,
       "--color-sidebar-bg": `color-mix(in srgb, ${navy} 7%, #F8FAFC)`,
-      // Touches ponctuelles de violet : seuls le survol et l'état actif de la
-      // sidebar en portent la trace, jamais le fond au repos — pour rester
-      // « visible mais subtil », pas un bloc lumineux.
       "--color-sidebar-hover": `color-mix(in srgb, ${violet} 10%, #F1F5F9)`,
       "--color-sidebar-active": `color-mix(in srgb, ${violet} 16%, #FFFFFF)`,
-      // Le cyan est réservé à l'indicateur d'élément actif du Rail — c'est lui
-      // qui rend l'état actif « clairement visible » sur fond navy.
       "--color-rail-accent": cyan,
     } as CSSProperties;
   }
 
+  const frameColor = effectiveColor;
   return {
     "--color-frame-bg": frameColor,
     "--color-topbar-bg": frameColor,
@@ -168,7 +161,7 @@ export function schoolThemeStyle(primaryColor?: string | null): CSSProperties | 
     "--color-sidebar-bg": `color-mix(in srgb, ${frameColor} 7%, #F8FAFC)`,
     "--color-sidebar-hover": `color-mix(in srgb, ${frameColor} 12%, #F1F5F9)`,
     "--color-sidebar-active": `color-mix(in srgb, ${frameColor} 16%, #FFFFFF)`,
-    "--color-rail-accent": frameColor,
+    "--color-rail-accent": `color-mix(in srgb, ${frameColor} 65%, white)`,
   } as CSSProperties;
 }
 

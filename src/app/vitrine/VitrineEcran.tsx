@@ -29,9 +29,51 @@ const MESSAGE_DEMO = "Aperçu d'EduCom : créez votre école pour enregistrer vo
  *    le déclare ici (route vitrine uniquement) pour montrer l'écran du téléphone.
  *  - `pointer-coarse:` : « Prendre une photo » (AvatarPhoto) n'apparaît que sur
  *    écran tactile ; la règle CSS ci-dessous le force dans la vitrine.
+ *  - Confinement du défilement et du focus : dans un <iframe>, le `scrollIntoView()`
+ *    ou `focus()` natif du navigateur traverse la frontière du frame et fait
+ *    défiler la landing page parente de force. On surcharge ces méthodes ici
+ *    pour qu'elles restent strictement cantonnées à l'écran du téléphone.
  */
-if (typeof window !== "undefined" && !("capture" in HTMLInputElement.prototype)) {
-  Object.defineProperty(HTMLInputElement.prototype, "capture", { value: "", writable: true, configurable: true });
+if (typeof window !== "undefined") {
+  if (!("capture" in HTMLInputElement.prototype)) {
+    Object.defineProperty(HTMLInputElement.prototype, "capture", { value: "", writable: true, configurable: true });
+  }
+
+  Element.prototype.scrollIntoView = function (arg?: boolean | ScrollIntoViewOptions) {
+    let parent = this.parentElement;
+    while (parent && parent !== document.body) {
+      const sx = window.getComputedStyle(parent).overflowX;
+      const sy = window.getComputedStyle(parent).overflowY;
+      const canScrollX = (sx === "auto" || sx === "scroll") && parent.scrollWidth > parent.clientWidth;
+      const canScrollY = (sy === "auto" || sy === "scroll") && parent.scrollHeight > parent.clientHeight;
+      if (canScrollX || canScrollY) {
+        if (canScrollX) {
+          const rThis = this.getBoundingClientRect();
+          const rParent = parent.getBoundingClientRect();
+          parent.scrollLeft += rThis.left - rParent.left - (rParent.width - rThis.width) / 2;
+        }
+        if (canScrollY) {
+          const rThis = this.getBoundingClientRect();
+          const rParent = parent.getBoundingClientRect();
+          parent.scrollTop += rThis.top - rParent.top - (rParent.height - rThis.height) / 2;
+        }
+        return;
+      }
+      parent = parent.parentElement;
+    }
+    const rect = this.getBoundingClientRect();
+    const alignCenter = typeof arg === "object" && arg.block === "center";
+    const targetY = window.scrollY + rect.top - (alignCenter ? (window.innerHeight - rect.height) / 2 : 0);
+    window.scrollTo({
+      top: Math.max(0, targetY),
+      behavior: typeof arg === "object" && arg.behavior ? arg.behavior : "auto",
+    });
+  };
+
+  const originalFocus = HTMLElement.prototype.focus;
+  HTMLElement.prototype.focus = function (options?: FocusOptions) {
+    originalFocus.call(this, { preventScroll: true, ...options });
+  };
 }
 const SIMULATION_TACTILE = `[data-vitrine] .pointer-coarse\\:flex{display:flex!important}`;
 /** Messages (sonner) en haut de l'écran : en bas, ils couvriraient la barre d'onglets. */
@@ -89,7 +131,7 @@ export default function VitrineEcran({ ecran }: { ecran: EcranVitrine }) {
     (cible: EcranVitrine) => {
       setIndispo(null);
       if (cible === ecranRef.current) setTour((t) => t + 1);
-      else router.push(`/vitrine/${cible}`);
+      else router.push(`/vitrine/${cible}`, { scroll: false });
     },
     [router],
   );
@@ -313,7 +355,8 @@ function Facture() {
 
       const canvas = racine.querySelector<HTMLCanvasElement>("canvas");
       if (!canvas || stop) return;
-      canvas.scrollIntoView({ block: "center", behavior: "smooth" });
+      const rCanvas = canvas.getBoundingClientRect();
+      window.scrollTo({ top: Math.max(0, window.scrollY + rCanvas.top - 80), behavior: "smooth" });
       await attendre(700);
       for (const trait of traceSignature()) {
         if (stop) return;
@@ -343,7 +386,11 @@ function Facture() {
       apercu?.click();
       await attendre(400);
       if (stop) return;
-      racine.querySelector('img[alt="Signature"]')?.scrollIntoView({ block: "center", behavior: "smooth" });
+      const img = racine.querySelector('img[alt="Signature"]');
+      if (img) {
+        const rImg = img.getBoundingClientRect();
+        window.scrollTo({ top: Math.max(0, window.scrollY + rImg.top - 80), behavior: "smooth" });
+      }
     })();
 
     return () => {

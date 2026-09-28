@@ -212,7 +212,7 @@ export async function reprogrammerPublication(postId: string, quand: string | nu
   return { ok: true };
 }
 
-export async function reagir(postId: string, kind: TypeReaction | null): Promise<R> {
+export async function reagir(postId: string, kind: string | null): Promise<R> {
   const c = await contexte();
   if (!c.ok) return c;
   const post = await postVisible(c.actor, c.p, postId);
@@ -220,11 +220,12 @@ export async function reagir(postId: string, kind: TypeReaction | null): Promise
   if (kind === null) {
     await prisma.communityReaction.deleteMany({ where: { postId, userId: c.actor.userId } });
   } else {
-    if (!REACTIONS.some((r) => r.kind === kind)) return { ok: false, error: "Réaction inconnue." };
+    const k = kind.trim().slice(0, 16);
+    if (!k) return { ok: false, error: "Réaction invalide." };
     await prisma.communityReaction.upsert({
       where: { postId_userId: { postId, userId: c.actor.userId } },
-      update: { kind },
-      create: { postId, userId: c.actor.userId, kind },
+      update: { kind: k },
+      create: { postId, userId: c.actor.userId, kind: k },
     });
   }
   rafraichir();
@@ -295,7 +296,7 @@ export async function epingler(postId: string, pinned: boolean): Promise<R> {
 export async function masquerPublication(postId: string, masquer: boolean): Promise<R> {
   const c = await contexte();
   if (!c.ok) return c;
-  if (!peutModerer(c.actor.role)) return { ok: false, error: "Action réservée à la direction." };
+  if (!peutModerer(c.actor.role, c.p.grants)) return { ok: false, error: "Action réservée à la direction." };
   const post = await postVisible(c.actor, c.p, postId);
   if (!post) return { ok: false, error: "Publication introuvable." };
   await prisma.communityPost.update({
@@ -328,7 +329,7 @@ export async function masquerCommentaire(commentId: string, masquer: boolean): P
   if (com.authorId === c.actor.userId && masquer) {
     // L'auteur retire son propre commentaire.
     await prisma.communityComment.delete({ where: { id: com.id } });
-  } else if (peutModerer(c.actor.role)) {
+  } else if (peutModerer(c.actor.role, c.p.grants)) {
     await prisma.communityComment.update({
       where: { id: com.id },
       data: masquer ? { hiddenAt: new Date(), hiddenBy: c.actor.userId } : { hiddenAt: null, hiddenBy: null },
@@ -414,7 +415,7 @@ export async function clore(pollId: string): Promise<R> {
     select: { id: true, postId: true, post: { select: { authorId: true } } },
   });
   if (!poll || !(await postVisible(c.actor, c.p, poll.postId))) return { ok: false, error: "Sondage introuvable." };
-  if (poll.post.authorId !== c.actor.userId && !peutModerer(c.actor.role)) return { ok: false, error: "Seuls l'auteur et la direction closent un sondage." };
+  if (poll.post.authorId !== c.actor.userId && !peutModerer(c.actor.role, c.p.grants)) return { ok: false, error: "Seuls l'auteur et la direction closent un sondage." };
   await prisma.communityPoll.update({ where: { id: poll.id }, data: { closesAt: new Date() } });
   // Résultats annoncés aux destinataires et aux votants (une seule fois).
   await annoncerResultats(poll.id).catch((e) => console.error("[sondages] annonce des résultats :", (e as Error).message));
@@ -431,7 +432,7 @@ export async function relancerSondage(pollId: string): Promise<{ ok: true; relan
     select: { id: true, postId: true, closesAt: true, post: { select: { authorId: true } } },
   });
   if (!poll || !(await postVisible(c.actor, c.p, poll.postId))) return { ok: false, error: "Sondage introuvable." };
-  if (poll.post.authorId !== c.actor.userId && !peutModerer(c.actor.role)) return { ok: false, error: "Seuls l'auteur et la direction relancent un sondage." };
+  if (poll.post.authorId !== c.actor.userId && !peutModerer(c.actor.role, c.p.grants)) return { ok: false, error: "Seuls l'auteur et la direction relancent un sondage." };
   if (poll.closesAt && poll.closesAt <= new Date()) return { ok: false, error: "Ce sondage est clos." };
   const relances = await relancerNonVotants(poll.id, c.actor.schoolId);
   return { ok: true, relances };

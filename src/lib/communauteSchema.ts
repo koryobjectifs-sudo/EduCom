@@ -260,6 +260,33 @@ export const SQL_CANAUX_COMMUNAUTE: string[] = [
   `CREATE INDEX IF NOT EXISTS "StudentObservation_studentId_date_idx" ON "StudentObservation"("studentId", "date")`,
   `ALTER TABLE "StudentObservation" ENABLE ROW LEVEL SECURITY`,
 
+  // ── Équipe : accès en plus et configuration des invités (26 sept. 2026) ──
+  `CREATE TABLE IF NOT EXISTS "StaffGrant" (
+    "id" TEXT NOT NULL,
+    "schoolId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "capability" TEXT NOT NULL,
+    "grantedById" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "StaffGrant_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "StaffGrant_schoolId_userId_capability_key" ON "StaffGrant"("schoolId", "userId", "capability")`,
+  `CREATE INDEX IF NOT EXISTS "StaffGrant_userId_idx" ON "StaffGrant"("userId")`,
+  `ALTER TABLE "StaffGrant" ENABLE ROW LEVEL SECURITY`,
+  `CREATE TABLE IF NOT EXISTS "StaffSetup" (
+    "id" TEXT NOT NULL,
+    "schoolId" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "assignments" JSONB NOT NULL DEFAULT '{}',
+    "capabilities" JSONB NOT NULL DEFAULT '[]',
+    "createdById" TEXT NOT NULL,
+    "appliedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "StaffSetup_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "StaffSetup_schoolId_email_key" ON "StaffSetup"("schoolId", "email")`,
+  `ALTER TABLE "StaffSetup" ENABLE ROW LEVEL SECURITY`,
+
   `ALTER TABLE "CommunityChannel" ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "CommunityChannelMember" ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "CommunitySpaceRead" ENABLE ROW LEVEL SECURITY`,
@@ -269,4 +296,65 @@ export const SQL_CANAUX_COMMUNAUTE: string[] = [
   `ALTER TABLE "CommunityForm" ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "CommunityFormRecipient" ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "CommunityFormResponse" ENABLE ROW LEVEL SECURITY`,
+
+  // ═══ Pilotage EduCom (27 sept. 2026) : support des écoles, erreurs serveur ═══
+  `CREATE TABLE IF NOT EXISTS "SupportTicket" (
+    "id" TEXT NOT NULL,
+    "schoolId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "kind" TEXT NOT NULL DEFAULT 'QUESTION',
+    "subject" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'OUVERT',
+    "page" TEXT,
+    "lastMessageAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "staffReadAt" TIMESTAMP(3),
+    "schoolReadAt" TIMESTAMP(3),
+    "resolvedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "SupportTicket_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "SupportTicket_schoolId_lastMessageAt_idx" ON "SupportTicket"("schoolId", "lastMessageAt")`,
+  `CREATE INDEX IF NOT EXISTS "SupportTicket_status_lastMessageAt_idx" ON "SupportTicket"("status", "lastMessageAt")`,
+  `ALTER TABLE "SupportTicket" ENABLE ROW LEVEL SECURITY`,
+  `CREATE TABLE IF NOT EXISTS "SupportMessage" (
+    "id" TEXT NOT NULL,
+    "ticketId" TEXT NOT NULL,
+    "authorId" TEXT NOT NULL,
+    "fromEduCom" BOOLEAN NOT NULL DEFAULT false,
+    "body" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "SupportMessage_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "SupportMessage_ticketId_createdAt_idx" ON "SupportMessage"("ticketId", "createdAt")`,
+  `DO $$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SupportMessage_ticketId_fkey') THEN
+       ALTER TABLE "SupportMessage" ADD CONSTRAINT "SupportMessage_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "SupportTicket"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+     END IF;
+   END $$`,
+  `ALTER TABLE "SupportMessage" ENABLE ROW LEVEL SECURITY`,
+  `CREATE TABLE IF NOT EXISTS "ErrorEvent" (
+    "id" TEXT NOT NULL,
+    "path" TEXT NOT NULL,
+    "routeType" TEXT,
+    "message" TEXT NOT NULL,
+    "digest" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ErrorEvent_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "ErrorEvent_createdAt_idx" ON "ErrorEvent"("createdAt")`,
+  `ALTER TABLE "ErrorEvent" ENABLE ROW LEVEL SECURITY`,
+  `CREATE TABLE IF NOT EXISTS "PilotageAccount" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "passwordHash" TEXT NOT NULL,
+    "failedCount" INTEGER NOT NULL DEFAULT 0,
+    "lockedUntil" TIMESTAMP(3),
+    "lastLoginAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "PilotageAccount_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "PilotageAccount_email_key" ON "PilotageAccount"("email")`,
+  `ALTER TABLE "PilotageAccount" ENABLE ROW LEVEL SECURITY`,
+  // Guide de démarrage par métier (27 sept. 2026) — popup obligatoire vue ou non.
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "guideVuAt" TIMESTAMP(3)`,
 ];

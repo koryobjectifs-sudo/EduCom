@@ -6,6 +6,7 @@ import { getVisibleSpaces } from "@/lib/navigation";
 import AppShell from "@/components/layout/AppShell";
 import ParentLayout from "@/components/layout/ParentLayout";
 import BandeauAbonnement, { type InfoBandeau } from "@/components/layout/BandeauAbonnement";
+import BoutonAide from "@/components/aide/BoutonAide";
 import { etatAbonnement } from "@/lib/subscription";
 import { hasAccess, type RoleType } from "@/lib/permissions";
 
@@ -14,7 +15,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user: dbUser, school, schoolId, memberships } = await requireSchoolContext();
+  const { user: dbUser, school, schoolId, memberships, extras } = await requireSchoolContext();
 
   if (!school) {
     redirect("/login?erreur=espace_absent");
@@ -100,7 +101,7 @@ export default async function DashboardLayout({
   }
 
   // 2. SHELL APPLICATIF INTERNE BI-ÉTAGÉ (RSC)
-  const spaces = getVisibleSpaces(userRole);
+  const spaces = getVisibleSpaces(userRole, extras);
 
   // Abonnement EduCom (25 sept. 2026) : bandeau de relance pour le personnel.
   // ⚠️ Jamais bloquant : si la table n'existe pas encore (`db push` pas fait)
@@ -134,9 +135,14 @@ export default async function DashboardLayout({
         emailVerified={emailVerified}
         activeSchoolId={schoolId}
         memberships={memberships}
+        guideVuAt={dbUser.guideVuAt}
       >
         {infoAbonnement && <BandeauAbonnement info={infoAbonnement} />}
         {children}
+        {/* Pilotage (27 sept. 2026) : écrire à l'équipe EduCom depuis n'importe quel écran. */}
+        {hasAccess(userRole as RoleType, "/dashboard/aide") && (
+          <BoutonAide userRole={userRole} />
+        )}
       </AppShell>
     </div>
   );

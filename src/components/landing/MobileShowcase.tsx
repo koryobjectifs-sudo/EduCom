@@ -160,22 +160,22 @@ export default function MobileShowcase() {
   const scene = SCENES.find((s) => s.id === active)!;
 
   return (
-    <section id="mobile" className="relative overflow-hidden py-20 lg:py-28" style={CAHIER}>
+    <section id="mobile" className="relative overflow-hidden py-10 lg:py-14" style={CAHIER}>
       {/* Marge rouge du cahier */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-6 w-px bg-[#E0525A]/35 sm:left-12" />
       <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-[27px] w-px bg-[#E0525A]/20 sm:left-[51px]" />
 
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="inline-flex items-center gap-2 rounded-full bg-[#FFE7A3] px-3.5 py-1 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#7A5200]">
+          <p className="inline-flex items-center gap-2 rounded-full bg-[#FFE7A3] px-3 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7A5200]">
             <AppleNotebookIcon aria-hidden="true" className="h-3.5 w-3.5" /> Sur le téléphone
           </p>
-          <h2 className="mt-5 font-display text-[1.7rem] font-bold leading-[1.15] text-m-navy sm:text-[2.15rem]">
+          <h2 className="mt-2.5 font-display text-[1.45rem] font-bold leading-[1.15] text-m-navy sm:text-[1.85rem]">
             Toute l&apos;école dans la poche.
             <br />
             <span className="text-m-blue">Pour chaque métier de l&apos;établissement.</span>
           </h2>
-          <p className="mt-4 text-[16px] leading-[1.65] text-m-ink-soft">
+          <p className="mt-2 text-[13.5px] leading-relaxed text-m-ink-soft">
             Enseignants, secrétariat, comptabilité, direction&nbsp;: chacun retrouve ses écrans <EduComWordmark /> sur
             son téléphone — notes, appel, dossiers des élèves, encaissements. Dans le navigateur, sans application à installer.
           </p>
@@ -214,18 +214,18 @@ export default function MobileShowcase() {
         </div>
 
         <div
-          className="mt-10 grid grid-cols-1 items-center gap-12 lg:mt-14 lg:grid-cols-12"
+          className="mt-6 grid grid-cols-1 items-center gap-8 lg:mt-8 lg:grid-cols-12"
           onMouseEnter={() => setSurvol(true)}
           onMouseLeave={() => setSurvol(false)}
         >
           {/* Téléphone */}
           <div className="flex justify-center lg:col-span-6">
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-3">
               <Telephone>
                 <EcransReels active={active} />
               </Telephone>
-              <p className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3.5 py-1.5 text-[13px] font-medium text-m-ink-soft ring-1 ring-m-sky-deep">
-                <span aria-hidden="true" className="h-2 w-2 animate-pulse rounded-full bg-[#F5B82E]" />
+              <p className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-[12px] font-medium text-m-ink-soft ring-1 ring-m-sky-deep">
+                <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#F5B82E]" />
                 Touchez l&apos;écran pour explorer <EduComWordmark />
               </p>
             </div>
@@ -239,19 +239,19 @@ export default function MobileShowcase() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="rounded-2xl bg-white/85 p-5 ring-1 ring-m-sky-deep backdrop-blur-sm"
+                className="rounded-2xl bg-white/85 p-4 ring-1 ring-m-sky-deep backdrop-blur-sm"
               >
-                <p className="text-[11.5px] font-semibold uppercase tracking-[0.1em] text-m-blue">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-m-blue">
                   {scene.nom} <span className="text-m-ink-faint">· {scene.metier}</span>
                 </p>
-                <h3 className="mt-1 font-display text-[1.1rem] font-bold text-m-navy">{scene.titre}</h3>
-                <p className="mt-2 text-[14.5px] leading-relaxed text-m-ink-soft">{scene.texte}</p>
+                <h3 className="mt-1 font-display text-[1.05rem] font-bold text-m-navy">{scene.titre}</h3>
+                <p className="mt-1.5 text-[13.5px] leading-relaxed text-m-ink-soft">{scene.texte}</p>
               </motion.div>
             </AnimatePresence>
           </div>
 
           {/* Description — ordinateur : la liste des scènes sert de sélecteur */}
-          <ul className="hidden space-y-2 lg:col-span-6 lg:block">
+          <ul className="hidden space-y-1.5 lg:col-span-6 lg:block">
             {SCENES.map((s) => {
               const on = s.id === active;
               const Icon = s.icon;
@@ -261,32 +261,32 @@ export default function MobileShowcase() {
                     type="button"
                     onClick={() => choisir(s.id)}
                     aria-pressed={on}
-                    className={`relative w-full overflow-hidden rounded-2xl px-4 py-3 text-left transition-all ${
+                    className={`relative w-full overflow-hidden rounded-2xl px-3.5 py-2.5 text-left transition-all ${
                       on
-                        ? "bg-white shadow-[0_18px_40px_-24px_rgba(10,35,66,0.45)] ring-1 ring-m-sky-deep"
+                        ? "bg-white shadow-[0_12px_28px_-16px_rgba(10,35,66,0.35)] ring-1 ring-m-sky-deep"
                         : "bg-white/50 ring-1 ring-transparent hover:bg-white/80"
                     }`}
                   >
-                    <div className="flex items-start gap-3.5">
+                    <div className="flex items-start gap-3">
                       <span
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
                           on ? "bg-[#FFE7A3] text-[#7A5200]" : "bg-m-sky text-m-blue"
                         }`}
                       >
-                        <Icon className="h-[18px] w-[18px]" />
+                        <Icon className="h-4 w-4" />
                       </span>
                       <div className="min-w-0">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-m-blue">
+                        <p className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-m-blue">
                           {s.nom} <span className="text-m-ink-faint">· {s.metier}</span>
                         </p>
-                        <h3 className="mt-0.5 font-display text-[15px] font-bold leading-snug text-m-navy">{s.titre}</h3>
+                        <h3 className="mt-0.5 font-display text-[14px] font-bold leading-snug text-m-navy">{s.titre}</h3>
                         <AnimatePresence initial={false}>
                           {on && (
                             <motion.p
                               initial={{ opacity: 0, height: 0 }}
                               animate={{ opacity: 1, height: "auto" }}
                               exit={{ opacity: 0, height: 0 }}
-                              className="mt-1.5 overflow-hidden text-[13.5px] leading-[1.55] text-m-ink-soft"
+                              className="mt-1 overflow-hidden text-[12.5px] leading-relaxed text-m-ink-soft"
                             >
                               {s.texte}
                             </motion.p>
@@ -317,8 +317,8 @@ export default function MobileShowcase() {
 
 /* ═══════════════════════ Châssis du téléphone ═══════════════════════ */
 
-/** Téléphone dessiné : 320 × 680 px. L'écran utile fait 292 px de large. */
-const TEL = { w: 320, h: 680 };
+/** Téléphone dessiné : 295 × 570 px. */
+const TEL = { w: 295, h: 570 };
 /** Largeur CSS d'un iPhone : l'écran réel est rendu à 390 px puis réduit. */
 const IPHONE_W = 390;
 const ECHELLE = (TEL.w - 2 * 5 - 2 * 9) / IPHONE_W; // 292 / 390

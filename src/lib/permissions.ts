@@ -65,6 +65,8 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
   // Un enseignant saisit les notes et fait l'appel de ses classes :
   // il n'a pas accès au registre administratif (/dashboard/students, /dashboard/classes).
   TEACHER: [
+    // Pilotage (27 sept. 2026) : bouton « Aide » → demandes à l'équipe EduCom.
+    "/dashboard/aide",
     "/dashboard$",
     "/dashboard/grades",
     "/dashboard/communications",
@@ -103,6 +105,8 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
   // Le comptable travaille dans Finance : factures, reçus et relances de paiement.
   // Il n'a rien à faire dans le centre documentaire général (certificats, scolarité).
   ACCOUNTANT: [
+    // Pilotage (27 sept. 2026) : bouton « Aide » → demandes à l'équipe EduCom.
+    "/dashboard/aide",
     "/dashboard$",
     "/dashboard/payments",
     "/dashboard/documents/reminder",
@@ -112,6 +116,8 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
   ],
 
   SECRETARY: [
+    // Pilotage (27 sept. 2026) : bouton « Aide » → demandes à l'équipe EduCom.
+    "/dashboard/aide",
     "/dashboard$",
     "/dashboard/students",
     "/dashboard/classes",
@@ -158,6 +164,8 @@ export const ROLE_PERMISSIONS: Record<RoleType, string[]> = {
   ],
 
   ASSISTANT: [
+    // Pilotage (27 sept. 2026) : bouton « Aide » → demandes à l'équipe EduCom.
+    "/dashboard/aide",
     "/dashboard$",
     "/dashboard/students",
     "/dashboard/directory",
@@ -331,7 +339,26 @@ export const CENTRE_INTENDED: Record<RoleType, { read: boolean; manage: boolean 
  * y accèdent, via `"*"`. C'est voulu — les réglages portent le nom, le logo, le
  * cachet et la signature de l'établissement.
  */
-export function hasAccess(role: RoleType | string, path: string): boolean {
+function correspond(allowed: string, path: string): boolean {
+  if (allowed.endsWith("$")) {
+    const rawPattern = allowed.slice(0, -1);
+    // Identifiant dynamique d'élève : exclut les mots-clés réservés d'administration
+    const idPattern = "(?!(?:new|import|export|dossiers|review|classes|batch-delete|tarifs|statement|receipt|invoice)$)[a-zA-Z0-9_-]+";
+    const regexStr = "^" + rawPattern.replace(/\[[a-zA-Z0-9_-]+\]/g, idPattern) + "$";
+    return new RegExp(regexStr).test(path);
+  }
+  return path === allowed || path.startsWith(`${allowed}/`);
+}
+
+/**
+ * @param extras Chemins ouverts EN PLUS par les « accès en plus » du membre
+ *   (`lib/capacites.ts` → `cheminsSupplementaires`). Ils passent AVANT les refus
+ *   du métier (ex. un enseignant à qui l'on confie la validation des bulletins),
+ *   jamais pour un parent. Catalogue fermé : aucun chemin de direction n'y figure.
+ */
+export function hasAccess(role: RoleType | string, path: string, extras?: readonly string[]): boolean {
+  if (extras?.length && role !== "PARENT" && extras.some((e) => correspond(e, path))) return true;
+
   const denied = ROLE_DENIALS[role as RoleType];
   if (denied?.some((p) => path === p || path.startsWith(`${p}/`))) return false;
 
@@ -340,16 +367,7 @@ export function hasAccess(role: RoleType | string, path: string): boolean {
 
   if (permissions.includes("*")) return true;
 
-  return permissions.some((allowed) => {
-    if (allowed.endsWith("$")) {
-      const rawPattern = allowed.slice(0, -1);
-      // Identifiant dynamique d'élève : exclut les mots-clés réservés d'administration
-      const idPattern = "(?!(?:new|import|export|dossiers|review|classes|batch-delete|tarifs|statement|receipt|invoice)$)[a-zA-Z0-9_-]+";
-      const regexStr = "^" + rawPattern.replace(/\[[a-zA-Z0-9_-]+\]/g, idPattern) + "$";
-      return new RegExp(regexStr).test(path);
-    }
-    return path === allowed || path.startsWith(`${allowed}/`);
-  });
+  return permissions.some((allowed) => correspond(allowed, path));
 }
 
 /**

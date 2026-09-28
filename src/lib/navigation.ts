@@ -153,6 +153,7 @@ export const NAV_SPACES: NavSpace[] = [
     defaultHref: "/dashboard/communications/communaute",
     matchPrefixes: [
       "/dashboard/communications",
+      "/dashboard/aide",
     ],
     sections: [
       {
@@ -161,6 +162,8 @@ export const NAV_SPACES: NavSpace[] = [
           // 26 sept. 2026 : canaux et messages directs sur une seule page (façon Slack).
           { id: "comms-community", name: "Canaux & messages", href: "/dashboard/communications/communaute", icon: "MessageSquare", short: "Canaux" },
           { id: "comms-surveys", name: "Enquêtes", href: "/dashboard/communications/communaute?espace=SONDAGES", icon: "ClipboardList", short: "Enquêtes" },
+          // 27 sept. 2026 : demandes à l'équipe EduCom (reçues dans le pilotage).
+          { id: "aide", name: "Aide EduCom", href: "/dashboard/aide", icon: "MessageSquare", short: "Aide" },
         ],
       },
     ],
@@ -226,17 +229,19 @@ export const NAV_SPACES: NavSpace[] = [
  * de l'exécuter côté serveur (`hasAccess` sur `space.defaultHref`).
  * Le droit est vérifié sur la destination, JAMAIS déduit d'un sous-élément de l'espace.
  */
-export function getVisibleSpaces(role: RoleType | string): NavSpace[] {
+export function getVisibleSpaces(role: RoleType | string, extras?: readonly string[]): NavSpace[] {
   return NAV_SPACES.map((space) => {
     // 1. Vérification stricte du droit d'entrée dans l'espace (non déduit de l'espace)
-    if (!hasAccess(role, space.defaultHref)) {
+    //    `extras` : chemins ouverts par les accès en plus du membre (`lib/capacites.ts`).
+    const entree = hasAccess(role, space.defaultHref, extras) || space.sections.some((sec) => sec.items.some((i) => extras?.some((e) => i.href.split("?")[0] === e.replace(/\$$/, ""))));
+    if (!entree) {
       return null;
     }
 
     const authorizedSections = space.sections
       .map((sec) => ({
         ...sec,
-        items: sec.items.filter((item) => hasAccess(role, item.href)),
+        items: sec.items.filter((item) => hasAccess(role, item.href.split("?")[0], extras) || hasAccess(role, item.href)),
       }))
       .filter((sec) => sec.items.length > 0);
 

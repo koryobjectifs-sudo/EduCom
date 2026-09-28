@@ -639,6 +639,7 @@ export default function ImportStudentsPage() {
           Fichier Excel / CSV
         </button>
         <button
+          data-tour="import-paste-tab"
           type="button"
           onClick={() => setInputMode("PASTE")}
           className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
@@ -695,7 +696,7 @@ export default function ImportStudentsPage() {
                     }
                   }}
                 />
-                <Button variant="primary" size="md" onClick={() => fileInputRef.current?.click()}>
+                <Button data-tour="btn-import" variant="primary" size="md" onClick={() => fileInputRef.current?.click()}>
                   Parcourir mon ordinateur
                 </Button>
               </div>

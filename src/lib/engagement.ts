@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { acteurPeut } from "@/lib/grants";
 import type { ActorContext } from "@/lib/audit";
 import { roleLabel } from "@/lib/permissions";
 import { reglesDuCanal, resoudreAudience } from "@/lib/audience";
@@ -78,7 +79,7 @@ export async function engagementPublication(actor: ActorContext, postId: string)
       poll: { select: { votes: { select: { userId: true } } } },
     },
   });
-  if (!p || (p.authorId !== actor.userId && !DIRECTION.includes(actor.role))) return null;
+  if (!p || (p.authorId !== actor.userId && !DIRECTION.includes(actor.role) && !(await acteurPeut(actor, "MODERER")))) return null;
   const ids = await destinatairesPublication(p);
   const vus = await vusParmi(p, ids);
   const manquants = ids.filter((id) => !vus.has(id)).slice(0, 300);
@@ -111,7 +112,7 @@ export type TableauEngagement = {
 
 /** Tableau de bord de la direction : 20 dernières publications, parents inactifs, formulaires. */
 export async function tableauEngagement(actor: ActorContext): Promise<TableauEngagement | null> {
-  if (!DIRECTION.includes(actor.role)) return null;
+  if (!DIRECTION.includes(actor.role) && !(await acteurPeut(actor, "MODERER"))) return null;
   const depuis = new Date(Date.now() - 30 * 86400_000);
   const [posts, eleves, actifs, abonnes, forms] = await Promise.all([
     prisma.communityPost.findMany({

@@ -1,6 +1,475 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 26 septembre 2026 — **Déploiement Production poussé avec succès (Commits `a43f5c1` & `5ef2531`)** : Refonte Dashboards Métiers (« Soft Elegance »), Communauté & Messagerie, et Google OAuth Branding
+> Dernière mise à jour : 28 septembre 2026 — **Guidance End-to-End Métiers & Formulaires d'Action : Câblage Complet, Résolution Popups & Halo Allégé**
+
+> **Progression — 28 septembre 2026 (Guidance End-to-End sur Formulaires d'Action & Modules Métiers).**
+> - **Demande de Kory (Audio & Instructions)** :
+>   - « La guidance ne doit pas simplement s'arrêter là : ça doit être vraiment partout, end-to-end, dans tous les métiers, tu ne laisses rien du tout. »
+>   - Inscrire un élève (`/dashboard/students/new`) : Fiche élève → Tuteur WhatsApp → Bouton Valider l'admission.
+>   - Import Excel (`/dashboard/students/import`) : Bouton « Parcourir mon ordinateur » → Création automatique des classes manquantes.
+>   - Nouvel encaissement (`/dashboard/payments/new`) : Sélection élève → Frais/écolage → Émission du reçu certifié.
+>   - Pédagogie & Bulletins (`/dashboard/grades`, `/dashboard/grades/report-card`) : Cible chirurgicale sur les boutons d'action (saisie, conseil de classe), walk-through complet sur les bulletins (filtre élève, personnalisation visuelle, mode monochrome économie d'encre, impression A4).
+>   - Documents (`/dashboard/documents`) : Documents produits, modèles, actions/contrôle et traitement des dossiers incomplets.
+>   - Paramètres (`/dashboard/settings`) : Identité école, charte visuelle avec bouton d'application direct, logos, cachets et signatures.
+>   - Communauté (`/dashboard/communications/communaute`) : Canaux scolaires, composeur d'annonces avec pièces jointes & sondages, annuaire des membres.
+> - **Ce qui a été implémenté et validé** :
+>   1. **Configuration Universelle de Guidance ([`onboarding-metiers.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/onboarding-metiers.ts))** :
+>      - Définition rigoureuse de chaque étape concrète avec sélecteurs chirurgicaux, titres percutants, descriptions claires et actions guidées.
+>      - Intégration des sections `students_new`, `students_import`, `payments_new`, `grades`, `grades_report_card`, `documents`, `settings` et `comms`.
+>   2. **Moteur de Tour Contextuel ([`TourPageContextuelle.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/onboarding/TourPageContextuelle.tsx))** :
+>      - Détection de route automatique pour toutes les sous-pages d'action et modules métiers.
+>      - Halo / Spotlight allégé (`rgba(15, 23, 42, 0.22)` avec lueur violette `#8B5CF6`) éliminant tout sentiment de pop-up noir agressif.
+>      - Maintien actif pendant les 3 premiers jours avec mémorisation de session pour un confort parfait sans répétition intempestive.
+>   3. **Tagging chirurgical des composants métier** :
+>      - Formulaires : [`form.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/students/new/form.tsx), [`page.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/students/import/page.tsx), [`form.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/payments/new/form.tsx).
+>      - Bulletins : [`Generator.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/grades/report-card/Generator.tsx).
+>      - Documents : [`DocumentsTabs.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/documents/DocumentsTabs.tsx), [`page.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/documents/page.tsx).
+>      - Communauté : [`BarreCommunaute.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/community/BarreCommunaute.tsx), [`FilCanal.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/community/FilCanal.tsx), [`Communaute.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/community/Communaute.tsx).
+>      - Paramètres : [`ClientPage.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/settings/ClientPage.tsx), [`VisualAssetField.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/settings/VisualAssetField.tsx).
+>   4. **Compilateur TypeScript** : syntaxe JSX nettoyée et validée.
+
+
+> **Progression — 28 septembre 2026 (Étape 1 : Socle de Boutons Unifié & Protection Anti-Double Clic).**
+> - **Décision UX (Option A validée par Kory)** : Style Slack / Linear / Stripe avec arrondi subtil de 8px (`rounded-lg`, `--radius-control: 8px`), préservant les pilules (`rounded-full`) pour les badges et filtres.
+> - **Ce qui a été implémenté et validé** :
+>   1. **Tokens de Design ([`globals.css`](file:///Users/kory/EduCom%20SaaS/src/app/globals.css))** : `--radius-control` calé à 8px.
+>   2. **Composant Universel Modernisé ([`Button.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/ui/Button.tsx))** :
+>      - 4 hauteurs standard : `lg` (48px, px-6, text-sm/base semibold), `md` (40px, px-4, text-sm medium, défaut), `sm` (32px, px-3, text-xs), `xs` (28px, px-2.5, text-xs).
+>      - 4 variantes sémantiques : `primary` (action forte unique par vue, fond `--color-primary-ink` AA), `secondary` (fond blanc/surface, bordure discrète), `ghost` (fond transparent), `danger` (rouge alerte AA).
+>      - Protection native anti-double clic : verrouillage dynamique pendant l'exécution d'un handler ou de l'état `loading`.
+>      - Support polymorphe natif : support direct de `href` (rendu `<Link>` stylisé avec protection désactivée) et `asChild`.
+>      - Accessibilité stricte : typage discriminé imposant `aria-label` si bouton sans texte visible.
+>   3. **Compilateur TypeScript** : `npx tsc --noEmit` validé avec 0 erreur.
+
+
+> **Progression — 28 septembre 2026 (Tooltips Contextuels Slack & Hovercards Métier Cliquables).**
+> - **Demandes de Kory (Audio & Captures Slack)** :
+>   1. « À chaque fois que le curseur s'approche d'une fonctionnalité, d'un bouton ou quoi que ce soit, il y a une explication style Slack » (Captures 1, 2, 4, 5).
+>   2. « Par exemple "View all members of this channel including korysenghor and reefjafdannwa" » (Capture 4).
+>   3. « Afficher un contexte pour le guider, et aussi il peut s'en servir pour cliquer. Par exemple sur DMs, voir la liste des DMs et cliquer pour aller directement vers la personne. Des accès vraiment faciles et directs. Guidance permanent, pas seulement pour les nouveaux arrivants » (Capture 3 & Audio).
+> - **Ce qui a été implémenté et vérifié** :
+>   1. **Composant Universel Tooltip Slack ([`SlackTooltip.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/ui/SlackTooltip.tsx))** :
+>      - Design Slack dark (`#1A1D21`), bordure fine `border-white/10`, flèche directionnelle calibrée.
+>      - Support de titre en gras, sous-titre pédagogique / astuce (« Astuce : double-cliquez… ») et badge de raccourci clavier (`⌘K`, `↵`).
+>      - Déclenchement fluide avec délai anti-scintillement (180ms).
+>   2. **Hovercards Interactifs du Rail avec Raccourcis Cliquables ([`RailHovercard.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/layout/RailHovercard.tsx) & [`AppRail.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/layout/AppRail.tsx))** :
+>      - Au survol de chaque tuile du rail (Accueil, Scolarité, Pédagogie, Finance, Communauté, Documents, Administration), une carte sombre ancrée Slack-style s'ouvre à droite.
+>      - Affiche le rôle du module + une liste de liens directs vers les sous-pages clés (ex: Scolarité → « Inscrire un élève », « Importer Excel » ; Finance → « + Nouvel encaissement » ; Communauté → « DMs », « Canal Général »).
+>      - Tuile Administration : reproduction exacte du popover « Admin Tools » (Capture 3) avec formule active (« Établissement Pro » + « Gérer l'abonnement ») et accès direct aux Paramètres, Membres et Session active.
+>   3. **Pile d'Avatars de Membres du Canal ([`Communaute.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/community/Communaute.tsx))** :
+>      - Bouton d'avatars superposés + compteur (comme Capture 4).
+>      - Au survol : tooltip affichant « Voir tous les membres de ce canal » et sous-titre listant les prénoms des membres réels (« Comprend Kory Senghor… »).
+>      - Au clic : ouverture instantanée du volet latéral des membres.
+>   4. **Tooltips sur TopBar & Composeur ([`AppTopBar.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/layout/AppTopBar.tsx), [`FilCanal.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/community/FilCanal.tsx), [`FilPublications.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/community/FilPublications.tsx), [`BarreCommunaute.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/community/BarreCommunaute.tsx))** :
+>      - Boutons Précédent/Suivant, Cloche de notifications, Support EduCom, Site public et Avatar profil.
+>      - Composeur : bouton trombone pièces jointes (« Joindre un fichier · Astuce : glissez-déposez ou cliquez… »), modèles de messages, sondages, émojis, envoi programmé et bouton « Plus d'actions » sur les messages.
+>   5. **Compilateur TypeScript** : `npx tsc --noEmit` validé avec 0 erreurs.
+>   1. **Correction Reset Tour & Compteur 7 étapes ([`WalkthroughInteractif.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/onboarding/WalkthroughInteractif.tsx) & [`onboarding-metiers.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/onboarding-metiers.ts))** :
+>      - À chaque ouverture du tour, `etapeIndex` est réinitialisé à `0`.
+>      - Le tour couvre désormais les 7 éléments du rail pour la Direction (Accueil, Scolarité, Pédagogie, Finance, Communauté, Documents, Administration) et 5 pour le Secrétariat.
+>   2. **Suppression du Wrapper de Carte géante ([`src/app/dashboard/page.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/page.tsx))** :
+>      - Retrait de `DashboardWelcomeWrapper`. Le tableau de bord affiche directement son agencement normal sans carte intrusive.
+>   3. **Spotlight chirurgical Paramètres ([`ClientPage.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/settings/ClientPage.tsx))** :
+>      - Déplacement du sélecteur depuis la balise `<form>` géante vers la ligne compacte de 52px « Nom de l'école » (`data-tour="settings-school-name"`).
+>      - Ajout de repères spécifiques pour l'année académique active (`settings-academic-year`) et la palette graphique (`settings-colors`).
+>   4. **Moteur de Formation Contextuelle Bouton par Bouton ([`TourPageContextuelle.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/onboarding/TourPageContextuelle.tsx))** :
+>      - Nouveau composant ancré affichant une séquence de 2 à 3 étapes ciblées avec halo lumineux violet (`#7C3AED`) et bulle d'explication pédagogique avec bouton « Suivant » / « J'ai compris ».
+>      - S'active automatiquement à la 1re visite d'une section majeure (Scolarité, Pédagogie, Finance, Documents, Équipe, Paramètres) ou manuellement à la demande via le guide.
+>      - S'efface discrètement si un spotlight unitaire de démarrage est déjà actif depuis la sidebar.
+>   5. **Bouton de relance dans la Sidebar Guide ([`GuideSidebarContent.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/layout/GuideSidebarContent.tsx))** :
+>      - Détecte l'URL courante et propose le bouton contextuel « 🎯 Formation : [Nom du module] » avec le nombre d'actions clés expliquées.
+>      - Libellé du tour général actualisé à `1 minute · 7 étapes`.
+>   6. **Balises `data-tour` complétées** :
+>      - `StudentsUnifiedClient.tsx` : `student-import-link`.
+>      - `DocumentsTabs.tsx` & `documents/page.tsx` : `doc-generated`, `doc-templates`, `doc-drafts`.
+>      - `grades/page.tsx` : `grades-table`, `nav-report-card-button`.
+>   7. **Validation TypeScript** : `npx tsc --noEmit` exécuté avec succès (0 erreurs).
+>   1. **Skeletons synchronisés 1:1** :
+>      - `src/app/dashboard/students/loading.tsx` : En-tête soft-cockpit, barre de recherche et table réelle des élèves.
+>      - `src/app/dashboard/classes/loading.tsx` : En-tête, onglets de cycle et grille à 3 colonnes des cartes de classes.
+>      - `src/app/dashboard/grades/loading.tsx` : Grille à 3 colonnes des cartes d'évaluation par classe.
+>      - `src/app/dashboard/payments/loading.tsx` : 4 cartes métriques financières en haut, barre de recherche et table de facturation en bas.
+>      - `src/app/dashboard/team/loading.tsx` : Organigramme hiérarchique identique à `OrgChartClient`.
+>      - `src/app/dashboard/loading.tsx` : Header, bandeau 4 métriques et 2 colonnes opérationnelles.
+>   2. **Temps 1 — Écran de bienvenue ([`EcranBienvenue.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/onboarding/EcranBienvenue.tsx) & [`DashboardWelcomeWrapper.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/dashboard/DashboardWelcomeWrapper.tsx))** :
+>      - Bandeau accueillant façon Slack intégré sur le canvas principal sans modal bloquante.
+>      - Salutation personnalisée avec prénom et emoji qui salue.
+>      - Promesses percutantes par rôle (Directrice, Enseignant, Comptable, Secrétaire).
+>      - Action principale (violet) lançant le tour + action secondaire "Plus tard".
+>   3. **Temps 2 — Tour de la sidebar ([`AppRail.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/layout/AppRail.tsx) & [`WalkthroughInteractif.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/onboarding/WalkthroughInteractif.tsx))** :
+>      - Ordre directrice : Accueil (`nav-accueil`), Scolarité (`nav-students`), Pédagogie (`nav-pedagogy`), Finance (`nav-finance`), Communauté (`nav-comms`), Administration (`nav-admin`).
+>      - Bulle claire style 2e sidebar, placement à droite, flèche directionnelle, explication en 2 phrases (utilité + action concrète).
+>      - Raccourcis clavier (Entrée/Flèche droite pour Suivant, Échap pour quitter) et lien discret "Passer le tour".
+>      - Clôture du tour ouvrant automatiquement la 2e sidebar sur "Guide & Premiers pas".
+>   4. **Temps 3 — Checklist des 4 Indispensables & Vérification DB ([`GuideSidebarContent.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/layout/GuideSidebarContent.tsx) & [`actions.ts`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/aide/actions.ts))** :
+>      - Server action `getOnboardingRealStatus()` vérifiant l'état réel dans Prisma (école configurée, effectifs importés > 0, enseignants invités > 0, staff invité > 0).
+>      - Barre de progression dynamique exacte (`0/4 (0 %)`, `2/4 (50 %)`, `4/4 (100 %)`).
+>      - Clic sur une étape -> navigation vers la page cible + déclenchement du spotlight ciblé ([`SpotlightActionCible.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/onboarding/SpotlightActionCible.tsx)).
+>      - État vide utile enrichi dans `grades/page.tsx` avec bouton direct d'importation d'élèves.
+>   5. **Temps 4 — Célébration Waouh** :
+>      - Remplacement de la checklist à 100% par le bloc de célébration (« Votre école est prête ! 🎉 »).
+>      - Liens directs vers la personnalisation des bulletins et la communauté.
+>      - Option de déplier/replier la checklist d'origine à la demande.
+> - **Ce qui a été implémenté et vérifié** :
+>   1. **Bulle d'incitation ancrée & Bouton Guide ([`BoutonRailGuide.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/layout/BoutonRailGuide.tsx) & [`MobileTabBar.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/layout/MobileTabBar.tsx))** :
+>      - Desktop : bulle claire et légère inspirée du style de la 2ᵉ sidebar (fond blanc lumineux, bordure subtile, typographie foncée lisible, flèche avec ombre portée).
+>      - Mobile : bulle responsive claire ancrée au-dessus de la barre d'onglets sans déborder (`inset-x-3`) + bouton Guide intégré dans le panneau « Plus ».
+>      - Pastille pulsante verte maintenue sur le bouton Guide tant que le tour n'a pas été réalisé.
+>      - Fermeture fluide au clic sur le bouton Guide, la croix ou le bouton "Plus tard".
+>   2. **Contenu Guide dans la Sidebar contextuelle ([`GuideSidebarContent.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/layout/GuideSidebarContent.tsx) & [`ContextualSidebar.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/layout/ContextualSidebar.tsx))** :
+>      - Intégration dans la 2e barre de navigation EduCom (largeur 200px, redimensionnable) évitant tout rideau ou drawer déconnecté.
+>      - Raccourcis directs de configuration rapide (Importer les élèves, Inviter le staff, Paramètres de l'école).
+>      - Checklist prioritaire interactive par rôle avec progression persistée en localStorage.
+>   3. **Walkthrough Ancré Spotlight Halo ([`WalkthroughInteractif.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/onboarding/WalkthroughInteractif.tsx))** :
+>      - Découpe d'ombre portée (`box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.65)`) focalisée sur l'élément cible exact via sélecteurs `[data-tour]`.
+>      - Bulle d'explication claire et aérée (fond blanc/mauve léger, texte sombre haute lisibilité, bouton d'action brandé) repositionnée intelligemment avec flèche triangulaire directionnelle, compteur "1/4", touche Échap, défilement doux et navigation multi-pages.
+>   4. **Finances Familles ([`FamillesClient.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/payments/familles/FamillesClient.tsx))** :
+>      - Remplacement du fond opaque `bg-text` de l'onglet "Toutes" par un bouton `bg-slate-900 text-white` net et lisible.
+>      - Rehausse du contraste des badges de statut ("À jour", "Partiel", "En retard") et du reliquat ("Soldé (0 F)" en émeraude net).
+>      - Ajout de `data-tour="familles-table"` pour le guidage comptable.
+>   5. **Restauration SignaturePad ([`form.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/payments/new/form.tsx))** :
+>      - Affichage systématique du composant `SignaturePad` avec canevas interactif ("Signez ici...") et bouton "Importer Cachet", même si des visuels par défaut existent dans l'école.
+>   6. **Nettoyage Paramètres Identité ([`VisualAssetField.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/settings/VisualAssetField.tsx) & [`ClientPage.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/settings/ClientPage.tsx))** :
+>      - Retrait de la poignée de redimensionnement de coin et du curseur de taille en pixels.
+>      - Aperçu carré centré avec suppression (`X`) et téléversement optimisé PNG haute résolution.
+> - **Demande de Kory** :
+>   1. « LOT 1 — Communauté Style Slack (mise en page) : supprimer les contours/espaces vides autour des channels, layout continu et fluide collé aux bordures et à la sidebar, défilement indépendant des messages, barre d'écriture fixée en bas ».
+>   2. « LOT 2 — Photos de profil et Emojis : corriger la photo de profil à côté des messages (cause racine), sélecteur d'émojis façon WhatsApp (catégories, recherche, récents) pour l'écriture et les réactions ».
+>   3. « LOT 3 — Channels standards d'une école : 8 canaux configurés automatiquement à la création et ajoutés de façon idempotente aux écoles existantes (Général, Fun, Salle des proches, Salle des profs, Comité des parents, Gestion des communications, Finances, Communications des profs) avec règles d'accès adaptées ».
+>   4. « LOT 4 — Support EduCom : bouton Support dans la sidebar plateforme-wide, modal structurée Jira avec 3 templates (Bug, Question, Amélioration) + numéro séquentiel [EDU-XXXX] + priorité + contexte auto, canal #support-educom avec fils de discussion en direct, console pilotage isolée ».
+> - **Ce qui a été implémenté et validé** :
+>   1. **LOT 1 — Mise en page Slack plein cadre** :
+>      - `AppShell.tsx` : suppression de l'enveloppe à marge `md:p-3`, passage du `main` en `overflow-hidden` sur vue plein cadre.
+>      - `Communaute.tsx` : retrait des classes de carte flottante `md:rounded-2xl md:border`, conteneur pleine hauteur et pleine largeur continu collé à la sidebar contextuelle. Défilement indépendant du flux de messages et composeur ancré en bas.
+>   2. **LOT 2 — Photos de profil & Sélecteur d'émojis WhatsApp** :
+>      - **Cause racine résolue** : les requêtes Prisma dans `src/lib/community.ts`, `src/lib/messagerie.ts` et `src/lib/communityPage.ts` n'incluaient pas `avatar: true` dans le `select` utilisateur, et le composant `Avatar` ne gérait pas de prop d'image.
+>      - Sélections `avatar: true` ajoutées sur les auteurs de publications, commentaires, messages directs, fils de discussion et annuaire des membres.
+>      - Composant `Avatar` et `MiniAvatar` mis à jour avec rendu `<img>` optimisé et repli automatique sur les initiales colorées en cas d'erreur de chargement.
+>      - Création de `src/components/community/SelecteurEmoji.tsx` façon WhatsApp/Slack : recherche instantanée par mots-clés en français, onglets de catégories (Smileys, Gestes, Cœurs, École, Fête), émojis récents persistés dans `localStorage`.
+>      - Sélecteur branché sur tous les composeurs (`FilCanal.tsx`, `Discussion.tsx`, `FilPublications.tsx`) et dans la barre de réactions aux messages.
+>      - Action serveur `reagir` assouplie pour supporter nativement n'importe quel émoji unicode avec persistance dans `CommunityReaction`.
+>   3. **LOT 3 — Channels standards de l'école** :
+>      - Constante `CANAUX_STANDARDS` et fonction `initialiserCanauxStandards` dans `src/lib/community.ts` avec règles d'audience strictes par rôle (`PARENTS`, `ROLE:TEACHER`, `ROLE:OWNER`, `ROLE:ADMIN`, `ROLE:SECRETARY`, `ROLE:ACCOUNTANT`).
+>      - Approvisionnement automatique et idempotent branché à la création d'école (`register/actions.ts` et `auth/callback/route.ts`) et à chaque accès communautaire (`canauxDuPerimetre`).
+>   4. **LOT 4 — Support EduCom (Modal Jira & Canal #support-educom)** :
+>      - Bouton Support dédié avec icône bouée dans le rail principal `AppRail.tsx` et dans la barre mobile `MobileTabBar.tsx` accessible sur toute la plateforme.
+>      - Modale `ModalSupportJira.tsx` style Jira avec 3 templates (Signaler un bug, Poser une question, Proposer une amélioration), niveau d'urgence (Urgent, Normal, Bas), détection automatique du contexte (URL page, navigateur, OS, résolution) et numéro séquentiel `[EDU-XXXX]`.
+>      - Canal `#support-educom` dans la Communauté propulsé par `VueSupportEduCom.tsx` : vue filtrable des tickets de l'établissement, fils de discussion interactifs avec l'équipe technique EduCom, badges de statut (`OUVERT`, `EN_COURS`, `RESOLU`), distinction visuelle des réponses de l'équipe EduCom et réponses en temps réel.
+>      - Interconnexion avec la console de pilotage multi-écoles `pilotage/src/app/(console)/support/page.tsx` avec isolation stricte des données par établissement.
+>
+> - **Demande de Kory** :
+>   1. « Étape 0 — État des lieux (ce qui existe, ce qui est à moitié fait, ce qui manque) ».
+>   2. « Bouton stratégique dans la sidebar + Panneau secondaire 'premières choses à faire' adapté aux 4 métiers (importer données, inviter équipes, etc.) ».
+>   3. « Incitation à la 1ère connexion ('Faites le tour en 2 minutes') avec walkthrough interactif ».
+>   4. « Guide accessible à tout moment dans l'Aide et page HTML dédiée illustrée de VRAIES captures ».
+>   5. « Refonte de la page Abonnement : rendre les écritures et boutons plus fits/adaptés, les 3 cartes plus raffinées, les 4 cartes de durée réduites, bouton rond détaché + bouton Payer, et historique traçable avec date + heure sans écraser (créer une ligne distincte pour le remboursement) ».
+> - **Ce qui a été implémenté et validé** :
+>   1. **État des lieux initial** :
+>      - `User.guideVuAt` existait déjà dans `prisma/schema.prisma` et `communauteSchema.ts`.
+>      - `marquerGuideVu()` existait déjà dans `dashboard/aide/actions.ts`.
+>      - `GuideMetierGate` (modale bloquante Enseignant) était non monté et trop intrusif : remplacé par un système PLG fluide non bloquant.
+>   2. **Bouton Rail & Panneau latéral secondaire ([`BoutonRailGuide.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/layout/BoutonRailGuide.tsx) & [`PanneauPremiersPas.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/onboarding/PanneauPremiersPas.tsx))** :
+>      - Bouton stratégique placé dans le rail principal (`AppRail.tsx`), sous Accueil, avec pastille pulsante verte si le tour n'a pas été fait.
+>      - Tiroir coulissant fluide avec checklist interactive adaptée au rôle (`TEACHER`, `ACCOUNTANT`, `SECRETARY`, `OWNER`/`ADMIN`), bouton « Faites le tour en 2 minutes », raccourcis d'importation et bouton « Inviter vos équipes ».
+>   3. **Incitation 1ère connexion & Walkthrough ([`IncitationPremiereConnexion.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/onboarding/IncitationPremiereConnexion.tsx) & [`WalkthroughInteractif.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/onboarding/WalkthroughInteractif.tsx))** :
+>      - Toast animé élégant glissant depuis le coin inférieur invitant à faire le tour en 2 minutes sans paralyser le travail.
+>      - Walkthrough interactif pas-à-pas avec explications percutantes et appel automatique à `marquerGuideVu()` à la conclusion.
+>   4. **Guide Métier dans l'Aide & Page dédiée ([`BoutonAide.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/aide/BoutonAide.tsx) & [`/dashboard/aide/guide`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/aide/guide/page.tsx))** :
+>      - Onglet « Guide de mon métier » intégré dans le menu d'Aide flottant.
+>      - Page web dédiée `/dashboard/aide/guide` avec sélecteur de rôle pour la direction, étapes concrètes et vraies captures d'écran du produit (`guide-dashboard.png`, `guide-saisie-notes.png`).
+>   5. **Refonte Abonnement & Historique Comptable ([`page.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/abonnement/page.tsx) & [`PayerAvecWave.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/abonnement/PayerAvecWave.tsx))** :
+>      - En-tête et 3 micro-cartes (Échéance, Dernier règlement, Garantie) affinées avec un design fit, compact et aéré.
+>      - Grille des 4 durées compacte et intégrée.
+>      - Bouton rond Wave détaché à côté du bouton principal « Payer [Montant] avec Wave ».
+>      - Historique des règlements certifié : affichage strict **Date & Heure**, maintien permanent de la ligne « Payé » et ajout d'une ligne d'écriture dédiée négative « Remboursé » avec motif (aucune substitution destructrice).
+>   6. **Validation technique** :
+>      - `npx tsc --noEmit` : **0 erreur (code 0)**.
+>      - Serveur de dev local opérationnel (`curl http://localhost:3000/` -> 200).
+>
+> - **Demande de Kory** :
+>   1. « Échéance dans 36 jours : faute de frappe, les 7 jours d'essai sont perdus dès l'abonnement, on commence à compter les jours à partir du moment où elle s'abonne ».
+>   2. « Cartes : fidèles exactement à la landing page (Standard 9 900 F, Premium 14 900 F violet royal recommandé, Sur Demande sur devis avec bouton 'Contacter EduCom' et texte clarifié) ».
+>   3. « Termes et conditions : clause d'annulation, politique de remboursement, et mention claire que tout restera accessible et gérable en lecture seule depuis la plateforme même en cas de compte annulé ».
+>   4. « Pilotage : tracker les remboursements/annulations de paiement et pouvoir annuler un paiement directement ».
+> - **Ce qui a été implémenté et validé** :
+>   1. **Calcul d'échéance strict ([`subscription.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/subscription.ts) & [`abonnement.ts`](file:///Users/kory/EduCom%20SaaS/pilotage/src/lib/abonnement.ts))** :
+>      - Lors d'une souscription pendant l'essai gratuit, l'essai prend fin immédiatement : la période démarre à la date exacte du règlement (`maintenant + N mois`). Le cumul séquentiel ne s'applique que pour les renouvellements anticipés sur période déjà payée.
+>      - `verify-subscription.ts` : 21/21 assertions validées.
+>   2. **Parité visuelle 100 % Landing Page ([`PayerAvecWave.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/dashboard/abonnement/PayerAvecWave.tsx))** :
+>      - Standard (fond blanc, bordure slate, puce essai 7 jours).
+>      - Premium (fond violet pourpre `#1e0836`, puce néon `● RECOMMANDÉ`, bouton contrasté blanc).
+>      - Sur Demande (bouton d'action **« Contacter EduCom »**, texte épuré sans jargon déroutant).
+>      - Maintien du sélecteur de durée (1, 3, 6, 12 mois avec remises -10%, -15%, -20%) et bouton officiel Wave cyan.
+>   3. **Termes & Conditions / CGU ([`terms.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/legal/terms.ts))** :
+>      - Article 5 : Forfaits & Paiements (sans engagement, durée choisie).
+>      - Article 6 : Politique d'annulation & de remboursement (fenêtre de 48h en cas d'erreur de facturation, traitement Wave sous 3 à 5 jours ouvrés).
+>      - Article 7 : Résiliation & Accès garanti (même après annulation ou expiration, l'école conserve un accès complet en consultation et export de ses élèves, notes, bulletins et reçus directement depuis sa plateforme).
+>   4. **Pilotage — Suivi & Action de Remboursement ([`gestes.ts`](file:///Users/kory/EduCom%20SaaS/pilotage/src/lib/gestes.ts), [`BoutonRembourser.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/app/(console)/ecoles/[id]/BoutonRembourser.tsx), [`page.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/app/(console)/ecoles/[id]/page.tsx))** :
+>      - Nouveau geste `annulerPaiement(paiementId, motif)` : passe le paiement en `REMBOURSE`, recalcule `currentPeriodEnd` d'après les paiements actifs restants, crée un `AuditLog` et notifie l'école par notification interne.
+>      - Statut `REMBOURSE` avec badge rouge et bouton direct de confirmation dans la fiche école.
+>      - Côté tableau de bord école (`dashboard/abonnement`), affichage clair du badge rouge « Remboursé » dans l'historique comptable.
+>   5. **Validation technique** :
+>      - EduCom `npx tsc --noEmit` : **0 erreur (code 0)**.
+>      - Pilotage `npm --prefix pilotage run verify` : **36/36 tests réussis**, `tsc --noEmit` **0 erreur**.
+>
+
+> **Progression — 28 septembre 2026 (Audit Pricing, Mode de paiement Wave & Tests d'Abonnement).**
+> - **Demande de Kory** :
+>   1. « Vérifier le pricing, parce qu'avec l'autre agent (Claude) quelque chose manquait sur le mode de paiement, les abonnements ne marchaient pas ».
+>   2. « Est-ce que le nouveau pricing a été appliqué sur la base de données ? »
+>   3. « Comment tester l'abonnement ? »
+> - **Résultats de l'audit & Corrections** :
+>   1. **Pourquoi Wave ne marchait pas** : Dans `.env.local`, `WAVE_API_KEY=""` et `WAVE_WEBHOOK_SECRET=""` sont vides. Le code (`src/lib/wave.ts`) vérifie `waveConfigure()` et désactive volontairement le bouton de paiement Wave pour éviter des erreurs runtime en l'absence de compte marchand Wave actif.
+>   2. **Pricing en base de données** : Le schéma Prisma ne stocke pas de prix catalogue en dur dans les tables (architecture SaaS standard). Les tarifs vivent dans [`src/lib/pricing.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/pricing.ts) (Standard 9 900 F, Premium/Pro 14 900 F). Seul le montant réel payé est inscrit lors d'une transaction dans `SubscriptionPayment.amountXof`.
+>   3. **Correctif appliqué sur Pilotage** : [`pilotage/src/lib/abonnement.ts`](file:///Users/kory/EduCom%20SaaS/pilotage/src/lib/abonnement.ts) avait conservé l'ancien tarif de 9 € / 5 904 F CFA. Il a été immédiatement synchronisé sur `PRO_PRICE_XOF = 14900` (~23 €), garantissant un calcul exact du MRR et du potentiel d'essais.
+>   4. **Comment tester** :
+>      - *Sans clé Wave (immédiat)* : via le Cockpit de pilotage (`/ecoles/[id]` -> « Enregistrer un paiement reçu… » ou « Offrir des jours… »), ce qui crée une transaction réelle, repousse l'échéance et passe l'école en `ACTIF`.
+>      - *Tests unitaires* : `npx tsx scripts/verify-subscription.ts` (21 assertions passées).
+>      - *Avec Wave* : renseigner `WAVE_API_KEY` dans `.env.local` pour ouvrir le checkout réel.
+>
+> - **Demande de Kory (audio & captures)** :
+>   1. Résoudre le crash runtime Server/Client sur `/revenus` (« Functions cannot be passed directly to Client Components »).
+>   2. Rétablir la démarcation de la TopBar (pourpre royale EduCom) : ne pas avoir un dashboard tout blanc fade.
+>   3. Supprimer les contours noirs indésirables un peu partout.
+>   4. Réorganiser les boutons et éliminer les chevauchements / débordements de texte.
+> - **Ce qui a été résolu et vérifié** :
+>   1. **Correction du crash runtime ([`CourbeTendance.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/components/charts/CourbeTendance.tsx) & [`revenus/page.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/app/(console)/revenus/page.tsx))** :
+>      - Cause trouvée : `formatValeur` était passé comme fonction anonyme d'un Server Component vers un Client Component.
+>      - Correction : suppression du prop fonction, remplacé par `modeValeur="fcfa" | "nombre"` formaté directement côté client. Crash 100 % éliminé.
+>   2. **Rétablissement de la TopBar royale démarquée ([`TopBar.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/components/TopBar.tsx))** :
+>      - Fond pourpre officiel `#1a082e`, bordure `#2d124d`, logo bouclier blanc et rubis `#FF6B6F`, pulse vert en direct, navigation contrastée.
+>   3. **Élimination complète des contours noirs ([`globals.css`](file:///Users/kory/EduCom%20SaaS/pilotage/src/app/globals.css) & [`ui.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/components/ui.tsx))** :
+>      - Cause trouvée : Tailwind v4 avec thème personnalisé ne synthétisait pas les opacités arbitraires de bordure (ex: `border-slate-200/80`), provoquant une retombée sur `currentColor` (`#0f172a` noir) en Safari.
+>      - Correction : application universelle de `border-color: var(--color-rule)` (`#e2e8f0`) et `color-scheme: light` sur `:root`. Utilisation stricte des tokens standards (`border-rule`, `bg-surface`, `bg-sunk`).
+>   4. **Restructuration de la mise en page & fin des débordements ([`page.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/app/(console)/page.tsx), [`CockpitTaches.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/components/CockpitTaches.tsx), [`FiltrePeriode.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/components/FiltrePeriode.tsx))** :
+>      - Grilles robustes `lg:grid-cols-[1.5fr_1fr]` et `lg:grid-cols-[1.3fr_1fr]` remplaçant les 12 colonnes instables en taille d'écran intermédiaire.
+>      - Barre de filtres temporels segmentée, compacte et élégante.
+>      - Boutons de relance WhatsApp et fiches alignés avec `truncate` sans aucun chevauchement.
+>   5. **Validation technique** :
+>      - `pilotage` : **36/36 tests réussis**, compilation `tsc` **0 erreur**.
+>      - EduCom : compilation `tsc` **0 erreur**.
+>      - Requêtes HTTP 200 confirmées sur `/` et `/revenus`.
+>
+> **Progression — 27 septembre 2026 (Refonte UX/UI Soft & Blanche, Filtres temporels, Courbes de tendance SVG & Tâches prioritaires).**
+> - **Demande de Kory (audio)** :
+>   1. « Alléger les choses, mettre des diagrammes, les courbes etc. pour le rendre beaucoup plus professionnel et soft, avec une couleur beaucoup plus blanche et professionnelle. »
+>   2. « Système d'agrégation et filtre sur la période (aujourd'hui, hier, 7j, 30j, ce mois-ci, date range personnalisé) applicable là où ça fait sens (revenus, tâches, etc.). »
+>   3. « Inspiration pour capturer le reste et le next step : proposer un plan d'implémentation et valider. »
+> - **Ce qui a été implémenté et validé après accord (« proceed »)** :
+>   1. **Architecture de filtrage temporel & agrégation ([`periode.ts`](file:///Users/kory/EduCom%20SaaS/pilotage/src/lib/periode.ts) & [`donnees.ts`](file:///Users/kory/EduCom%20SaaS/pilotage/src/lib/donnees.ts))** :
+>      - Sélecteur de période universel : *Aujourd'hui, Hier, 7 jours, 30 jours, Ce mois, Année, Plage personnalisée (date range)*.
+>      - Agrégation dynamique des revenus encaissés sur l'intervalle exact (`encaissePeriode`), des nouvelles inscriptions d'écoles, des notes saisies et des erreurs.
+>      - Préservation totale des routes et query params existants (tolérance zéro sur les routes).
+>   2. **Composants graphiques interactifs & légers ([`CourbeTendance.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/components/charts/CourbeTendance.tsx) & [`GraphiqueMultiMetriques.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/components/charts/GraphiqueMultiMetriques.tsx))** :
+>      - Graphique d'aire SVG lissé (spline Bézier cubique) avec dégradé semi-transparent vertical, points interactifs et infobulle au survol (affichage de date et montants en F CFA).
+>      - Sélecteur d'onglets pour basculer en 1 clic entre : 💰 *Revenus encaissés*, 🏫 *Nouvelles écoles*, et 📝 *Notes saisies*.
+>      - Composant [`RepartitionMoyensPaiement.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/components/charts/RepartitionMoyensPaiement.tsx) affichant la ventilation Wave vs Orange Money vs Manuel avec jauges segmentées et pourcentages.
+>   3. **Cockpit des actions prioritaires du jour ([`CockpitTaches.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/components/CockpitTaches.tsx))** :
+>      - Détection automatique et ciblée :
+>        - 🛑 *Écoles bloquées avec classes créées mais 0 prof assigné* (bouton direct WhatsApp avec message personnalisé d'aide + lien vers fiche).
+>        - ⏳ *Essais se terminant dans moins de 72h* (bouton direct Relance WhatsApp + lien pour offrir 7 jours de grâce).
+>        - 💬 *Tickets de support non lus*.
+>        - 💳 *Paiements Wave en attente*.
+>   4. **Design épuré Soft & Blanc ([`TopBar.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/components/TopBar.tsx), [`globals.css`](file:///Users/kory/EduCom%20SaaS/pilotage/src/app/globals.css), [`ui.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/components/ui.tsx))** :
+>      - Passage de la TopBar à un blanc pur (`bg-white/95 border-b border-slate-200/80`) avec badge Pilotage violet discret et logo officiel.
+>      - Cartes blanches aux micro-ombres douces, typographie slate ultra-contrastée, suppression des aplats de couleur lourds au profit de pastilles aérées.
+>   5. **Validation technique complète** :
+>      - `npm --prefix pilotage run verify` : **36/36 tests réussis**.
+>      - `cd pilotage && npx tsc --noEmit` : **0 erreur (code 0)**.
+>      - EduCom `npx tsc --noEmit` : **0 erreur (code 0)**.
+>      - Réponses HTTP 200 validées sur `http://localhost:3001` (avec filtres temporels `?periode=7j` et `?periode=30j`).
+>
+> - **Demande de Kory (audio)** :
+>   1. « Informations de l'école quand on clique : par exemple École de Queen, je n'avais pas les informations nom, adresse, email, tout ».
+>   2. « Voir tout ce qui est configuration : les matières, les profs assignés ou non assignés, les élèves importés, les factures générées, la signature, le cachet... ».
+>   3. « Penser par métier : ce qui est à faire pour ce métier, où démarrer, qu'est-ce qui bloque et comment débloquer pour avancer ».
+> - **Ce qui a été réalisé et validé** :
+>   1. **Résolution complète des coordonnées de l'école ([`donnees.ts`](file:///Users/kory/EduCom%20SaaS/pilotage/src/lib/donnees.ts))** :
+>      - Cause trouvée : `lesEcoles` ne cherchait que le rôle `OWNER` (alors que pour l'École de Queen, la créatrice Philomene Gomis SENGHOR est `ADMIN`), et n'interrogeait pas `ecole.phone` ni `ecole.email`.
+>      - Correction : recherche élargie aux rôles `OWNER` et `ADMIN`, avec repli direct sur les champs officiels de l'établissement (`ecole.phone`, `ecole.email`, `ecole.address`). Résultat : l'École de Queen affiche désormais immédiatement son nom, adresse (Dakar, Sac), téléphone direct (+221775622057), email (queengomis02@gmail.com) et responsable.
+>   2. **Audit de configuration par Métier ([`calculs.ts`](file:///Users/kory/EduCom%20SaaS/pilotage/src/lib/calculs.ts) & [`BlocsMetiers.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/app/(console)/ecoles/[id]/BlocsMetiers.tsx))** :
+>      - **🏛️ Direction & Identité Officielle** : contrôle du Cachet officiel (`stamp`), de la Signature du directeur (`signature`), de l'Année scolaire active et du découpage en Trimestres. Détection immédiate si les bulletins sortiront sans cachet officiel.
+>      - **📚 Pédagogie & Enseignement** : contrôle des classes, matières, affectations d'enseignants (`TeachingAssignment`), détection des **classes orphelines (0 prof assigné)** qui bloquent la saisie des notes, suivi des notes saisies et bulletins générés.
+>      - **👥 Secrétariat & Élèves** : contrôle des élèves importés, détection des élèves orphelins sans classe, et disponibilité des numéros de tuteurs.
+>      - **💳 Comptabilité & Finances** : contrôle des coordonnées Wave marchand / Orange Money, factures d'écolage émises et scolarités encaissées.
+>   3. **Déblocage ciblé par métier** :
+>      - Chaque bloc métier affiche son diagnostic, ses points configurés, ses points bloquants, l'action concrète à entreprendre, et 2 boutons d'assistance avec message personnalisé pré-rempli (WhatsApp et E-mail).
+>   4. **Tableau d'inspection pédagogique des classes ([`page.tsx`](file:///Users/kory/EduCom%20SaaS/pilotage/src/app/(console)/ecoles/[id]/page.tsx))** :
+>      - Liste exhaustive de toutes les classes de l'école avec cycle, effectif d'élèves, statut d'affectation des professeurs (vert si affecté, rouge `0 prof assigné 🛑` si orpheline) et volume de notes.
+>   5. **Validation technique** :
+>      - `npm --prefix pilotage run verify` : **36/36 tests réussis**.
+>      - `pilotage tsc --noEmit` : **0 erreur (code 0)**.
+>      - EduCom `tsc --noEmit` : **0 erreur (code 0)**.
+>      - Serveur actif sur `http://localhost:3001`.
+
+> **Progression — 27 septembre 2026 (Cockpit Lancement Pilotage : data-driven, entonnoir d'adoption & actions WhatsApp).**
+> - **Demande de Kory (audio)** :
+>   1. Pilotage hyper professionnel et data-driven : ne rater aucune donnée ni décision stratégique.
+>   2. Entonnoir d'adoption (funnel) pour voir en 2 secondes pourquoi une école n'utilise pas encore le logiciel et identifier l'étape exacte de blocage (Inscrite → Structure créée → Élèves importés → Notes saisies → Bulletins / Factures).
+>   3. Débloquer proactivement les écoles avec des messages de relance personnalisés (WhatsApp, email, assistance).
+>   4. Détecter les écoles « championnes » (adoption complète) et les fonctionnalités les plus adoptées.
+> - **Ce qui a été réalisé et validé** :
+>   1. **Modèle de funnel d'adoption & logique métier (`pilotage/src/lib/calculs.ts`)** :
+>      - Définition des 5 étapes du funnel : `INSCRITE`, `STRUCTURE_CREEE`, `ELEVES_IMPORTES`, `NOTES_SAISIES`, `USAGE_COMPLET`.
+>      - Calcul de l'adoption par école avec détection automatique du point de friction, du diagnostic, de l'action recommandée et génération de message WhatsApp personnalisé pré-rempli (avec prénom/nom du directeur).
+>      - Agrégation globale de l'entonnoir (taux de conversion étape par étape, détection des championnes et des écoles bloquées).
+>   2. **Composants d'interface immersifs (`pilotage/src/components/ui.tsx`)** :
+>      - `Kpi` rendu interactif et cliquable (`href` optionnel) pour drill-down direct vers les listes filtrées.
+>      - `PastilleAdoption` pour visualiser immédiatement l'avancement d'une école.
+>      - `EntonnoirVisuel` avec jauges horizontales, pourcentages d'avancement, et liens de filtrage direct par étape.
+>   3. **Écrans enrichis** :
+>      - **Vue d'ensemble (`pilotage/src/app/(console)/page.tsx`)** : KPIs cliquables, grand bloc entonnoir de lancement, podium des écoles championnes, liste prioritaire des écoles bloquées avec bouton direct « WhatsApp → ».
+>      - **Liste des écoles (`pilotage/src/app/(console)/ecoles/page.tsx`)** : double barre de filtres (statut commercial + étape d'adoption), colonne d'adoption avec badge, bouton de relance WhatsApp 1-clic direct dans le tableau.
+>      - **Fiche 360° école (`pilotage/src/app/(console)/ecoles/[id]/page.tsx`)** : timeline visuelle des 5 jalons franchis/en attente, encadré diagnostic avec action recommandée et bouton WhatsApp pré-rempli, suivi des erreurs serveur récentes rencontrées par l'école.
+>   4. **Vérifications & Tests** :
+>      - `npm --prefix pilotage run verify` : **36/36 vérifications passées**.
+>      - `cd pilotage && npx tsc --noEmit` : **0 erreur (code 0)**.
+>      - `npx tsc --noEmit` (EduCom) : **0 erreur (code 0)**.
+>      - Serveur de pilotage actif sur `http://localhost:3001`.
+
+> **Progression — 27 septembre 2026 (Landing page : animation continue rétablie & confinement du scroll).**
+> - **Demande de Kory (audio)** : L'animation automatique doit tourner en continu dès l'arrivée du visiteur sans qu'il ait besoin de cliquer. En revanche, le scroll doit être 100 % libre : que l'on dépasse la section ou pas, la page ne doit jamais être ramenée de force vers le téléphone.
+> - **Ce qui a été fait** :
+>   1. **Animation automatique continue rétablie** dans [`src/components/landing/MobileShowcase.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/landing/MobileShowcase.tsx) : suppression du blocage d'intersection. Les jauges de progression jaunes et la rotation des scènes s'enchaînent d'elles-mêmes dès l'arrivée sur le site.
+>   2. **Élimination complète des appels `scrollIntoView()` natifs** :
+>      - Dans [`src/app/vitrine/VitrineEcran.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/vitrine/VitrineEcran.tsx) : dans la scène « Facture », remplacement des appels `scrollIntoView` par `window.scrollTo` calculé strictement à l'intérieur du document de l'iframe. Ajout de `{ scroll: false }` sur `router.push`.
+>      - Dans [`src/components/layout/MobileSpaceTabs.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/layout/MobileSpaceTabs.tsx) : défilement horizontal direct du conteneur parent (`scrollLeft`) sans appel à `scrollIntoView`.
+>      - Dans [`src/components/ui/Modal.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/ui/Modal.tsx) et [`src/components/layout/MobileTabBar.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/layout/MobileTabBar.tsx) : `preventScroll: true` systématique sur toutes les prises de focus.
+>      - Confinement global sur le prototype de l'iframe dans `VitrineEcran.tsx` pour intercepter tout appel résiduel et l'isoler de `window.top`.
+> - **Vérification** : `npx tsc --noEmit` validé sans aucune erreur (code 0).
+
+> **Progression — 27 septembre 2026 (Outil de pilotage : application séparée + support des écoles). NON commité, NON poussé.**
+> - **Décision de Kory** : le pilotage ne vit PAS dans EduCom. C'est une **application Next séparée** dans le sous-dossier `pilotage/` du même dépôt (son `package.json`, son `package-lock.json`, son `tsconfig`, ses styles), à déployer comme **2e projet Vercel** (Root Directory = `pilotage`, adresse `*.vercel.app`). Même base (`DATABASE_URL`) : il LIT tout EduCom et y écrit ses gestes. EduCom exclut `pilotage` de son `tsconfig` et de son ESLint ; plus aucune route `/pilotage` dans EduCom.
+> - **Connexion totalement séparée** (choix de Kory) : table `PilotageAccount` (e-mail + scrypt, 5 échecs → blocage 15 min), cookie signé HMAC 12 h (`pilotage_session`, httpOnly, SameSite=Strict). Secret = `PILOTAGE_SESSION_SECRET` sinon dérivé de `DATABASE_URL` → sur Vercel **seul `DATABASE_URL` est obligatoire**. Premier compte créé via `/installation`, ouvert **uniquement en local** (hôte localhost/127.0.0.1) et **seulement tant qu'aucun compte n'existe** ; vérifié : en-tête Host distant → redirigé.
+> - **Schéma** : source unique `prisma/schema.prisma` d'EduCom ; `pilotage/scripts/schema.mjs` le copie (copie ignorée par Git) puis `prisma generate` au `postinstall`. ⚠️ Piège : sans `pilotage/src/proxy.ts`, Next reprenait le `src/proxy.ts` d'EduCom (build cassé). Vercel doit garder « Include files outside the Root Directory » (réglage par défaut) pour lire `../prisma/schema.prisma`. Règles d'abonnement COPIÉES dans `pilotage/src/lib/abonnement.ts` (tarif 9 € → 5 904 F CFA, grâce 7 j) ; `npm run verify` compare avec EduCom (36 vérifications).
+> - **Écrans** : Vue d'ensemble (MRR, encaissé, à récupérer, perdu/mois, essais, conversion, « À faire maintenant »), Écoles, Fiche école, Revenus, Support, Erreurs, Journal ; rafraîchissement 30 s. **Gestes** tracés dans l'`AuditLog` d'EduCom (`userId = "pilotage:<id>"`, exclu du calcul d'activité des écoles) et notifiés par la **cloche** d'EduCom (`StaffNotification` ; pas de push, les clés VAPID restent à EduCom) : offrir des jours, paiement reçu hors Wave (`provider: MANUEL`), message de renvoi d'accès (lien « mot de passe oublié » d'EduCom à envoyer par WhatsApp — le pilotage n'a volontairement pas les clés Supabase), réponse/statut des demandes, message aux écoles. Pas d'éditeur de base brut.
+> - **Resté dans EduCom (côté écoles)** : bouton « Aide » + `/dashboard/aide` (tables `SupportTicket`, `SupportMessage`), capture des erreurs serveur `src/instrumentation.ts` → `ErrorEvent`.
+> - **Vérifié** : EduCom `tsc` 0 ; pilotage `tsc` 0, `next build` OK, `npm run verify` 36/36 ; **parcours réel de bout en bout** sur une base PGlite locale (données fictives) : installation, connexion, mauvais mot de passe refusé, déconnexion, offrir des jours, renvoi d'accès, réponse au support, les 7 pages en 200.
+> - **NON vérifié** : sur la vraie base ; déploiement Vercel. **À faire** : (1) « Mettre à jour la base » dans EduCom (tables `SupportTicket`, `SupportMessage`, `ErrorEvent`, `PilotageAccount`) ; (2) à la racine d'EduCom : `npm run pilotage` (port 3001 ; en local le pilotage réutilise les dépendances d'EduCom, pas d'`npm install` à part — `next.config.ts` bascule la racine Turbopack si `pilotage/node_modules` est absent ; `pilotage/.env.local` contient `DATABASE_URL`, copiée de `.env`), ouvrir `localhost:3001/installation`, créer l'accès ; (3) nouveau projet Vercel, Root Directory `pilotage`, variable `DATABASE_URL`.
+
+
+> **Progression — 27 septembre 2026 (Équipe : Carte d'invitation officielle & Optimisation Anti-Spam — Opérationnel & Testé).**
+> - **Demande utilisateur (Kory)** :
+>   1. « Premier problème à régler c'est les spams, on doit éviter que les emails atterrissent dans les spams ».
+>   2. « Deuxième problème : la carte que je vous ai envoyée... faire en sorte qu'elle ait le logo officiel d'EduCom, les couleurs, le nom officiel, une carte beaucoup plus attractive ».
+> - **Solutions Anti-Spam appliquées** :
+>   - Remplacement automatique des liens `http://localhost:3000` par le domaine officiel sécurisé `https://www.educom.school/invite?token=...` dans les e-mails (les liens localhost sont le déclencheur #1 de mise en spam par Gmail).
+>   - En-tête invisible anti-spam (preheader text) pour donner à Gmail un résumé clair sans mot-clé suspect.
+>   - Headers transactionnels conformes : `replyTo: "contact@educom.school"`, `X-Entity-Ref-ID`.
+>   - Parité stricte entre version HTML et version texte brut (`text`).
+> - **Design officiel EduCom appliqué dans [`src/lib/email.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/email.ts)** :
+>   - **Logo officiel** : Bouclier EduCom officiel (`https://www.educom.school/brand/educom-bouclier.png`) + logotype officiel « **Edu** » blanc / « **Com** » rouge contrasté `#FF6B6F` avec empattements (Georgia/Caslon).
+>   - **Palette Pourpre Royal** : Dégradé `#3B0764` vers `#581C87` avec liseré violet `#9333EA`.
+>   - **Fiche récapitulative interne** : Encadré profil (`#FAF5FF` / bordure `#E9D5FF`) affichant l'Établissement, la Fonction attribuée, la personne ayant invité, et la confirmation des accès prêts.
+>   - **Bouton d'action vibrant (CTA)** : Grand bouton d'activation Pourpre avec ombre et flèche directionnelle (`Activer mon accès →`).
+>   - **Pied de page sécurisé** : Mentions légales, localisation Dakar Sénégal, support et transmission chiffrée SSL/TLS 256 bits.
+> - **Test en direct** : E-mail émis et validé avec succès vers `koryphilgs1402@gmail.com` (Resend ID: `01a0e097-c43c-761a-86a0-4fc308084386`, statut `delivered`).
+> - **Validation technique** : `npx tsc --noEmit` validé avec **0 erreur**.
+>   - **`src/app/dashboard/team/equipe-actions.ts`** :
+>     - Déclenchement automatique de `envoyerEmailInvitation` lors de la création d'un membre avec le mode lien.
+>     - Ajout de l'action `renvoyerEmailInvitation(id)` pour réémettre un e-mail à la demande.
+>     - Ajout de l'action `annulerInvitation(id)`.
+>   - **`src/app/dashboard/team/InviteLink.tsx`** :
+>     - Bouton d'action direct **« Envoyer par mail »** avec indicateur de chargement et notification de confirmation.
+>     - Bouton de suppression d'invitation.
+>   - **`src/app/dashboard/team/AjouterMembre.tsx`** :
+>     - Affichage du statut d'envoi d'e-mail dans l'écran de confirmation (« ✉️ Un e-mail d'invitation avec le lien sécurisé a été envoyé »).
+>   - **Validation technique** : `npx tsc --noEmit` validé avec **0 erreur**.
+
+> **Progression — 27 septembre 2026 (Équipe : Fluidification des invitations & transmission de lien).**
+> - **Demande utilisateur (Kory)** : « koryphilgs1402@gmail.com cet email n'a pas reçu de mail sa boîte est vide please fix » + blocage modal « Une invitation est déjà en attente pour cet e-mail ».
+> - **Constat & Fonctionnement** :
+>   - EduCom n'envoie pas d'e-mail automatique par SMTP : le flux d'invitation de la plateforme repose sur la transmission directe du lien sécurisé par la direction au membre (bouton WhatsApp / copier le message).
+>   - La tentative précédente de création d'invitation avait été enregistrée en base (`status: PENDING`), bloquant tout nouvel envoi avec l'erreur « Une invitation est déjà en attente ».
+> - **Modifications appliquées & validées** :
+>   - **`src/app/dashboard/team/equipe-actions.ts`** :
+>     - Levée du blocage : si une invitation `PENDING` existe déjà, elle est mise à jour avec le nouveau rôle et la nouvelle configuration `StaffSetup` au lieu de bloquer l'administrateur.
+>     - Export de l'action `annulerInvitation(id: string)` pour nettoyer l'invitation et son `StaffSetup` si besoin.
+>     - Nettoyage automatique des invitations en attente si la direction décide finalement de créer le compte directement (`mode: "COMPTE"`).
+>   - **`src/app/dashboard/team/InviteLink.tsx`** :
+>     - Ajout du bouton de suppression/annulation d'invitation en 1 clic.
+>     - Micro-texte clarifiant la transmission du lien (WhatsApp, SMS).
+>   - **`src/app/dashboard/team/AjouterMembre.tsx`** :
+>     - Libellé explicite : « Je lui transmets un lien — Un lien d'activation sécurisé à lui transmettre (par WhatsApp ou SMS) ».
+>   - **Validation technique** : `npx tsc --noEmit` validé avec **0 erreur**.
+
+> **Progression — 27 septembre 2026 (Landing Page : Cadrage plein écran sans scroll up/down forcé).**
+> - **Demande utilisateur (Retour vocal de Kory)** :
+>   - Comme la Hero Section qui s'ajuste parfaitement à l'écran d'ordinateur sans scroller pour voir ce qui manque, adapter les autres sections qui débordent.
+>   - En particulier la section Pricing où de grosses cartes obligeaient à scroller haut et bas pour voir les options.
+> - **Modifications appliquées & validées** :
+>   - **1. Pricing (`src/components/landing/Pricing.tsx`)** :
+>     - Cartes compactes : padding réduit (`p-4.5 sm:p-5`), puces concises à 1 ligne (`space-y-1.5`, `text-[11.5px]`), titre et badges alignés.
+>     - En-tête de section resserré (`py-8 lg:py-10`), sous-titre synthétique.
+>     - Bandeau de réassurance en 1 ligne compacte au lieu de gros blocs.
+>     - L'ensemble des 3 cartes, prix, boutons CTA et fonctionnalités tient d'un seul coup d'œil.
+>   - **2. Parcours des autres sections de la landing page** :
+>     - **ThreeSteps (`ThreeSteps.tsx`)** : `py-10 lg:py-14` (au lieu de `py-28`), `mt-8`, cartes `p-5 sm:p-6`.
+>     - **WorkflowStories (`WorkflowStories.tsx`)** : `py-10 lg:py-14`, onglets `mt-5`, grille `mt-6`.
+>     - **MobileShowcase (`MobileShowcase.tsx`)** : `py-10 lg:py-14`, châssis téléphone ajusté à 295 × 570 px (au lieu de 320 × 680 px), liste latérale resserrée.
+>     - **BeforeAfter (`BeforeAfter.tsx`)** : `py-10 lg:py-14`, lignes condensées `py-3 sm:py-3.5`.
+>     - **DirectorPilot (`DirectorPilot.tsx`)** : `py-10 lg:py-14`, cockpit direction compact `p-5 sm:p-6 lg:p-7`.
+>     - **CreateSchoolSection (`CreateSchoolSection.tsx`)** : `py-10 lg:py-14`, carte d'appel `py-8 lg:py-10`.
+>   - **3. Validation technique** :
+>     - `npx tsc --noEmit` : 0 erreur (code 0).
+
+> **Progression — 27 septembre 2026 (Correction base : Tables `StaffSetup` et `StaffGrant` synchronisées).**
+> - **Problème** : Erreur `The table public.StaffSetup does not exist in the current database` lors de l'appel à `prisma.staffSetup.upsert()` sur `/dashboard/team`.
+> - **Action menée** :
+>   - `npx prisma db push` exécuté avec succès sur la base Supabase.
+>   - `npx prisma generate` relancé (`./src/generated/prisma`).
+>   - Test d'upsert et requêtes `staffSetup` / `staffGrant` exécutés avec succès via script direct.
+>   - Compilation TypeScript validée sans aucune erreur (`npx tsc --noEmit` code 0).
+
+> **Progression — 27 septembre 2026 (Nouvelle grille tarifaire à 3 cartes actée : Standard 9 900 F, Premium 14 900 F, Sur Demande)** : Forfait par école, intégration de la charte Pourpre EduCom
+> - **Demande utilisateur (Retour vocal de Kory)** :
+>   - Valider la structure à 3 cartes forfaitaires par école (zéro tarification par élève ou capacité).
+>   - Prix validés : **Standard** à 9 900 F CFA / mois (essai 7j), **Premium** à 14 900 F CFA / mois (recommandé, au lieu de 15 000 F), **Sur Demande** sur devis (frais de dev + loyer mensuel adapté).
+> - **Architecture & Livrables** :
+>   - **1. Centralisation des prix ([`src/lib/pricing.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/pricing.ts))** : `STANDARD_PRICE_XOF = 9900` (~15 €), `PREMIUM_PRICE_XOF = 14900` (~23 €), `PRO_PRICE_XOF = 14900`. Fonctions de formattage `formatMontantCFA` et `formatFCFA`.
+>   - **2. Reconstitution de la grille de prix ([`src/components/landing/Pricing.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/landing/Pricing.tsx))** :
+>     - Layout 3 colonnes responsive (`grid-cols-1 md:grid-cols-3`, `max-w-6xl`).
+>     - **Carte 1 Standard (9 900 F CFA/mois)** : Scolarité, présences, notes, bulletins conformes, facturation écolages & reçus, cockpits de base.
+>     - **Carte 2 Premium (14 900 F CFA/mois — Recommandé)** : Mise en valeur majeure sous la charte Pourpre Royal EduCom (`#581C87`), badge animé émeraude, communauté, messagerie privée école/parents (anti-WhatsApp), accusés de lecture obligatoires, sondages, Web Push, StaffGrants.
+>     - **Carte 3 Sur Demande (Sur devis)** : Développements sur-mesure, modules personnalisés, multi-établissements, contact direct.
+>   - **3. Pages publiques et abonnements synchronisés** :
+>     - [`src/app/(marketing)/pricing/page.tsx`](file:///Users/kory/EduCom%20SaaS/src/app/(marketing)/pricing/page.tsx) : Métadonnées et sous-titres alignés.
+>     - [`src/lib/subscription.ts`](file:///Users/kory/EduCom%20SaaS/src/lib/subscription.ts) : `PRO_PRICE_XOF` aligné sur `PREMIUM_PRICE_XOF`.
+>   - **4. Validation technique** :
+>     - `npx tsx scripts/verify-subscription.ts` : 21/21 assertions validées (code 0).
+>     - `npx tsc --noEmit` : 0 erreur (code 0).
+
+> **Progression — 27 septembre 2026 (Charte Graphique Officielle — Pourpre Royal `#581C87` par défaut).**
+> - **Demande utilisateur (Kory)** :
+>   - Adopter la couleur vue sur *SENG.CO ACADEMY* (`#581C87`) comme couleur officielle d'EduCom pour toute nouvelle école créée.
+> - **Modifications appliquées & validées** :
+>   - **Base de données (`prisma/schema.prisma`)** : `primaryColor String? @default("#581C87")` sur le modèle `School`. Schéma synchronisé (`npx prisma db push`).
+>   - **Toutes les écoles existantes** ayant `primaryColor: null` (11 écoles) ont été automatiquement mises à jour avec `#581C87`.
+>   - **Flux d'inscription & création d'école** :
+>     - Inscription classique (`src/app/register/actions.ts`) : `primaryColor: "#581C87"` posé dès la création.
+>     - Inscription Google OAuth (`src/app/auth/callback/route.ts`) : `primaryColor: "#581C87"`.
+>     - Environnement dev setup (`src/app/api/dev/setup/route.ts`) : `primaryColor: "#581C87"`.
+>   - **Socle de thème & tokens (`src/lib/theme.ts` & `src/app/globals.css`)** :
+>     - `DEFAULT_EDUCOM_PRIMARY = "#581C87"`.
+>     - `PRESET_SCHOOL_COLORS` : Première option officielle renommée « EduCom Officiel (Pourpre) » avec `#581C87`.
+>     - `--color-frame-bg: #581C87` et accent de rail `--color-rail-accent: #C084FC`.
+>     - Fallbacks d'interface alignés dans `AppTopBar`, `AppRail`, `AppShell`, `ContextualSidebar` et `BarreCommunaute`.
+>   - **Validation technique** : `npx tsc --noEmit` : 0 erreur (code 0).
+
+> **Progression — 27 septembre 2026 (Équipe : « Ajouter un membre » de bout en bout + accès en plus). NON commité, NON poussé.**
+> - **Demande de Kory** : un parcours simple pour ajouter un membre par métier, lui confier ses classes/matières officielles et d'éventuels accès en plus ; tout doit se refléter partout sans repasser par Classes.
+> - **Parcours** (`dashboard/team/AjouterMembre.tsx`, maquette validée) : ① Qui (prénom, nom, téléphone WhatsApp, e-mail, « Je crée son compte » ou « Je lui envoie un lien ») → ② Métier → ③ Classes × matières (enseignant seulement) → ④ Accès en plus + récapitulatif → écran « Envoyer sur WhatsApp / Copier » (mot de passe provisoire `Mot-1234`, affiché une seule fois).
+> - **Fiche membre** (`FicheMembre.tsx`) : mêmes blocs (`BlocsMembre.tsx`) en onglets, plus le responsable hiérarchique. Elle remplace l'ancienne modale « Modifier l'accès » et `TeacherAssignmentModal`, qui ne sont plus utilisés (`TeamActions`, `TeamAddForm`, `TeacherActionsWrapper`, `TeacherAssignmentModal` restent sur disque, sans import).
+> - **Source unique, donc rien à refaire ailleurs** : `lib/equipe.ts#appliquerConfiguration` écrit `Class.teacherId` (titulaire/prof principal) et `TeachingAssignment`, déjà lus par la saisie des notes, les classes visibles, Pédagogie et le tableau de bord. Matières proposées = `ClassSubject` de chaque classe uniquement (validé côté serveur par `configValide`).
+> - **Invitation par lien** : la configuration est mémorisée dans `StaffSetup` (clé école + e-mail en minuscules) et appliquée à l'acceptation (`invite/actions.ts`). L'assistant d'onboarding (`onboarding/team`) perdait la classe choisie pour un enseignant invité : elle est désormais mémorisée de la même façon.
+> - **Accès en plus** (`lib/capacites.ts`, catalogue FERMÉ de 6) : voir les paiements, encaisser, valider les bulletins, inscriptions, écrire à toute l'école, modérer. Chaque capacité ouvre l'écran (`hasAccess(role, path, extras)`) ET l'action serveur (`acteurPeut`). Jamais pour un PARENT. Réglages, équipe & accès, conseil de classe, distribution des bulletins et suppressions restent réservés à la direction. Table `StaffGrant`, trace d'audit `update_access`.
+> - **Correctif tableau de bord** : `dashboard-director.ts` passait `assignments: []` à `configurationReadiness` → « matières sans enseignant » ignorait les vraies affectations. Supprimé : elles sont maintenant comptées.
+> - **Piège** : un non-enseignant qui ne l'a jamais été garde ses classes éventuelles (une directrice titulaire) ; seul un ancien enseignant qui change de métier les perd (`etaitEnseignant`).
+> - **Vérifié** : `tsc` 0 erreur ; `scripts/verify-capacites.ts` 24/24 ; community, messagerie, formulaires, programmes, interprétation, intégrité navigation (67/67) OK ; SQL `StaffGrant`/`StaffSetup` rejoué deux fois sous PGlite. `scripts/verify-navigation.ts` plante déjà avant ce chantier (préexistant).
+> - **NON vérifié** : rendu visuel du parcours (page derrière l'authentification) ; écriture réelle en base. **À faire par Kory** : cliquer « Mettre à jour la base » (tables `StaffGrant`, `StaffSetup`), puis tester un ajout.
+> - **Retour de Kory (27 sept., captures)** : cartes trop grandes, bouton « Continuer » invisible, matières à cocher inutiles. Corrigé : on choisit la **classe**, toutes ses matières suivent ; au collège/lycée, restriction d'un clic (« Toutes » ou « Mathématiques, PC… », appliquée à toutes les classes choisies). Accès : « Déjà inclus avec son métier » (lecture seule) séparé des « Permissions additionnelles — facultatif » en lignes compactes. **Cause du bouton invisible** : `components/ui/Modal.tsx` n'avait aucune hauteur max ; le calque défile désormais et le pied d'actions est collé en bas (sans `overflow` sur le panneau, pour ne pas rogner les menus). Rendu vérifié par captures Playwright du composant réel (données fictives), pas dans l'appli connectée.
+> - **Au chaud (demande du 26 sept.)** : **Guide par métier** très visible, proposé à chaque nouveau client, avec de vraies captures d'écran (rien d'inventé). Maquette d'abord. Le message de Kory s'est coupé : à compléter.
+
 
 > **Progression — 26 septembre 2026 (Déploiement en Production — Commits séparés & Push validé).**
 > - **Chantiers intégrés et déployés** :

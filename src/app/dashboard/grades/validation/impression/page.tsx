@@ -12,10 +12,10 @@ export default async function PrintPage({
   searchParams: Promise<{ classId?: string; termId?: string; studentId?: string }>;
 }) {
   const { classId, termId, studentId } = await searchParams;
-  const { schoolId, user } = await requireSchoolContext();
+  const { extras, schoolId, user } = await requireSchoolContext();
   const role = user.role as RoleType;
 
-  if (!hasAccess(role, "/dashboard/grades/validation")) redirect("/dashboard/grades");
+  if (!hasAccess(role, "/dashboard/grades/validation", extras)) redirect("/dashboard/grades");
   if (!classId || !termId) redirect("/dashboard/grades/validation");
 
   const data = await loadOfficialBulletin({

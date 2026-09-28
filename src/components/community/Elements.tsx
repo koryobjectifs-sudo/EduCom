@@ -5,10 +5,35 @@ import { FileText, X } from "lucide-react";
 import type { MediaVue } from "@/lib/communityMedia";
 import { initiales, teinte } from "./outils";
 
-export function Avatar({ nom, taille = "md" }: { nom: string; taille?: "sm" | "md" | "lg" }) {
+export function Avatar({
+  nom,
+  avatar,
+  taille = "md",
+}: {
+  nom: string;
+  avatar?: string | null;
+  taille?: "sm" | "md" | "lg";
+}) {
+  const [erreur, setErreur] = useState(false);
   const t = taille === "sm" ? "h-6 w-6 text-[10px]" : taille === "lg" ? "h-10 w-10 text-sm" : "h-8 w-8 text-xs";
+
+  if (avatar && !erreur) {
+    return (
+      <span aria-hidden="true" className={`relative flex shrink-0 overflow-hidden rounded-full ${t} shadow-2xs border border-rule/50 bg-sunk`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={avatar}
+          alt=""
+          loading="lazy"
+          onError={() => setErreur(true)}
+          className="h-full w-full object-cover"
+        />
+      </span>
+    );
+  }
+
   return (
-    <span aria-hidden="true" className={`flex shrink-0 items-center justify-center rounded-full font-bold ${t} ${teinte(nom)}`}>
+    <span aria-hidden="true" className={`flex shrink-0 items-center justify-center rounded-full font-bold select-none ${t} ${teinte(nom)}`}>
       {initiales(nom)}
     </span>
   );

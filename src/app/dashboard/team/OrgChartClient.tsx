@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState, useActionState } from "react";
+import { useMemo, useState } from "react";
 import { roleLabel, ROLE_LABELS, type RoleType } from "@/lib/permissions";
-import { updateStaffMember } from "./actions";
-import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Field";
-import { X, Save, Edit2 } from "lucide-react";
-import TeacherActionsWrapper from "./TeacherActionsWrapper";
+import { Edit2, BookOpen, Plus } from "lucide-react";
+import type { DonneesEquipe } from "@/lib/equipe";
+import FicheMembre from "./FicheMembre";
+import type { Autres } from "./BlocsMembre";
 
 interface User {
   id: string;
@@ -18,18 +17,20 @@ interface User {
   avatar?: string | null;
 }
 
-const ASSIGNABLE: RoleType[] = ["TEACHER", "SECRETARY", "ACCOUNTANT", "ASSISTANT", "ADMIN"];
-
-export default function OrgChartClient({ 
+export default function OrgChartClient({
   members,
-  classesData,
-  subjectsData,
-  teachingAssignments 
-}: { 
+  donnees,
+  autres,
+  acces,
+  peutGerer,
+}: {
   members: User[];
-  classesData?: any[];
-  subjectsData?: any[];
-  teachingAssignments?: any[];
+  donnees: DonneesEquipe;
+  autres: Autres;
+  /** Accès en plus par membre. */
+  acces: Record<string, string[]>;
+  /** Direction seulement : ouvrir la fiche. */
+  peutGerer: boolean;
 }) {
   const [editingNode, setEditingNode] = useState<User | null>(null);
 
@@ -53,16 +54,8 @@ export default function OrgChartClient({
     return rootNodes;
   }, [members]);
 
-  const [state, formAction, isPending] = useActionState<any, any>(
-    async (prevState: any, formData: FormData) => {
-      const res = await updateStaffMember(formData);
-      if (res?.success) {
-        setEditingNode(null);
-      }
-      return res;
-    },
-    { error: "", success: false }
-  );
+  const nbClasses = (id: string) =>
+    new Set([...donnees.classes.filter((c) => c.titulaireId === id).map((c) => c.id), ...autres.affectations.filter((a) => a.teacherId === id).map((a) => a.classId)]).size;
 
   const renderNode = (node: any) => {
     const info = ROLE_LABELS[node.role as RoleType];
@@ -101,13 +94,13 @@ export default function OrgChartClient({
                 </div>
               </div>
               
-              <button 
+              {peutGerer && <button 
                 onClick={() => setEditingNode(node)}
                 className="opacity-0 group-hover:opacity-100 shrink-0 transition-opacity p-1.5 text-text-faint hover:text-primary rounded-full hover:bg-primary/5 -mt-1 -mr-1"
                 title="Modifier les rôles et accès"
               >
                 <Edit2 className="h-3 w-3" />
-              </button>
+              </button>}
             </div>
 
             <div className="flex w-full items-center justify-between mt-1 pt-2 border-t border-rule/50">
@@ -116,14 +109,25 @@ export default function OrgChartClient({
               </span>
               
               <div className="flex items-center gap-1">
-                {node.role === "TEACHER" && classesData && subjectsData && teachingAssignments && (
-                  <TeacherActionsWrapper 
-                    teacher={node}
-                    classes={classesData}
-                    subjects={subjectsData}
-                    allAssignments={teachingAssignments}
-                    compact={true}
-                  />
+                {node.role === "TEACHER" && (() => {
+                  const n = nbClasses(node.id);
+                  return (
+                    <button
+                      type="button"
+                      disabled={!peutGerer}
+                      onClick={() => setEditingNode(node)}
+                      className={`inline-flex h-6 items-center gap-1 rounded-full border px-2 text-[10px] font-medium ${n ? "border-rule text-text-soft" : "border-warning/50 bg-warning/5 text-text"} ${peutGerer ? "hover:bg-sunk" : ""}`}
+                      title={n ? "Classes & matières" : "Aucune classe : cliquez pour lui en confier"}
+                    >
+                      {n ? <BookOpen aria-hidden="true" className="h-3 w-3" /> : <Plus aria-hidden="true" className="h-3 w-3" />}
+                      {n ? `${n} classe${n > 1 ? "s" : ""}` : "Classes"}
+                    </button>
+                  );
+                })()}
+                {(acces[node.id]?.length ?? 0) > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-semibold leading-none" title="Accès en plus">
+                    +{acces[node.id].length} accès
+                  </span>
                 )}
                 {reportCount > 0 && (
                   <span className="px-1 py-0.5 rounded-full bg-sunk text-text-soft text-[9px] font-medium border border-rule leading-none">
@@ -223,84 +227,15 @@ export default function OrgChartClient({
         </div>
       </div>
 
-      {/* MODAL POUR EDITER */}
       {editingNode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl bg-surface shadow-2xl">
-            <div className="flex items-center justify-between border-b border-rule px-6 py-4">
-              <div className="flex items-center gap-3">
-                {editingNode.avatar ? (
-                  <img
-                    src={editingNode.avatar}
-                    alt=""
-                    className="h-10 w-10 shrink-0 rounded-full object-cover border border-rule shadow-sm"
-                  />
-                ) : (
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ground border border-rule text-sm font-bold text-text">
-                    {editingNode.firstName?.charAt(0)}{editingNode.lastName?.charAt(0)}
-                  </div>
-                )}
-                <div>
-                  <h2 className="text-lg font-bold text-text">Modifier l'accès</h2>
-                  <p className="text-sm text-text-soft">{editingNode.firstName} {editingNode.lastName}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setEditingNode(null)}
-                className="rounded-full p-2 text-text-faint hover:bg-sunk hover:text-text transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            <form action={formAction} className="p-6 space-y-5">
-              <input type="hidden" name="userId" value={editingNode.id} />
-              
-              {editingNode.role === "OWNER" ? (
-                <div className="rounded-xl bg-blue-50 p-4 text-sm text-blue-800">
-                  Le rôle et la hiérarchie du propriétaire principal ne peuvent pas être modifiés.
-                </div>
-              ) : (
-                <>
-                  <Select label="Rôle (Définit les accès)" required id="role" name="role" defaultValue={editingNode.role}>
-                    <option value="ADMIN">Direction (ADMIN)</option>
-                    {ASSIGNABLE.map((r) => (
-                      <option key={r} value={r}>
-                        {ROLE_LABELS[r].label} — {ROLE_LABELS[r].description}
-                      </option>
-                    ))}
-                  </Select>
-
-                  <Select label="Responsable hiérarchique" id="managerId" name="managerId" defaultValue={editingNode.managerId || ""}>
-                    <option value="">Au sommet de la hiérarchie</option>
-                    {members
-                      .filter(m => m.id !== editingNode.id) // Cannot be own manager
-                      .map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.firstName} {m.lastName} ({roleLabel(m.role)})
-                        </option>
-                      ))}
-                  </Select>
-
-                  {state?.error && (
-                    <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">
-                      {state.error}
-                    </div>
-                  )}
-
-                  <div className="flex justify-end pt-2 gap-3">
-                    <Button type="button" variant="ghost" onClick={() => setEditingNode(null)}>
-                      Annuler
-                    </Button>
-                    <Button type="submit" loading={isPending} icon={<Save className="h-4 w-4" />}>
-                      Enregistrer
-                    </Button>
-                  </div>
-                </>
-              )}
-            </form>
-          </div>
-        </div>
+        <FicheMembre
+          membre={editingNode}
+          membres={members}
+          donnees={donnees}
+          autres={autres}
+          accesInitiaux={acces[editingNode.id] ?? []}
+          onClose={() => setEditingNode(null)}
+        />
       )}
     </div>
   );

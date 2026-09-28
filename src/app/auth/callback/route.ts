@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { abonnementInitial } from '@/lib/subscription'
+import { initialiserCanauxStandards } from '@/lib/community'
 
 /**
  * Retour du lien de confirmation d'adresse (et de tout lien e-mail Supabase).
@@ -81,6 +82,7 @@ export async function GET(request: Request) {
             data: {
               name: schoolName,
               email,
+              primaryColor: "#581C87",
               schoolActivated: false,
               onboardingCompleted: false,
               setupProgress: {
@@ -108,6 +110,7 @@ export async function GET(request: Request) {
               termsVersion: '2026-09-v1',
             },
           })
+          await initialiserCanauxStandards(school.id, data.user.id)
         })
         
         return NextResponse.redirect(`${origin}/welcome`)

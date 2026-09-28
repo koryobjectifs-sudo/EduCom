@@ -13,10 +13,10 @@ export const metadata = {
 };
 
 export default async function FamillesPage() {
-  const { user, schoolId, school } = await requireSchoolContext();
+  const { extras, user, schoolId, school } = await requireSchoolContext();
 
   // ⚠️ GARDE SERVEUR ABSOLU : Contrôle de rôle côté serveur
-  if (!hasAccess(user.role, "/dashboard/payments")) {
+  if (!hasAccess(user.role, "/dashboard/payments", extras)) {
     redirect(firstAllowedPath(user.role));
   }
 
@@ -29,7 +29,7 @@ export default async function FamillesPage() {
   const ctx = { userId: user.id, schoolId, role: user.role };
   const { families, summary } = await getFamiliesFinanceData(ctx);
 
-  const canCollect = hasAccess(user.role, "/dashboard/payments/new");
+  const canCollect = hasAccess(user.role, "/dashboard/payments/new", extras);
 
   return (
     <div className="space-y-4 pb-8">

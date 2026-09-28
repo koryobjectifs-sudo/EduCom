@@ -129,6 +129,13 @@ export default async function GradesEntryChoicePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/grades/report-card"
+            data-tour="nav-report-card-button"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:text-gray-900 shadow-2xs hover:bg-gray-50 transition-colors"
+          >
+            <span>Bulletins & relevés</span>
+          </Link>
           <span className="inline-flex items-center rounded-pill bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
             {allClasses.length} classe{allClasses.length > 1 ? "s" : ""}
           </span>
@@ -140,21 +147,37 @@ export default async function GradesEntryChoicePage() {
         </div>
       </div>
 
-      {allClasses.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 p-8 text-center">
-          <GraduationCap className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-          <h3 className="text-sm font-semibold text-gray-800">Aucune classe disponible</h3>
-          <p className="mt-1 text-xs text-gray-500">
-            {isTeacher
-              ? "Vous n'avez aucune affectation pédagogique active dans cet établissement."
-              : "Aucune classe n'est encore enregistrée dans l'établissement."}
-          </p>
-        </div>
-      )}
+      <div className="space-y-6">
+        {allClasses.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 p-8 text-center space-y-3">
+            <GraduationCap className="mx-auto h-8 w-8 text-gray-400 mb-1" />
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800">
+                {isTeacher ? "Aucune classe assignée" : "Aucune classe ni élève"}
+              </h3>
+              <p className="mt-1 text-xs text-gray-500 max-w-md mx-auto">
+                {isTeacher
+                  ? "Vous n'avez aucune affectation pédagogique active dans cet établissement."
+                  : "Vous n'avez pas encore d'élèves enregistrés. Importez votre liste d'élèves pour générer automatiquement toutes vos classes."}
+              </p>
+            </div>
+            {!isTeacher && (
+              <div className="pt-1">
+                <Link
+                  href="/dashboard/students/import"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-frame-bg,#581C87)] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:opacity-90 active:scale-95 transition-all"
+                >
+                  <span>Importer votre liste d'élèves</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
 
-      {/* Section Élémentaire (CI à CM2) */}
-      {elementaryClasses.length > 0 && (
-        <section className="space-y-3">
+        {/* Section Élémentaire (CI à CM2) */}
+        {elementaryClasses.length > 0 && (
+          <section className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -173,7 +196,7 @@ export default async function GradesEntryChoicePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {elementaryClasses.map((c) => {
+            {elementaryClasses.map((c, idx) => {
               const isTitulaire = c.teacherId === user.id;
               const gradeLink = `/dashboard/grades/elementaire?class=${c.id}`;
               const conseilLink = `/dashboard/grades/conseil?class=${c.id}`;
@@ -218,6 +241,7 @@ export default async function GradesEntryChoicePage() {
                       <>
                         <Link
                           href={conseilLink}
+                          data-tour={idx === 0 ? "grade-first-class-conseil" : undefined}
                           className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-600 px-3 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-purple-700 transition-colors"
                         >
                           <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
@@ -225,6 +249,7 @@ export default async function GradesEntryChoicePage() {
                         </Link>
                         <Link
                           href={gradeLink}
+                          data-tour={idx === 0 ? "grade-first-class-consult" : undefined}
                           className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors shrink-0"
                           title="Consulter la grille des notes (lecture seule)"
                         >
@@ -235,6 +260,7 @@ export default async function GradesEntryChoicePage() {
                     ) : (
                       <Link
                         href={gradeLink}
+                        data-tour={idx === 0 ? "grade-first-class-action" : undefined}
                         className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-primary-hover transition-colors"
                       >
                         <span>Saisir les notes</span>
@@ -438,6 +464,7 @@ export default async function GradesEntryChoicePage() {
           </div>
         )}
       </section>
+      </div>
     </div>
   );
 }

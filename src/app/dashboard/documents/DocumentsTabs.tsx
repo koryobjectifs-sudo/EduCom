@@ -34,10 +34,19 @@ export function DocumentsTabs() {
       <nav className="-mb-px flex space-x-8" aria-label="Tabs">
         {tabs.map((tab) => {
           const Icon = tab.icon;
+          const tourId =
+            tab.href === "/dashboard/documents"
+              ? "doc-generated"
+              : tab.href === "/dashboard/documents/templates"
+              ? "doc-templates"
+              : tab.href === "/dashboard/students/dossiers/review"
+              ? "doc-actions-tab"
+              : undefined;
           return (
             <Link
               key={tab.name}
               href={tab.href}
+              data-tour={tourId}
               className={`
                 group inline-flex items-center gap-2 border-b-2 py-4 px-1 text-[14px] font-medium transition-colors
                 ${tab.isActive

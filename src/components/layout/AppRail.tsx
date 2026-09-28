@@ -2,13 +2,115 @@
 
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
-import { Globe, Shield, LogOut, ChevronUp, Camera, UploadCloud, Trash2, Loader2, Minus, Plus } from "lucide-react";
+import {
+  Globe,
+  Shield,
+  LogOut,
+  ChevronUp,
+  Camera,
+  UploadCloud,
+  Trash2,
+  Loader2,
+  Minus,
+  Plus,
+  LifeBuoy,
+  Building2,
+  UserPlus,
+  FileSpreadsheet,
+  Layers,
+  BookOpen,
+  Receipt,
+  Calendar,
+  CreditCard,
+  FileText,
+  Settings,
+  Users,
+  MessageSquare,
+} from "lucide-react";
+import ModalSupportJira from "@/components/support/ModalSupportJira";
 import { AppleDashboardIcon } from "@/components/ui/apple-icons";
 import { type NavSpace } from "@/lib/navigation";
 import { getNavIcon } from "./nav-icons";
 import { updateUserAvatar } from "@/app/dashboard/actions";
 import DevRoleSwitcher from "@/components/dev/DevRoleSwitcher";
+import BoutonRailGuide from "./BoutonRailGuide";
+import { useSidebarSlot } from "./SidebarSlot";
 import { toast } from "sonner";
+import RailHovercard, { type QuickLink } from "./RailHovercard";
+import SlackTooltip from "@/components/ui/SlackTooltip";
+
+function getSpaceHovercardMeta(spaceId: string) {
+  switch (spaceId) {
+    case "students":
+      return {
+        title: "Scolarité",
+        description: "Registre officiel des élèves, gestion des effectifs et inscriptions scolaires.",
+        quickLinks: [
+          { label: "Registre des élèves", href: "/dashboard/students", icon: <Users className="h-3.5 w-3.5" /> },
+          { label: "Inscrire un élève", href: "/dashboard/students/new", icon: <UserPlus className="h-3.5 w-3.5" /> },
+          { label: "Importer via Excel", href: "/dashboard/students/import", icon: <FileSpreadsheet className="h-3.5 w-3.5" /> },
+          { label: "Classes & Effectifs", href: "/dashboard/classes", icon: <Building2 className="h-3.5 w-3.5" /> },
+        ],
+      };
+    case "pedagogy":
+      return {
+        title: "Pédagogie",
+        description: "Saisie des notes, contrôles continus, compositions et bulletins officiels.",
+        quickLinks: [
+          { label: "Saisie des notes", href: "/dashboard/grades", icon: <BookOpen className="h-3.5 w-3.5" /> },
+          { label: "Génération des bulletins", href: "/dashboard/grades/report-card", icon: <FileText className="h-3.5 w-3.5" /> },
+          { label: "Validation des grilles", href: "/dashboard/grades/validation", icon: <Shield className="h-3.5 w-3.5" /> },
+          { label: "Présences & Retards", href: "/dashboard/attendance", icon: <Users className="h-3.5 w-3.5" /> },
+        ],
+      };
+    case "finance":
+      return {
+        title: "Finance & Écolages",
+        description: "Suivi des encaissements, émission de reçus infalsifiables et relances familles.",
+        quickLinks: [
+          { label: "Cockpit financier", href: "/dashboard/payments", icon: <CreditCard className="h-3.5 w-3.5" /> },
+          { label: "+ Nouvel encaissement", href: "/dashboard/payments/new", icon: <Receipt className="h-3.5 w-3.5" /> },
+          { label: "Comptes familles", href: "/dashboard/payments/familles", icon: <Users className="h-3.5 w-3.5" /> },
+          { label: "Tarifs & Frais", href: "/dashboard/settings/tarifs", icon: <Settings className="h-3.5 w-3.5" /> },
+        ],
+      };
+    case "comms":
+      return {
+        title: "Communauté & Messagerie",
+        description: "Canaux officiels de l'établissement et messages directs (DMs) avec l'équipe et les parents.",
+        quickLinks: [
+          { label: "Fil d'actualité", href: "/dashboard/communications/communaute", icon: <MessageSquare className="h-3.5 w-3.5" /> },
+          { label: "Messages directs (DMs)", href: "/dashboard/communications/communaute?espace=DMS", icon: <Users className="h-3.5 w-3.5" /> },
+          { label: "Canal #Général", href: "/dashboard/communications/communaute?espace=GENERAL", icon: <MessageSquare className="h-3.5 w-3.5" /> },
+          { label: "Enquêtes & Sondages", href: "/dashboard/communications/communaute?espace=SONDAGES", icon: <Layers className="h-3.5 w-3.5" /> },
+        ],
+      };
+    case "documents":
+      return {
+        title: "Documents & Actes",
+        description: "Modèles officiels, certificats de scolarité et bibliothèque d'actes administratifs.",
+        quickLinks: [
+          { label: "Bibliothèque des documents", href: "/dashboard/documents", icon: <FileText className="h-3.5 w-3.5" /> },
+          { label: "Modèles d'actes scolaires", href: "/dashboard/documents/templates", icon: <Layers className="h-3.5 w-3.5" /> },
+          { label: "Brouillons en attente", href: "/dashboard/documents/drafts", icon: <FileText className="h-3.5 w-3.5" /> },
+        ],
+      };
+    case "admin":
+      return {
+        title: "Admin Tools",
+        description: "Outils d'administration, gestion des collaborateurs et configuration de l'école.",
+        isAdminTools: true,
+        quickLinks: [
+          { label: "Paramètres de l'école", href: "/dashboard/settings", icon: <Settings className="h-3.5 w-3.5" /> },
+          { label: "Gérer les membres (équipe)", href: "/dashboard/team", icon: <Users className="h-3.5 w-3.5" /> },
+          { label: "Session scolaire active", href: "/dashboard/settings#session", icon: <Calendar className="h-3.5 w-3.5" /> },
+          { label: "Rapports & Audit", href: "/dashboard/admin/reports", icon: <Layers className="h-3.5 w-3.5" /> },
+        ],
+      };
+    default:
+      return null;
+  }
+}
 
 export interface AppRailProps {
   spaces: NavSpace[];
@@ -18,6 +120,7 @@ export interface AppRailProps {
   userRole?: string;
   userName?: string;
   userAvatar?: string | null;
+  guideVuAt?: Date | null;
 }
 
 export default function AppRail({
@@ -28,11 +131,14 @@ export default function AppRail({
   userRole = "OWNER",
   userName,
   userAvatar,
+  guideVuAt,
 }: AppRailProps) {
+  const { guideActif, setGuideActif } = useSidebarSlot();
   const initial = schoolName?.trim() ? schoolName.trim().charAt(0).toUpperCase() : "E";
-  const isDashboardActive = !activeSpaceId;
+  const isDashboardActive = !activeSpaceId && !guideActif;
 
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [supportOuvert, setSupportOuvert] = useState(false);
   const [density, setDensity] = useState<string>("normal");
   const [currentAvatar, setCurrentAvatar] = useState<string | null>(userAvatar || null);
   const [imageError, setImageError] = useState(false);
@@ -149,7 +255,7 @@ export default function AppRail({
   return (
     <aside
       aria-label="Espaces de travail"
-      style={{ backgroundColor: "var(--color-rail-bg, #0E2541)" }}
+      style={{ backgroundColor: "var(--color-rail-bg, #581C87)" }}
       className="hidden w-[68px] shrink-0 flex-col items-center justify-between py-2 text-white md:flex print:hidden select-none z-30 transition-colors duration-200"
     >
       {/* Haut : Identité & Logo Établissement + Navigation */}
@@ -183,55 +289,72 @@ export default function AppRail({
         {/* Navigation : Tableau de bord en première position + Espaces métier */}
         <nav aria-label="Espaces de travail" className="flex flex-col items-center gap-0.5 w-full px-0.5">
           {/* 1. Tuile permanente Tableau de bord */}
-          <Link
-            href="/dashboard"
-            aria-current={isDashboardActive ? "page" : undefined}
+          <RailHovercard
+            id="accueil"
             title="Tableau de bord"
-            className={[
-              "relative group flex w-full min-h-[44px] flex-col items-center justify-center rounded-control py-1 px-0 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
-              isDashboardActive
-                ? "bg-white/20 text-white shadow-sm"
-                : "text-white/70 hover:bg-white/10 hover:text-white",
-            ].join(" ")}
+            description="Cockpit général de pilotage et indicateurs clés de votre établissement."
+            quickLinks={[
+              { label: "Vue cockpit générale", href: "/dashboard", icon: <AppleDashboardIcon className="h-3.5 w-3.5" /> },
+              { label: "Rapports & Audit", href: "/dashboard/admin/reports", icon: <Layers className="h-3.5 w-3.5" /> },
+            ]}
+            onOpenGuide={() => setGuideActif(true)}
           >
-            {isDashboardActive && (
-              <span
-                aria-hidden="true"
-                data-testid="rail-active-indicator"
-                className="absolute left-0 top-1/2 -translate-y-1/2 h-[22px] w-[3px] rounded-r-full bg-[var(--color-rail-accent,#9C0F15)]"
-              />
-            )}
-
-            <AppleDashboardIcon
-              aria-hidden="true"
-              className={`h-4.5 w-4.5 shrink-0 transition-transform group-hover:scale-105 ${
-                isDashboardActive ? "text-white" : "text-white/70 group-hover:text-white"
-              }`}
-            />
-
-            <span
-              className={`mt-0.5 text-[10.5px] font-medium leading-tight truncate max-w-[62px] text-center ${
-                isDashboardActive ? "text-white font-bold" : "text-white/70 group-hover:text-white"
-              }`}
+            <Link
+              href="/dashboard"
+              data-tour="nav-accueil"
+              onClick={() => setGuideActif(false)}
+              aria-current={isDashboardActive ? "page" : undefined}
+              className={[
+                "relative group flex w-full min-h-[44px] flex-col items-center justify-center rounded-control py-1 px-0 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+                isDashboardActive
+                  ? "bg-white/20 text-white shadow-sm"
+                  : "text-white/70 hover:bg-white/10 hover:text-white",
+              ].join(" ")}
             >
-              Accueil
-            </span>
-          </Link>
+              {isDashboardActive && (
+                <span
+                  aria-hidden="true"
+                  data-testid="rail-active-indicator"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 h-[22px] w-[3px] rounded-r-full bg-[var(--color-rail-accent,#9C0F15)]"
+                />
+              )}
 
-          {/* Filet séparateur entre Tableau de bord et les espaces métier */}
+              <AppleDashboardIcon
+                aria-hidden="true"
+                className={`h-4.5 w-4.5 shrink-0 transition-transform group-hover:scale-105 ${
+                  isDashboardActive ? "text-white" : "text-white/70 group-hover:text-white"
+                }`}
+              />
+
+              <span
+                className={`mt-0.5 text-[10.5px] font-medium leading-tight truncate max-w-[62px] text-center ${
+                  isDashboardActive ? "text-white font-bold" : "text-white/70 group-hover:text-white"
+                }`}
+              >
+                Accueil
+              </span>
+            </Link>
+          </RailHovercard>
+
+          {/* Bouton Stratégique Onboarding & Premiers pas */}
+          <BoutonRailGuide userRole={userRole} guideVuAt={guideVuAt} />
+
+          {/* Filet séparateur entre Accueil/Guide et les espaces métier */}
           <div className="h-[1px] w-8 bg-white/15 my-0.5" aria-hidden="true" />
 
-          {/* 2. Les 5 Espaces Métier */}
+          {/* 2. Les Espaces Métier */}
           {spaces.map((space) => {
             const Icon = getNavIcon(space.icon);
-            const isActive = space.id === activeSpaceId;
+            const isActive = !guideActif && space.id === activeSpaceId;
+            const meta = getSpaceHovercardMeta(space.id);
 
-            return (
+            const tile = (
               <Link
                 key={space.id}
                 href={space.defaultHref}
+                data-tour={`nav-${space.id}`}
+                onClick={() => setGuideActif(false)}
                 aria-current={isActive ? "page" : undefined}
-                title={space.fullLabel ?? space.label}
                 className={[
                   "relative group flex w-full min-h-[44px] flex-col items-center justify-center rounded-control py-1 px-0 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
                   isActive
@@ -255,9 +378,6 @@ export default function AppRail({
                   strokeWidth={isActive ? 2.2 : 1.8}
                 />
 
-                {/* ⚠️ 26 sept. 2026 : « Communauté » (62 px en Lato 10,5) était tronqué
-                    en « Commun… » — la tuile n'offrait que 52 px. Marges réduites
-                    (64 px utiles) et libellés longs resserrés, mesurés en Lato. */}
                 <span
                   className={`mt-0.5 font-medium leading-tight truncate max-w-[64px] text-center ${
                     space.label.length > 11 ? "text-[10px] tracking-[-0.03em]" : "text-[10.5px] tracking-[-0.015em]"
@@ -267,23 +387,53 @@ export default function AppRail({
                 </span>
               </Link>
             );
+
+            if (meta) {
+              return (
+                <RailHovercard
+                  key={space.id}
+                  id={space.id}
+                  title={meta.title}
+                  description={meta.description}
+                  quickLinks={meta.quickLinks}
+                  isAdminTools={meta.isAdminTools}
+                >
+                  {tile}
+                </RailHovercard>
+              );
+            }
+
+            return tile;
           })}
         </nav>
       </div>
 
-      {/* Bas du rail : Site Public, Rôle test (dev) & Profil utilisateur */}
+      {/* Bas du rail : Support EduCom, Site Public, Rôle test (dev) & Profil utilisateur */}
       <div className="flex flex-col items-center gap-1.5 w-full px-1 pt-2 border-t border-white/15">
+        {/* Support EduCom */}
+        <SlackTooltip title="Support EduCom" tip="Assistance directe & signalement d'incident" placement="right">
+          <button
+            type="button"
+            onClick={() => setSupportOuvert(true)}
+            aria-label="Support EduCom"
+            className="flex h-8 w-8 items-center justify-center rounded-control text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+          >
+            <LifeBuoy className="h-4 w-4" />
+          </button>
+        </SlackTooltip>
+
         {/* Site Public */}
-        <Link
-          href="/"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Site public"
-          aria-label="Site public"
-          className="flex h-8 w-8 items-center justify-center rounded-control text-white/70 hover:bg-white/10 hover:text-white transition-colors"
-        >
-          <Globe className="h-4 w-4" />
-        </Link>
+        <SlackTooltip title="Site public" tip="Portail public de l'établissement" placement="right">
+          <Link
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Site public"
+            className="flex h-8 w-8 items-center justify-center rounded-control text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+          >
+            <Globe className="h-4 w-4" />
+          </Link>
+        </SlackTooltip>
 
         {/* Sélecteur de rôle test (développement uniquement) */}
         {process.env.NODE_ENV !== "production" && (
@@ -292,25 +442,31 @@ export default function AppRail({
 
         {/* Avatar Profil utilisateur & Menu */}
         <div className="relative" ref={profileRef}>
-          <button
-            type="button"
-            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-            aria-expanded={profileMenuOpen}
+          <SlackTooltip
             title={displayName}
-            aria-label={displayName}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 text-white font-bold text-xs transition-colors border border-white/25 overflow-hidden shadow-2xs shrink-0 ring-2 ring-white/10 hover:ring-white/30"
+            tip={`Rôle : ${roleLabel} · Gérer le compte et les accès`}
+            placement="right"
+            disabled={profileMenuOpen}
           >
-            {currentAvatar && !imageError ? (
-              <img
-                src={currentAvatar}
-                alt=""
-                onError={() => setImageError(true)}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              initials || "U"
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+              aria-expanded={profileMenuOpen}
+              aria-label={displayName}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 text-white font-bold text-xs transition-colors border border-white/25 overflow-hidden shadow-2xs shrink-0 ring-2 ring-white/10 hover:ring-white/30"
+            >
+              {currentAvatar && !imageError ? (
+                <img
+                  src={currentAvatar}
+                  alt=""
+                  onError={() => setImageError(true)}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                initials || "U"
+              )}
+            </button>
+          </SlackTooltip>
 
           {profileMenuOpen && (
             <div
@@ -447,6 +603,7 @@ export default function AppRail({
           )}
         </div>
       </div>
+      <ModalSupportJira ouvert={supportOuvert} onFermer={() => setSupportOuvert(false)} />
     </aside>
   );
 }

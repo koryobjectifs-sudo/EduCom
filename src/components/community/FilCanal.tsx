@@ -20,6 +20,8 @@ import {
   Lock,
   Pencil,
   Clock,
+  Smile,
+  SmilePlus,
 } from "lucide-react";
 import type { PublicationVue } from "@/lib/community";
 import ZoneMention, { type Mentionnable } from "./ZoneMention";
@@ -27,6 +29,8 @@ import { envoyerMedia, ACCEPT, type MediaEnvoye } from "./envoiMedia";
 import { Avatar, GrilleMedias, ApercuPieces } from "./Elements";
 import { heure, ilYa, jour } from "./outils";
 import { BoutonProgrammer, ChoixHeure, libelleProgramme } from "./Programmer";
+import SelecteurEmoji from "./SelecteurEmoji";
+import SlackTooltip from "@/components/ui/SlackTooltip";
 import {
   Mentions,
   REACTIONS,
@@ -342,7 +346,7 @@ function Message({
           {groupe ? (
             <span className="invisible block pt-1 text-right text-[10px] tabular-nums text-text-faint group-hover:visible">{heure(pub.createdAt)}</span>
           ) : (
-            <Avatar nom={pub.auteur} taille="lg" />
+            <Avatar nom={pub.auteur} avatar={pub.auteurAvatar} taille="lg" />
           )}
         </div>
         <div className="min-w-0 flex-1">
@@ -515,6 +519,9 @@ function Message({
               {r.emoji}
             </button>
           ))}
+          {!pub.programme && (
+            <BoutonReactionEmoji pubId={pub.id} maReaction={pub.maReaction} agir={agir} />
+          )}
           {pub.commentsEnabled && ouvrirFil && !pub.programme && (
             <button
               type="button"
@@ -596,7 +603,7 @@ function VoletFil({
         <ol>
           {pub.commentaires.map((c) => (
             <li key={c.id} className={`group flex gap-3 px-4 py-2 hover:bg-sunk/60 ${c.masque ? "opacity-60" : ""}`}>
-              <Avatar nom={c.auteur} taille="lg" />
+              <Avatar nom={c.auteur} avatar={c.auteurAvatar} taille="lg" />
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-baseline gap-x-2">
                   <span className="text-[15px] font-bold text-text">{c.auteur}</span>
@@ -693,6 +700,7 @@ function ComposeurFil({ postId, desactive }: { postId: string; desactive: boolea
           placeholder="Répondre…"
           className="block max-h-40 min-h-10 w-full resize-none border-0 bg-transparent p-0 text-[14.5px] leading-relaxed text-text placeholder:text-text-faint focus:outline-none focus:ring-0"
         />
+        <BoutonEmojiComposeur onSelect={(e) => setTexte((t) => `${t}${e}`)} />
         <button
           type="button"
           onClick={envoyer}
@@ -793,7 +801,7 @@ function ComposeurCanal({ cible, peutEpingler }: { cible: Cible; peutEpingler: b
   );
 
   return (
-    <div className="shrink-0 px-3 pb-3 sm:px-5 sm:pb-4">
+    <div data-tour="comms-composer" className="shrink-0 px-3 pb-3 sm:px-5 sm:pb-4">
       <div className="rounded-xl border border-rule bg-surface shadow-2xs focus-within:border-primary-ink/45">
         {sondage && (
           <div className="px-3 pt-1">
@@ -825,39 +833,88 @@ function ComposeurCanal({ cible, peutEpingler }: { cible: Cible; peutEpingler: b
           <ApercuPieces medias={medias} envois={envois} retirer={(id) => setMedias((p) => p.filter((x) => x.mediaId !== id))} />
         </div>
         <div className="flex items-center gap-0.5 px-1.5 pb-1.5 pt-1">
-          <label title="Joindre une photo, une vidéo ou un PDF" className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-text-soft hover:bg-sunk hover:text-text">
-            <Paperclip aria-hidden="true" className="h-4 w-4" />
-            <span className="sr-only">Joindre une photo, une vidéo ou un PDF</span>
-            <input
-              type="file"
-              accept={ACCEPT}
-              multiple
-              className="sr-only"
-              onChange={(e) => {
-                void joindre(e.target.files);
-                e.target.value = "";
-              }}
-            />
-          </label>
-          <MenuModeles appliquer={setTexte} />
-          {option(sondage !== null, () => setSondage((v) => (v ? null : SONDAGE_VIDE)), "Ajouter un sondage", <BarChart3 className="h-4 w-4" />)}
+          <SlackTooltip
+            title="Joindre un fichier"
+            tip="Astuce : glissez-déposez ou cliquez pour importer (PDF, images)"
+            placement="top"
+          >
+            <label className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-text-soft hover:bg-sunk hover:text-text">
+              <Paperclip aria-hidden="true" className="h-4 w-4" />
+              <span className="sr-only">Joindre une photo, une vidéo ou un PDF</span>
+              <input
+                type="file"
+                accept={ACCEPT}
+                multiple
+                className="sr-only"
+                onChange={(e) => {
+                  void joindre(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </SlackTooltip>
+
+          <SlackTooltip title="Modèles de messages" tip="Insérer un modèle pré-rédigé" placement="top">
+            <div>
+              <MenuModeles appliquer={setTexte} />
+            </div>
+          </SlackTooltip>
+
+          <SlackTooltip title="Émojis & réactions" tip="Insérer un émoji" placement="top">
+            <div>
+              <BoutonEmojiComposeur onSelect={(e) => setTexte((t) => `${t}${e}`)} />
+            </div>
+          </SlackTooltip>
+
+          <SlackTooltip title="Ajouter un sondage" tip="Poser une question aux membres du canal" placement="top">
+            <div>
+              {option(sondage !== null, () => setSondage((v) => (v ? null : SONDAGE_VIDE)), "Ajouter un sondage", <BarChart3 className="h-4 w-4" />)}
+            </div>
+          </SlackTooltip>
+
           <span aria-hidden="true" className="mx-1 h-5 w-px bg-rule" />
-          {option(mustRead, () => setMustRead((v) => !v), "À lire obligatoirement", <BellRing className="h-4 w-4" />)}
-          {peutEpingler && option(pinned, () => setPinned((v) => !v), "Épingler", <Pin className="h-4 w-4" />)}
+
+          <SlackTooltip title="À lire obligatoirement" tip="Marquer comme publication prioritaire" placement="top">
+            <div>
+              {option(mustRead, () => setMustRead((v) => !v), "À lire obligatoirement", <BellRing className="h-4 w-4" />)}
+            </div>
+          </SlackTooltip>
+
+          {peutEpingler && (
+            <SlackTooltip title="Épingler" tip="Épingler en tête de canal" placement="top">
+              <div>
+                {option(pinned, () => setPinned((v) => !v), "Épingler", <Pin className="h-4 w-4" />)}
+              </div>
+            </SlackTooltip>
+          )}
+
           {option(sansReponses, () => setSansReponses((v) => !v), "Sans réponses", <MessageCircleOff className="h-4 w-4" />)}
+
           <span className="ml-auto hidden pr-2 text-[11px] text-text-faint xl:inline">Entrée pour envoyer · Maj+Entrée pour aller à la ligne</span>
           <span aria-hidden="true" className="flex-1 xl:hidden" />
-          <BoutonProgrammer valeur={programme} changer={setProgramme} />
-          <button
-            type="button"
-            onClick={envoyer}
-            disabled={enCours || envois > 0 || vide}
-            aria-label={programme ? "Programmer" : "Envoyer"}
+
+          <SlackTooltip title="Programmer l'envoi" tip="Diffuser à une date ultérieure" placement="top">
+            <div>
+              <BoutonProgrammer valeur={programme} changer={setProgramme} />
+            </div>
+          </SlackTooltip>
+
+          <SlackTooltip
             title={programme ? "Programmer" : "Envoyer"}
-            className="flex h-8 w-9 items-center justify-center rounded-md bg-primary-ink text-white hover:bg-primary-ink-hover disabled:bg-transparent disabled:text-text-faint"
+            shortcut="↵"
+            tip={programme ? "Diffuser à l'heure choisie" : "Envoyer immédiatement dans le canal"}
+            placement="top"
           >
-            <SendHorizontal aria-hidden="true" className="h-4 w-4" />
-          </button>
+            <button
+              type="button"
+              onClick={envoyer}
+              disabled={enCours || envois > 0 || vide}
+              aria-label={programme ? "Programmer" : "Envoyer"}
+              className="flex h-8 w-9 items-center justify-center rounded-md bg-primary-ink text-white hover:bg-primary-ink-hover disabled:bg-transparent disabled:text-text-faint cursor-pointer"
+            >
+              <SendHorizontal aria-hidden="true" className="h-4 w-4" />
+            </button>
+          </SlackTooltip>
         </div>
       </div>
       {erreur && (
@@ -868,3 +925,76 @@ function ComposeurCanal({ cible, peutEpingler }: { cible: Cible; peutEpingler: b
     </div>
   );
 }
+
+function BoutonReactionEmoji({
+  pubId,
+  maReaction,
+  agir,
+}: {
+  pubId: string;
+  maReaction: string | null;
+  agir: (fn: () => Promise<{ ok: boolean; error?: string }>) => void;
+}) {
+  const [ouvert, setOuvert] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        title="Ajouter un émoji"
+        aria-label="Ajouter un émoji"
+        aria-expanded={ouvert}
+        onClick={() => setOuvert((v) => !v)}
+        className="flex h-7 w-7 items-center justify-center rounded-md text-text-soft hover:bg-sunk hover:text-text"
+      >
+        <SmilePlus aria-hidden="true" className="h-4 w-4" />
+      </button>
+      {ouvert && (
+        <>
+          <button type="button" aria-hidden="true" tabIndex={-1} className="fixed inset-0 z-40 cursor-default" onClick={() => setOuvert(false)} />
+          <div className="absolute right-0 top-full z-50 mt-1">
+            <SelecteurEmoji
+              onSelect={(emoji) => {
+                setOuvert(false);
+                agir(() => reagir(pubId, maReaction === emoji ? null : emoji));
+              }}
+              onClose={() => setOuvert(false)}
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function BoutonEmojiComposeur({ onSelect }: { onSelect: (emoji: string) => void }) {
+  const [ouvert, setOuvert] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        title="Émojis"
+        aria-label="Émojis"
+        aria-expanded={ouvert}
+        onClick={() => setOuvert((v) => !v)}
+        className="flex h-8 w-8 items-center justify-center rounded-md text-text-soft hover:bg-sunk hover:text-text"
+      >
+        <Smile aria-hidden="true" className="h-4 w-4" />
+      </button>
+      {ouvert && (
+        <>
+          <button type="button" aria-hidden="true" tabIndex={-1} className="fixed inset-0 z-40 cursor-default" onClick={() => setOuvert(false)} />
+          <div className="absolute bottom-full left-0 z-50 mb-2">
+            <SelecteurEmoji
+              onSelect={(emoji) => {
+                onSelect(emoji);
+                setOuvert(false);
+              }}
+              onClose={() => setOuvert(false)}
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+

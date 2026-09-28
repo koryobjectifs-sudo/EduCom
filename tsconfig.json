@@ -47,6 +47,8 @@
     "node_modules",
     "scripts",
     "agent",
-    "_local"
+    "_local",
+    // Outil de pilotage : application Next séparée (`pilotage/`), son propre tsconfig.
+    "pilotage"
   ]
 }

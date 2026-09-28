@@ -1,42 +1,51 @@
 import { Skeleton } from "@/components/ui/Skeleton";
 
-export default function GradesChoiceLoading() {
+export default function GradesLoading() {
   return (
-    <div className="space-y-8 pb-12 max-w-4xl mt-8 animate-in fade-in duration-300">
-      <div>
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-5 w-96 mt-3" />
+    <div className="space-y-6 pb-12 animate-in fade-in duration-150" aria-busy="true">
+      {/* ── En-tête exact de la page Évaluations ── */}
+      <div className="space-y-1.5">
+        <Skeleton className="h-7 w-64 rounded-md" />
+        <Skeleton className="h-4 w-96 max-w-full rounded" />
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 mt-8">
-        <Skeleton className="h-24 w-full sm:w-64 rounded-xl" />
-        <Skeleton className="h-24 w-full sm:w-64 rounded-xl" />
-      </div>
-
-      <div className="mt-12">
-        <div className="flex items-center gap-2 mb-6">
-          <Skeleton className="h-6 w-6 rounded-full shrink-0" />
-          <Skeleton className="h-7 w-72" />
+      {/* ── Grille 3 colonnes réelle des classes (au lieu d'une liste verticale) ── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-7 w-7 rounded-lg" />
+            <Skeleton className="h-5 w-48 rounded-md" />
+          </div>
+          <Skeleton className="h-4 w-20 rounded" />
         </div>
 
-        <div className="rounded-xl border border-rule bg-surface overflow-hidden shadow-card">
-          <div className="divide-y divide-rule">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Skeleton className="h-12 w-12 rounded-lg" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-5 w-48" />
-                    <Skeleton className="h-4 w-32" />
-                  </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs space-y-3 flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <Skeleton className="h-5 w-20 rounded-md" />
+                  <Skeleton className="h-4.5 w-24 rounded-full" />
                 </div>
-                <div className="hidden sm:block space-y-2 text-right">
-                  <Skeleton className="h-4 w-24 ml-auto" />
-                  <Skeleton className="h-4 w-20 ml-auto" />
+                <div className="mt-2 flex items-center gap-2">
+                  <Skeleton className="h-3.5 w-16 rounded" />
+                  <Skeleton className="h-3.5 w-28 rounded" />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                  <Skeleton className="h-5 w-24 rounded-full" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
                 </div>
               </div>
-            ))}
-          </div>
+
+              <div className="pt-2 border-t border-slate-100">
+                <Skeleton className="h-8.5 w-full rounded-xl" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

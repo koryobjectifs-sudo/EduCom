@@ -36,6 +36,9 @@ export type ActionContext = {
   memberships?: ActiveMembershipInfo[];
   activeMembership?: ActiveMembershipInfo | null;
   isFallback?: boolean;
+  /** Accès en plus (`lib/capacites.ts`) et chemins qu'ils ouvrent. */
+  grants: string[];
+  extras: string[];
 };
 
 export type ActionAuth =
@@ -89,7 +92,7 @@ export const requireActionContext = cache(async function requireActionContext(
   const { context } = result;
   const role = context.role;
 
-  if (requiredPath && !hasAccess(role, requiredPath)) {
+  if (requiredPath && !hasAccess(role, requiredPath, context.extras)) {
     return { ok: false, error: "Vous n'avez pas les droits nécessaires pour cette action." };
   }
 
@@ -139,6 +142,8 @@ export const requireActionContext = cache(async function requireActionContext(
       memberships: context.memberships,
       activeMembership: context.activeMembership,
       isFallback: context.isFallback,
+      grants: context.grants,
+      extras: context.extras,
     },
   };
 });

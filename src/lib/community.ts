@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { groupesMentionnables } from "@/lib/groupesMention";
+import { grantsDe } from "@/lib/grants";
 import type { ActorContext } from "@/lib/audit";
 import { teacherClassIds } from "@/lib/studentScope";
 import { roleLabel } from "@/lib/permissions";
@@ -69,7 +70,7 @@ export type CanalAcces = {
   estMembre: boolean;
 };
 
-export type Perimetre = { toutesClasses: boolean; classIds: string[]; canaux?: CanalAcces[] };
+export type Perimetre = { toutesClasses: boolean; classIds: string[]; canaux?: CanalAcces[]; /** Accès en plus (`lib/capacites.ts`). */ grants?: string[] };
 
 async function classesDuPerimetre(actor: ActorContext): Promise<Pick<Perimetre, "toutesClasses" | "classIds">> {
   // Comptabilité : pas d'espace de classe (devoirs, sorties, photos ne la
@@ -103,8 +104,100 @@ export function canalVisible(
   return c.regles.some((r) => regleConcerne(r, actor.role, classIds));
 }
 
+export const CANAUX_STANDARDS = [
+  {
+    name: "fun",
+    description: "Échanges informels, vie d'école et partages conviviaux.",
+    kind: "REGLES" as const,
+    audience: ["PARENTS", "PERSONNEL"],
+    membersCanPost: true,
+  },
+  {
+    name: "salle-des-proches",
+    description: "Espace d'échange entre les parents et la direction / secrétariat.",
+    kind: "REGLES" as const,
+    audience: ["PARENTS", "ROLE:OWNER", "ROLE:ADMIN", "ROLE:SECRETARY", "ROLE:ASSISTANT"],
+    membersCanPost: true,
+  },
+  {
+    name: "salle-des-profs",
+    description: "Espace d'échange entre les enseignants et la direction.",
+    kind: "REGLES" as const,
+    audience: ["ROLE:TEACHER", "ROLE:OWNER", "ROLE:ADMIN"],
+    membersCanPost: true,
+  },
+  {
+    name: "comite-des-parents",
+    description: "Échanges du comité et de l'association des parents d'élèves (APE).",
+    kind: "REGLES" as const,
+    audience: ["ROLE:OWNER", "ROLE:ADMIN", "ROLE:SECRETARY"],
+    membersCanPost: true,
+  },
+  {
+    name: "gestion-des-communications",
+    description: "Coordination des annonces officielles et de la communication de l'école.",
+    kind: "REGLES" as const,
+    audience: ["ROLE:OWNER", "ROLE:ADMIN", "ROLE:SECRETARY", "ROLE:ASSISTANT"],
+    membersCanPost: true,
+  },
+  {
+    name: "finances",
+    description: "Questions budgétaires, scolarités et comptabilité.",
+    kind: "REGLES" as const,
+    audience: ["ROLE:OWNER", "ROLE:ADMIN", "ROLE:ACCOUNTANT"],
+    membersCanPost: true,
+  },
+  {
+    name: "communications-des-profs",
+    description: "Partage pédagogique, projets interclasses et annonces aux enseignants.",
+    kind: "REGLES" as const,
+    audience: ["ROLE:TEACHER", "ROLE:OWNER", "ROLE:ADMIN"],
+    membersCanPost: true,
+  },
+  {
+    name: "support-educom",
+    description: "Assistance directe et suivi des demandes auprès de l'équipe EduCom.",
+    kind: "REGLES" as const,
+    audience: ["PERSONNEL"],
+    membersCanPost: true,
+  },
+] as const;
+
+export async function initialiserCanauxStandards(schoolId: string, createdById?: string) {
+  let auteurId = createdById;
+  if (!auteurId) {
+    const admin = await prisma.user.findFirst({
+      where: { schoolId, role: { in: ["OWNER", "ADMIN"] } },
+      select: { id: true },
+    });
+    auteurId = admin?.id ?? "system";
+  }
+
+  const existants = await prisma.communityChannel.findMany({
+    where: { schoolId, name: { in: CANAUX_STANDARDS.map((c) => c.name) } },
+    select: { name: true },
+  });
+  const existantsNoms = new Set(existants.map((c) => c.name));
+  const manquants = CANAUX_STANDARDS.filter((c) => !existantsNoms.has(c.name));
+
+  if (manquants.length > 0) {
+    await prisma.communityChannel.createMany({
+      data: manquants.map((c) => ({
+        schoolId,
+        name: c.name,
+        description: c.description,
+        kind: c.kind,
+        audience: c.audience as unknown as Prisma.InputJsonValue,
+        membersCanPost: c.membersCanPost,
+        createdById: auteurId!,
+      })),
+      skipDuplicates: true,
+    });
+  }
+}
+
 async function canauxDuPerimetre(actor: ActorContext, classIds: string[]): Promise<CanalAcces[]> {
-  const canaux = await prisma.communityChannel.findMany({
+  let canaux = await prisma.communityChannel.findMany({
     where: { schoolId: actor.schoolId, archivedAt: null },
     orderBy: { name: "asc" },
     select: {
@@ -118,6 +211,26 @@ async function canauxDuPerimetre(actor: ActorContext, classIds: string[]): Promi
       members: { where: { userId: actor.userId }, select: { id: true } },
     },
   });
+
+  // Approvisionnement automatique et idempotent des canaux standards pour l'école
+  if (canaux.length < CANAUX_STANDARDS.length) {
+    await initialiserCanauxStandards(actor.schoolId, actor.userId);
+    canaux = await prisma.communityChannel.findMany({
+      where: { schoolId: actor.schoolId, archivedAt: null },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        kind: true,
+        audience: true,
+        membersCanPost: true,
+        createdById: true,
+        members: { where: { userId: actor.userId }, select: { id: true } },
+      },
+    });
+  }
+
   return canaux
     .map((c) => ({
       id: c.id,
@@ -134,10 +247,15 @@ async function canauxDuPerimetre(actor: ActorContext, classIds: string[]): Promi
 
 export async function perimetre(actor: ActorContext): Promise<Perimetre> {
   const classes = await classesDuPerimetre(actor);
-  return { ...classes, canaux: await canauxDuPerimetre(actor, classes.classIds) };
+  const grants = actor.role === "PARENT" ? [] : (actor.grants ?? (await grantsDe(actor.userId, actor.schoolId)));
+  return { ...classes, canaux: await canauxDuPerimetre(actor, classes.classIds), grants };
 }
 
-export const peutModerer = (role: string) => MODERE.includes(role);
+/** Modérer : la direction, ou un membre à qui l'accès en plus « Modérer la Communauté » a été confié. */
+export const peutModerer = (role: string, grants?: readonly string[]) => MODERE.includes(role) || (role !== "PARENT" && Boolean(grants?.includes("MODERER")));
+/** Écrire à toute l'école (#général) : direction, secrétariat, ou accès en plus « Écrire à toute l'école ». */
+const ecritPourLEcole = (actor: ActorContext, p: Perimetre) =>
+  PUBLIE_ECOLE.includes(actor.role) || (actor.role !== "PARENT" && Boolean(p.grants?.includes("ECRIRE_ECOLE")));
 export const peutGererCanaux = (role: string) => PUBLIE_ECOLE.includes(role);
 
 export function peutPublier(
@@ -146,7 +264,7 @@ export function peutPublier(
   audience: "ECOLE" | "CLASSE" | "CANAL",
   cible?: string | null,
 ) {
-  if (audience === "ECOLE") return PUBLIE_ECOLE.includes(actor.role);
+  if (audience === "ECOLE") return ecritPourLEcole(actor, p);
   if (!cible) return false;
   if (audience === "CANAL") {
     const canal = (p.canaux ?? []).find((c) => c.id === cible);
@@ -186,7 +304,7 @@ export function filtreVisible(actor: ActorContext, p: Perimetre, espace?: string
 }
 
 function filtreEspace(actor: ActorContext, p: Perimetre, espace?: string | null): Prisma.CommunityPostWhereInput {
-  const masques = peutModerer(actor.role) ? {} : { hiddenAt: null };
+  const masques = peutModerer(actor.role, p.grants) ? {} : { hiddenAt: null };
   const canalIds = (p.canaux ?? []).map((c) => c.id);
   const classesAutorisees: Prisma.CommunityPostWhereInput = p.toutesClasses
     ? { audience: "CLASSE" }
@@ -223,6 +341,7 @@ export type CommentaireVue = {
   id: string;
   body: string;
   auteur: string;
+  auteurAvatar: string | null;
   role: string;
   createdAt: string;
   masque: boolean;
@@ -238,14 +357,15 @@ export type PublicationVue = {
   espace: string;
   espaceNom: string;
   auteur: string;
+  auteurAvatar: string | null;
   role: string;
   createdAt: string;
   pinned: boolean;
   mustRead: boolean;
   commentsEnabled: boolean;
   masque: boolean;
-  reactions: Record<TypeReaction, number>;
-  maReaction: TypeReaction | null;
+  reactions: Record<string, number>;
+  maReaction: string | null;
   commentaires: CommentaireVue[];
   luParMoi: boolean;
   /** Publication de la personne connectée (pas de ligne « Nouveau » sur ses propres messages). */
@@ -295,7 +415,7 @@ export async function chargerFil(
   p: Perimetre,
   options: { espace?: string | null; limite?: number; sondagesSeulement?: boolean } = {},
 ): Promise<PublicationVue[]> {
-  const moderateur = peutModerer(actor.role);
+  const moderateur = peutModerer(actor.role, p.grants);
   const posts = await prisma.communityPost.findMany({
     where: options.sondagesSeulement
       ? { AND: [filtreVisible(actor, p), { poll: { isNot: null } }] }
@@ -303,7 +423,7 @@ export async function chargerFil(
     orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
     take: options.limite ?? 30,
     include: {
-      author: { select: { firstName: true, lastName: true, role: true } },
+      author: { select: { firstName: true, lastName: true, role: true, avatar: true } },
       class: { select: { name: true } },
       channel: { select: { name: true } },
       reactions: { select: { kind: true, userId: true } },
@@ -317,7 +437,7 @@ export async function chargerFil(
         where: moderateur ? {} : { hiddenAt: null },
         orderBy: { createdAt: "asc" },
         take: 50,
-        include: { author: { select: { firstName: true, lastName: true, role: true } } },
+        include: { author: { select: { firstName: true, lastName: true, role: true, avatar: true } } },
       },
       poll: {
         include: {
@@ -371,11 +491,11 @@ export async function chargerFil(
 
   return Promise.all(
     posts.map(async (post) => {
-      const reactions = Object.fromEntries(REACTIONS.map((r) => [r.kind, 0])) as Record<TypeReaction, number>;
-      let maReaction: TypeReaction | null = null;
+      const reactions: Record<string, number> = {};
+      let maReaction: string | null = null;
       for (const r of post.reactions) {
-        if (r.kind in reactions) reactions[r.kind as TypeReaction]++;
-        if (r.userId === actor.userId) maReaction = r.kind as TypeReaction;
+        reactions[r.kind] = (reactions[r.kind] ?? 0) + 1;
+        if (r.userId === actor.userId) maReaction = r.kind;
       }
       const lecture =
         post.mustRead && actor.role !== "PARENT" && post.audience !== "CANAL"
@@ -390,6 +510,7 @@ export async function chargerFil(
         espaceNom:
           post.audience === "CLASSE" ? post.class?.name ?? "Classe" : post.audience === "CANAL" ? post.channel?.name ?? "Canal" : "général",
         auteur: nom(post.author),
+        auteurAvatar: post.author.avatar ?? null,
         role: roleLabel(post.author.role),
         createdAt: post.createdAt.toISOString(),
         pinned: post.pinned,
@@ -402,6 +523,7 @@ export async function chargerFil(
           id: c.id,
           body: c.body,
           auteur: nom(c.author),
+          auteurAvatar: c.author.avatar ?? null,
           role: roleLabel(c.author.role),
           createdAt: c.createdAt.toISOString(),
           masque: Boolean(c.hiddenAt),
@@ -528,7 +650,7 @@ export async function marquerEspaceVu(actor: ActorContext, espace: string): Prom
 
 /* ═══════════════════════ Panneau « Infos » ═══════════════════════ */
 
-export type PersonneVue = { id: string; nom: string; detail: string; groupe?: boolean };
+export type PersonneVue = { id: string; nom: string; detail: string; groupe?: boolean; avatar?: string | null };
 
 export type InfoEspace = {
   titre: string;
@@ -573,17 +695,17 @@ export async function infoEspace(actor: ActorContext, p: Perimetre, espace: stri
   if (e.type === "CLASSE") {
     if (!e.id || (!p.toutesClasses && !p.classIds.includes(e.id))) return null;
     const [classe, nbParents, affectations] = await Promise.all([
-      prisma.class.findFirst({ where: { id: e.id, schoolId: actor.schoolId }, select: { name: true, teacher: { select: { id: true, firstName: true, lastName: true } } } }),
+      prisma.class.findFirst({ where: { id: e.id, schoolId: actor.schoolId }, select: { name: true, teacher: { select: { id: true, firstName: true, lastName: true, avatar: true } } } }),
       nombreParents(actor.schoolId, e.id),
       prisma.teachingAssignment.findMany({
         where: { schoolId: actor.schoolId, classId: e.id },
-        select: { teacher: { select: { id: true, firstName: true, lastName: true } } },
+        select: { teacher: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
       }),
     ]);
     if (!classe) return null;
     const profs = new Map<string, PersonneVue>();
     for (const t of [classe.teacher, ...affectations.map((a) => a.teacher)]) {
-      if (t) profs.set(t.id, { id: t.id, nom: nom(t), detail: "Enseignant" });
+      if (t) profs.set(t.id, { id: t.id, nom: nom(t), detail: "Enseignant", avatar: t.avatar ?? null });
     }
     return {
       ...vide,
@@ -605,7 +727,7 @@ export async function infoEspace(actor: ActorContext, p: Perimetre, espace: stri
   const ids = complet.members.map((m) => m.userId);
   const [createur, membres, audience, classes] = await Promise.all([
     prisma.user.findFirst({ where: { id: complet.createdById }, select: { firstName: true, lastName: true } }),
-    prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, firstName: true, lastName: true, role: true } }),
+    prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, firstName: true, lastName: true, role: true, avatar: true } }),
     resoudreAudience(actor.schoolId, canal.regles, ids),
     prisma.class.findMany({ where: { schoolId: actor.schoolId }, select: { id: true, name: true } }),
   ]);
@@ -620,7 +742,7 @@ export async function infoEspace(actor: ActorContext, p: Perimetre, espace: stri
     membresPeuventPublier: canal.membersCanPost,
     nbParents: audience.parents.length,
     nbPersonnel: audience.personnel.length,
-    personnes: membres.map((m) => ({ id: m.id, nom: nom(m), detail: roleLabel(m.role) })),
+    personnes: membres.map((m) => ({ id: m.id, nom: nom(m), detail: roleLabel(m.role), avatar: m.avatar ?? null })),
     membreIds: ids,
     regles: canal.regles,
     kind: canal.kind,
@@ -634,7 +756,7 @@ export async function personnesInvitables(actor: ActorContext): Promise<Personne
   const [personnel, eleves] = await Promise.all([
     prisma.user.findMany({
       where: { schoolId: actor.schoolId, role: { in: [...ROLES_PERSONNEL] } },
-      select: { id: true, firstName: true, lastName: true, role: true },
+      select: { id: true, firstName: true, lastName: true, role: true, avatar: true },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
       take: 500,
     }),
@@ -642,7 +764,7 @@ export async function personnesInvitables(actor: ActorContext): Promise<Personne
       where: { schoolId: actor.schoolId, parentId: { not: null } },
       select: {
         firstName: true,
-        parent: { select: { id: true, firstName: true, lastName: true } },
+        parent: { select: { id: true, firstName: true, lastName: true, avatar: true } },
         enrollments: { select: { class: { select: { name: true } } }, orderBy: { academicYear: "desc" }, take: 1 },
       },
       take: 3000,
@@ -653,10 +775,10 @@ export async function personnesInvitables(actor: ActorContext): Promise<Personne
     if (!e.parent) continue;
     const enfant = `${e.firstName}${e.enrollments[0]?.class?.name ? ` (${e.enrollments[0].class.name})` : ""}`;
     const deja = parents.get(e.parent.id);
-    parents.set(e.parent.id, { id: e.parent.id, nom: nom(e.parent), detail: deja ? `${deja.detail}, ${enfant}` : `Parent de ${enfant}` });
+    parents.set(e.parent.id, { id: e.parent.id, nom: nom(e.parent), detail: deja ? `${deja.detail}, ${enfant}` : `Parent de ${enfant}`, avatar: e.parent.avatar ?? null });
   }
   return [
-    ...personnel.map((u) => ({ id: u.id, nom: nom(u), detail: roleLabel(u.role) })),
+    ...personnel.map((u) => ({ id: u.id, nom: nom(u), detail: roleLabel(u.role), avatar: u.avatar ?? null })),
     ...[...parents.values()].sort((a, b) => a.nom.localeCompare(b.nom, "fr")),
   ];
 }

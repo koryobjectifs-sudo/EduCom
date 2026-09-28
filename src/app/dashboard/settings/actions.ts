@@ -114,7 +114,7 @@ export async function updateSchoolSettings(data: {
 /**
  * Met à jour directement la couleur des cadres de l'établissement sans nécessiter
  * la validation complète de l'identité de l'école. Accepte `null` pour réinitialiser
- * à la couleur EduCom initiale (#0E2541).
+ * à la couleur EduCom officielle (#581C87).
  */
 export async function updateSchoolPrimaryColor(primaryColor: string | null) {
   const auth = await requireActionContext("/dashboard/settings");
@@ -124,10 +124,10 @@ export async function updateSchoolPrimaryColor(primaryColor: string | null) {
     try {
       await prisma.school.update({
         where: { id: auth.ctx.schoolId },
-        data: { primaryColor: null },
+        data: { primaryColor: "#581C87" },
       });
       revalidatePath("/", "layout");
-      return { success: true, primaryColor: null };
+      return { success: true, primaryColor: "#581C87" };
     } catch (error) {
       console.error("Failed to reset school primary color:", error);
       return { error: "Échec de la réinitialisation de la couleur." };
@@ -136,7 +136,7 @@ export async function updateSchoolPrimaryColor(primaryColor: string | null) {
 
   const trimmed = primaryColor.trim();
   if (!isValidHexColor(trimmed)) {
-    return { error: "Code hexadécimal invalide. Format attendu : #RRGGBB (ex: #0E2541)." };
+    return { error: "Code hexadécimal invalide. Format attendu : #RRGGBB (ex: #581C87)." };
   }
 
   try {

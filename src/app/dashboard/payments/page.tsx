@@ -11,10 +11,10 @@ import ParentPaymentsView, { type ParentChildData, type ParentPaymentHistoryItem
 import { redirect } from "next/navigation";
 
 export default async function PaymentsPage() {
-  const { user, schoolId, school } = await requireSchoolContext();
+  const { extras, user, schoolId, school } = await requireSchoolContext();
 
   // ⚠️ GARDE SERVEUR : Empêche toute requête de base de données financière si le rôle n'a pas accès
-  if (!hasAccess(user.role, "/dashboard/payments")) {
+  if (!hasAccess(user.role, "/dashboard/payments", extras)) {
     redirect(firstAllowedPath(user.role));
   }
 
@@ -148,9 +148,9 @@ export default async function PaymentsPage() {
   const ctx = { userId: user.id, schoolId, role: user.role };
 
   // `hasAccess()` fait foi partout.
-  const canPrepare = hasAccess(user.role, "/dashboard/payments/statement");
-  const canReview = hasAccess(user.role, "/dashboard/payments/review");
-  const canIssue = hasAccess(user.role, "/dashboard/payments/new");
+  const canPrepare = hasAccess(user.role, "/dashboard/payments/statement", extras);
+  const canReview = hasAccess(user.role, "/dashboard/payments/review", extras);
+  const canIssue = hasAccess(user.role, "/dashboard/payments/new", extras);
 
   const overview = await invoiceOverview(ctx);
   const { invoices, collected, collectedCount, outstanding, forecast, overdue, overdueCount, pendingCount } = overview;
@@ -184,6 +184,7 @@ export default async function PaymentsPage() {
             {canIssue && (
               <Link
                 href="/dashboard/payments/new"
+                data-tour="btn-new-payment"
                 className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-control bg-primary px-3 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
               >
                 <Plus aria-hidden="true" className="h-3.5 w-3.5" />
@@ -200,7 +201,7 @@ export default async function PaymentsPage() {
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div data-tour="finance-summary" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <p className="text-[10.5px] font-semibold uppercase tracking-wide text-text-faint">
             Prévisionnel

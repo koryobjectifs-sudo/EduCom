@@ -38,6 +38,8 @@ export type ActorContext = {
   userId: string;
   schoolId: string;
   role: RoleType | string;
+  /** Accès en plus accordés par la direction (`lib/capacites.ts`), si connus. */
+  grants?: string[];
 };
 
 /**
@@ -134,7 +136,11 @@ export type AuditEntity =
   // détail de ce qui a été créé et de ce qui existait déjà.
   | "curriculum"
   // Réinscription en masse / Préparation de la rentrée
-  | "reinscription";
+  | "reinscription"
+  // Outil de pilotage EduCom (27 sept. 2026) : gestes de l'équipe EduCom sur
+  // une école (prolonger l'essai, paiement manuel…) et support.
+  | "pilotage"
+  | "support";
 
 /** Résultat de l'action. Répond au « avec quel résultat ? ». */
 export type AuditOutcome = "success" | "failure" | "denied";

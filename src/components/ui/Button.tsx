@@ -1,83 +1,87 @@
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode, Ref } from "react";
+import React, {
+  type ButtonHTMLAttributes,
+  type AnchorHTMLAttributes,
+  type ReactNode,
+  type Ref,
+  useState,
+  isValidElement,
+  cloneElement,
+} from "react";
+import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
 /**
- * Bouton du socle EduCom.
+ * Bouton universel du socle EduCom (Standard Slack / Linear / Stripe).
  *
- * Remplace les **247 `<button>`** écrits à la main dans le dépôt, dont un
- * bouton primaire déclinait une vingtaine de variantes différentes.
+ * ═══ DESIGN SYSTEM & TOKENS ═══
+ * - Rayon fixe : 8px (rounded-lg) pour tous les boutons d'action.
+ * - 4 hauteurs standardisées :
+ *    • lg : 48px (h-12, px-6, text-sm sm:text-base font-semibold) — Action primaire de page / mobile
+ *    • md : 40px (h-10, px-4, text-sm font-medium) — Standard desktop
+ *    • sm : 32px (h-8, px-3, text-xs font-medium) — Tableaux, barres d'outils
+ *    • xs : 28px (h-7, px-2.5, text-xs font-medium) — Actions denses, micro-boutons
+ * - 4 variantes sémantiques :
+ *    • primary : Action principale unique par écran (bg-primary-ink text-white)
+ *    • secondary : Actions secondaires (fond surface, bordure règle discrète)
+ *    • ghost : Actions tertiaires / annuler (fond transparent au repos)
+ *    • danger : Actions destructives (rouge alerte certifié AA)
  *
- * ═══ L'ACCESSIBILITÉ EST IMPOSÉE PAR LE TYPAGE ═══
+ * ═══ ÉTATS & INTERACTION ═══
+ * - Hover / Active : micro-interaction soignée, feedback haptique visuel (scale-[0.99])
+ * - Double-click lock : protection native contre les doubles clics accidentels
+ * - Loading : spinner Loader2, désactivation automatique, aria-busy
+ * - Focus-visible : anneau accessible au clavier
  *
- * Le dépôt comptait **0 `aria-label` pour 247 boutons**, alors que beaucoup
- * n'affichent qu'une icône : ils étaient muets au lecteur d'écran. Ici, le type
- * est une union discriminée — un bouton sans `children` **exige** un
- * `aria-label`, et le compilateur refuse l'oubli. Ce n'est pas une convention
- * qu'on peut contourner par distraction.
+ * ═══ ACCESSIBILITÉ IMPOSÉE ═══
+ * - Bouton sans libellé visible -> aria-label OBLIGATOIRE au typage TS.
  *
- *   <Button>Enregistrer</Button>                          ✅
- *   <Button aria-label="Fermer"><X /></Button>             ✅
- *   <Button><X /></Button>                                 ❌ erreur TS
- *
- * ═══ ÉTAT DE CHARGEMENT ═══
- *
- * `loading` désactive le bouton, échange l'icône de gauche contre un
- * indicateur, et pose `aria-busy` : le lecteur d'écran annonce l'attente au
- * lieu de laisser croire à un bouton inerte.
+ * ═══ RÉTROCOMPATIBILITÉ & POLYMORPHISME ═══
+ * - Si `href` est fourni -> rendu automatique en Next.js `<Link>` avec le style bouton.
+ * - Si `asChild` est fourni -> injecte les classes dans le composant enfant unique.
  */
 
-type Variant = "primary" | "secondary" | "ghost" | "danger";
-type Size = "sm" | "md" | "lg";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonSize = "xs" | "sm" | "md" | "lg";
 
-const VARIANT: Record<Variant, string> = {
-  /* ⚠️ `bg-primary` PORTAIT du texte blanc à 2,89:1 — sous le seuil AA de
-     4,5:1, et même sous les 3:1 du grand texte. Le bouton le plus utilisé du
-     produit était illisible. `--color-primary-ink` est la même couleur de
-     marque assombrie juste ce qu'il faut : la teinte de l'école est conservée,
-     le texte redevient lisible, et AUCUNE classe d'appel ne change. */
+export type Variant = ButtonVariant;
+export type Size = ButtonSize;
+
+export const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary-ink text-white border border-transparent hover:bg-primary-ink-hover active:bg-primary-ink-active shadow-card",
+    "bg-primary-ink text-white border border-transparent hover:bg-primary-ink-hover active:bg-primary-ink-active shadow-sm active:scale-[0.99]",
   secondary:
-    "bg-surface text-text border border-rule hover:bg-sunk active:bg-sunk shadow-card",
+    "bg-surface text-text border border-rule hover:bg-sunk hover:border-slate-300 active:bg-slate-100 shadow-xs active:scale-[0.99]",
   ghost:
-    "bg-transparent text-text-soft border border-transparent hover:bg-sunk hover:text-text",
+    "bg-transparent text-text-soft border border-transparent hover:bg-sunk hover:text-text active:scale-[0.99]",
   danger:
-    "bg-danger text-white border border-transparent hover:brightness-110 active:brightness-95 shadow-card",
+    "bg-danger text-white border border-transparent hover:brightness-110 active:brightness-95 shadow-sm active:scale-[0.99]",
 };
 
-/** Trois tailles affinées. `iconOnly` passe en carré pour rester une cible de clic correcte. */
-const SIZE: Record<Size, { base: string; icon: string }> = {
-  sm: { base: "h-7 px-2.5 gap-1 text-role-meta", icon: "h-7 w-7" },
-  md: { base: "h-8.5 px-3 gap-1.5 text-role-label", icon: "h-8.5 w-8.5" },
-  lg: { base: "h-10 px-4 gap-2 text-role-body", icon: "h-10 w-10" },
+export const BUTTON_SIZES: Record<ButtonSize, { base: string; icon: string; iconSize: string }> = {
+  xs: { base: "h-7 px-2.5 gap-1.5 text-xs font-medium", icon: "h-7 w-7", iconSize: "h-3.5 w-3.5" },
+  sm: { base: "h-8 px-3 gap-1.5 text-xs font-medium", icon: "h-8 w-8", iconSize: "h-3.5 w-3.5" },
+  md: { base: "h-10 px-4 gap-2 text-sm font-medium", icon: "h-10 w-10", iconSize: "h-4 w-4" },
+  lg: { base: "h-12 px-6 gap-2 text-sm sm:text-base font-semibold", icon: "h-12 w-12", iconSize: "h-4.5 w-4.5" },
 };
 
 type Common = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "className"> & {
-  /**
-   * Référence vers l'élément natif.
-   *
-   * React 19 traite `ref` comme une prop ordinaire des composants fonction :
-   * pas besoin de `forwardRef`. Nécessaire pour rendre le focus au déclencheur
-   * après fermeture d'un tiroir ou d'une modale.
-   */
   ref?: Ref<HTMLButtonElement>;
   variant?: Variant;
   size?: Size;
-  /** Désactive, affiche un indicateur et pose `aria-busy`. */
   loading?: boolean;
-  /** Icône avant le libellé. Remplacée par l'indicateur pendant le chargement. */
+  loadingText?: string;
   icon?: ReactNode;
-  /** Occupe toute la largeur disponible. */
+  iconRight?: ReactNode;
   block?: boolean;
   className?: string;
+  href?: string;
+  asChild?: boolean;
+  "aria-label"?: string;
 };
 
-/** Bouton avec libellé : `aria-label` facultatif. */
 type WithLabel = Common & { children: ReactNode; "aria-label"?: string };
-
-/** Bouton sans libellé visible : `aria-label` OBLIGATOIRE. */
 type IconOnly = Common & { children?: never; "aria-label": string };
 
 export type ButtonProps = WithLabel | IconOnly;
@@ -87,41 +91,121 @@ export function Button(props: ButtonProps) {
     variant = "primary",
     size = "md",
     loading = false,
+    loadingText,
     icon,
+    iconRight,
     block = false,
     className = "",
     children,
     disabled,
     type = "button",
+    href,
+    asChild = false,
+    onClick,
+    ref,
+    "aria-label": ariaLabel,
     ...rest
   } = props as Common & { children?: ReactNode };
 
-  const iconOnly = children === undefined || children === null;
-  const s = SIZE[size];
+  const [clickLocked, setClickLocked] = useState(false);
+  const iconOnly = children === undefined || children === null || children === false;
+  const s = BUTTON_SIZES[size];
+  const isInactive = Boolean(disabled || loading || clickLocked);
 
-  return (
-    <button
-      type={type}
-      disabled={disabled || loading}
-      aria-busy={loading || undefined}
-      className={[
-        "inline-flex items-center justify-center font-medium rounded-control",
-        "transition-colors focus-visible:outline-none focus-visible:ring-2",
-        "focus-visible:ring-primary/50 focus-visible:ring-offset-2",
-        "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
-        VARIANT[variant],
-        iconOnly ? s.icon : s.base,
-        block ? "w-full" : "",
-        className,
-      ].join(" ")}
-      {...rest}
-    >
+  const classes = [
+    "inline-flex items-center justify-center font-medium rounded-lg select-none cursor-pointer",
+    "transition-all duration-150 ease-out",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2",
+    "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:shadow-none disabled:scale-100",
+    BUTTON_VARIANTS[variant],
+    iconOnly ? s.icon : s.base,
+    block ? "w-full" : "",
+    className,
+  ].filter(Boolean).join(" ");
+
+  const renderedContent = (
+    <>
       {loading ? (
-        <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin shrink-0" />
+        <Loader2 aria-hidden="true" className={`${s.iconSize} animate-spin shrink-0`} />
       ) : (
         icon
       )}
-      {children}
+      {loading ? (loadingText ?? children) : children}
+      {!loading && iconRight}
+    </>
+  );
+
+  // Support asChild pour composants tiers / wrappers
+  if (asChild && isValidElement(children)) {
+    return cloneElement(children as React.ReactElement<{ className?: string }>, {
+      className: [classes, (children.props as { className?: string }).className].filter(Boolean).join(" "),
+      ...rest,
+    });
+  }
+
+  // Rendu sous forme de Next Link si href est spécifié
+  if (href) {
+    if (disabled || loading) {
+      return (
+        <span
+          role="link"
+          aria-disabled="true"
+          aria-busy={loading || undefined}
+          aria-label={ariaLabel}
+          className={`${classes} opacity-50 cursor-not-allowed pointer-events-none`}
+        >
+          {renderedContent}
+        </span>
+      );
+    }
+    return (
+      <Link
+        href={href}
+        className={classes}
+        aria-label={ariaLabel}
+        ref={ref as unknown as Ref<HTMLAnchorElement>}
+        {...(rest as unknown as AnchorHTMLAttributes<HTMLAnchorElement>)}
+      >
+        {renderedContent}
+      </Link>
+    );
+  }
+
+  // Anti double-clic natif sur bouton standard
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (isInactive) {
+      e.preventDefault();
+      return;
+    }
+
+    if (onClick) {
+      setClickLocked(true);
+      try {
+        const result = onClick(e) as unknown;
+        if (Boolean(result) && typeof (result as { finally?: unknown }).finally === "function") {
+          (result as Promise<unknown>).finally(() => setClickLocked(false));
+          return;
+        }
+      } catch (err) {
+        setClickLocked(false);
+        throw err;
+      }
+      setTimeout(() => setClickLocked(false), 450);
+    }
+  };
+
+  return (
+    <button
+      ref={ref}
+      type={type}
+      disabled={isInactive}
+      aria-busy={loading || undefined}
+      aria-label={ariaLabel}
+      onClick={handleClick}
+      className={classes}
+      {...rest}
+    >
+      {renderedContent}
     </button>
   );
 }

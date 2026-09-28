@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { acteurPeut } from "@/lib/grants";
 import type { ActorContext } from "@/lib/audit";
 
 /**
@@ -31,7 +32,8 @@ export async function groupesMentionnables(actor: ActorContext, classIds: string
     g(["ROLE:TEACHER"], "profs", "Groupe · tous les enseignants"),
     g(["ROLE:OWNER", "ROLE:ADMIN"], "direction", "Groupe · la direction"),
   ];
-  const toutes = TOUT.includes(actor.role);
+  // Accès en plus « Écrire à toute l'école » : mêmes groupes que le secrétariat.
+  const toutes = TOUT.includes(actor.role) || (await acteurPeut(actor, "ECRIRE_ECOLE"));
   if (toutes) groupes.unshift(g(["PARENTS"], "parents", "Groupe · tous les parents de l'école"));
   if (!toutes && actor.role !== "TEACHER") return groupes;
   const classes = await prisma.class.findMany({

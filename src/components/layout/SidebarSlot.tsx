@@ -13,16 +13,44 @@ import { createContext, useCallback, useContext, useState } from "react";
  */
 export type RenduBarre = (replie: boolean) => React.ReactNode;
 
-const Contexte = createContext<{ rendu: RenduBarre | null; setRendu: (r: RenduBarre | null) => void }>({
+interface SidebarSlotContextType {
+  rendu: RenduBarre | null;
+  setRendu: (r: RenduBarre | null) => void;
+  guideActif: boolean;
+  setGuideActif: (actif: boolean | ((prev: boolean) => boolean)) => void;
+  tourDeclenche: boolean;
+  setTourDeclenche: (actif: boolean) => void;
+}
+
+const Contexte = createContext<SidebarSlotContextType>({
   rendu: null,
   setRendu: () => {},
+  guideActif: false,
+  setGuideActif: () => {},
+  tourDeclenche: false,
+  setTourDeclenche: () => {},
 });
 
 export function SidebarSlotProvider({ children }: { children: React.ReactNode }) {
   const [rendu, setEtat] = useState<RenduBarre | null>(null);
-  // Une fonction passée à setState serait exécutée comme « updater » : on l'emballe.
+  const [guideActif, setGuideActif] = useState(false);
+  const [tourDeclenche, setTourDeclenche] = useState(false);
   const setRendu = useCallback((r: RenduBarre | null) => setEtat(() => r), []);
-  return <Contexte.Provider value={{ rendu, setRendu }}>{children}</Contexte.Provider>;
+
+  return (
+    <Contexte.Provider
+      value={{
+        rendu,
+        setRendu,
+        guideActif,
+        setGuideActif,
+        tourDeclenche,
+        setTourDeclenche,
+      }}
+    >
+      {children}
+    </Contexte.Provider>
+  );
 }
 
 export const useSidebarSlot = () => useContext(Contexte);

@@ -19,8 +19,8 @@ export default async function ReceiptPage({
   searchParams: Promise<{ paymentId?: string; studentId?: string }>;
 }) {
   const { paymentId } = await searchParams;
-  const { user, schoolId, school } = await requireSchoolContext();
-  if (!hasAccess(user.role, PATH)) redirect(firstAllowedPath(user.role));
+  const { extras, user, schoolId, school } = await requireSchoolContext();
+  if (!hasAccess(user.role, PATH, extras)) redirect(firstAllowedPath(user.role));
 
   // Cas 1 : paymentId fourni -> Rendu du reçu certifié réel
   if (paymentId) {

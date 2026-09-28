@@ -8,7 +8,7 @@ import { PRO_PRICE_EUR, formatFCFA, TRIAL_DAYS } from "@/lib/pricing";
 export const metadata: Metadata = {
   title: "Tarifs — EduCom",
   description:
-    `${TRIAL_DAYS} jours d'essai, formule Pro à ${PRO_PRICE_EUR} € (≈ ${formatFCFA(PRO_PRICE_EUR)}) par mois. Un prix par école, pas par élève. Découvrez aussi notre offre Sur mesure pour les groupes et besoins personnalisés.`,
+    `${TRIAL_DAYS} jours d'essai gratuit. Formules Standard (9 900 F CFA/mois), Premium (14 900 F CFA/mois) et Sur Demande. Un tarif fixe par école, jamais par élève.`,
 };
 
 export default function PricingPage() {
@@ -17,7 +17,7 @@ export default function PricingPage() {
       <PageHeader
         surtitre="Tarifs"
         titre="Un prix par école, pas par élève."
-        intro={`Commencez par ${TRIAL_DAYS} jours d'essai : le temps d'éditer votre premier document officiel. Aucune carte bancaire n'est demandée, et EduCom n'a pas encore de paiement en ligne — rien ne peut vous être débité.`}
+        intro={`Profitez de ${TRIAL_DAYS} jours d'essai gratuit pour tester l'ensemble des fonctionnalités avec votre équipe. Aucune carte bancaire demandée.`}
       />
       <Pricing sansEntete />
       <FAQSection />

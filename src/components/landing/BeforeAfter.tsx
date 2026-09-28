@@ -58,19 +58,19 @@ export default function BeforeAfter() {
 
   return (
     <section className="bg-m-sky">
-      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-blue">Le constat</p>
-          <h2 className="mt-4 font-display text-[1.7rem] font-bold leading-[1.15] text-m-navy sm:text-[2.15rem]">
+          <p className="text-[11.5px] font-semibold uppercase tracking-[0.14em] text-m-blue">Le constat</p>
+          <h2 className="mt-2.5 font-display text-[1.45rem] font-bold leading-[1.15] text-m-navy sm:text-[1.85rem]">
             Chaque trimestre, votre équipe refait le même travail à la main.
           </h2>
-          <p className="mt-5 text-[16px] leading-[1.65] text-m-ink-soft sm:text-[17px]">
+          <p className="mt-2 text-[13.5px] leading-relaxed text-m-ink-soft">
             <EduComWordmark /> ne remplace personne. Il supprime la ressaisie, et les erreurs qui vont avec.
           </p>
         </div>
 
-        <div className="mt-14 overflow-hidden rounded-2xl ring-1 ring-m-line">
-          <div className="hidden grid-cols-[1fr_auto_1fr] bg-m-paper px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.1em] sm:grid">
+        <div className="mt-6 overflow-hidden rounded-2xl ring-1 ring-m-line">
+          <div className="hidden grid-cols-[1fr_auto_1fr] bg-m-paper px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.1em] sm:grid">
             <span className="text-m-ink-faint">Aujourd&apos;hui</span>
             <span />
             <span className="text-m-blue">Avec <EduComWordmark /></span>
@@ -81,17 +81,17 @@ export default function BeforeAfter() {
             return (
               <motion.div
                 key={l.avant}
-                className="grid grid-cols-1 items-center gap-2 border-t border-m-line-soft bg-m-card px-6 py-5 sm:grid-cols-[1fr_auto_1fr] sm:gap-6"
+                className="grid grid-cols-1 items-center gap-2 border-t border-m-line-soft bg-m-card px-5 py-3 sm:grid-cols-[1fr_auto_1fr] sm:gap-4 sm:py-3.5"
                 initial={reduce ? false : "hidden"}
                 whileInView="shown"
-                viewport={{ once: true, margin: "-80px" }}
+                viewport={{ once: true, margin: "-60px" }}
                 transition={{ staggerChildren: 0.25, delayChildren: i * 0.12 }}
               >
-                <div className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-m-paper text-m-ink-faint">
-                    <Icon aria-hidden="true" className="h-4.5 w-4.5" />
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-lg bg-m-paper text-m-ink-faint">
+                    <Icon aria-hidden="true" className="h-4 w-4" />
                   </span>
-                  <span className="relative text-[15px] text-m-ink-soft">
+                  <span className="relative text-[13.5px] text-m-ink-soft">
                     {l.avant}
                     <motion.span
                       aria-hidden="true"
@@ -102,10 +102,10 @@ export default function BeforeAfter() {
                   </span>
                 </div>
 
-                <AppleArrowRightIcon aria-hidden="true" className="hidden h-4 w-4 text-m-ink-faint sm:block" />
+                <AppleArrowRightIcon aria-hidden="true" className="hidden h-3.5 w-3.5 text-m-ink-faint sm:block" />
 
                 <motion.p
-                  className="flex items-center gap-2 pl-12 text-[15px] font-semibold text-m-ink sm:pl-0"
+                  className="flex items-center gap-2 pl-10 text-[13.5px] font-semibold text-m-ink sm:pl-0"
                   variants={{ hidden: { opacity: 0, x: -10 }, shown: { opacity: 1, x: 0 } }}
                   transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                 >

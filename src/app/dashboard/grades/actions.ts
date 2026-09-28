@@ -1,5 +1,6 @@
 "use server";
 
+import { acteurPeut } from "@/lib/grants";
 import { prisma } from "@/lib/prisma";
 import { editableSubjectIds } from "@/lib/gradeEntry";
 import { createClient } from "@/lib/supabase/server";
@@ -359,7 +360,8 @@ export async function returnReportCardsToTeacher(
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
   if (!dbUser) return { error: "Utilisateur introuvable" };
 
-  if (!["OWNER", "ADMIN", "SECRETARY"].includes(dbUser.role)) {
+  // Accès en plus « Valider les bulletins » (26 sept. 2026).
+  if (!["OWNER", "ADMIN", "SECRETARY"].includes(dbUser.role) && !(await acteurPeut({ userId: dbUser.id, schoolId: dbUser.schoolId, role: dbUser.role }, "BULLETINS_VALIDER"))) {
     return { error: "Seule la direction peut renvoyer des bulletins." };
   }
   if (!reason?.trim()) return { error: "Indiquez un motif de renvoi." };
@@ -407,7 +409,8 @@ export async function approveReportCards(classId: string, evaluationId: string) 
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
   if (!dbUser) return { error: "Utilisateur introuvable" };
 
-  if (!["OWNER", "ADMIN", "SECRETARY"].includes(dbUser.role)) {
+  // Accès en plus « Valider les bulletins » (26 sept. 2026).
+  if (!["OWNER", "ADMIN", "SECRETARY"].includes(dbUser.role) && !(await acteurPeut({ userId: dbUser.id, schoolId: dbUser.schoolId, role: dbUser.role }, "BULLETINS_VALIDER"))) {
     return { error: "Action réservée à la direction et au secrétariat." };
   }
 

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { type RoleType } from "@/lib/permissions";
+import { cheminsSupplementaires, estCapacite } from "@/lib/capacites";
 import type { User, School, Role } from "@/generated/prisma/client";
 
 export const ACTIVE_SCHOOL_COOKIE_NAME = "educom_active_school";
@@ -33,6 +34,10 @@ export interface ResolvedSchoolContext {
   memberships: ActiveMembershipInfo[];
   activeMembership: ActiveMembershipInfo | null;
   isFallback: boolean;
+  /** Accès en plus accordés par la direction dans CETTE école (`lib/capacites.ts`). */
+  grants: string[];
+  /** Chemins qu'ils ouvrent, à passer à `hasAccess(role, chemin, extras)`. */
+  extras: string[];
 }
 
 export interface ResolveSchoolContextOptions {
@@ -114,6 +119,7 @@ export const resolveSchoolContext = cache(async function resolveSchoolContext(
             ],
             activeMembership: null,
             isFallback: true,
+            ...(await chargerAcces(dbUser.id, testSchoolId, dbUser.role)),
           },
         };
       }
@@ -258,6 +264,8 @@ export const resolveSchoolContext = cache(async function resolveSchoolContext(
     schoolId: activeSchoolId,
   };
 
+  const acces = await chargerAcces(dbUser.id, activeSchoolId, activeRole);
+
   return {
     ok: true,
     context: {
@@ -268,6 +276,20 @@ export const resolveSchoolContext = cache(async function resolveSchoolContext(
       memberships,
       activeMembership,
       isFallback,
+      ...acces,
     },
   };
 });
+
+/** Accès en plus (26 sept. 2026). Échec fermé : table absente = aucun accès en plus. */
+async function chargerAcces(userId: string, schoolId: string, role: string): Promise<{ grants: string[]; extras: string[] }> {
+  if (role === "PARENT") return { grants: [], extras: [] };
+  try {
+    const grants = (await prisma.staffGrant.findMany({ where: { userId, schoolId }, select: { capability: true } }))
+      .map((g) => g.capability)
+      .filter(estCapacite);
+    return { grants, extras: cheminsSupplementaires(grants) };
+  } catch {
+    return { grants: [], extras: [] };
+  }
+}

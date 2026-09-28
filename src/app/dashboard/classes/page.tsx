@@ -232,16 +232,18 @@ export default async function ClassesPage({ searchParams }: ClassesPageProps) {
         </div>
       </div>
 
-      <ClassListClient
-        classes={classes}
-        teachers={teacherItems}
-        allSubjects={allSubjects}
-        searchTerm={searchParam}
-        initialFilter={filterParam}
-        selectedCycleParam={cycleParam}
-        activeYear={activeYear}
-        totalUnassignedSubjects={totalUnassignedSubjects}
-      />
+      <div data-tour="classes-list">
+        <ClassListClient
+          classes={classes}
+          teachers={teacherItems}
+          allSubjects={allSubjects}
+          searchTerm={searchParam}
+          initialFilter={filterParam}
+          selectedCycleParam={cycleParam}
+          activeYear={activeYear}
+          totalUnassignedSubjects={totalUnassignedSubjects}
+        />
+      </div>
     </div>
   );
 }

@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { hasAccess, type RoleType } from "@/lib/permissions";
+import { grantsDe } from "@/lib/grants";
+import { cheminsSupplementaires } from "@/lib/capacites";
 import { sortClasses } from "@/lib/classOrder";
 import ValidationClient from "./ValidationClient";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -20,7 +22,9 @@ export default async function ValidationPage() {
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
   if (!dbUser) redirect("/login");
 
-  if (!hasAccess(dbUser.role as RoleType, "/dashboard/grades/validation")) {
+  // Accès en plus « Valider les bulletins » (26 sept. 2026).
+  const extras = cheminsSupplementaires(await grantsDe(dbUser.id, dbUser.schoolId));
+  if (!hasAccess(dbUser.role as RoleType, "/dashboard/grades/validation", extras)) {
     redirect("/dashboard/grades");
   }
 

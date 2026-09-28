@@ -251,13 +251,13 @@ export default function FamillesClient({
             onClick={() => setActiveTab("ALL")}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               activeTab === "ALL"
-                ? "bg-text text-bg shadow-2xs"
-                : "text-text-soft hover:bg-sunk hover:text-text"
+                ? "bg-slate-900 text-white shadow-2xs font-bold"
+                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
             }`}
           >
             Toutes
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-              activeTab === "ALL" ? "bg-bg text-text" : "bg-sunk text-text-faint"
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+              activeTab === "ALL" ? "bg-white/20 text-white" : "bg-slate-200/80 text-slate-700"
             }`}>
               {summary.totalFamilies}
             </span>
@@ -267,14 +267,14 @@ export default function FamillesClient({
             onClick={() => setActiveTab("OVERDUE")}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               activeTab === "OVERDUE"
-                ? "bg-red-600 text-white shadow-2xs"
-                : "text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
+                ? "bg-rose-600 text-white shadow-2xs"
+                : "text-rose-700 hover:bg-rose-50 border border-rose-200/60"
             }`}
           >
             <AlertTriangle className="h-3 w-3" />
             En retard
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-              activeTab === "OVERDUE" ? "bg-white text-red-700" : "bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200"
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+              activeTab === "OVERDUE" ? "bg-white text-rose-700" : "bg-rose-100 text-rose-800"
             }`}>
               {summary.overdueCount}
             </span>
@@ -285,13 +285,13 @@ export default function FamillesClient({
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               activeTab === "PARTIAL"
                 ? "bg-amber-600 text-white shadow-2xs"
-                : "text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                : "text-amber-700 hover:bg-amber-50 border border-amber-200/60"
             }`}
           >
             <Clock className="h-3 w-3" />
             Partielles
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-              activeTab === "PARTIAL" ? "bg-white text-amber-700" : "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200"
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+              activeTab === "PARTIAL" ? "bg-white text-amber-700" : "bg-amber-100 text-amber-800"
             }`}>
               {summary.partialCount}
             </span>
@@ -302,13 +302,13 @@ export default function FamillesClient({
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               activeTab === "UP_TO_DATE"
                 ? "bg-emerald-600 text-white shadow-2xs"
-                : "text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                : "text-emerald-700 hover:bg-emerald-50 border border-emerald-200/60"
             }`}
           >
             <CheckCircle2 className="h-3 w-3" />
             À jour
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-              activeTab === "UP_TO_DATE" ? "bg-white text-emerald-700" : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200"
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+              activeTab === "UP_TO_DATE" ? "bg-white text-emerald-700" : "bg-emerald-100 text-emerald-800"
             }`}>
               {summary.upToDateCount}
             </span>
@@ -409,7 +409,7 @@ export default function FamillesClient({
       </div>
 
       {/* ═══ TABLEAU DES FAMILLES : 1 LIGNE PAR FAMILLE (768 px et plus) ═══ */}
-      <div className="hidden rounded-xl border border-rule bg-surface shadow-2xs overflow-hidden md:block">
+      <div data-tour="familles-table" className="hidden rounded-xl border border-rule bg-surface shadow-2xs overflow-hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -495,11 +495,11 @@ export default function FamillesClient({
                       {/* 5. RELIQUAT (En évidence !) */}
                       <td className="py-3 px-4 text-right align-middle">
                         {hasReliquat ? (
-                          <span className="inline-block px-2.5 py-1 rounded-md text-xs sm:text-sm font-extrabold tabular-nums bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50 shadow-2xs">
+                          <span className="inline-block px-2.5 py-1 rounded-md text-xs sm:text-sm font-extrabold tabular-nums bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
                             {formatXOF(fam.reliquat)}
                           </span>
                         ) : (
-                          <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50">
+                          <span className="inline-block px-2.5 py-1 rounded-md text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200">
                             Soldé (0 F)
                           </span>
                         )}
@@ -508,18 +508,18 @@ export default function FamillesClient({
                       {/* 6. Statut */}
                       <td className="py-3 px-4 text-center align-middle">
                         {fam.status === "UP_TO_DATE" && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                            <CheckCircle2 className="h-3 w-3" /> À jour
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> À jour
                           </span>
                         )}
                         {fam.status === "PARTIAL" && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                            <Clock className="h-3 w-3" /> Partiel
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                            <Clock className="h-3.5 w-3.5 text-amber-600" /> Partiel
                           </span>
                         )}
                         {fam.status === "OVERDUE" && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300">
-                            <AlertTriangle className="h-3 w-3" /> En retard
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                            <AlertTriangle className="h-3.5 w-3.5 text-rose-600" /> En retard
                           </span>
                         )}
                       </td>

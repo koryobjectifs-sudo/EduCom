@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { PRO_PRICE_EUR, EUR_TO_XOF_RATE, TRIAL_DAYS } from "@/lib/pricing";
+import { PREMIUM_PRICE_XOF, TRIAL_DAYS } from "@/lib/pricing";
 
 /**
  * Abonnement de l'école à EduCom — 25 sept. 2026.
@@ -24,8 +24,8 @@ import { PRO_PRICE_EUR, EUR_TO_XOF_RATE, TRIAL_DAYS } from "@/lib/pricing";
 export const GRACE_DAYS = 7;
 const JOUR = 24 * 60 * 60 * 1000;
 
-/** Prix mensuel du plan Pro en francs CFA (entier, 9 € → 5 904 F CFA). */
-export const PRO_PRICE_XOF = Math.round(PRO_PRICE_EUR * EUR_TO_XOF_RATE);
+/** Prix mensuel de référence de l'abonnement EduCom (14 900 F CFA). */
+export const PRO_PRICE_XOF = PREMIUM_PRICE_XOF;
 
 export type EtatAbonnement = "ESSAI" | "ACTIF" | "EN_RETARD" | "LECTURE_SEULE";
 
@@ -49,13 +49,21 @@ export function calculerEtat(sub: DatesAbonnement, maintenant: Date = new Date()
   // Période payée qui dépasse l'essai (payer pendant l'essai la prolonge).
   const periodePayee = Boolean(paye && paye.getTime() > sub.trialEndsAt.getTime());
   const echeance = periodePayee ? paye! : sub.trialEndsAt;
-  const lectureSeuleLe = new Date(echeance.getTime() + GRACE_DAYS * JOUR);
+  // ⚠️ Règle métier Kory (28 sept. 2026) : Les 7 jours de grâce ne concernent QUE les nouveaux arrivants (essai).
+  // Une fois qu'un client a souscrit un premier abonnement, il n'y a plus de période de grâce :
+  // l'espace passe directement en lecture seule dès que l'échéance est passée.
+  const grace = periodePayee ? 0 : GRACE_DAYS;
+  const lectureSeuleLe = new Date(echeance.getTime() + grace * JOUR);
   const t = maintenant.getTime();
 
   let etat: EtatAbonnement;
-  if (t < echeance.getTime()) etat = periodePayee ? "ACTIF" : "ESSAI";
-  else if (t < lectureSeuleLe.getTime()) etat = "EN_RETARD";
-  else etat = "LECTURE_SEULE";
+  if (t < echeance.getTime()) {
+    etat = periodePayee ? "ACTIF" : "ESSAI";
+  } else if (grace > 0 && t < lectureSeuleLe.getTime()) {
+    etat = "EN_RETARD";
+  } else {
+    etat = "LECTURE_SEULE";
+  }
 
   return {
     etat,
@@ -95,14 +103,18 @@ export function abonnementInitial(maintenant = new Date()) {
 }
 
 /**
- * Nouvelle fin de période après un paiement de `mois` mois. On part de la
- * plus tardive entre maintenant, la fin d'essai et la fin déjà payée : payer
- * en avance ne fait jamais perdre de jours.
+ * Nouvelle fin de période après un paiement de `mois` mois.
+ * Règle métier Kory (28 sept. 2026) : Dès qu'une école s'abonne, l'essai prend fin immédiatement.
+ * Les 7 jours d'essai ne s'additionnent pas au paiement : la période démarre à la date du paiement (maintenant).
+ * Si une période déjà payée est encore en cours, elle s'ajoute à la suite.
  */
 export function nouvelleFinDePeriode(sub: DatesAbonnement, mois: number, maintenant = new Date()) {
-  const base = new Date(
-    Math.max(maintenant.getTime(), sub.trialEndsAt.getTime(), sub.currentPeriodEnd?.getTime() ?? 0),
+  const aPeriodePayeeEnCours = Boolean(
+    sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() > maintenant.getTime(),
   );
+  const base = aPeriodePayeeEnCours
+    ? new Date(sub.currentPeriodEnd!.getTime())
+    : new Date(maintenant.getTime());
   const fin = new Date(base);
   fin.setMonth(fin.getMonth() + mois);
   return { debut: base, fin };
@@ -169,7 +181,13 @@ export async function confirmerPaiementAbonnement(
       },
     });
     if (bascule.count === 0) return "DEJA_PAYE" as const;
-    await tx.schoolSubscription.update({ where: { id: sub.id }, data: { currentPeriodEnd: fin } });
+    await tx.schoolSubscription.update({
+      where: { id: sub.id },
+      data: {
+        currentPeriodEnd: fin,
+        trialEndsAt: new Date(), // Clôture immédiate de l'essai gratuit dès la souscription
+      },
+    });
 
     const admins = await tx.user.findMany({
       where: { schoolId: paiement.schoolId, role: { in: ["OWNER", "ADMIN"] } },
@@ -220,7 +238,12 @@ export function messageRelance(jalon: Jalon, a: Abonnement): { title: string; bo
     case "J-1":
       return { title: `${quoi} se termine demain`, body: `Échéance le ${quand}. Réglez avec Wave (${prix}) : aucune donnée ne sera perdue.` };
     case "J0":
-      return { title: `${quoi} arrive à échéance`, body: `Vous avez ${GRACE_DAYS} jours de grâce : tout reste utilisable. Réglez avec Wave (${prix}).` };
+      return {
+        title: `${quoi} arrive à échéance`,
+        body: a.aDejaPaye
+          ? `Votre période se termine aujourd'hui. Renouvelez avec Wave (${prix}) pour continuer vos saisies sans interruption.`
+          : `Votre essai se termine aujourd'hui. Réglez avec Wave (${prix}) pour continuer sans interruption.`,
+      };
     case "G+3":
       return { title: "Abonnement EduCom en retard", body: `Sans règlement, l'espace passera en lecture seule le ${a.lectureSeuleLe.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}.` };
     case "LS":

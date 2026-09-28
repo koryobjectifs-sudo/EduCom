@@ -42,6 +42,8 @@ import { useSidebarSlot } from "@/components/layout/SidebarSlot";
 import DialogueCanal, { type CanalEdite } from "./DialogueCanal";
 import ActiverNotifications from "./ActiverNotifications";
 import { Avatar } from "./Elements";
+import VueSupportEduCom from "./VueSupportEduCom";
+import SlackTooltip from "@/components/ui/SlackTooltip";
 
 /**
  * Communauté — une seule page façon Slack (refonte du 26 sept. 2026, demande
@@ -50,7 +52,7 @@ import { Avatar } from "./Elements";
  * Mêmes composants pour le personnel et les familles ; les droits restent
  * décidés côté serveur (`lib/community.ts`, `lib/messagerie.ts`).
  */
-export type DiscussionOuverte = { id: string; titre: string; sousTitre: string; messages: MessageVue[] };
+export type DiscussionOuverte = { id: string; titre: string; sousTitre: string; messages: MessageVue[]; avatar?: string | null };
 
 type Props = {
   famille: boolean;
@@ -138,6 +140,12 @@ export default function Communaute(props: Props) {
           : "Les annonces de l'école et de la classe de votre enfant apparaîtront ici.",
       };
 
+  // Pastilles du fil regroupé (aperçu par canal) : mêmes compteurs que la barre latérale.
+  const nonLusParEspace = useMemo(
+    () => Object.fromEntries(tous.map((e) => [e.cle, e.nonLus])),
+    [tous],
+  );
+
   const classesDialogue = barre.classes.map((c) => ({ id: c.cle.slice(7), nom: c.nom }));
   const canalEditable: CanalEdite | null =
     actif?.type === "CANAL" && info?.gerable && info.kind
@@ -187,7 +195,7 @@ export default function Communaute(props: Props) {
   }, [famille, setRendu, cleBarre]);
 
   return (
-    <div className="relative flex h-full min-h-0 overflow-hidden bg-surface md:rounded-2xl md:border md:border-rule">
+    <div className="relative flex h-full min-h-0 w-full overflow-hidden bg-surface">
       {/* Familles (pas de barre contextuelle dans leur espace) : même style que la barre du logiciel */}
       {famille && (
         <aside
@@ -231,7 +239,7 @@ export default function Communaute(props: Props) {
           </button>
           {discussion ? (
             <div className="flex min-w-0 items-center gap-2.5">
-              <Avatar nom={discussion.titre} />
+              <Avatar nom={discussion.titre} avatar={discussion.avatar} />
               <div className="min-w-0">
                 <h1 className="truncate text-[15px] font-bold text-text">{discussion.titre}</h1>
                 <p className="truncate text-xs text-text-soft">{discussion.sousTitre}</p>
@@ -292,31 +300,69 @@ export default function Communaute(props: Props) {
           )}
           <div className="ml-auto flex items-center gap-1">
             {info && !discussion && !pleine && (
-              <span className="hidden items-center gap-1 rounded-lg border border-rule px-2 py-1 text-xs font-semibold text-text-soft lg:inline-flex">
-                <Users aria-hidden="true" className="h-3.5 w-3.5" />
-                {info.nbParents + info.nbPersonnel}
-              </span>
+              <SlackTooltip
+                title="Voir tous les membres de ce canal"
+                tip={
+                  info.personnes && info.personnes.length > 0
+                    ? `Comprend ${info.personnes.slice(0, 3).map((p) => p.nom).join(", ")}${info.personnes.length > 3 ? "..." : ""}`
+                    : undefined
+                }
+                placement="bottom"
+              >
+                <button
+                  type="button"
+                  data-tour="comms-members-btn"
+                  onClick={() => setPanneau(true)}
+                  aria-label="Voir tous les membres de ce canal"
+                  className="hidden items-center gap-1.5 rounded-lg border border-rule bg-surface hover:bg-sunk px-2 py-1 text-xs font-semibold text-text transition-colors lg:inline-flex shadow-2xs"
+                >
+                  <div className="flex -space-x-1.5 overflow-hidden py-0.5">
+                    {info.personnes && info.personnes.length > 0 ? (
+                      info.personnes.slice(0, 2).map((p, idx) => (
+                        <span
+                          key={p.id || idx}
+                          className="inline-block h-4 w-4 rounded-full ring-1 ring-white bg-purple-100 text-[8px] font-bold text-purple-800 text-center leading-[16px] overflow-hidden"
+                        >
+                          {p.avatar ? (
+                            <img src={p.avatar} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            p.nom.charAt(0).toUpperCase()
+                          )}
+                        </span>
+                      ))
+                    ) : (
+                      <Users aria-hidden="true" className="h-3.5 w-3.5 text-text-soft" />
+                    )}
+                  </div>
+                  <span className="tabular-nums text-xs font-bold text-text-soft">
+                    {info.nbParents + info.nbPersonnel}
+                  </span>
+                </button>
+              </SlackTooltip>
             )}
             {canalEditable && (
-              <button
-                type="button"
-                onClick={() => setDialogue({ edition: canalEditable })}
-                aria-label="Paramètres du canal"
-                title="Paramètres du canal"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-text-soft hover:bg-sunk"
-              >
-                <Settings2 aria-hidden="true" className="h-[18px] w-[18px]" />
-              </button>
+              <SlackTooltip title="Paramètres du canal" tip="Audience et autorisations de publication" placement="bottom">
+                <button
+                  type="button"
+                  onClick={() => setDialogue({ edition: canalEditable })}
+                  aria-label="Paramètres du canal"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-text-soft hover:bg-sunk"
+                >
+                  <Settings2 aria-hidden="true" className="h-[18px] w-[18px]" />
+                </button>
+              </SlackTooltip>
             )}
             {moderateur && !discussion && !pleine && !actif && !vueSondages && (
-              <a
-                href={`${baseHref}?espace=ENGAGEMENT`}
-                title="Engagement : qui a vu, qui relancer"
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-text-soft hover:bg-sunk hover:text-text"
-              >
-                <Activity aria-hidden="true" className="h-4 w-4" />
-                <span className="hidden sm:inline">Engagement</span>
-              </a>
+              <SlackTooltip title="Engagement du fil" tip="Consulter les vues et relancer les familles" placement="bottom">
+                <a
+                  href={`${baseHref}?espace=ENGAGEMENT`}
+                  aria-label="Engagement : qui a vu, qui relancer"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-text-soft hover:bg-sunk hover:text-text"
+                >
+                  <Activity aria-hidden="true" className="h-4 w-4" />
+                  <span className="hidden sm:inline">Engagement</span>
+                </a>
+              </SlackTooltip>
             )}
             {vueEngagement && (
               <a href={baseHref} className="inline-flex h-9 items-center rounded-lg px-2.5 text-xs font-semibold text-text-soft hover:bg-sunk hover:text-text">
@@ -324,16 +370,17 @@ export default function Communaute(props: Props) {
               </a>
             )}
             {!discussion && !pleine && (
-              <button
-                type="button"
-                onClick={() => setPanneau((v) => !v)}
-                aria-pressed={panneau}
-                aria-label="Détails du canal"
-                title="Détails du canal"
-                className={`flex h-9 w-9 items-center justify-center rounded-lg ${panneau ? "bg-primary-ink/10 text-primary-ink" : "text-text-soft hover:bg-sunk"}`}
-              >
-                <Info aria-hidden="true" className="h-[18px] w-[18px]" />
-              </button>
+              <SlackTooltip title="Détails du canal" tip="Membres, fichiers et messages épinglés" placement="bottom" align="end">
+                <button
+                  type="button"
+                  onClick={() => setPanneau((v) => !v)}
+                  aria-pressed={panneau}
+                  aria-label="Détails du canal"
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg ${panneau ? "bg-primary-ink/10 text-primary-ink" : "text-text-soft hover:bg-sunk"}`}
+                >
+                  <Info aria-hidden="true" className="h-[18px] w-[18px]" />
+                </button>
+              </SlackTooltip>
             )}
           </div>
         </header>
@@ -366,7 +413,7 @@ export default function Communaute(props: Props) {
         )}
 
         {discussion ? (
-          <Discussion key={discussion.id} id={discussion.id} titre={discussion.titre} messages={discussion.messages} />
+          <Discussion key={discussion.id} id={discussion.id} titre={discussion.titre} avatar={discussion.avatar} messages={discussion.messages} />
         ) : vueResultats ? (
           <div className="min-h-0 flex-1 overflow-y-auto bg-ground/50">
             <EspaceResultats d={vueResultats} baseHref={baseHref} />
@@ -386,6 +433,8 @@ export default function Communaute(props: Props) {
               ia={props.ia}
             />
           </div>
+        ) : actif && (actif.nom === "support-educom" || espace.includes("support-educom")) ? (
+          <VueSupportEduCom role={props.role} />
         ) : actif && !vueSondages ? (
           // Canaux, classes et #général : messagerie façon Slack (26 sept., demande de Kory).
           <FilCanal
@@ -423,6 +472,7 @@ export default function Communaute(props: Props) {
               estParent={famille}
               peutEpingler={barre.general.peutPublier}
               vide={vide}
+              nonLusParEspace={nonLusParEspace}
             />
           </div>
         )}
@@ -579,7 +629,7 @@ function Panneau({
                   <ul className="mt-3 space-y-3">
                     {info.personnes.map((p) => (
                       <li key={p.id} className="flex items-center gap-3">
-                        <Avatar nom={p.nom} taille="lg" />
+                        <Avatar nom={p.nom} avatar={p.avatar} taille="lg" />
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-semibold text-text">{p.nom}</span>
                           <span className="block truncate text-xs text-text-soft">{p.detail}</span>
@@ -830,7 +880,7 @@ function NouvelleDiscussion({
                           onClick={() => ouvrirCollegue(c.id)}
                           className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-sunk/70"
                         >
-                          <Avatar nom={c.nom} />
+                          <Avatar nom={c.nom} avatar={(c as { avatar?: string | null }).avatar} />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-semibold text-text">{c.nom}</span>
                             <span className="block truncate text-xs text-text-soft">{c.role}</span>

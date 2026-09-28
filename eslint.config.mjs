@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Outil de pilotage : application séparée, avec sa propre configuration.
+    "pilotage/**",
+    // Archives locales et fichiers de travail hors dépôt
+    "_local/**",
   ]),
 ]);
 

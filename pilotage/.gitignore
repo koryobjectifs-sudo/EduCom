@@ -1,0 +1,9 @@
+/node_modules
+/.next/
+*.tsbuildinfo
+next-env.d.ts
+# Copie générée du schéma EduCom et client Prisma généré (voir scripts/schema.mjs)
+/prisma/schema.prisma
+/src/generated
+.env*
+!.env.example

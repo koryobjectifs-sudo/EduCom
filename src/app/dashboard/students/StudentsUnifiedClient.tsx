@@ -12,11 +12,7 @@ import {
   Plus,
   Layers,
   Calendar,
-  History,
   Save,
-  ArrowLeft,
-  Users,
-  FolderOpen,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Input, Select } from "@/components/ui/Field";
@@ -24,7 +20,6 @@ import { Button } from "@/components/ui/Button";
 import StudentListClient from "./StudentListClient";
 import DossiersClient from "./dossiers/DossiersClient";
 import { createClassInline } from "../classes/actions";
-import { CYCLE_LABELS } from "@/lib/schoolDocumentLabels";
 
 const CYCLES = [
   { id: "PRESCOLAIRE", label: "Maternelle" },
@@ -50,8 +45,11 @@ const HISTORICAL_YEAR_OPTIONS = [
 ];
 
 interface StudentsUnifiedClientProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   studentsData: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   classesData: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   teachersData: any[];
   annees: string[];
   countsByYear?: Record<string, number>;
@@ -101,8 +99,6 @@ export default function StudentsUnifiedClient({
   const quickYears = useMemo(() => {
     return allYearOptions.slice(0, 3);
   }, [allYearOptions]);
-
-  const isCurrentYear = anneeActive === (annees[0] || "2026-2027");
 
   // Helper pour construire les URL préservant les searchParams
   const buildUrl = (params: Record<string, string | null | undefined>) => {
@@ -294,6 +290,7 @@ export default function StudentsUnifiedClient({
           <div className="flex items-center rounded-lg bg-slate-100/80 border border-slate-200/60 p-0.5">
             <Link
               href="/dashboard/students/import"
+              data-tour="student-import-link"
               className="inline-flex h-7.5 items-center gap-1 px-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-white rounded-md transition-colors"
               title="Importer une liste d'élèves"
             >
@@ -303,6 +300,7 @@ export default function StudentsUnifiedClient({
             <span className="w-px h-3.5 bg-slate-200" />
             <Link
               href="/dashboard/students/export"
+              data-tour="student-export-link"
               className="inline-flex h-7.5 items-center gap-1 px-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-white rounded-md transition-colors"
               title="Exporter le registre"
             >
@@ -315,6 +313,7 @@ export default function StudentsUnifiedClient({
           {userRole !== "TEACHER" && (
             <button
               type="button"
+              data-tour="new-cycle-btn"
               onClick={() => setIsAddingCycle(true)}
               className="inline-flex h-8 items-center gap-1.5 px-3 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-lg shadow-2xs transition-colors cursor-pointer"
             >
@@ -327,6 +326,7 @@ export default function StudentsUnifiedClient({
           {userRole !== "TEACHER" && (
             <button
               type="button"
+              data-tour="new-class-btn"
               onClick={() => setIsCreatingClass(true)}
               className="inline-flex h-8 items-center gap-1.5 px-3 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-lg shadow-2xs transition-colors cursor-pointer"
             >
@@ -334,15 +334,6 @@ export default function StudentsUnifiedClient({
               <span>Nouvelle classe</span>
             </button>
           )}
-
-          {/* Inscrire un élève */}
-          <Link
-            href="/dashboard/students/new"
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-3.5 text-xs font-semibold text-white shadow-2xs hover:shadow-xs transition-all"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Inscrire un élève</span>
-          </Link>
         </div>
       </div>
 

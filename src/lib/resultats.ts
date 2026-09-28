@@ -163,6 +163,6 @@ export async function tableauResultats(actor: ActorContext, p: Perimetre): Promi
       tauxMoyen: avecTaux.length ? Math.round(avecTaux.reduce((t, c) => t + c.taux, 0) / avecTaux.length) : null,
       enCours: cartes.filter((c) => !c.clos).length,
     },
-    peutCreer: peutCreerFormulaire(actor.role),
+    peutCreer: peutCreerFormulaire(actor.role, p.grants),
   };
 }

@@ -172,7 +172,7 @@ export default function StudentListClient({
       {/* Barre de filtres */}
       <Card className="p-3.5 sm:p-4 rounded-2xl border border-slate-200/70 bg-white shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
         {!hideSearchBar ? (
-          <div className="w-full sm:max-w-md relative">
+          <div data-tour="student-search-input" className="w-full sm:max-w-md relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
             <Input
               type="search"

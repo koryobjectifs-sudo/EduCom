@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     const testSchool = await prisma.school.create({
       data: {
         name: "TEST_SCHOOL_DEV",
-        primaryColor: "#0B1F3A",
+        primaryColor: "#581C87",
         onboardingCompleted: true, // We can bypass wizard or test it explicitly
       }
     });

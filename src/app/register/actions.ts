@@ -15,6 +15,7 @@ import {
 import { checkRegisterRateLimit, logSecurityFailure } from '@/lib/rateLimit'
 import { z } from 'zod'
 import { abonnementInitial } from '@/lib/subscription'
+import { initialiserCanauxStandards } from '@/lib/community'
 
 export type RegisterResult =
   | { error: string; dejaInscrit?: boolean; fieldErrors?: Record<string, string> }
@@ -163,6 +164,7 @@ export async function register(formData: FormData): Promise<RegisterResult | voi
           name: schoolName,
           email,
           phone,
+          primaryColor: "#581C87",
           schoolActivated: false,
           onboardingCompleted: false,
           setupProgress: {
@@ -191,6 +193,7 @@ export async function register(formData: FormData): Promise<RegisterResult | voi
           termsVersion: "2026-09-v1",
         },
       })
+      await initialiserCanauxStandards(school.id, user!.id)
     })
   } catch (dbError) {
     console.error('Configuration de l\'espace — échec :', dbError)

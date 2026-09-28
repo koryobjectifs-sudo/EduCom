@@ -295,7 +295,13 @@ export function NewInvoiceForm({
                   </div>
                   <div>
                     <label htmlFor="studentId" className="block text-xs font-medium text-text-secondary ml-1 mb-1">Destinataire *</label>
-                    <select name="studentId" id="studentId" onChange={handleStudentChange} defaultValue={initialStudentId ?? ""} required
+                    <select
+                      data-tour="payment-student-field"
+                      name="studentId"
+                      id="studentId"
+                      onChange={handleStudentChange}
+                      defaultValue={initialStudentId ?? ""}
+                      required
                       className="block w-full rounded-xl border-none bg-secondary/50 py-2 pl-3 pr-8 text-base lg:text-xs text-text-primary placeholder:text-text-muted focus:bg-white focus:ring-2 focus:ring-primary/20 focus:outline-none shadow-none transition-all appearance-none">
                       <option value="">Sélectionner...</option>
                       {filteredStudents.map(s => {
@@ -336,7 +342,7 @@ export function NewInvoiceForm({
 
             {/* LIGNES SECTION */}
             {/* LIGNES SECTION */}
-            <div className="rounded-2xl border border-border bg-white shadow-sm p-3">
+            <div data-tour="payment-motif-field" className="rounded-2xl border border-border bg-white shadow-sm p-3">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2.5">
                   <div className="h-7 w-7 rounded-lg bg-[#e0f2fe] flex items-center justify-center text-[#0369a1]">
@@ -378,7 +384,6 @@ export function NewInvoiceForm({
             </div>
 
             {/* NOTES & SIGNATURE SECTION */}
-            {/* NOTES & SIGNATURE SECTION */}
             <div className="rounded-2xl border border-border bg-white shadow-sm p-3">
               <h2 className="text-xs font-semibold text-text-primary ml-1 mb-2">Notes & Visas</h2>
               
@@ -390,25 +395,25 @@ export function NewInvoiceForm({
                 </div>
                 
                 {school?.signature || school?.stamp ? (
-                  <div className="bg-secondary/30 rounded-xl p-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                  <div className="bg-secondary/30 rounded-xl p-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
                       {school.stamp && (
-                        <img src={school.stamp} alt="Cachet" className="h-10 max-w-[60px] object-contain mix-blend-multiply" />
+                        <img src={school.stamp} alt="Cachet école" className="h-8 max-w-[50px] object-contain mix-blend-multiply" />
                       )}
                       {school.signature && (
-                        <img src={school.signature} alt="Signature" className="h-8 max-w-[60px] object-contain mix-blend-multiply" />
+                        <img src={school.signature} alt="Signature direction" className="h-7 max-w-[50px] object-contain mix-blend-multiply" />
                       )}
                       <div>
-                        <p className="text-xs font-medium text-gray-800">Cachet &amp; signature officiels</p>
-                        <p className="text-[10px] text-gray-500">Configurés dans les Paramètres</p>
+                        <p className="text-[11px] font-semibold text-text-primary">Cachet &amp; signature par défaut configurés</p>
+                        <p className="text-[10px] text-text-muted">Vous pouvez apposer une signature ci-dessous pour ce document spécifique</p>
                       </div>
                     </div>
                   </div>
-                ) : (
-                  <div className="bg-secondary/30 rounded-xl p-3">
-                    <SignaturePad onSignatureChange={setSignatureData} />
-                  </div>
-                )}
+                ) : null}
+
+                <div className="bg-secondary/30 rounded-xl p-3">
+                  <SignaturePad onSignatureChange={setSignatureData} />
+                </div>
               </div>
             </div>
 
@@ -418,6 +423,7 @@ export function NewInvoiceForm({
 
             <div className="pt-1">
               <button
+                data-tour="payment-submit-btn"
                 type="submit"
                 form="invoice-form"
                 disabled={isPending || items.length === 0}

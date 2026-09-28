@@ -76,7 +76,7 @@ model School {
   /// CSS (voir le bloc @supports de `globals.css`). Ne pas ajouter de colonnes
   /// pour ces variantes — elles dériveraient les unes des autres et
   /// produiraient des chartes incohérentes.
-  primaryColor        String?
+  primaryColor        String?  @default("#581C87")
   /// Année scolaire active déclarée par l'établissement (ex. "2026-2027").
   /// Source UNIQUE de vérité pour toute l'application : bandeau, annuaire,
   /// classes, facturation, bulletins et présences.
@@ -215,6 +215,8 @@ model User {
   /// Acceptation horodatée et versionnée des CGU / Politique de confidentialité
   termsAcceptedAt  DateTime?
   termsVersion     String?
+  /// Guide de démarrage du métier vu (popup obligatoire à la première connexion)
+  guideVuAt        DateTime?
   /// Langue d'interface de l'utilisateur (fr, en, pt)
   locale      String   @default("fr")
   createdAt DateTime @default(now())
@@ -2209,6 +2211,11 @@ model SchoolSubscription {
   /// Fin de la dernière période payée ; `null` tant que rien n'a été payé.
   currentPeriodEnd DateTime?
 
+  /// Demande d'annulation soumise par l'établissement
+  cancelRequestedAt DateTime?
+  cancelReason      String?
+  cancelFeedback    String?
+
   /// Relances déjà déposées, clé = « <échéance ISO>:<jalon> ». Empêche
   /// d'envoyer deux fois la même relance si la tâche quotidienne repasse.
   remindersSent String[] @default([])
@@ -2235,7 +2242,7 @@ model SubscriptionPayment {
   /// Nombre de mois payés.
   months    Int    @default(1)
 
-  /// EN_ATTENTE → PAYE | ECHEC | EXPIRE
+  /// EN_ATTENTE → PAYE | ECHEC | EXPIRE | REMBOURSE
   status String @default("EN_ATTENTE")
 
   /// Identifiant de la session Wave (`cos-…`) et référence envoyée à Wave.
@@ -2247,6 +2254,10 @@ model SubscriptionPayment {
   periodStart DateTime?
   periodEnd   DateTime?
   paidAt      DateTime?
+
+  /// Motif et date en cas d'annulation / remboursement
+  refundReason String?
+  refundedAt   DateTime?
 
   /// Utilisateur (directeur) qui a lancé le paiement.
   initiatedBy String?
@@ -2726,4 +2737,105 @@ model StudentObservation {
 
   @@index([schoolId, classId, date])
   @@index([studentId, date])
+}
+
+/// Accès en plus d'un membre du personnel, au-delà de son métier — 26 sept. 2026.
+/// Catalogue fermé : `lib/capacites.ts`. Tracé : qui l'a donné, quand.
+/// Sans relation déclarée : lu seulement par le contexte de session (une base pas
+/// encore à jour renvoie « aucun accès en plus », jamais une erreur).
+model StaffGrant {
+  id          String   @id @default(uuid())
+  schoolId    String
+  userId      String
+  capability  String
+  grantedById String
+  createdAt   DateTime @default(now())
+
+  @@unique([schoolId, userId, capability])
+  @@index([userId])
+}
+
+/// Configuration préparée pour un membre invité (affectations, accès en plus),
+/// appliquée quand il accepte l'invitation — 26 sept. 2026.
+model StaffSetup {
+  id           String    @id @default(uuid())
+  schoolId     String
+  email        String
+  /// { titulaire: classId[], matieres: { classId, subjectId }[] }
+  assignments  Json      @default("{}")
+  capabilities Json      @default("[]")
+  createdById  String
+  appliedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@unique([schoolId, email])
+}
+
+/// ═══ Pilotage EduCom (27 sept. 2026) — support des écoles ═══
+/// Une demande d'une école à l'équipe EduCom (bouton « Aide »). Reçue dans
+/// l'outil de pilotage (`/pilotage/support`). Pas de clé étrangère vers User :
+/// une demande survit à la suppression du compte qui l'a envoyée.
+model SupportTicket {
+  id            String    @id @default(uuid())
+  schoolId      String
+  /// Auteur côté école.
+  userId        String
+  /// QUESTION | PROBLEME | CHANGEMENT
+  kind          String    @default("QUESTION")
+  subject       String
+  /// OUVERT | EN_COURS | RESOLU
+  status        String    @default("OUVERT")
+  /// Page ouverte au moment de l'envoi (contexte joint automatiquement).
+  page          String?
+  lastMessageAt DateTime  @default(now())
+  /// Dernière lecture par l'équipe EduCom / par l'école (pastilles « non lu »).
+  staffReadAt   DateTime?
+  schoolReadAt  DateTime?
+  resolvedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  messages SupportMessage[]
+
+  @@index([schoolId, lastMessageAt])
+  @@index([status, lastMessageAt])
+}
+
+model SupportMessage {
+  id        String        @id @default(uuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  /// Vrai si le message vient de l'équipe EduCom.
+  fromEduCom Boolean      @default(false)
+  body      String
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+/// Erreur serveur captée par `src/instrumentation.ts` (`onRequestError`).
+/// Jamais d'en-têtes ni de cookies : chemin, type, message tronqué.
+model ErrorEvent {
+  id        String   @id @default(uuid())
+  path      String
+  routeType String?
+  message   String
+  digest    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// Compte de l'outil de pilotage (application séparée `pilotage/`).
+/// Totalement indépendant des comptes EduCom (Supabase) : e-mail + mot de
+/// passe haché (scrypt). Créé une seule fois depuis `/installation`, ouvert
+/// uniquement en local tant qu'aucun compte n'existe.
+model PilotageAccount {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  failedCount  Int       @default(0)
+  lockedUntil  DateTime?
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
 }

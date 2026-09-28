@@ -177,6 +177,7 @@ export default async function DocumentsHub({
             <div className="flex flex-wrap gap-2">
               <Link
                 href="/dashboard/documents/drafts"
+                data-tour="doc-drafts"
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-control border border-rule bg-surface px-4 text-role-body font-semibold text-text shadow-card transition-colors hover:bg-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
               >
                 <FileStack aria-hidden="true" className="h-4 w-4" />
@@ -206,6 +207,7 @@ export default async function DocumentsHub({
           </div>
           <Link
             href="/dashboard/students/dossiers/review?tab=missing_docs"
+            data-tour="doc-incomplete-action"
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs shadow-2xs transition-all whitespace-nowrap self-start sm:self-auto"
           >
             <span>Traiter les dossiers incomplets</span>

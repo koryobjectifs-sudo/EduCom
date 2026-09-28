@@ -299,29 +299,29 @@ export default function WorkflowStories() {
   }, [histoireId, etapeIndex, pause, reduitMotion, histoire.etapes.length]);
 
   return (
-    <section id="parcours" className="scroll-mt-20 bg-m-card relative">
-      <div id="systeme" className="absolute -top-20" />
-      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+    <section id="parcours" className="scroll-mt-16 bg-m-card relative">
+      <div id="systeme" className="absolute -top-16" />
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-blue"><EduComWordmark /> en action</p>
-          <h2 className="mt-4 font-display text-[1.7rem] font-bold leading-[1.15] text-m-navy sm:text-[2.15rem]">
+          <p className="text-[11.5px] font-semibold uppercase tracking-[0.14em] text-m-blue"><EduComWordmark /> en action</p>
+          <h2 className="mt-2.5 font-display text-[1.45rem] font-bold leading-[1.15] text-m-navy sm:text-[1.85rem]">
             De l&apos;inscription au bulletin, une seule saisie.
           </h2>
-          <p className="mt-4 text-[15px] leading-[1.65] text-m-ink-soft">
+          <p className="mt-2 text-[13.5px] leading-relaxed text-m-ink-soft">
             De l&apos;admission d&apos;un élève à l&apos;édition de ses bulletins et reçus :
             l&apos;information circule sans double saisie et sans calculatrice.
           </p>
         </div>
 
-        <div className="mt-8 flex flex-wrap justify-center gap-2 rounded-pill bg-m-paper p-1.5 sm:mx-auto sm:w-fit">
+        <div className="mt-5 flex flex-wrap justify-center gap-1.5 rounded-pill bg-m-paper p-1 sm:mx-auto sm:w-fit">
           {HISTOIRES.map((h) => (
             <button
               key={h.id}
               type="button"
               onClick={() => choisirHistoire(h.id)}
               aria-pressed={h.id === histoireId}
-              className={`shrink-0 rounded-pill px-4 py-2.5 text-[13.5px] font-semibold transition-colors ${
-                h.id === histoireId ? "bg-m-navy text-white shadow-m-lift" : "text-m-ink-soft hover:text-m-ink"
+              className={`shrink-0 rounded-pill px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                h.id === histoireId ? "bg-m-navy text-white shadow-xs" : "text-m-ink-soft hover:text-m-ink"
               }`}
             >
               {h.nom}
@@ -330,7 +330,7 @@ export default function WorkflowStories() {
         </div>
 
         <div
-          className="mt-10 grid grid-cols-1 gap-8 lg:grid-cols-[5fr_7fr] lg:gap-12"
+          className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[5fr_7fr] lg:gap-10"
           onMouseEnter={() => setPause(true)}
           onMouseLeave={() => setPause(false)}
           onFocus={() => setPause(true)}

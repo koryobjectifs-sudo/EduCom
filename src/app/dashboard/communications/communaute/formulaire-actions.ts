@@ -37,7 +37,7 @@ export async function creerFormulaire(input: {
   const auth = await requireActionContext();
   if (!auth.ok) return { ok: false, error: auth.error };
   const actor = { userId: auth.ctx.userId, schoolId: auth.ctx.schoolId, role: auth.ctx.role };
-  if (!peutCreerFormulaire(actor.role)) return { ok: false, error: "Votre rôle ne permet pas d'envoyer des formulaires." };
+  if (!peutCreerFormulaire(actor.role, auth.ctx.grants)) return { ok: false, error: "Votre rôle ne permet pas d'envoyer des formulaires." };
 
   const titre = typeof input.titre === "string" ? input.titre.trim().slice(0, 200) : "";
   if (!titre) return { ok: false, error: "Donnez un titre au formulaire." };

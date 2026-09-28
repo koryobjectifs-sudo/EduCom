@@ -1,0 +1,37 @@
+{
+  "name": "educom-pilotage",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Outil de pilotage EduCom — application séparée, réservée à l'équipe EduCom.",
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "schema": "node scripts/schema.mjs && prisma generate",
+    "postinstall": "npm run schema",
+    "verify": "tsx scripts/verify-pilotage.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.9.1",
+    "@prisma/client": "^7.9.1",
+    "lucide-react": "^1.31.0",
+    "next": "16.3.0",
+    "pg": "^8.23.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/pg": "^8.21.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "prisma": "^7.9.1",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.12",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": "^20.19.0 || ^22.12.0 || >=24.0.0"
+  }
+}

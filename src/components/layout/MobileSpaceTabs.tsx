@@ -20,7 +20,11 @@ export default function MobileSpaceTabs({ space, pathnameOverride }: { space: Na
   const actifRef = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
-    actifRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
+    const el = actifRef.current;
+    const parent = el?.parentElement;
+    if (el && parent && parent.scrollWidth > parent.clientWidth) {
+      parent.scrollLeft = el.offsetLeft - (parent.clientWidth - el.clientWidth) / 2;
+    }
   }, [hrefActif]);
 
   if (items.length < 2) return null;

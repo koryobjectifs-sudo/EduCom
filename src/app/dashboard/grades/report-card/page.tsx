@@ -201,13 +201,15 @@ export default async function ReportCardPage({
           />
         </div>
       ) : (
-        <ReportCardGenerator
-          key={`${officialData.school.id}-${officialData.classe.id}-${officialData.term.id}-${officialData.school.bulletinWatermark}`}
-          data={officialData}
-          canPrint={role !== "TEACHER"}
-          focusStudentId={studentId}
-          embed={isEmbed}
-        />
+        <div data-tour="report-card-actions">
+          <ReportCardGenerator
+            key={`${officialData.school.id}-${officialData.classe.id}-${officialData.term.id}-${officialData.school.bulletinWatermark}`}
+            data={officialData}
+            canPrint={role !== "TEACHER"}
+            focusStudentId={studentId}
+            embed={isEmbed}
+          />
+        </div>
       )}
     </div>
   );

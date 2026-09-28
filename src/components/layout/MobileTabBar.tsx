@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { LogOut, MoreHorizontal, X } from "lucide-react";
+import { LogOut, MoreHorizontal, X, LifeBuoy, Sparkles } from "lucide-react";
+import ModalSupportJira from "@/components/support/ModalSupportJira";
 import { type NavSpace, type NavSpaceKey, getActiveNavItemHref } from "@/lib/navigation";
 import { roleLabel } from "@/lib/permissions";
 import { AppleDashboardIcon } from "@/components/ui/apple-icons";
 import { getNavIcon } from "./nav-icons";
+import { useSidebarSlot } from "./SidebarSlot";
 
 /**
  * Barre d'onglets mobile (bas d'écran) — 24 septembre 2026.
@@ -55,6 +57,8 @@ export default function MobileTabBar({
   const realPathname = usePathname();
   const pathname = pathnameOverride ?? realPathname;
   const [plusOuvert, setPlusOuvert] = useState(false);
+  const [supportOuvert, setSupportOuvert] = useState(false);
+  const { setTourDeclenche } = useSidebarSlot();
   const panneauRef = useRef<HTMLDivElement>(null);
 
   const principaux = spaces.slice(0, PRINCIPAUX);
@@ -65,7 +69,7 @@ export default function MobileTabBar({
   useEffect(() => {
     if (!plusOuvert) return;
     document.body.style.overflow = "hidden";
-    panneauRef.current?.focus();
+    panneauRef.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setPlusOuvert(false);
     window.addEventListener("keydown", onKey);
     return () => {
@@ -190,6 +194,32 @@ export default function MobileTabBar({
                 );
               })}
 
+              {/* Guide & Premiers pas */}
+              <button
+                type="button"
+                onClick={() => {
+                  setPlusOuvert(false);
+                  setTourDeclenche(true);
+                }}
+                className="mb-2.5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-purple-900 px-4 text-sm font-bold text-white shadow-2xs active:bg-purple-950"
+              >
+                <Sparkles className="h-4 w-4 text-amber-300" />
+                <span>Guide & Premiers pas (Faire le tour)</span>
+              </button>
+
+              {/* Support EduCom */}
+              <button
+                type="button"
+                onClick={() => {
+                  setPlusOuvert(false);
+                  setSupportOuvert(true);
+                }}
+                className="mb-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary-ink px-4 text-sm font-bold text-white shadow-2xs active:bg-primary-ink-hover"
+              >
+                <LifeBuoy className="h-4 w-4" />
+                <span>Support EduCom (Assistance)</span>
+              </button>
+
               {/* Compte — ce que la colonne de gauche offrait en bas sur ordinateur */}
               <div className="mt-2 rounded-2xl border border-rule bg-ground p-3">
                 <div className="flex items-center gap-3 px-1">
@@ -218,6 +248,7 @@ export default function MobileTabBar({
           </div>
         </div>
       )}
+      <ModalSupportJira ouvert={supportOuvert} onFermer={() => setSupportOuvert(false)} />
     </>
   );
 }

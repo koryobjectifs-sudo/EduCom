@@ -23,11 +23,11 @@ ok(calculerEtat(essai, plus(8)).etat === "EN_RETARD", "J+1 après l'essai : en r
 ok(calculerEtat(essai, plus(7 + GRACE_DAYS)).etat === "LECTURE_SEULE", "après la grâce : lecture seule");
 const paye = { trialEndsAt: plus(7), currentPeriodEnd: plus(38) };
 ok(calculerEtat(paye, plus(2)).etat === "ACTIF", "payé pendant l'essai : actif");
-ok(calculerEtat(paye, plus(40)).etat === "EN_RETARD", "période payée échue : en retard");
+ok(calculerEtat(paye, plus(40)).etat === "LECTURE_SEULE", "période payée échue : lecture seule immédiate (sans grâce)");
 
 // Prolongation sans perte de jours
 const f1 = nouvelleFinDePeriode(essai, 1, plus(2));
-ok(f1.debut.getTime() === plus(7).getTime(), "payer pendant l'essai : la période démarre à la fin de l'essai");
+ok(f1.debut.getTime() === plus(2).getTime(), "payer pendant l'essai : l'essai s'arrête et la période démarre au paiement");
 const f2 = nouvelleFinDePeriode({ trialEndsAt: plus(7), currentPeriodEnd: plus(20) }, 1, plus(10));
 ok(f2.debut.getTime() === plus(20).getTime(), "payer en avance : la période s'ajoute à la suite");
 const f3 = nouvelleFinDePeriode({ trialEndsAt: plus(7), currentPeriodEnd: plus(20) }, 1, plus(30));

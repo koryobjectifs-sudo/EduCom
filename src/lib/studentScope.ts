@@ -1,3 +1,4 @@
+import { acteurPeut } from "@/lib/grants";
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import type { ActorContext } from "@/lib/audit";
@@ -82,6 +83,9 @@ export const teacherClassIds = cache(async function teacherClassIds(actor: Actor
  */
 export const studentWhereFor = cache(async function studentWhereFor(actor: ActorContext): Promise<Prisma.StudentWhereInput> {
   const school = { schoolId: actor.schoolId };
+
+  // Accès en plus « Gérer les inscriptions » (26 sept. 2026) : tout le registre de l'école.
+  if ((actor.role === "TEACHER" || actor.role === "ACCOUNTANT") && (await acteurPeut(actor, "INSCRIPTIONS"))) return school;
 
   switch (actor.role) {
     case "OWNER":

@@ -79,7 +79,7 @@ export default function DirectorDashboard({
       {/* ── ÉTAT PREMIER JOUR : ONBOARDING PREMIÈRE CLASSE ── */}
       {isFirstDayEmpty ? (
         <Reveal delay={0.04}>
-          <div className="rounded-[28px] border border-indigo-100 bg-white p-7 sm:p-9 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] text-left space-y-6">
+          <div data-tour="cockpit-kpis" className="rounded-[28px] border border-indigo-100 bg-white p-7 sm:p-9 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] text-left space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
               <div className="space-y-1.5">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700">
@@ -152,13 +152,15 @@ export default function DirectorDashboard({
         <>
           {/* ── 2. KPI STRIP ÉPURÉ (4 INDICATEURS CIBLÉS AVEC MINI-DIAGRAMMES) ── */}
           <Reveal delay={0.06}>
-            <SoftKpiStrip
-              kpis={kpis}
-              enrollment={enrollment}
-              academicAverage={academic?.overallAverageOn20}
-              gradesCompletionRate={academic?.gradesEntryCompletionRate}
-              scope={scope}
-            />
+            <div data-tour="cockpit-kpis">
+              <SoftKpiStrip
+                kpis={kpis}
+                enrollment={enrollment}
+                academicAverage={academic?.overallAverageOn20}
+                gradesCompletionRate={academic?.gradesEntryCompletionRate}
+                scope={scope}
+              />
+            </div>
           </Reveal>
 
           {/* ── 3. GRILLE COCKPIT BENTO DOUCE & ÉQUILIBRÉE ── */}

@@ -8,15 +8,14 @@ import { BoutonProgrammer, ChoixHeure, libelleProgramme } from "./Programmer";
 import { envoyerMedia, ACCEPT, type MediaEnvoye } from "./envoiMedia";
 import { Avatar, GrilleMedias, ApercuPieces } from "./Elements";
 import { heure, jour } from "./outils";
+import SelecteurEmoji from "./SelecteurEmoji";
 
 /**
  * Discussion privée (parent ↔ un service de l'école, à propos d'un élève).
  * Affichage façon messagerie d'équipe : avatar, nom, heure, messages groupés
  * par auteur ; composeur en bas. Refonte du 26 sept. 2026.
  */
-const EMOJIS = ["👍", "🙏", "😊", "👏", "❤️", "✅", "📚", "🎉"];
-
-export default function Discussion({ id, titre, messages }: { id: string; titre: string; messages: MessageVue[] }) {
+export default function Discussion({ id, titre, avatar, messages }: { id: string; titre: string; avatar?: string | null; messages: MessageVue[] }) {
   const bas = useRef<HTMLDivElement>(null);
   const ligne = useRef<HTMLDivElement>(null);
   // Figé à l'ouverture : la ligne « Nouveau » reste pendant la lecture (façon Slack).
@@ -33,7 +32,7 @@ export default function Discussion({ id, titre, messages }: { id: string; titre:
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-6">
         {messages.length === 0 ? (
           <div className="mx-auto mt-10 max-w-sm text-center">
-            <Avatar nom={titre} taille="lg" />
+            <Avatar nom={titre} avatar={avatar} taille="lg" />
             <p className="mt-3 text-[15px] font-bold text-text">C&apos;est le début de votre discussion avec {titre}.</p>
             <p className="mt-1 text-sm text-text-soft">Les messages restent privés entre la famille et ce service de l&apos;école.</p>
           </div>
@@ -117,7 +116,7 @@ function Messages({
                   <span className="invisible block pt-1 text-right text-[10px] text-text-faint group-hover:visible">{heure(m.createdAt)}</span>
                 ) : (
                   <span className="mt-0.5 block">
-                    <Avatar nom={m.auteur} taille="lg" />
+                    <Avatar nom={m.auteur} avatar={m.auteurAvatar} taille="lg" />
                   </span>
                 )}
               </div>
@@ -342,21 +341,15 @@ function Composeur({ conversationId, titre }: { conversationId: string; titre: s
             {emojis && (
               <>
                 <button type="button" aria-hidden="true" tabIndex={-1} className="fixed inset-0 z-10 cursor-default" onClick={() => setEmojis(false)} />
-                <div className="absolute bottom-full left-0 z-20 mb-1 grid grid-cols-4 gap-0.5 rounded-xl border border-rule bg-surface p-1 shadow-overlay">
-                  {EMOJIS.map((e) => (
-                    <button
-                      key={e}
-                      type="button"
-                      onClick={() => {
-                        setTexte((t) => `${t}${e}`);
-                        setEmojis(false);
-                        zone.current?.focus();
-                      }}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg text-lg hover:bg-sunk"
-                    >
-                      {e}
-                    </button>
-                  ))}
+                <div className="absolute bottom-full left-0 z-20 mb-2">
+                  <SelecteurEmoji
+                    onSelect={(e) => {
+                      setTexte((t) => `${t}${e}`);
+                      setEmojis(false);
+                      zone.current?.focus();
+                    }}
+                    onClose={() => setEmojis(false)}
+                  />
                 </div>
               </>
             )}

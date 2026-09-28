@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Users, FolderKanban, Plus, UserCheck } from "lucide-react";
 import StudentsUnifiedClient from "./StudentsUnifiedClient";
-import ParentChildrenView from "./ParentChildrenView";
 import { loadStudentsData, resumeStudents } from "./data";
 
 import { redirect } from "next/navigation";
@@ -65,6 +64,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
           <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
             <Link
               href="/dashboard/students/dossiers/review"
+              data-tour="admissions-link"
               className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-full bg-white px-3.5 text-xs font-semibold text-slate-700 border border-slate-200/90 shadow-2xs hover:bg-slate-50 hover:-translate-y-0.5 active:scale-[0.98] transition-all"
             >
               <UserCheck className="h-3.5 w-3.5 text-amber-600 shrink-0" />
@@ -72,6 +72,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
             </Link>
             <Link
               href="/dashboard/students/new"
+              data-tour="student-create-btn"
               className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-full bg-indigo-600 px-3.5 text-xs font-semibold text-white shadow-2xs hover:bg-indigo-700 hover:-translate-y-0.5 active:scale-[0.98] transition-all"
             >
               <Plus className="h-3.5 w-3.5 shrink-0" />

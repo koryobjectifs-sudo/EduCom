@@ -96,13 +96,13 @@ export function Modal({
     restoreTo.current = document.activeElement as HTMLElement | null;
 
     const first = focusables()[0];
-    (first ?? panelRef.current)?.focus();
+    (first ?? panelRef.current)?.focus({ preventScroll: true });
 
     return () => {
       // `isConnected` : l'élément d'origine peut avoir disparu du DOM entre-temps
       // (ligne de tableau supprimée par l'action même que la modale confirmait).
       const target = restoreTo.current;
-      if (target && target.isConnected) target.focus();
+      if (target && target.isConnected) target.focus({ preventScroll: true });
     };
   }, [open, focusables]);
 
@@ -121,7 +121,7 @@ export function Modal({
       const items = focusables();
       if (items.length === 0) {
         e.preventDefault();
-        panelRef.current?.focus();
+        panelRef.current?.focus({ preventScroll: true });
         return;
       }
       const first = items[0];
@@ -131,10 +131,10 @@ export function Modal({
       // Le focus sort par le bas → retour au premier ; par le haut → au dernier.
       if (!e.shiftKey && active === last) {
         e.preventDefault();
-        first.focus();
+        first.focus({ preventScroll: true });
       } else if (e.shiftKey && (active === first || active === panelRef.current)) {
         e.preventDefault();
-        last.focus();
+        last.focus({ preventScroll: true });
       }
     };
 
@@ -153,14 +153,18 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 print:hidden"
-      // Le fond est décoratif : la fermeture au clic est un raccourci, doublé
-      // par Escape et par le bouton de fermeture, tous deux accessibles clavier.
-      onMouseDown={dismissible ? (e) => { if (e.target === e.currentTarget) onClose(); } : undefined}
-    >
-      <div aria-hidden="true" className="absolute inset-0 bg-text/40" />
-
+    // ═══ 27 sept. 2026 — une boîte plus haute que l'écran restait coupée ═══
+    // (bouton « Continuer » invisible, fond bloqué). Le calque défile désormais,
+    // et le pied d'actions reste collé en bas de l'écran. Pas d'`overflow` sur
+    // le panneau : un menu déroulant interne n'est jamais rogné.
+    <div className="fixed inset-0 z-50 overflow-y-auto print:hidden">
+      <div aria-hidden="true" className="fixed inset-0 bg-text/40" />
+      <div
+        className="relative flex min-h-full items-center justify-center p-4"
+        // Le fond est décoratif : la fermeture au clic est un raccourci, doublé
+        // par Escape et par le bouton de fermeture, tous deux accessibles clavier.
+        onMouseDown={dismissible ? (e) => { if (e.target === e.currentTarget) onClose(); } : undefined}
+      >
       <div
         ref={panelRef}
         role="dialog"
@@ -196,10 +200,11 @@ export function Modal({
         {children && <div className="px-4 py-3.5 text-role-body text-text-soft">{children}</div>}
 
         {footer && (
-          <div className="flex items-center justify-end gap-2 border-t border-rule px-4 py-3">
+          <div className="sticky bottom-0 z-10 flex items-center justify-end gap-2 rounded-b-surface border-t border-rule bg-surface px-4 py-3">
             {footer}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

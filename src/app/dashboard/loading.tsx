@@ -2,87 +2,60 @@ import { Skeleton } from "@/components/ui/Skeleton";
 
 export default function DashboardLoading() {
   return (
-    <div className="space-y-5 pb-12 animate-in fade-in duration-300">
-      {/* ── NIVEAU 1 — CURRENT CONTEXT ── */}
-      <section className="flex flex-col gap-1.5 mb-6">
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-6 w-48" />
-          <span className="text-rule/60 hidden sm:inline">|</span>
-          <Skeleton className="h-4 w-32 hidden sm:block" />
+    <div className="space-y-6 pb-12 animate-in fade-in duration-150" aria-busy="true">
+      {/* ── 1. En-tête épuré d'accueil (Salutation & Contexte du jour) ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5 pt-1">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-7 w-48 rounded-md" />
+            <Skeleton className="h-5 w-24 rounded-full hidden sm:block" />
+          </div>
+          <Skeleton className="h-3.5 w-64 rounded" />
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Skeleton className="h-6 w-20 rounded-full" />
-          <Skeleton className="h-4 w-64" />
+        <div className="flex items-center gap-2 shrink-0">
+          <Skeleton className="h-8.5 w-32 rounded-xl" />
         </div>
-      </section>
+      </div>
 
-      {/* ── NIVEAU 2 — OPERATIONAL PULSE ── */}
-      <section className="mb-8 rounded-[24px] border border-rule/50 bg-surface/50 p-6 sm:p-8">
-        <Skeleton className="h-4 w-48 mb-6" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Skeleton className="col-span-1 sm:col-span-2 lg:col-span-4 h-32 w-full rounded-[16px]" />
-          <Skeleton className="h-32 w-full rounded-[16px]" />
-          <Skeleton className="h-32 w-full rounded-[16px]" />
-          <Skeleton className="h-32 w-full rounded-[16px]" />
-        </div>
-      </section>
-
-      {/* ── NIVEAU 3 — ATTENTION CENTER ── */}
-      <section className="rounded-surface border border-rule shadow-card bg-surface p-6">
-        <Skeleton className="h-6 w-48 mb-6" />
-        <div className="space-y-4">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-16 w-full" />
-        </div>
-      </section>
-
-      {/* ── NIVEAU 4 — NEXT BEST ACTION ── */}
-      <section className="mb-8">
-        <Skeleton className="h-4 w-48 mb-4" />
-        <Skeleton className="h-[200px] w-full rounded-[24px]" />
-      </section>
-
-      {/* ── NIVEAU 5 — DOMAIN ACCESS ── */}
-      <section className="mb-10">
-        <Skeleton className="h-4 w-40 mb-4" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          <Skeleton className="h-[180px] w-full rounded-[16px]" />
-          <Skeleton className="h-[180px] w-full rounded-[16px]" />
-          <Skeleton className="h-[180px] w-full rounded-[16px]" />
-          <Skeleton className="h-[180px] w-full rounded-[16px]" />
-          <Skeleton className="h-[180px] w-full rounded-[16px]" />
-        </div>
-      </section>
-
-      {/* ── NIVEAU 6 — SCHOOL HEALTH ── */}
-      <section className="rounded-surface border border-rule shadow-card bg-surface p-6 sm:p-8">
-        <div className="flex items-center gap-6">
-          <Skeleton className="h-24 w-24 rounded-full shrink-0" />
-          <div className="space-y-3 flex-1">
-            <Skeleton className="h-6 w-48" />
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-24" />
+      {/* ── 2. Bande de 4 indicateurs opérationnels clés (KPI Strip) ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="rounded-2xl border border-slate-200/80 bg-white p-4 space-y-2.5 shadow-2xs"
+          >
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-3 w-20 rounded" />
+              <Skeleton className="h-4 w-4 rounded-full" />
             </div>
+            <Skeleton className="h-7 w-28 rounded-md" />
+            <Skeleton className="h-3 w-32 rounded" />
+          </div>
+        ))}
+      </div>
+
+      {/* ── 3. Grille de pilotage équilibrée (Vue principale + Actions) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2 rounded-3xl border border-slate-200/80 bg-white p-5 space-y-4 shadow-2xs min-h-[300px]">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <Skeleton className="h-5 w-40 rounded" />
+            <Skeleton className="h-4 w-24 rounded" />
+          </div>
+          <div className="space-y-3 pt-2">
+            <Skeleton className="h-14 w-full rounded-xl" />
+            <Skeleton className="h-14 w-full rounded-xl" />
+            <Skeleton className="h-14 w-full rounded-xl" />
           </div>
         </div>
-      </section>
 
-      {/* ── NIVEAU 6 — SUPPORTING INFORMATION (Summaries) ── */}
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-        <div className="rounded-surface border border-rule shadow-card bg-surface p-6 space-y-4">
-          <Skeleton className="h-6 w-32" />
-          <div className="space-y-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
-        </div>
-        <div className="rounded-surface border border-rule shadow-card bg-surface p-6 space-y-4">
-          <Skeleton className="h-6 w-32" />
-          <div className="space-y-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
-        </div>
-        <div className="rounded-surface border border-rule shadow-card bg-surface p-6 space-y-4">
-          <Skeleton className="h-6 w-32" />
-          <div className="space-y-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+        <div className="rounded-3xl border border-slate-200/80 bg-white p-5 space-y-4 shadow-2xs">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <Skeleton className="h-5 w-32 rounded" />
+          </div>
+          <div className="space-y-3">
+            <Skeleton className="h-16 w-full rounded-xl" />
+            <Skeleton className="h-16 w-full rounded-xl" />
+          </div>
         </div>
       </div>
     </div>

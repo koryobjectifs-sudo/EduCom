@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { requirePathAccess } from "@/lib/documentContext";
 import { Mail } from "lucide-react";
 import { roleLabel } from "@/lib/permissions";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -8,25 +7,14 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import InviteLink from "./InviteLink";
 import OrgChartClient from "./OrgChartClient";
-import TeamActions from "./TeamActions";
+import AjouterMembre from "./AjouterMembre";
+import { donneesAffectation } from "@/lib/equipe";
 import { formatDate } from "@/lib/dateUtils";
 
 export default async function TeamPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { schoolId: true, role: true }
-  });
-
-  if (!dbUser) {
-    redirect("/login");
-  }
+  // Contexte multi-écoles (même école que les actions `equipe-actions.ts`).
+  const ctx = await requirePathAccess("/dashboard/team");
+  const dbUser = { schoolId: ctx.schoolId, role: ctx.role };
 
   const teamMembers = await prisma.user.findMany({
     where: {
@@ -44,22 +32,18 @@ export default async function TeamPage() {
     orderBy: { createdAt: "desc" }
   });
 
-  const classesData = await prisma.class.findMany({
-    where: { schoolId: dbUser.schoolId },
-    select: { id: true, name: true, cycle: true, teacherId: true },
-    orderBy: { name: "asc" }
-  });
-
-  const subjectsData = await prisma.subject.findMany({
-    where: { schoolId: dbUser.schoolId, parentId: null },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" }
-  });
-
-  const teachingAssignments = await prisma.teachingAssignment.findMany({
-    where: { schoolId: dbUser.schoolId },
-    select: { teacherId: true, classId: true, subjectId: true }
-  });
+  const [donnees, affectations, grants] = await Promise.all([
+    donneesAffectation(dbUser.schoolId),
+    prisma.teachingAssignment.findMany({
+      where: { schoolId: dbUser.schoolId },
+      select: { teacherId: true, classId: true, subjectId: true },
+    }),
+    prisma.staffGrant.findMany({ where: { schoolId: dbUser.schoolId }, select: { userId: true, capability: true } }).catch(() => []),
+  ]);
+  const noms = Object.fromEntries(teamMembers.map((m) => [m.id, `${m.firstName} ${m.lastName}`]));
+  const acces: Record<string, string[]> = {};
+  for (const g of grants) (acces[g.userId] ??= []).push(g.capability);
+  const peutGerer = dbUser.role === "OWNER" || dbUser.role === "ADMIN";
 
   return (
     <div className="space-y-6 pb-10">
@@ -72,15 +56,16 @@ export default async function TeamPage() {
             ? ` · ${pendingInvitations.length} invitation${pendingInvitations.length > 1 ? "s" : ""} en attente`
             : "")
         }
-        actions={<TeamActions managers={teamMembers} />}
+        actions={peutGerer ? <AjouterMembre donnees={donnees} autres={{ noms, affectations }} /> : undefined}
       />
 
       <Card flush className="p-4 overflow-x-auto min-h-[500px]">
-        <OrgChartClient 
-          members={teamMembers} 
-          classesData={classesData}
-          subjectsData={subjectsData}
-          teachingAssignments={teachingAssignments}
+        <OrgChartClient
+          members={teamMembers}
+          donnees={donnees}
+          autres={{ noms, affectations }}
+          acces={acces}
+          peutGerer={peutGerer}
         />
       </Card>
 
@@ -105,7 +90,7 @@ export default async function TeamPage() {
                     créée le {formatDate(invite.createdAt)}
                   </span>
                 </div>
-                <InviteLink token={invite.token} />
+                <InviteLink token={invite.token} id={invite.id} />
               </li>
             ))}
           </ul>

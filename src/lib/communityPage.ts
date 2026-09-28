@@ -37,12 +37,12 @@ export async function chargerCommunaute(actor: ActorContext, params: { espace?: 
   // Formulaires (26 sept.) : `?espace=FORMULAIRES` (liste), `?form=nouveau`, `?form=<id>`.
   let formulaires: VueFormulairesDonnees | null = null;
   if (!visible && (params.form || params.espace === "FORMULAIRES")) {
-    if (params.form === "nouveau" && peutCreerFormulaire(actor.role)) formulaires = { type: "nouveau" };
+    if (params.form === "nouveau" && peutCreerFormulaire(actor.role, p.grants)) formulaires = { type: "nouveau" };
     else if (params.form && params.form !== "nouveau") {
       const form = await chargerFormulaire(actor, params.form);
       if (form) formulaires = { type: "detail", form };
     }
-    formulaires ??= { type: "liste", liste: await listerFormulaires(actor), peutCreer: peutCreerFormulaire(actor.role) };
+    formulaires ??= { type: "liste", liste: await listerFormulaires(actor), peutCreer: peutCreerFormulaire(actor.role, p.grants) };
   }
   const sondages = !visible && params.espace === "SONDAGES";
   const engagement = !visible && !formulaires && params.espace === "ENGAGEMENT" ? await tableauEngagement(actor) : null;
@@ -89,12 +89,12 @@ export async function chargerCommunaute(actor: ActorContext, params: { espace?: 
     publications,
     info,
     conversations,
-    discussion: resume ? { id: resume.id, titre: resume.titre, sousTitre: resume.sousTitre, messages } : null,
+    discussion: resume ? { id: resume.id, titre: resume.titre, sousTitre: resume.sousTitre, messages, avatar: resume.avatar } : null,
     eleves,
     collegues: equipe,
     services: famille ? CANAUX.map((x) => ({ id: x.id, label: x.label })) : [],
     peutEcrireFamilles: !famille && canalDuRole(actor.role) !== null,
-    moderateur: peutModerer(actor.role),
+    moderateur: peutModerer(actor.role, p.grants),
     // IA : visible seulement si une clé est configurée (clé annulée le 26 sept. → tout est masqué).
     ia: !famille && iaConfiguree(),
     invitables,

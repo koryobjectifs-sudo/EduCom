@@ -5,6 +5,8 @@ import { ArrowLeft, ChevronRight, FileText, ReceiptText, FileBadge, FolderOpen, 
 import { statusLabel } from "@/lib/status";
 import { canSeeHealthData } from "@/lib/studentScope";
 import { hasAccess } from "@/lib/permissions";
+import { grantsDe } from "@/lib/grants";
+import { cheminsSupplementaires } from "@/lib/capacites";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BUCKET } from "@/lib/studentFile";
 import { AvatarPhoto } from "./AvatarPhoto";
@@ -116,7 +118,8 @@ export default async function StudentProfilePage({
   }
   // Voir l'élève ne donne pas le droit de le modifier — même règle que la
   // server action, qui refait le contrôle côté serveur de toute façon.
-  const peutModifier = hasAccess(dbUser.role, "/dashboard/students");
+  const extras = cheminsSupplementaires(await grantsDe(dbUser.id, dbUser.schoolId));
+  const peutModifier = hasAccess(dbUser.role, "/dashboard/students", extras);
 
   return (
     <div className="space-y-6 max-w-7xl pb-12">
@@ -254,7 +257,7 @@ export default async function StudentProfilePage({
                 variant="banner"
               />
             )}
-            {hasAccess(actor.role, "/dashboard/payments/new") && (
+            {hasAccess(actor.role, "/dashboard/payments/new", extras) && (
               <Link href={`/dashboard/payments/new?studentId=${student.id}`} className={ACTION_NEUTRE}>
                 <ReceiptText aria-hidden="true" className="h-4 w-4" /> Facturer
               </Link>
@@ -310,7 +313,7 @@ export default async function StudentProfilePage({
           {active === "scolarite" && <SectionScolarite d={d} />}
           {active === "presence" && <SectionPresence d={d} />}
           {active === "notes" && <SectionNotes d={d} />}
-          {active === "finance" && <SectionFinance d={d} studentId={student.id} canManageFinance={hasAccess(actor.role, "/dashboard/payments/new")} />}
+          {active === "finance" && <SectionFinance d={d} studentId={student.id} canManageFinance={hasAccess(actor.role, "/dashboard/payments/new", extras)} />}
           {active === "famille" && <SectionFamille d={d} health={health} />}
           {active === "documents" && <SectionDocuments d={d} studentId={student.id} />}
         </main>

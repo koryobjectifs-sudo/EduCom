@@ -6,6 +6,7 @@ import GlobalSearch from "./GlobalSearch";
 import Cloche from "@/components/community/Cloche";
 import SchoolContextSwitcher from "./SchoolContextSwitcher";
 import { type ActiveMembershipInfo } from "@/lib/schoolContext";
+import SlackTooltip from "@/components/ui/SlackTooltip";
 
 export interface AppTopBarProps {
   schoolName?: string;
@@ -27,7 +28,7 @@ export default function AppTopBar({
 }: AppTopBarProps) {
   return (
     <header
-      style={{ backgroundColor: "var(--color-topbar-bg, #0E2541)" }}
+      style={{ backgroundColor: "var(--color-topbar-bg, #581C87)" }}
       className="sticky top-0 z-30 flex h-10.5 shrink-0 items-center text-white print:hidden select-none transition-colors duration-200"
     >
       <div className="flex w-full items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4">
@@ -48,24 +49,27 @@ export default function AppTopBar({
 
           {/* Flèches Précédent / Suivant (Historique Navigateur) */}
           <div className="hidden sm:flex items-center gap-0.5 text-white/70">
-            <button
-              type="button"
-              onClick={() => window.history.back()}
-              title="Page précédente"
-              aria-label="Page précédente"
-              className="flex h-6 w-6 items-center justify-center rounded-control hover:bg-white/10 text-white/70 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => window.history.forward()}
-              title="Page suivante"
-              aria-label="Page suivante"
-              className="flex h-6 w-6 items-center justify-center rounded-control hover:bg-white/10 text-white/70 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-            >
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
+            <SlackTooltip title="Page précédente" placement="bottom">
+              <button
+                type="button"
+                onClick={() => window.history.back()}
+                aria-label="Page précédente"
+                className="flex h-6 w-6 items-center justify-center rounded-control hover:bg-white/10 text-white/70 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+            </SlackTooltip>
+
+            <SlackTooltip title="Page suivante" placement="bottom">
+              <button
+                type="button"
+                onClick={() => window.history.forward()}
+                aria-label="Page suivante"
+                className="flex h-6 w-6 items-center justify-center rounded-control hover:bg-white/10 text-white/70 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </SlackTooltip>
           </div>
 
           {/* Fil d'Ariane compact */}
@@ -82,7 +86,9 @@ export default function AppTopBar({
 
         {/* Droite : cloche de notifications (26 sept. 2026) — garde l'équilibre visuel de la recherche */}
         <div className="flex shrink-0 w-8 sm:w-16 justify-end">
-          <Cloche variante="sombre" />
+          <SlackTooltip title="Notifications" tip="Alertes de l'école et messages non lus" placement="bottom" align="end">
+            <Cloche variante="sombre" />
+          </SlackTooltip>
         </div>
       </div>
     </header>

@@ -24,9 +24,9 @@ export default async function ExportPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { user, schoolId, school } = await requireSchoolContext();
+  const { extras, user, schoolId, school } = await requireSchoolContext();
   const role = user.role as RoleType;
-  if (!hasAccess(role, "/dashboard/students/export")) {
+  if (!hasAccess(role, "/dashboard/students/export", extras)) {
     redirect("/dashboard/students");
   }
 

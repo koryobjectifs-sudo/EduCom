@@ -19,8 +19,8 @@ export default async function InvoicePage({
   searchParams: Promise<{ invoiceId?: string; studentId?: string }>;
 }) {
   const { invoiceId, studentId } = await searchParams;
-  const { user, schoolId, school } = await requireSchoolContext();
-  if (!hasAccess(user.role, PATH)) redirect(firstAllowedPath(user.role));
+  const { extras, user, schoolId, school } = await requireSchoolContext();
+  if (!hasAccess(user.role, PATH, extras)) redirect(firstAllowedPath(user.role));
 
   // Règle 4 : Un lien d'intention d'émission depuis un élève mène vers /payments/new
   if (!invoiceId && studentId) {

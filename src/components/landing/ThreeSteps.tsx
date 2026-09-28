@@ -56,25 +56,25 @@ export default function ThreeSteps() {
   });
 
   return (
-    <section id="etapes" className="scroll-mt-20 bg-m-sky">
-      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+    <section id="etapes" className="scroll-mt-16 bg-m-sky">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-m-blue">Comment ça marche</p>
-          <h2 className="mt-4 font-display text-[1.7rem] font-bold leading-[1.15] text-m-navy sm:text-[2.15rem]">
+          <p className="text-[11.5px] font-semibold uppercase tracking-[0.14em] text-m-blue">Comment ça marche</p>
+          <h2 className="mt-2.5 font-display text-[1.45rem] font-bold leading-[1.15] text-m-navy sm:text-[1.85rem]">
             Deux étapes de votre côté.
             <br />
             <span className="text-m-blue"><EduComWordmark /> fait le reste.</span>
           </h2>
         </div>
 
-        <div className="relative mt-14 grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="relative mt-8 grid grid-cols-1 gap-4.5 lg:grid-cols-3">
           {/* Fil qui relie les étapes — se trace au défilement */}
           <motion.div
             aria-hidden="true"
-            className="absolute left-[16%] right-[16%] top-[52px] hidden h-px origin-left bg-m-line lg:block"
+            className="absolute left-[16%] right-[16%] top-[44px] hidden h-px origin-left bg-m-line lg:block"
             initial={reduce ? false : { scaleX: 0 }}
             whileInView={{ scaleX: 1 }}
-            viewport={{ once: true, margin: "-80px" }}
+            viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 1.1, ease: "easeInOut" }}
           />
 
@@ -84,35 +84,35 @@ export default function ThreeSteps() {
               <motion.div
                 key={e.n}
                 {...appear(i)}
-                className="relative rounded-2xl bg-white p-7 ring-1 ring-slate-200/80 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 hover:ring-slate-300"
+                className="relative rounded-2xl bg-white p-5 sm:p-6 ring-1 ring-slate-200/80 shadow-xs transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 hover:ring-slate-300"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F2F5F9] text-m-blue ring-1 ring-slate-200/70 shadow-xs">
-                      <Icon aria-hidden="true" className="h-5 w-5" />
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F2F5F9] text-m-blue ring-1 ring-slate-200/70 shadow-xs">
+                      <Icon aria-hidden="true" className="h-4.5 w-4.5" />
                     </span>
-                    <span className="font-mono text-[16px] font-semibold tracking-wider text-slate-400">{e.n}</span>
+                    <span className="font-mono text-[15px] font-semibold tracking-wider text-slate-400">{e.n}</span>
                   </div>
                 </div>
-                <h3 className="mt-6 font-display text-[1.25rem] font-bold text-m-navy">{e.titre}</h3>
-                <p className="mt-2.5 text-[15px] leading-[1.6] text-m-ink-soft">{e.texte}</p>
+                <h3 className="mt-4 font-display text-[1.15rem] font-bold text-m-navy">{e.titre}</h3>
+                <p className="mt-2 text-[14px] leading-[1.55] text-m-ink-soft">{e.texte}</p>
               </motion.div>
             );
           })}
 
           <motion.div
             {...appear(2)}
-            className="relative rounded-2xl bg-white p-7 text-m-navy ring-2 ring-m-blue/30 shadow-[0_20px_45px_-20px_rgba(10,35,66,0.25)] transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5"
+            className="relative rounded-2xl bg-white p-5 sm:p-6 text-m-navy ring-2 ring-m-blue/30 shadow-[0_16px_36px_-16px_rgba(10,35,66,0.2)] transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-m-blue text-white shadow-md shadow-m-blue/25">
-                  <AppleAutoSyncIcon aria-hidden="true" className="h-5 w-5" />
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-m-blue text-white shadow-md shadow-m-blue/25">
+                  <AppleAutoSyncIcon aria-hidden="true" className="h-4.5 w-4.5" />
                 </span>
-                <span className="font-mono text-[16px] font-semibold tracking-wider text-m-blue">03</span>
+                <span className="font-mono text-[15px] font-semibold tracking-wider text-m-blue">03</span>
               </div>
             </div>
-            <h3 className="mt-6 font-display text-[1.25rem] font-bold">Le reste suit</h3>
+            <h3 className="mt-4 font-display text-[1.15rem] font-bold">Le reste suit</h3>
             <ul className="mt-4 flex flex-col gap-2.5">
               {AUTOMATIQUE.map((a, i) => (
                 <motion.li

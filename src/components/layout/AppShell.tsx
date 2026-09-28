@@ -1,6 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { X, ArrowRight } from "lucide-react";
 import AppRail from "./AppRail";
 import ContextualSidebar from "./ContextualSidebar";
 import AppTopBar from "./AppTopBar";
@@ -9,6 +11,11 @@ import MobileSpaceTabs from "./MobileSpaceTabs";
 import { SidebarSlotProvider } from "./SidebarSlot";
 import { type NavSpace, getActiveSpaceId } from "@/lib/navigation";
 import { type ActiveMembershipInfo } from "@/lib/schoolContext";
+
+import { useSidebarSlot } from "./SidebarSlot";
+import WalkthroughInteractif from "@/components/onboarding/WalkthroughInteractif";
+import SpotlightActionCible from "@/components/onboarding/SpotlightActionCible";
+import TourPageContextuelle from "@/components/onboarding/TourPageContextuelle";
 
 export interface AppShellProps {
   spaces: NavSpace[];
@@ -21,10 +28,11 @@ export interface AppShellProps {
   emailVerified?: boolean;
   activeSchoolId?: string;
   memberships?: ActiveMembershipInfo[];
+  guideVuAt?: Date | null;
   children: React.ReactNode;
 }
 
-export default function AppShell({
+function AppShellInner({
   spaces,
   initialWidth = 200,
   schoolName = "EduCom",
@@ -35,20 +43,35 @@ export default function AppShell({
   emailVerified = false,
   activeSchoolId,
   memberships,
+  guideVuAt,
   children,
 }: AppShellProps) {
   const pathname = usePathname();
+  const { guideActif, tourDeclenche, setTourDeclenche } = useSidebarSlot();
+  const [bulleMobileVisible, setBulleMobileVisible] = useState(false);
   const activeSpaceId = getActiveSpaceId(pathname, spaces);
   const activeSpace = activeSpaceId ? (spaces.find((s) => s.id === activeSpaceId) ?? null) : null;
-  // Communauté (26 sept. 2026) : page pleine hauteur façon Slack. Ses canaux
-  // s'affichent DANS la barre contextuelle habituelle (`SidebarSlot`) ; les
-  // onglets mobiles feraient doublon avec son tiroir.
+  // Communauté (26 sept. 2026) : page pleine hauteur façon Slack.
   const pleinCadre = pathname?.startsWith("/dashboard/communications/communaute") ?? false;
 
+  useEffect(() => {
+    if (!guideVuAt) {
+      const dismiss = sessionStorage.getItem("educom_guide_bubble_dismissed");
+      if (!dismiss) {
+        const timer = setTimeout(() => setBulleMobileVisible(true), 1500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [guideVuAt]);
+
+  const fermerBulleMobile = () => {
+    setBulleMobileVisible(false);
+    sessionStorage.setItem("educom_guide_bubble_dismissed", "true");
+  };
+
   return (
-    <SidebarSlotProvider>
     <div
-      style={{ backgroundColor: "var(--color-frame-bg, #0E2541)" }}
+      style={{ backgroundColor: "var(--color-frame-bg, #581C87)" }}
       className="flex h-dvh w-full overflow-hidden print:bg-white print:h-auto print:overflow-visible transition-colors duration-200"
     >
       {/* 1. Rail Principal Fixe (68px) */}
@@ -60,12 +83,10 @@ export default function AppShell({
         userRole={userRole}
         userName={userName}
         userAvatar={userAvatar}
+        guideVuAt={guideVuAt}
       />
 
       {/* 2. Zone Droite Complète (TopBar Unique Pleine Largeur + Sous-espace Sidebar & Contenu) */}
-      {/* ⚠️ `h-dvh`, pas `h-screen` (24 sept. 2026) : sur Safari/Chrome mobile,
-          100vh inclut la zone masquée par la barre d'adresse — le bas de chaque
-          écran était coupé et impossible à atteindre en défilant. */}
       <div className="flex min-w-0 flex-1 flex-col h-dvh overflow-hidden print:overflow-visible">
         {/* TopBar Unique & Continue (42px) */}
         <AppTopBar
@@ -79,12 +100,12 @@ export default function AppShell({
           memberships={memberships}
         />
 
-
-        {/* Espace de travail : Sidebar Contextuelle + Main View (Arrondi Slack-style appliqué au coin supérieur gauche) */}
+        {/* Espace de travail : Sidebar Contextuelle (Espace actif ou Guide) + Main View */}
         <div className="flex min-w-0 flex-1 overflow-hidden print:overflow-visible md:rounded-tl-2xl border-t border-l border-black/15 shadow-xs">
-          {activeSpace && (
+          {(guideActif || activeSpace) && (
             <ContextualSidebar
               space={activeSpace}
+              guideActif={guideActif}
               schoolName={schoolName}
               initialWidth={initialWidth}
               currentPath={pathname}
@@ -94,11 +115,15 @@ export default function AppShell({
           )}
 
           {/* Canvas principal continu et aligné */}
-          <main className="flex-1 w-full overflow-y-auto relative print:overflow-visible print:m-0 print:p-0 bg-ground pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+          <main
+            className={`flex-1 w-full relative print:overflow-visible print:m-0 print:p-0 bg-ground pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0 ${
+              pleinCadre ? "overflow-hidden" : "overflow-y-auto"
+            }`}
+          >
             {/* Mobile : les pages de l'espace actif, en onglets défilants */}
-            {activeSpace && !pleinCadre && <MobileSpaceTabs space={activeSpace} />}
+            {activeSpace && !pleinCadre && !guideActif && <MobileSpaceTabs space={activeSpace} />}
             {pleinCadre ? (
-              <div className="flex h-full min-h-0 flex-col md:p-3">{children}</div>
+              <div className="flex h-full min-h-0 w-full flex-col p-0 m-0 overflow-hidden">{children}</div>
             ) : (
               <div className="mx-auto max-w-[1600px] p-3 sm:p-4 lg:p-5 print:max-w-none print:p-0 print:m-0">
                 {children}
@@ -107,7 +132,8 @@ export default function AppShell({
           </main>
         </div>
       </div>
-      {/* Mobile : barre d'onglets du bas (remplace le tiroir latéral) */}
+
+      {/* Mobile : barre d'onglets du bas */}
       <MobileTabBar
         spaces={spaces}
         activeSpaceId={activeSpaceId}
@@ -115,7 +141,75 @@ export default function AppShell({
         userName={userName}
         schoolName={schoolName}
       />
+
+      {/* Bulle d'incitation responsive sur Mobile (< 768px) sans déborder */}
+      {!guideVuAt && bulleMobileVisible && (
+        <div
+          role="tooltip"
+          className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] inset-x-3 z-50 rounded-2xl border border-purple-200/90 bg-white/95 p-3.5 text-slate-900 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-200 select-none md:hidden"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-100 text-amber-800 text-xs font-bold shadow-2xs border border-amber-200">
+                ⚡
+              </span>
+              <p className="text-xs font-bold text-slate-900">Faites le tour en 2 minutes</p>
+            </div>
+            <button
+              type="button"
+              onClick={fermerBulleMobile}
+              aria-label="Fermer"
+              className="rounded p-0.5 text-slate-400 hover:text-slate-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <p className="mt-1 text-[11.5px] leading-relaxed text-slate-600">
+            Découvrez vos outils essentiels et vos raccourcis clés.
+          </p>
+          <div className="mt-2.5 flex items-center justify-between gap-2 pt-1.5 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={fermerBulleMobile}
+              className="text-[11px] font-medium text-slate-500 hover:text-slate-800"
+            >
+              Plus tard
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                fermerBulleMobile();
+                setTourDeclenche(true);
+              }}
+              className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-frame-bg,#581C87)] px-3 py-1.5 text-xs font-bold text-white active:scale-95 transition-all shadow-2xs hover:opacity-90"
+            >
+              <span>Découvrir</span>
+              <ArrowRight className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Walkthrough Interactif Ancré (déclenché à la demande ou première connexion) */}
+      <WalkthroughInteractif
+        role={userRole}
+        ouvert={tourDeclenche}
+        onFermer={() => setTourDeclenche(false)}
+      />
+
+      {/* Spotlight ancré contextuel ciblant l'action d'une étape de checklist */}
+      <SpotlightActionCible />
+
+      {/* Formation pas-à-pas sur les boutons de la page courante */}
+      <TourPageContextuelle />
     </div>
+  );
+}
+
+export default function AppShell(props: AppShellProps) {
+  return (
+    <SidebarSlotProvider>
+      <AppShellInner {...props} />
     </SidebarSlotProvider>
   );
 }

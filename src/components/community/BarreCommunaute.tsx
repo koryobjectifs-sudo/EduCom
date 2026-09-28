@@ -6,6 +6,7 @@ import { Hash, Lock, Briefcase, Users, Plus, Newspaper, BarChart3, ChevronDown }
 import type { BarreLaterale, EspaceVue } from "@/lib/community";
 import type { ConversationResume } from "@/lib/messagerie";
 import { initiales, teinte } from "./outils";
+import SlackTooltip from "@/components/ui/SlackTooltip";
 
 /**
  * Entrées de la Communauté dans LA barre contextuelle du logiciel
@@ -29,7 +30,7 @@ type Props = {
 };
 
 const ACTIF =
-  "bg-[var(--color-sidebar-active,white)] font-semibold text-slate-900 shadow-2xs border-l-2 border-[var(--color-frame-bg,#0E2541)]";
+  "bg-[var(--color-sidebar-active,white)] font-semibold text-slate-900 shadow-2xs border-l-2 border-[var(--color-frame-bg,#581C87)]";
 const INACTIF = "font-medium text-slate-700 hover:bg-black/5 hover:text-slate-900";
 
 function IconeEspace({ e, actif }: { e: Pick<EspaceVue, "type" | "kind">; actif: boolean }) {
@@ -38,7 +39,7 @@ function IconeEspace({ e, actif }: { e: Pick<EspaceVue, "type" | "kind">; actif:
     <Icone
       aria-hidden="true"
       strokeWidth={actif ? 2.2 : 1.8}
-      className={`h-3.5 w-3.5 shrink-0 ${actif ? "text-[var(--color-frame-bg,#0E2541)]" : "text-slate-500 group-hover:text-slate-800"}`}
+      className={`h-3.5 w-3.5 shrink-0 ${actif ? "text-[var(--color-frame-bg,#581C87)]" : "text-slate-500 group-hover:text-slate-800"}`}
     />
   );
 }
@@ -62,19 +63,20 @@ function Entree({
 }) {
   if (replie) {
     return (
-      <Link
-        href={href}
-        onClick={apresClic}
-        title={libelle}
-        aria-label={libelle}
-        aria-current={actif ? "page" : undefined}
-        className={`group relative mx-auto flex h-8.5 w-8.5 items-center justify-center rounded-control transition-colors ${
-          actif ? "bg-[var(--color-sidebar-active,white)] text-slate-900 shadow-2xs" : "text-slate-600 hover:bg-black/5"
-        }`}
-      >
-        {icone}
-        {nonLus > 0 && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-danger" />}
-      </Link>
+      <SlackTooltip title={libelle} tip={nonLus > 0 ? `${nonLus} non lu(s)` : undefined} placement="right">
+        <Link
+          href={href}
+          onClick={apresClic}
+          aria-label={libelle}
+          aria-current={actif ? "page" : undefined}
+          className={`group relative mx-auto flex h-8.5 w-8.5 items-center justify-center rounded-control transition-colors ${
+            actif ? "bg-[var(--color-sidebar-active,white)] text-slate-900 shadow-2xs" : "text-slate-600 hover:bg-black/5"
+          }`}
+        >
+          {icone}
+          {nonLus > 0 && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-danger" />}
+        </Link>
+      </SlackTooltip>
     );
   }
   return (
@@ -129,15 +131,16 @@ function Titre({
         <h3 className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">{texte}</h3>
       )}
       {ajouter && (
-        <button
-          type="button"
-          onClick={ajouter}
-          aria-label={ajouterLibelle}
-          title={ajouterLibelle}
-          className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-black/5 hover:text-slate-800"
-        >
-          <Plus aria-hidden="true" className="h-3.5 w-3.5" />
-        </button>
+        <SlackTooltip title={ajouterLibelle} placement="top">
+          <button
+            type="button"
+            onClick={ajouter}
+            aria-label={ajouterLibelle}
+            className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-black/5 hover:text-slate-800 cursor-pointer"
+          >
+            <Plus aria-hidden="true" className="h-3.5 w-3.5" />
+          </button>
+        </SlackTooltip>
       )}
     </div>
   );
@@ -165,7 +168,19 @@ function useSectionsRepliees() {
   return { ouvert: (id: string) => !repliees.includes(id), basculer };
 }
 
-function MiniAvatar({ nom }: { nom: string }) {
+function MiniAvatar({ nom, avatar }: { nom: string; avatar?: string | null }) {
+  const [erreur, setErreur] = useState(false);
+  if (avatar && !erreur) {
+    return (
+      <img
+        src={avatar}
+        alt=""
+        aria-hidden="true"
+        className="h-4 w-4 shrink-0 rounded-full object-cover"
+        onError={() => setErreur(true)}
+      />
+    );
+  }
   return (
     <span aria-hidden="true" className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[7.5px] font-bold ${teinte(nom)}`}>
       {initiales(nom)}
@@ -192,7 +207,7 @@ export default function BarreCommunaute({
     <Ic
       aria-hidden="true"
       strokeWidth={actif ? 2.2 : 1.8}
-      className={`h-3.5 w-3.5 shrink-0 ${actif ? "text-[var(--color-frame-bg,#0E2541)]" : "text-slate-500 group-hover:text-slate-800"}`}
+      className={`h-3.5 w-3.5 shrink-0 ${actif ? "text-[var(--color-frame-bg,#581C87)]" : "text-slate-500 group-hover:text-slate-800"}`}
     />
   );
   const canaux = [barre.general, ...barre.canaux];
@@ -216,7 +231,7 @@ export default function BarreCommunaute({
         />
       </div>
 
-      <div className="space-y-0.5">
+      <div data-tour="comms-channels-list" className="space-y-0.5">
         <Titre
           texte="Canaux"
           ajouter={barre.gererCanaux ? ouvrirCanal : undefined}
@@ -286,7 +301,7 @@ export default function BarreCommunaute({
             key={c.id}
             href={`${baseHref}?c=${c.id}`}
             actif={discussionId === c.id}
-            icone={<MiniAvatar nom={c.titre} />}
+            icone={<MiniAvatar nom={c.titre} avatar={c.avatar} />}
             libelle={c.titre}
             nonLus={c.nonLus}
             replie={replie}

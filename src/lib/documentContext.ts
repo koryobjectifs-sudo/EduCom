@@ -26,6 +26,6 @@ export const requireSchoolContext = cache(async function requireSchoolContext() 
 export const requirePathAccess = cache(async function requirePathAccess(path: string) {
   const ctx = await requireSchoolContext();
   const role = ctx.user.role as RoleType;
-  if (!hasAccess(role, path)) redirect(firstAllowedPath(role));
+  if (!hasAccess(role, path, ctx.extras)) redirect(firstAllowedPath(role));
   return ctx;
 });

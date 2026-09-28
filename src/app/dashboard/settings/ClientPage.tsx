@@ -117,14 +117,14 @@ export default function SettingsClient({
     document.documentElement.style.setProperty("--color-sidebar-bg", `color-mix(in srgb, ${defaultNavy} 7%, #F8FAFC)`);
     document.documentElement.style.setProperty("--color-sidebar-hover", `color-mix(in srgb, ${defaultNavy} 12%, #F1F5F9)`);
     document.documentElement.style.setProperty("--color-sidebar-active", `color-mix(in srgb, ${defaultNavy} 16%, #FFFFFF)`);
-    document.documentElement.style.setProperty("--color-rail-accent", "#9C0F15");
+    document.documentElement.style.setProperty("--color-rail-accent", "#C084FC");
 
     setFormData(prev => ({ ...prev, primaryColor: defaultNavy }));
 
     const res = await updateSchoolPrimaryColor(null);
     if (res.success) {
-      toast.success("Thème initial EduCom rétabli", {
-        description: "Les cadres ont retrouvé la teinte Navy officielle EduCom (#0E2541).",
+      toast.success("Thème officiel EduCom rétabli", {
+        description: "Les cadres ont retrouvé la teinte Pourpre officielle EduCom (#581C87).",
       });
       router.refresh();
     } else {
@@ -194,7 +194,7 @@ export default function SettingsClient({
         <h2 className="text-sm font-medium text-text-secondary ml-4 mb-2 uppercase tracking-wider">
           Session & Année scolaire active
         </h2>
-        <div className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden p-6">
+        <div data-tour="settings-academic-year" className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden p-6">
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
             <div className="flex items-start gap-4 max-w-xl">
               <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -307,7 +307,7 @@ export default function SettingsClient({
           <div className="divide-y divide-border/50">
             
             {/* Nom */}
-            <div className="flex items-center justify-between p-4 px-5 bg-white hover:bg-secondary/30 transition-colors">
+            <div data-tour="settings-school-name" className="flex items-center justify-between p-4 px-5 bg-white hover:bg-secondary/30 transition-colors">
               <div className="flex items-center gap-3 w-1/3">
                 <div className="h-8 w-8 rounded-lg bg-[#ffedd5] flex items-center justify-center shadow-sm">
                   <Building2 className="w-4 h-4 text-[#ea580c]" />
@@ -400,53 +400,41 @@ export default function SettingsClient({
         <h2 className="text-sm font-medium text-text-secondary ml-4 mb-2 uppercase tracking-wider">Identité Visuelle & Charte</h2>
         <div className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden p-4 space-y-4">
           
-          {/* Grille 3 colonnes : Logo, Cachet, Signature avec redimensionnement interactif */}
+          {/* Grille 3 colonnes : Logo, Cachet, Signature */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
             {/* Logo */}
             <VisualAssetField
+              dataTour="settings-logo"
               label="Logo de l'école"
               field="logo"
               value={formData.logo}
-              size={formData.logoSize}
-              defaultSize={80}
-              minSize={40}
-              maxSize={200}
-              description="Figure en en-tête des bulletins, factures, reçus et certificats. Tirez sur le coin bas-droite ou réglez le curseur."
+              description="Figure en en-tête des bulletins, factures, reçus et certificats administratifs."
               onChangeValue={(val) => setFormData((prev) => ({ ...prev, logo: val }))}
-              onChangeSize={(sz) => setFormData((prev) => ({ ...prev, logoSize: sz }))}
             />
 
             {/* Cachet */}
             <VisualAssetField
+              dataTour="settings-stamp"
               label="Cachet officiel"
               field="stamp"
               value={formData.stamp}
-              size={formData.stampSize}
-              defaultSize={80}
-              minSize={40}
-              maxSize={180}
               description="Apposé en bas des bulletins et reçus. Tous formats acceptés et convertis en PNG haute netteté."
               onChangeValue={(val) => setFormData((prev) => ({ ...prev, stamp: val }))}
-              onChangeSize={(sz) => setFormData((prev) => ({ ...prev, stampSize: sz }))}
             />
 
             {/* Signature */}
             <VisualAssetField
+              dataTour="settings-signature"
               label="Signature (Directeur)"
               field="signature"
               value={formData.signature}
-              size={formData.signatureSize}
-              defaultSize={60}
-              minSize={30}
-              maxSize={160}
-              description="Signature administrative officielle. Tirez le coin pour agrandir jusqu'aux pixels souhaités."
+              description="Signature administrative officielle apposée sur les documents et attestations."
               onChangeValue={(val) => setFormData((prev) => ({ ...prev, signature: val }))}
-              onChangeSize={(sz) => setFormData((prev) => ({ ...prev, signatureSize: sz }))}
             />
           </div>
 
           {/* Couleur des Cadres Établissement (Rail & TopBar unifiés Slack-style + Sidebar plus légère) */}
-          <div className="mt-4 pt-4 border-t border-border p-4 bg-secondary/20 rounded-2xl space-y-4">
+          <div data-tour="settings-colors" className="mt-4 pt-4 border-t border-border p-4 bg-secondary/20 rounded-2xl space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
@@ -469,7 +457,7 @@ export default function SettingsClient({
                   onClick={() => handleResetColor()}
                   disabled={isApplyingColor}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 active:scale-95 transition-all shadow-2xs disabled:opacity-50"
-                  title="Rétablir la couleur EduCom Navy par défaut (#0E2541)"
+                  title="Rétablir la couleur EduCom Pourpre officielle (#581C87)"
                 >
                   <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
                   <span>Rétablir initial</span>
@@ -696,18 +684,45 @@ export default function SettingsClient({
               label="Palette officielle de l'établissement (Shell, Rail & TopBar)"
             />
 
-            <div className="flex items-center justify-end pt-3 border-t border-border/60">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3.5 border-t border-border/80">
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <span className="font-semibold text-slate-800">Couleur sélectionnée :</span>
+                <span className="font-mono px-2 py-0.5 rounded bg-slate-100 font-bold text-slate-900 uppercase">
+                  {formData.primaryColor || DEFAULT_EDUCOM_NAVY}
+                </span>
+              </div>
 
-              {/* Bouton secondaire de validation directe */}
-              <button
-                type="button"
-                onClick={() => handleApplyColor()}
-                disabled={isApplyingColor}
-                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 active:scale-95 transition-all shadow-2xs disabled:opacity-50"
-              >
-                {isApplyingColor ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                <span>Valider cette couleur</span>
-              </button>
+              {/* Bouton de validation directe mis en valeur */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleResetColor()}
+                  disabled={isApplyingColor}
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-all shadow-2xs"
+                >
+                  Rétablir initial
+                </button>
+                <button
+                  type="button"
+                  data-tour="settings-apply-color-btn"
+                  onClick={() => handleApplyColor()}
+                  disabled={isApplyingColor}
+                  style={{ backgroundColor: isValidHexColor(formData.primaryColor) ? formData.primaryColor : DEFAULT_EDUCOM_NAVY }}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-sm hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isApplyingColor ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Application...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Appliquer cette couleur au logiciel</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -775,6 +790,7 @@ export default function SettingsClient({
 
       <div className="flex justify-end pt-4">
         <Button
+          data-tour="settings-submit-btn"
           type="submit"
           size="lg"
           loading={isSaving}

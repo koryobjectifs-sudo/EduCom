@@ -123,6 +123,7 @@ export default function ReportCardGenerator({
               <div className="flex items-center gap-1.5 w-full sm:w-auto">
                 <Users className="h-3.5 w-3.5 text-text-soft shrink-0" />
                 <select
+                  data-tour="bulletin-student-filter"
                   value={selectedStudentId || ""}
                   onChange={(e) => setSelectedStudentId(e.target.value || null)}
                   className="h-8.5 w-full sm:w-auto rounded-control border border-rule bg-surface px-2.5 text-xs font-medium text-text focus:border-primary focus:outline-none"
@@ -139,6 +140,7 @@ export default function ReportCardGenerator({
               {/* Bouton Personnaliser */}
               <button
                 type="button"
+                data-tour="bulletin-customize-btn"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -158,6 +160,7 @@ export default function ReportCardGenerator({
               {/* Toggle Monochrome */}
               <button
                 type="button"
+                data-tour="bulletin-monochrome-btn"
                 onClick={() => setMonochrome(!monochrome)}
                 className={`inline-flex items-center gap-1.5 h-8.5 rounded-control border px-2.5 text-xs font-medium transition-colors ${
                   monochrome
@@ -174,6 +177,7 @@ export default function ReportCardGenerator({
               {canPrint && (
                 <button
                   type="button"
+                  data-tour="bulletin-print-btn"
                   onClick={() => window.print()}
                   className="hidden md:inline-flex items-center gap-1.5 h-8.5 rounded-control bg-primary px-3.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-primary-hover"
                 >

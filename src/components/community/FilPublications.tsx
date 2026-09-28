@@ -37,6 +37,7 @@ import { voirEngagement } from "@/app/dashboard/communications/communaute/engage
 import { envoyerMedia, ACCEPT, type MediaEnvoye } from "./envoiMedia";
 import { Avatar, GrilleMedias, ApercuPieces } from "./Elements";
 import { ilYa, telechargerCSV, lignesSondage } from "./outils";
+import SelecteurEmoji from "./SelecteurEmoji";
 import { lireChoix } from "@/lib/interpretation";
 import { IDEES_SONDAGES } from "@/lib/modelesEnquetes";
 import {
@@ -53,6 +54,7 @@ import {
   clore,
   relancerSondage,
 } from "@/app/dashboard/communications/communaute/actions";
+import SlackTooltip from "@/components/ui/SlackTooltip";
 
 /**
  * Fil d'un espace — refonte du 26 sept. 2026, inspirée des fils de commentaires
@@ -87,7 +89,12 @@ type Props = {
   personnes?: Mentionnable[];
   /** Outils d'IA (personnel uniquement). */
   ia?: boolean;
+  /** Non lus par espace (clé de `pub.espace`) : pastille dans le fil regroupé. */
+  nonLusParEspace?: Record<string, number>;
 };
+
+/** Fil d'actualité regroupé : un aperçu de chaque canal, pas tout l'historique. */
+const MAX_APERCU = 3;
 
 /** Personnes mentionnables, partagées par le composeur, les réponses et l'affichage. */
 export const Mentions = createContext<{ personnes: Mentionnable[]; noms: string[]; ia: boolean }>({ personnes: [], noms: [], ia: false });
@@ -112,10 +119,24 @@ export default function FilPublications({
   sondageParDefaut = false,
   personnes = [],
   ia = false,
+  nonLusParEspace = {},
 }: Props) {
   const mentions = useMemo(() => ({ personnes, noms: personnes.map((p) => p.nom), ia }), [personnes, ia]);
   const epinglees = publications.filter((p) => p.pinned);
   const autres = publications.filter((p) => !p.pinned);
+  // Fil d'actualité (tous les espaces mélangés) : regroupé par canal/classe pour
+  // éviter le mélange bruyant (retour de Kory, 27 sept. 2026). Un espace précis
+  // (?espace=…) garde l'affichage plat d'origine.
+  const parEspace = useMemo(() => {
+    if (espace) return null;
+    const carte = new Map<string, { nom: string; items: PublicationVue[] }>();
+    for (const p of autres) {
+      const g = carte.get(p.espace);
+      if (g) g.items.push(p);
+      else carte.set(p.espace, { nom: p.espaceNom, items: [p] });
+    }
+    return [...carte.entries()];
+  }, [espace, autres]);
   return (
     <Mentions.Provider value={mentions}>
     <div className="mx-auto w-full max-w-3xl space-y-4 px-3 py-4 sm:px-6 sm:py-6">
@@ -128,6 +149,34 @@ export default function FilPublications({
           <p className="text-[15px] font-bold text-text">{vide.titre}</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-text-soft">{vide.texte}</p>
         </div>
+      ) : parEspace ? (
+        // Aperçu par canal/classe — pas tout l'historique : de quoi voir qu'il y a du
+        // nouveau et repérer où, puis ouvrir le canal pour lire et répondre (retour
+        // de Kory, 27 sept. 2026 : « ça n'a pas de sens de tout faire depuis le fil »).
+        <>
+          {epinglees.length > 0 && (
+            <GroupeEspace titre="Épinglé" icone={<Pin aria-hidden="true" className="h-3.5 w-3.5" />} cle="" baseHref={baseHref} nonLus={0} reste={0}>
+              {epinglees.slice(0, MAX_APERCU).map((p) => (
+                <ApercuPublication key={p.id} pub={p} baseHref={baseHref} />
+              ))}
+            </GroupeEspace>
+          )}
+          {parEspace.map(([cle, g]) => (
+            <GroupeEspace
+              key={cle || "general"}
+              titre={g.nom}
+              icone={<Hash aria-hidden="true" className="h-3.5 w-3.5" />}
+              cle={cle}
+              baseHref={baseHref}
+              nonLus={nonLusParEspace[cle] ?? 0}
+              reste={Math.max(0, g.items.length - MAX_APERCU)}
+            >
+              {g.items.slice(0, MAX_APERCU).map((p) => (
+                <ApercuPublication key={p.id} pub={p} baseHref={baseHref} />
+              ))}
+            </GroupeEspace>
+          ))}
+        </>
       ) : (
         <>
           {[...epinglees, ...autres].map((p) => (
@@ -145,6 +194,77 @@ export default function FilPublications({
       )}
     </div>
     </Mentions.Provider>
+  );
+}
+
+/** Carte de groupe (« # Général », « Épinglé »…) : en-tête cliquable + aperçu, pas l'historique complet. */
+function GroupeEspace({
+  titre,
+  icone,
+  cle,
+  baseHref,
+  nonLus,
+  reste,
+  children,
+}: {
+  titre: string;
+  icone: React.ReactNode;
+  cle: string;
+  baseHref: string;
+  nonLus: number;
+  reste: number;
+  children: React.ReactNode;
+}) {
+  const href = `${baseHref}?espace=${encodeURIComponent(cle)}`;
+  const enTete = (
+    <>
+      <span className="text-text-soft">{icone}</span>
+      <span className="min-w-0 flex-1 truncate text-[15px] font-bold text-text">{titre}</span>
+      {nonLus > 0 && (
+        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-danger px-1.5 text-[11px] font-bold tabular-nums text-white">
+          {nonLus > 99 ? "99+" : nonLus}
+        </span>
+      )}
+      {cle && <span className="shrink-0 text-xs font-semibold text-primary-ink">Voir tout →</span>}
+    </>
+  );
+  return (
+    <section aria-label={titre} className="overflow-hidden rounded-2xl border border-rule bg-surface">
+      {cle ? (
+        <Link href={href} className="flex items-center gap-2 border-b border-rule px-4 py-3 hover:bg-sunk/50">
+          {enTete}
+        </Link>
+      ) : (
+        <div className="flex items-center gap-2 border-b border-rule px-4 py-3">{enTete}</div>
+      )}
+      <div className="divide-y divide-rule">{children}</div>
+      {reste > 0 && (
+        <Link href={href} className="block px-4 py-2.5 text-center text-xs font-semibold text-primary-ink hover:bg-sunk/50">
+          + {reste} autre{reste > 1 ? "s" : ""} message{reste > 1 ? "s" : ""}
+        </Link>
+      )}
+    </section>
+  );
+}
+
+/** Aperçu compact d'une publication dans le fil regroupé : ouvre le canal pour lire et répondre. */
+function ApercuPublication({ pub, baseHref }: { pub: PublicationVue; baseHref: string }) {
+  const n = pub.commentaires.length;
+  return (
+    <Link href={`${baseHref}?espace=${encodeURIComponent(pub.espace)}#pub-${pub.id}`} className="flex gap-3 px-4 py-3 hover:bg-sunk/40">
+      <Avatar nom={pub.auteur} avatar={pub.auteurAvatar} />
+      <div className="min-w-0 flex-1">
+        <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
+          <span className="font-bold text-text">{pub.auteur}</span>
+          <span className="text-xs text-text-faint">{ilYa(pub.createdAt)}</span>
+          {pub.mustRead && <span className="text-xs font-semibold text-warning">À lire</span>}
+        </p>
+        <p className="mt-0.5 line-clamp-2 break-words text-sm text-text-soft">
+          {pub.body || (pub.sondage ? `📊 ${pub.sondage.question}` : pub.medias.length > 0 ? "📎 Photo, vidéo ou document" : "")}
+        </p>
+        {n > 0 && <p className="mt-0.5 text-xs text-text-faint">{n} réponse{n > 1 ? "s" : ""}</p>}
+      </div>
+    </Link>
   );
 }
 
@@ -451,7 +571,7 @@ function CartePublication({
         }`}
       >
         <header className="flex items-start gap-3 px-4 pt-4 sm:px-5">
-          <Avatar nom={pub.auteur} taille="lg" />
+          <Avatar nom={pub.auteur} avatar={pub.auteurAvatar} taille="lg" />
           <div className="min-w-0 flex-1">
             <p className="flex flex-wrap items-baseline gap-x-2 text-[15px]">
               <span className="font-bold text-text">{pub.auteur}</span>
@@ -562,7 +682,7 @@ function CartePublication({
                 <Noeud />
                 <div className={`rounded-2xl border border-rule bg-surface px-4 py-3 ${c.masque ? "opacity-60" : ""}`}>
                   <p className="flex flex-wrap items-center gap-x-2 text-sm">
-                    <Avatar nom={c.auteur} taille="sm" />
+                    <Avatar nom={c.auteur} avatar={c.auteurAvatar} taille="sm" />
                     <span className="font-bold text-text">{c.auteur}</span>
                     <span className="text-xs text-text-faint">
                       • {c.role} • {ilYa(c.createdAt)}
@@ -1079,32 +1199,36 @@ export function Reactions({
   serre?: boolean;
 }) {
   const [choix, setChoix] = useState(false);
-  const presentes = REACTIONS.filter((r) => (pub.reactions[r.kind] ?? 0) > 0);
-  const basculer = (kind: TypeReaction) => {
+  const entrees = Object.entries(pub.reactions).filter(([, count]) => count > 0);
+  const infoReaction = (kind: string) => {
+    const std = REACTIONS.find((r) => r.kind === kind);
+    return std ? { emoji: std.emoji, label: std.label } : { emoji: kind, label: kind };
+  };
+  const basculer = (kind: string) => {
     setChoix(false);
     agir(() => reagir(pub.id, pub.maReaction === kind ? null : kind));
   };
   if (pub.masque) return null;
   // Canal façon Slack : pas de bouton « réagir » isolé tant qu'il n'y a aucune réaction (il est dans la barre au survol).
-  if (serre && presentes.length === 0) return null;
+  if (serre && entrees.length === 0) return null;
   return (
     <div className={`flex flex-wrap items-center gap-1.5 ${serre ? "pt-1.5" : "px-4 pt-3 sm:px-5"}`}>
-      {presentes.map((r) => {
-        const mien = pub.maReaction === r.kind;
-        const n = pub.reactions[r.kind];
+      {entrees.map(([kind, n]) => {
+        const { emoji, label } = infoReaction(kind);
+        const mien = pub.maReaction === kind;
         return (
           <button
-            key={r.kind}
+            key={kind}
             type="button"
             aria-pressed={mien}
-            aria-label={`${r.label} (${n})`}
+            aria-label={`${label} (${n})`}
             disabled={enCours}
-            onClick={() => basculer(r.kind)}
+            onClick={() => basculer(kind)}
             className={`inline-flex ${serre ? "min-h-6 rounded-full px-2" : "min-h-8 rounded-lg px-2.5"} items-center gap-1.5 text-sm transition-colors ${
               mien ? "bg-primary-ink/10 text-primary-ink ring-1 ring-primary-ink/30" : "bg-sunk text-text-soft hover:bg-rule/60"
             }`}
           >
-            <span aria-hidden="true">{r.emoji}</span>
+            <span aria-hidden="true">{emoji}</span>
             <span className="text-[13px] font-bold tabular-nums">{n}</span>
           </button>
         );
@@ -1112,7 +1236,7 @@ export function Reactions({
       <div className="relative">
         <button
           type="button"
-          aria-label="Réagir"
+          aria-label="Réagir avec un émoji"
           aria-expanded={choix}
           onClick={() => setChoix((v) => !v)}
           className="flex h-8 w-8 items-center justify-center rounded-full text-text-faint hover:bg-sunk hover:text-text"
@@ -1121,22 +1245,12 @@ export function Reactions({
         </button>
         {choix && (
           <>
-            <button type="button" aria-hidden="true" tabIndex={-1} className="fixed inset-0 z-10 cursor-default" onClick={() => setChoix(false)} />
-            <div className="absolute bottom-full left-0 z-20 mb-1 flex gap-0.5 rounded-full border border-rule bg-surface p-1 shadow-overlay">
-              {REACTIONS.map((r) => (
-                <button
-                  key={r.kind}
-                  type="button"
-                  title={r.label}
-                  aria-label={r.label}
-                  onClick={() => basculer(r.kind)}
-                  className={`flex h-9 w-9 items-center justify-center rounded-full text-lg transition-transform hover:scale-110 hover:bg-sunk ${
-                    pub.maReaction === r.kind ? "bg-primary-ink/10" : ""
-                  }`}
-                >
-                  {r.emoji}
-                </button>
-              ))}
+            <button type="button" aria-hidden="true" tabIndex={-1} className="fixed inset-0 z-40 cursor-default" onClick={() => setChoix(false)} />
+            <div className="absolute bottom-full left-0 z-50 mb-2">
+              <SelecteurEmoji
+                onSelect={(emoji) => basculer(emoji)}
+                onClose={() => setChoix(false)}
+              />
             </div>
           </>
         )}
@@ -1149,15 +1263,17 @@ export function Menu({ actions }: { actions: { label: string; icone: React.React
   const [ouvert, setOuvert] = useState(false);
   return (
     <div className="relative">
-      <button
-        type="button"
-        aria-label="Plus d'actions"
-        aria-expanded={ouvert}
-        onClick={() => setOuvert((v) => !v)}
-        className="flex h-8 w-8 items-center justify-center rounded-full text-text-faint hover:bg-sunk hover:text-text"
-      >
-        <MoreHorizontal aria-hidden="true" className="h-5 w-5" />
-      </button>
+      <SlackTooltip title="Plus d'actions" tip="Épingler, signaler ou supprimer" placement="top" disabled={ouvert}>
+        <button
+          type="button"
+          aria-label="Plus d'actions"
+          aria-expanded={ouvert}
+          onClick={() => setOuvert((v) => !v)}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-text-faint hover:bg-sunk hover:text-text cursor-pointer"
+        >
+          <MoreHorizontal aria-hidden="true" className="h-5 w-5" />
+        </button>
+      </SlackTooltip>
       {ouvert && (
         <>
           <button type="button" aria-hidden="true" tabIndex={-1} className="fixed inset-0 z-10 cursor-default" onClick={() => setOuvert(false)} />

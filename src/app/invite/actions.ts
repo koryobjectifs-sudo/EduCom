@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { appliquerConfigurationInvitation } from "@/lib/equipe";
 
 export async function acceptInvite(formData: FormData) {
   const token = formData.get("token") as string;
@@ -63,6 +64,10 @@ export async function acceptInvite(formData: FormData) {
       where: { id: invitation.id },
       data: { status: "ACCEPTED" }
     });
+
+    // 4. Classes, matières et accès préparés par la direction à l'invitation
+    //    (parcours « Ajouter un membre ») : prêts dès la première connexion.
+    await appliquerConfigurationInvitation(invitation.schoolId, invitation.email, userId, invitation.role);
     
   } catch (err) {
     console.error("Invite error:", err);

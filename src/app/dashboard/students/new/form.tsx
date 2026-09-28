@@ -52,7 +52,7 @@ export function StudentForm({ classes, academicYear }: { classes: Class[]; acade
         {academicYear && <input type="hidden" name="academicYear" value={academicYear} />}
 
         {/* SECTION 1: L'ÉLÈVE */}
-        <div className="rounded-3xl border border-border bg-white shadow-sm p-6 sm:p-8">
+        <div data-tour="student-info-section" className="rounded-3xl border border-border bg-white shadow-sm p-6 sm:p-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
               <User className="w-5 h-5"/>
@@ -102,7 +102,7 @@ export function StudentForm({ classes, academicYear }: { classes: Class[]; acade
         </div>
 
         {/* SECTION 2: LE PARENT */}
-        <div className="rounded-3xl border border-border bg-white shadow-sm p-6 sm:p-8">
+        <div data-tour="guardian-info-section" className="rounded-3xl border border-border bg-white shadow-sm p-6 sm:p-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="h-10 w-10 rounded-xl bg-[#f3e8ff] flex items-center justify-center text-[#7e22ce]">
               <Users className="w-5 h-5"/>
@@ -255,7 +255,7 @@ export function StudentForm({ classes, academicYear }: { classes: Class[]; acade
             >
               Annuler
             </Link>
-            <Button type="submit" size="lg" loading={isPending} icon={<Save aria-hidden="true" className="w-4 h-4" />}>
+            <Button data-tour="student-submit-btn" type="submit" size="lg" loading={isPending} icon={<Save aria-hidden="true" className="w-4 h-4" />}>
               {isPending ? "Admission en cours..." : "Valider l'admission"}
             </Button>
           </div>

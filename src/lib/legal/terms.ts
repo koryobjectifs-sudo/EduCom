@@ -35,6 +35,21 @@ export const TERMS_OF_SERVICE = {
       id: "engagements-utilisateur",
       title: "4. Obligations de l'établissement utilisateur",
       content: `L'établissement s'engage à n'importer que des données exactes et à jour, et à informer les parents ou représentants légaux de l'existence du traitement numérique de scolarité.`
+    },
+    {
+      id: "abonnement-tarifs",
+      title: "5. Souscription, Forfaits et Tarification",
+      content: `EduCom propose ses services sous forme de forfaits d'établissement (Standard, Premium ou Sur Demande), indépendamment du nombre d'élèves inscrits. Chaque nouvel établissement bénéficie d'une période d'essai gratuit de 7 jours. Dès la première souscription payante par l'établissement, la période d'essai prend fin immédiatement et la durée d'abonnement souscrite (1, 3, 6 ou 12 mois) commence à courir. Les éventuelles remises dégressives associées aux engagements plurimensuels sont acquises pour la période réglée.`
+    },
+    {
+      id: "annulation-remboursement",
+      title: "6. Politique d'annulation et de remboursement",
+      content: `Toute souscription peut faire l'objet d'une demande d'annulation et de remboursement intégral dans un délai de 48 heures suivant le paiement en cas d'erreur de facturation ou d'impossibilité technique avérée d'utilisation du service. En cas d'annulation ou de remboursement validé, les droits d'écriture et de modification sur la plateforme sont suspendus. L'historique complet de la transaction, du motif et du statut remboursé reste directement accessible, traçable et gérable depuis l'espace d'administration de l'établissement scolaire.`
+    },
+    {
+      id: "resiliation-donnees-archives",
+      title: "7. Résiliation, compte annulé et accès garanti aux données",
+      content: `L'établissement scolaire conserve l'entière propriété et la maîtrise souveraine de ses données. En cas d'échéance non renouvelée, d'annulation ou de résiliation de l'abonnement, le compte de l'établissement n'est jamais supprimé sans préavis : il demeure accessible en mode consultation et impression depuis la plateforme de l'école. La direction peut ainsi continuer à consulter, exporter et télécharger l'ensemble de ses registres scolaires, dossiers élèves, relevés de notes et bulletins officiels à des fins de conservation légale. La suppression définitive et irréversible de l'espace et de ses bases de données ne s'opère que sur demande expresse et écrite de la direction de l'établissement.`
     }
   ]
 };

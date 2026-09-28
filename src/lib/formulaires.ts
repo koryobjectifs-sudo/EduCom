@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { acteurPeut } from "@/lib/grants";
 import type { ActorContext } from "@/lib/audit";
 import { roleLabel } from "@/lib/permissions";
 import { regleValide, resoudreAudience, libelleRegle } from "@/lib/audience";
@@ -31,7 +32,8 @@ export type Reponses = Record<string, string | string[]>;
 
 const CREE_TOUT = ["OWNER", "ADMIN", "SECRETARY"];
 const DIRECTION = ["OWNER", "ADMIN"];
-export const peutCreerFormulaire = (role: string) => CREE_TOUT.includes(role) || role === "TEACHER";
+export const peutCreerFormulaire = (role: string, grants?: readonly string[]) =>
+  CREE_TOUT.includes(role) || role === "TEACHER" || (role !== "PARENT" && Boolean(grants?.includes("ECRIRE_ECOLE")));
 
 /** Nettoie les questions reçues du navigateur (types connus, 1 à 30 questions, options 2 à 12). */
 export function questionsValides(brut: unknown): Question[] | string {
@@ -99,18 +101,20 @@ export async function destinatairesAutorises(
     (await prisma.class.findMany({ where: { schoolId: actor.schoolId }, select: { id: true } })).map((c) => c.id),
   );
   let reglesOk = r.filter((x) => !x.includes("CLASSE:") || connues.has(x.split(":")[1]));
+  // Accès en plus « Écrire à toute l'école » : même périmètre que le secrétariat.
+  const toute = CREE_TOUT.includes(actor.role) || (await acteurPeut(actor, "ECRIRE_ECOLE"));
   const [personnel, eleves] = await Promise.all([
     prisma.user.findMany({ where: { id: { in: p }, schoolId: actor.schoolId, role: { not: "PARENT" } }, select: { id: true } }),
     prisma.student.findMany({
       where: {
         schoolId: actor.schoolId,
         parentId: { in: p },
-        ...(actor.role === "TEACHER" ? { enrollments: { some: { classId: { in: classIds } } } } : {}),
+        ...(actor.role === "TEACHER" && !toute ? { enrollments: { some: { classId: { in: classIds } } } } : {}),
       },
       select: { parentId: true },
     }),
   ]);
-  if (actor.role === "TEACHER") {
+  if (!toute) {
     reglesOk = reglesOk.filter((x) => (x.startsWith("PARENTS_CLASSE:") || x.startsWith("PROFS_CLASSE:")) && classIds.includes(x.split(":")[1]));
   }
   return {

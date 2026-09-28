@@ -29,8 +29,8 @@ export default async function NewInvoicePage({
 }: {
   searchParams: Promise<{ studentId?: string }>;
 }) {
-  const { user, schoolId, school } = await requireSchoolContext();
-  if (!hasAccess(user.role, PATH)) redirect(firstAllowedPath(user.role));
+  const { extras, user, schoolId, school } = await requireSchoolContext();
+  if (!hasAccess(user.role, PATH, extras)) redirect(firstAllowedPath(user.role));
   const { studentId } = await searchParams;
 
   // On ne facture que des élèves inscrits, et uniquement ceux de l'établissement.
