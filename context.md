@@ -1,8 +1,10 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 28 septembre 2026 — **Guidance End-to-End Métiers & Formulaires d'Action : Câblage Complet, Résolution Popups & Halo Allégé**
+> Dernière mise à jour : 28 septembre 2026 — **Guidance End-to-End Métiers & Formulaires d'Action : Commit `fcc0cbc` poussé sur `origin/main`**
 
-> **Progression — 28 septembre 2026 (Guidance End-to-End sur Formulaires d'Action & Modules Métiers).**
+> **Progression — 28 septembre 2026 (Guidance End-to-End sur Formulaires d'Action & Déploiement `origin/main`).**
+> - **Commit & Déploiement Production** : Commit `fcc0cbc` poussé avec succès sur `origin/main` (225 fichiers modifiés/ajoutés).
+> - **Compilateur TypeScript & ESLint** : 0 erreur, 0 avertissement. Base de données Supabase 100% alignée (`prisma db push`).
 > - **Demande de Kory (Audio & Instructions)** :
 >   - « La guidance ne doit pas simplement s'arrêter là : ça doit être vraiment partout, end-to-end, dans tous les métiers, tu ne laisses rien du tout. »
 >   - Inscrire un élève (`/dashboard/students/new`) : Fiche élève → Tuteur WhatsApp → Bouton Valider l'admission.
