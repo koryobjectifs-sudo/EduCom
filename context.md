@@ -1,17 +1,19 @@
 # EduCom SaaS - Contexte du Projet
 
-> Dernière mise à jour : 28 septembre 2026 — **Célébration Festive Post-Quiz, Centrage Incitation, Guidage Obligatoire & Métriques de Pilotage (Growth/Churn/Template)**
+> Dernière mise à jour : 28 septembre 2026 — **Incitation Quiz cadencée à 1 minute & Procédure de Déploiement Vercel pour le Pilotage**
 
-> **Progression — 28 septembre 2026 (Audios 13:25:19Z).**
-> - **Demande de Kory (Audio 1 & Audio 2)** :
->   1. **Célébration festive post-quiz** : « Il y a pas de célébration de sensation et tout de motivation quand on utilise le quiz... une célébration magnifique en fait et des remerciements et tout ».
->   2. **Centrage de l'incitation (Quiz Testeur 2 min)** : « Le pop-up quiz testeur 2 minutes... c'est toujours en bas... on va essayer tout juste de le mettre au milieu à chaque fois qu'on a l'occasion avec l'option fermer en fait ».
->   3. **Guidage pas-à-pas non-fermable** : « Dans le walkthrough et le guide... je veux pas qu'il y ait l'option de fermer en fait. On va lui forcer à visiter le next step next step next step jusqu'à ce qu'il ait fini en fait ».
->   4. **Outil de pilotage (`pilotage/`)** :
->      - Redémarrer le serveur (`lsof -i :3001` était inactif).
->      - Clarifier le déploiement permanent en ligne (Vercel / Cloudflare).
->      - Ajouter le **Growth Rate** (Daily, Weekly, Monthly) et le **Taux de perte / Churn Rate**.
->      - Fournir un **template d'e-mail corporate exceptionnel** aux couleurs fidèles d'EduCom (`#581C87`, logo, bouton CTA et quiz).
+> **Progression — 28 septembre 2026 (Audio 13:48:53Z).**
+> - **Demande de Kory** :
+>   1. **Fréquence du pop-up d'avis** : « Pour le pop-up sur l'avis, on va mettre un temps beaucoup plus allégé en fait, donc let's say chaque une minute. Donc chaque une minute on le montre, chaque minute on le montre au milieu ».
+>   2. **Déploiement du pilotage** : « Pour déployer l'outil de pilotage, peux-tu me guider step-by-step pour que je puisse le faire ? Ou bien si tu peux le faire aussi pour moi, tu peux avancer sur les points que tu peux faire, et sur les points que je peux faire tu me le donnes pour que je l'exécute ».
+> - **Ce qui a été implémenté et validé** :
+>   1. **Incitation Quiz toutes les 60 secondes ([`IncitationQuizTesteur.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/feedback/IncitationQuizTesteur.tsx))** :
+>      - Déclencheur automatique réglé à 60 000 ms (1 minute).
+>      - Bouton de report « Plus tard (1 min) » et fermeture par croix `X` programmés sur un snooze de 1 minute.
+>      - Persistance intelligente : cesse définitivement une fois le quiz complété (`educom_quiz_completed`).
+>   2. **Préparation Déploiement Vercel Pilotage ([`pilotage/vercel.json`](file:///Users/kory/EduCom%20SaaS/pilotage/vercel.json))** :
+>      - Création du `vercel.json` dédié au pilotage (framework Next.js, région `fra1` Francfort pour latence minimale avec Supabase).
+>      - Guide pas-à-pas rédigé pour liaison au compte Vercel existant (`edu-com` / `team_z3Vkf5vyJJU0nzLRPM20eMpt`).
 > - **Ce qui a été implémenté et validé** :
 >   1. **Célébration festive post-quiz ([`ModalQuizTesteur.tsx`](file:///Users/kory/EduCom%20SaaS/src/components/feedback/ModalQuizTesteur.tsx))** :
 >      - Trophée d'or scintillant 🏆 avec halo animé violet/ambre.

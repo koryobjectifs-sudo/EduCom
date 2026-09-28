@@ -79,34 +79,23 @@ export default function IncitationQuizTesteur({
       localStorage.setItem("educom_quiz_first_seen_ts", String(Date.now()));
     }
 
-    // 5. Suivi du temps d'activité
-    // Déclenchement automatique au bout de 20 minutes (1200000ms),
-    // ou si l'utilisateur revient après 24h
-    const now = Date.now();
-    const firstSeenTs = Number(firstSeen || now);
-    const tempsPasseMinutes = (now - firstSeenTs) / (1000 * 60);
+    // 5. Déclenchement automatique chaque minute (60 secondes)
+    const timer = setTimeout(() => {
+      // Vérifier à nouveau avant d'afficher
+      const isCompleted = localStorage.getItem("educom_quiz_completed");
+      const snoozed = localStorage.getItem("educom_quiz_snoozed_until");
+      if (isCompleted !== "true" && (!snoozed || Date.now() >= Number(snoozed))) {
+        setIsVisible(true);
+      }
+    }, 60000);
 
-    // Si l'utilisateur est présent depuis plus de 20 minutes ou s'il s'est connecté hier
-    if (tempsPasseMinutes >= 20) {
-      // Petite temporisation douce à l'arrivée sur la page
-      const timer = setTimeout(() => {
-        setIsVisible(true);
-      }, 4000);
-      return () => clearTimeout(timer);
-    } else {
-      // Sinon, on programme un timer doux pour afficher après les 20 minutes restantes
-      const tempsRestantMs = Math.max(5000, (20 - tempsPasseMinutes) * 60 * 1000);
-      const timer = setTimeout(() => {
-        setIsVisible(true);
-      }, tempsRestantMs);
-      return () => clearTimeout(timer);
-    }
+    return () => clearTimeout(timer);
   }, [pathname]);
 
-  const handleSnooze = (dureeHeures: number = 24) => {
+  const handleSnooze = (dureeMinutes: number = 1) => {
     setIsVisible(false);
     if (typeof window !== "undefined") {
-      const expiration = Date.now() + dureeHeures * 60 * 60 * 1000;
+      const expiration = Date.now() + dureeMinutes * 60 * 1000;
       localStorage.setItem("educom_quiz_snoozed_until", String(expiration));
     }
   };
@@ -139,9 +128,9 @@ export default function IncitationQuizTesteur({
         {/* Bouton fermeture croix net en haut à droite */}
         <button
           type="button"
-          onClick={() => handleSnooze(24)}
+          onClick={() => handleSnooze(1)}
           className="absolute top-4 right-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-          title="Fermer pour aujourd'hui"
+          title="Rappeler plus tard"
           aria-label="Fermer l'invitation"
         >
           <X className="h-4 w-4" />
@@ -173,11 +162,11 @@ export default function IncitationQuizTesteur({
         <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
           <button
             type="button"
-            onClick={() => handleSnooze(24)}
+            onClick={() => handleSnooze(1)}
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer px-2 py-1 rounded-lg hover:bg-slate-100"
           >
             <Clock className="h-3.5 w-3.5" />
-            <span>Rappeler demain</span>
+            <span>Plus tard (1 min)</span>
           </button>
 
           <div className="flex items-center gap-2">
